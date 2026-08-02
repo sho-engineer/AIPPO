@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "aippo-backend"
 version = "0.1.0"
@@ -17,6 +21,11 @@ dev = [
     "pytest-django>=4.8",
     "ruff>=0.6",
 ]
+
+# apps と config の2つがトップレベルにあるため、自動検出（flat-layout）は失敗する。
+# 対象パッケージを明示する。
+[tool.setuptools.packages.find]
+include = ["apps*", "config*"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.settings"

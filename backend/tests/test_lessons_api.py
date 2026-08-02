@@ -125,7 +125,10 @@ class TestRewriteTextGenerate:
 
     @pytest.mark.parametrize(
         "error,expected_status",
-        [(AiProviderError("down"), AttemptStatus.FAILED), (AiTimeoutError("slow"), AttemptStatus.TIMEOUT)],
+        [
+            (AiProviderError("down"), AttemptStatus.FAILED),
+            (AiTimeoutError("slow"), AttemptStatus.TIMEOUT),
+        ],
         ids=["provider_error", "timeout"],
     )
     def test_ai_failure_returns_502_and_records_attempt(
@@ -314,7 +317,12 @@ def test_lesson_completes_with_stub_provider(api_client, learner_key, settings):
     client = _client_with_key(api_client, learner_key)
 
     # 1回目
-    assert client.post(reverse("rewrite-text-generate"), VALID_REQUEST, format="json").status_code == 200
+    assert (
+        client.post(
+            reverse("rewrite-text-generate"), VALID_REQUEST, format="json"
+        ).status_code
+        == 200
+    )
     # 改善
     assert (
         client.post(
