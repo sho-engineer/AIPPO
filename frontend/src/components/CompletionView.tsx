@@ -133,7 +133,7 @@ export function CompletionView({
 
       <section className="mt-10 rounded-2xl bg-neutral-50 p-5">
         <h3 className="text-sm font-bold">最後に、4つだけ教えてください</h3>
-        <p className="mt-1 text-xs text-neutral-500">
+        <p className="mt-1 text-xs text-neutral-600">
           今後の改善に使います。答えなくても大丈夫です。
         </p>
 

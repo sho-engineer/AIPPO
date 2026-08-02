@@ -4,7 +4,11 @@ AI障害時も HTTP 200 とフォールバック内容を返す。
 エラーをユーザーへ露出しない（AIPPO 開発概要 §17）。
 
 実行回数の上限を超えた場合のみ 429 を返す。上限は課金事故を防ぐためのもの。
+ただし1日あたりの上限（接続元・全体）に達したときは、
+AI を呼ばずに固定ヒントを 200 で返す。ポーが黙ってもレッスンは進む。
 """
+
+import logging
 
 from django.conf import settings
 from rest_framework import status
@@ -19,9 +23,16 @@ from apps.lessons.models import (
     LearningSession,
     TutorOrigin,
 )
+from apps.lessons.services.quota import (
+    QuotaExceeded,
+    consume_ai_run,
+)
+from apps.tutor.fallbacks import fallback_feedback
 from apps.tutor.serializers import TutorFeedbackRequestSerializer
 from apps.tutor.services.feedback import FeedbackResult, generate_feedback
 from apps.tutor.services.provider import get_provider
+
+logger = logging.getLogger(__name__)
 
 
 class TutorFeedbackView(APIView):
@@ -46,12 +57,24 @@ class TutorFeedbackView(APIView):
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
 
-        result = generate_feedback(
-            step=data["step"],
-            user_input=data["user_input"],
-            attempt_count=data["attempt_count"],
-            provider=get_provider(),
-        )
+        # 1日あたりの上限に達したら、AI は呼ばずに固定ヒントで返す。
+        # ポーは助言役なので、ここで止めるとレッスン全体が止まってしまう
+        # （憲章 原則 III）。利用料は増やさず、学習は続けられる形にする。
+        try:
+            consume_ai_run(request)
+        except QuotaExceeded as exc:
+            result = FeedbackResult(
+                fallback_feedback(data["step"], data["attempt_count"]),
+                origin=TutorOrigin.FALLBACK,
+            )
+            logger.info("tutor.quota.exceeded scope=%s", exc.scope)
+        else:
+            result = generate_feedback(
+                step=data["step"],
+                user_input=data["user_input"],
+                attempt_count=data["attempt_count"],
+                provider=get_provider(),
+            )
 
         if session is not None:
             self._record(session, data, result)

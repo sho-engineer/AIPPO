@@ -8,6 +8,9 @@
 
 import { apiBaseUrl } from "./config";
 
+/** 画面に出す既定の文言。専門用語を出さない（憲章 原則 I）。 */
+export const GENERIC_ERROR = "うまく届かなかったようです。もう一度おくってみましょう。";
+
 export class LessonApiError extends Error {
   constructor(
     message: string,
@@ -15,6 +18,19 @@ export class LessonApiError extends Error {
   ) {
     super(message);
     this.name = "LessonApiError";
+  }
+}
+
+/**
+ * 流し込みが使えない環境であることを表す。
+ *
+ * これは学習者の失敗ではないので、画面には出さず、
+ * 呼び出し側が通常の生成へ黙って倒す。
+ */
+export class StreamUnsupportedError extends Error {
+  constructor() {
+    super("streaming is not available");
+    this.name = "StreamUnsupportedError";
   }
 }
 
@@ -45,14 +61,11 @@ async function request<T>(
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     // サーバー未起動・CORS 拒否はここに落ちる。画面には出ない原因なので必ず記録する。
     console.error(`APIに届きませんでした: ${url}`, error);
-    throw new LessonApiError(
-      "うまく届かなかったようです。もう一度おくってみましょう。",
-      0,
-    );
+    throw new LessonApiError(GENERIC_ERROR, 0);
   }
 
   if (!response.ok) {
-    let detail = "うまく届かなかったようです。もう一度おくってみましょう。";
+    let detail = GENERIC_ERROR;
     try {
       const body = await response.json();
       detail = body?.errors?.detail?.[0] ?? detail;
@@ -86,6 +99,119 @@ export async function rewriteText(
     signal,
   );
   return body.rewritten_text;
+}
+
+/**
+ * 書けたところから受け取りながら文章を書き直す。
+ *
+ * 待ち時間はほぼすべてAIの応答待ちなので、途中から見せると体感が変わる。
+ * この経路が使えないとき（古い環境、途中で溜め込むプロキシ、
+ * ストリーミング非対応のAI）は、呼び出し側が `rewriteText()` へ倒す。
+ *
+ * @param onChunk 断片が届くたびに、そこまでの全文で呼ばれる
+ * @returns 書き終わった全文
+ */
+export async function rewriteTextStreaming(
+  input: RewriteTextRequest,
+  onChunk: (textSoFar: string) => void,
+  signal?: AbortSignal,
+): Promise<string> {
+  const url = `${apiBaseUrl()}/api/lessons/rewrite-text/stream/`;
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      credentials: "include",
+      signal,
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      body: JSON.stringify({
+        original_text: input.originalText,
+        audience: input.audience,
+        tone: input.tone,
+        length: input.length,
+        instruction: input.instruction ?? "",
+        step: input.step ?? "FIRST_INPUT",
+      }),
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    console.error(`APIに届きませんでした: ${url}`, error);
+    throw new LessonApiError(GENERIC_ERROR, 0);
+  }
+
+  // この経路そのものが無い／使えない場合は、通常の生成へ倒す合図を出す。
+  // 400・429・503 は「断られた」であって使えないわけではないので、ここには来ない。
+  const isEventStream = (response.headers.get("Content-Type") ?? "").includes(
+    "text/event-stream",
+  );
+  if (!response.body || !isEventStream) {
+    throw new StreamUnsupportedError();
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+  let finished = false;
+
+  // 断り（400 / 429 / 503）も同じ形式で流れてくる。
+  // ここでは本文と同じ読み方をして、error イベントを見て投げ分ける。
+  while (!finished) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    // 1件は空行で区切られる。最後の欠けた分は次回へ持ち越す。
+    const blocks = buffer.split("\n\n");
+    buffer = blocks.pop() ?? "";
+
+    for (const block of blocks) {
+      const parsed = parseEvent(block);
+      if (!parsed) continue;
+
+      if (parsed.name === "chunk" && typeof parsed.data.text === "string") {
+        text += parsed.data.text;
+        onChunk(text);
+      } else if (parsed.name === "done") {
+        if (typeof parsed.data.text === "string") text = parsed.data.text;
+        finished = true;
+      } else if (parsed.name === "error") {
+        const message =
+          typeof parsed.data.message === "string" ? parsed.data.message : GENERIC_ERROR;
+        throw new LessonApiError(message, response.status);
+      }
+    }
+  }
+
+  if (!finished || !text.trim()) {
+    // 書き終わりの合図が来ないまま切れた。中途半端な文章は結果にしない。
+    if (text.length === 0) {
+      // 一文字も届かなかった。途中で溜め込むプロキシの疑いがあるので、
+      // 通常の生成へ倒す。まだ何も実行されていないので、やり直しても損はない。
+      throw new StreamUnsupportedError();
+    }
+    // 途中までは届いていた。ここでやり直すとAIをもう一度呼ぶことになり、
+    // 学習者の実行回数と利用料を二重に使ってしまうので、倒さずに失敗を伝える。
+    throw new LessonApiError(GENERIC_ERROR, response.status);
+  }
+  return text;
+}
+
+function parseEvent(block: string): { name: string; data: Record<string, unknown> } | null {
+  let name = "";
+  let raw = "";
+  for (const line of block.split("\n")) {
+    if (line.startsWith("event: ")) name = line.slice(7);
+    else if (line.startsWith("data: ")) raw = line.slice(6);
+  }
+  if (!name) return null;
+
+  try {
+    return { name, data: raw ? JSON.parse(raw) : {} };
+  } catch {
+    return null;
+  }
 }
 
 export interface LearningEventInput {

@@ -16,6 +16,15 @@ export interface StubOptions {
   feedback?: Partial<TutorFeedbackBody>;
   /** 再訪時の到達ステップ。 */
   resumeStep?: string | null;
+  /**
+   * 流し込みを使えなくする（既定は使える）。
+   *
+   * 古い環境や、途中で溜め込むプロキシの下では流し込みが成立しない。
+   * そのとき通常の生成へ黙って倒れるかを確かめるために使う。
+   */
+  streaming?: false;
+  /** 1回に流す文字数。分割して届くことを確かめるために使う。 */
+  streamChunkSize?: number;
 }
 
 export interface RewriteBody {
@@ -61,6 +70,46 @@ export async function stubApi(
       contentType: "application/json",
       body: JSON.stringify(body),
     });
+
+  // 書けたところから流す経路。画面はまずこちらを試す。
+  await page.route("**/api/lessons/rewrite-text/stream/", async (route) => {
+    if (options.streaming === false) {
+      // 流し込みが成立しない環境の再現。
+      // 本体が読めない応答を返し、画面が通常の生成へ倒れることを確かめる。
+      return route.fulfill({ status: 501, body: "" });
+    }
+
+    const body = route.request().postDataJSON() as RewriteBody;
+    handle.rewriteCalls.push(body);
+
+    if (options.rewriteStatus && options.rewriteStatus >= 400) {
+      return route.fulfill({
+        status: options.rewriteStatus,
+        contentType: "text/event-stream",
+        body: sse("error", {
+          message: "うまく届かなかったようです。もう一度おくってみましょう。",
+        }),
+      });
+    }
+
+    const text = options.rewrite
+      ? options.rewrite(handle.rewriteCalls.length, body)
+      : defaultRewrite(handle.rewriteCalls.length, body);
+
+    const size = options.streamChunkSize ?? 6;
+    let payload = "";
+    for (let i = 0; i < text.length; i += size) {
+      payload += sse("chunk", { text: text.slice(i, i + size) });
+    }
+    payload += sse("done", { text });
+
+    return route.fulfill({
+      status: 200,
+      contentType: "text/event-stream",
+      headers: { "Cache-Control": "no-cache", "X-Accel-Buffering": "no" },
+      body: payload,
+    });
+  });
 
   await page.route("**/api/lessons/rewrite-text/generate/", async (route) => {
     const body = route.request().postDataJSON() as RewriteBody;
@@ -109,6 +158,11 @@ export async function stubApi(
   });
 
   return handle;
+}
+
+/** SSE の1件分。改行の扱いを間違えると受け手が読めなくなる。 */
+function sse(name: string, data: unknown): string {
+  return `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
 function defaultRewrite(callCount: number, body: RewriteBody): string {

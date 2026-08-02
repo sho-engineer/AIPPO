@@ -92,7 +92,47 @@ AI を使わない固定レスポンスで通しの導線が動きます。
 
 ---
 
-## セットアップ
+## 動かす（まとめて）
+
+```bash
+cp .env.docker.example .env
+# .env の DJANGO_SECRET_KEY と POSTGRES_PASSWORD を埋める
+#   python -c "import secrets; print(secrets.token_urlsafe(48))"
+
+docker compose up --build
+```
+
+| | 場所 |
+| --- | --- |
+| 画面 | http://localhost:5173 |
+| 管理画面 | http://localhost:8000/admin/ （`createsuperuser` が必要） |
+| 死活監視 | `/healthz`（DBを見ない） `/readyz`（DBを見る） |
+
+管理者を作る:
+
+```bash
+docker compose exec backend python manage.py createsuperuser
+```
+
+`AI_PROVIDER=stub` のままでもレッスンは完走できるので、APIキー無しで試せます。
+
+### 公開するときに必ず確認すること
+
+- `DJANGO_SECRET_KEY` を50文字以上の乱数にする（開発用のままだと**起動しません**）
+- `DJANGO_ALLOWED_HOSTS` に実際のドメインを入れる（未設定だと**起動しません**）
+- `SECURE_SSL_REDIRECT=true` に戻す
+- ロードバランサ配下に置くなら `TRUST_FORWARDED_FOR=true`
+  （設定しないと、接続元単位の実行回数の上限が全員まとめて数えられます）
+- `AI_RUNS_PER_DAY` を予算に合わせる。**これが最後の安全弁**です
+
+```bash
+# 設定の抜けを Django 自身に検査させる
+docker compose exec backend python manage.py check --deploy
+```
+
+---
+
+## セットアップ（開発）
 
 ### バックエンド（Django REST）
 
@@ -118,12 +158,21 @@ npm run dev          # http://localhost:5173
 ### テスト
 
 ```bash
-cd backend  && uv run pytest        # 58 tests
-cd frontend && npm run test         # 80 tests
-cd frontend && npm run test:e2e     # Playwright（AI はスタブ応答）
+cd backend  && uv run pytest        # 112 tests
+cd frontend && npm run test         # 86 tests
+cd frontend && npm run test:e2e     # Playwright 52（PC・スマートフォンの2画面）
 ```
 
-E2E は **PC（Chrome）と スマートフォン（Pixel 5）の2画面** で回します。
+E2E には次の3種類が入っています。
+
+| ファイル | 何を見るか |
+| --- | --- |
+| `e2e/lesson.spec.ts` | 通しの導線。APIはスタブに差し替える |
+| `e2e/a11y.spec.ts` | アクセシビリティ（WCAG 2.1 A/AA の自動検査） |
+| `e2e/exploratory.spec.ts` | 本物のバックエンドに当てる探索テスト |
+
+本番と同じビルド成果物に当てたいときは `E2E_TARGET=build` を付けます。
+開発サーバーでしか見ないと、ビルドしたときだけ壊れるものを取りこぼします。
 
 #### 探索テスト（本物のバックエンドに当てる）
 
@@ -131,8 +180,11 @@ E2E は **PC（Chrome）と スマートフォン（Pixel 5）の2画面** で�
 スタブでは見つからない不具合（接続先のずれ・Cookie・同時実行・重なり）を拾うためのものです。
 
 ```bash
-# 別のターミナルで Django を起動しておく
-cd backend && uv run python manage.py runserver 127.0.0.1:8000
+# 別のターミナルで Django を起動しておく。
+# テストは全部おなじ接続元から来るので、接続元単位の上限は外す
+# （付けたままだと、テストが上限に当たって壊れたように見えます）。
+cd backend && AI_RUNS_PER_IP_PER_DAY=0 AI_RUNS_PER_DAY=0 \
+  uv run python manage.py runserver 127.0.0.1:8000
 
 cd frontend && npm run test:e2e
 ```

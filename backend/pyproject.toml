@@ -13,6 +13,11 @@ dependencies = [
     "django-cors-headers>=4.4",
     "python-dotenv>=1.0",
     "anthropic>=0.116",
+    # 本番運用
+    "gunicorn>=22.0",
+    "whitenoise[brotli]>=6.7",
+    "dj-database-url>=2.2",
+    "psycopg[binary]>=3.2",
 ]
 
 [project.optional-dependencies]

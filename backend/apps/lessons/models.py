@@ -189,6 +189,35 @@ class SkillProgress(models.Model):
         ordering = ["acquired_at"]
 
 
+class AiUsageCounter(models.Model):
+    """AI実行回数の日次カウンタ（AI利用料の暴走を止めるため）。
+
+    セッション単位の上限だけでは、Cookie を消すたびに新しいセッションになり
+    いくらでも実行できてしまう。公開すると利用料が青天井になるため、
+    **接続元単位** と **全体** の1日あたり上限をここで数える。
+
+    憲章 原則 VI（個人データは最小限）に従い、**IPアドレスそのものは保存しない**。
+    SECRET_KEY を鍵にした HMAC の値だけを持つ。
+    元のIPは復元できず、同じIPかどうかの判定にだけ使える。
+    """
+
+    #: 全体の上限に使う固定スコープ。
+    GLOBAL_SCOPE = "global"
+
+    scope = models.CharField(max_length=64, help_text="global、またはIPのHMAC")
+    date = models.DateField()
+    count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["scope", "date"], name="uniq_ai_usage_scope_date")
+        ]
+        indexes = [models.Index(fields=["date"])]
+
+    def __str__(self) -> str:
+        return f"{self.date} {self.scope[:12]} = {self.count}"
+
+
 class Survey(models.Model):
     """完了時の簡易アンケート（AIPPO 開発概要 §11）。
 

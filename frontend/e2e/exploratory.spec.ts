@@ -9,6 +9,14 @@ import { expect, test, type ConsoleMessage, type Page } from "@playwright/test";
  *
  * 実行前に Django を http://127.0.0.1:8000 で起動しておくこと。
  * バックエンドが居ないときは自動でスキップする。
+ *
+ * テストは全部おなじ接続元から来るため、接続元単位の上限は外して起動する。
+ *
+ *   AI_RUNS_PER_IP_PER_DAY=0 AI_RUNS_PER_DAY=0 python manage.py runserver 127.0.0.1:8000
+ *
+ * 付けたままだと、テストを増やしたときに上限へ当たり、
+ * アプリが壊れたように見える。上限そのものは
+ * backend/tests/test_ai_quota.py で確かめている。
  */
 
 const API = "http://127.0.0.1:8000";
@@ -88,6 +96,58 @@ test.describe("探索テスト（本物のバックエンド）", () => {
     await expect(page.getByTestId("completion-view")).toBeVisible();
 
     expect(problems, `コンソールに問題が出た:\n${problems.join("\n")}`).toEqual([]);
+  });
+
+  test("本物のバックエンドから文章が分割して届く", async ({ page }) => {
+    // まとめて届くなら、待ち時間の体感は変わらない。
+    // スタブでは分割を作り込めてしまうので、ここは本物で確かめる。
+    const res = await page.request.post(
+      `${API}/api/lessons/rewrite-text/stream/`,
+      {
+        // ブラウザが SSE を読むときに送るヘッダ。
+        // これを受け付けないと、ブラウザからだけ 406 で弾かれる。
+        headers: { Accept: "text/event-stream" },
+        data: {
+          original_text: "分割して届くかの確認です。",
+          audience: "社外のお客様",
+          tone: "ていねいに",
+          length: "3行くらい",
+        },
+      },
+    );
+
+    expect(res.status(), "ブラウザが送る Accept で弾かれている").toBe(200);
+    expect(res.headers()["content-type"]).toContain("text/event-stream");
+    expect(res.headers()["x-accel-buffering"], "途中で溜め込まれる恐れがある").toBe(
+      "no",
+    );
+
+    const body = await res.text();
+    const chunks = (body.match(/event: chunk/g) ?? []).length;
+    expect(chunks, "1回でまとめて届いている").toBeGreaterThan(1);
+    expect(body).toContain("event: done");
+  });
+
+  test("画面が流し込みの経路を実際に使っている", async ({ page }) => {
+    // 使われていなければ、毎回むだな往復をしてから通常の生成へ倒れている。
+    const streamRequests: number[] = [];
+    page.on("response", (res) => {
+      if (res.url().includes("/rewrite-text/stream/")) {
+        streamRequests.push(res.status());
+      }
+    });
+
+    await openLesson(page);
+    await page.getByTestId("primary-action").click();
+    await page.getByRole("button", { name: "仕事のメール" }).click();
+    await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
+    await page.getByRole("button", { name: "ていねいに", exact: true }).click();
+    await page.getByRole("button", { name: "3行くらい", exact: true }).click();
+    await page.getByTestId("primary-action").click();
+
+    await expect(page.getByTestId("run-1")).toBeVisible({ timeout: 15_000 });
+    expect(streamRequests, "流す経路が呼ばれていない").not.toHaveLength(0);
+    expect(streamRequests.every((s) => s === 200), "弾かれている").toBe(true);
   });
 
   test("learner_key の Cookie が発行され、再訪で引き継がれる", async ({ page }) => {

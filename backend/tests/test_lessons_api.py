@@ -317,12 +317,8 @@ def test_lesson_completes_with_stub_provider(api_client, learner_key, settings):
     client = _client_with_key(api_client, learner_key)
 
     # 1回目
-    assert (
-        client.post(
-            reverse("rewrite-text-generate"), VALID_REQUEST, format="json"
-        ).status_code
-        == 200
-    )
+    first = client.post(reverse("rewrite-text-generate"), VALID_REQUEST, format="json")
+    assert first.status_code == 200
     # 改善
     assert (
         client.post(

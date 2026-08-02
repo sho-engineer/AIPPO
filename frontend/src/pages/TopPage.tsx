@@ -15,10 +15,10 @@ export type TopPageProps = {
 export function TopPage({ onStart }: TopPageProps) {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16 pb-48 sm:pb-16">
-      <p className="text-sm tracking-[0.3em] text-neutral-500">
+      <p className="text-sm tracking-[0.3em] text-neutral-600">
         {BRAND.name}
       </p>
-      <p className="mt-1 text-xs text-neutral-400">{BRAND.reading}</p>
+      <p className="mt-1 text-xs text-neutral-600">{BRAND.reading}</p>
 
       <h1 className="mt-8 text-2xl font-bold leading-relaxed sm:text-3xl">
         {BRAND.headline}
@@ -36,11 +36,11 @@ export function TopPage({ onStart }: TopPageProps) {
         はじめる
       </button>
 
-      <p className="mt-4 text-xs text-neutral-500">
+      <p className="mt-4 text-xs text-neutral-600">
         3つの質問に答えるだけ。登録は必要ありません。
       </p>
 
-      <p className="mt-16 text-xs tracking-wide text-neutral-400">
+      <p className="mt-16 text-xs tracking-wide text-neutral-600">
         {BRAND.tagline}
       </p>
 

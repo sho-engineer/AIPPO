@@ -85,7 +85,7 @@ export function DiagnosisPage({ onSelectLesson }: DiagnosisPageProps) {
                   これを試す
                 </button>
               ) : (
-                <p className="mt-4 text-xs text-neutral-400">
+                <p className="mt-4 text-xs text-neutral-600">
                   {DIAGNOSIS_COPY.comingSoon}
                 </p>
               )}
@@ -115,7 +115,7 @@ export function DiagnosisPage({ onSelectLesson }: DiagnosisPageProps) {
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-12 pb-48 sm:pb-12">
-      <p className="text-xs text-neutral-500">
+      <p className="text-xs text-neutral-600">
         {DIAGNOSIS_COPY.progress(currentNumber, DIAGNOSIS_QUESTIONS.length)}
       </p>
       <h1 className="mt-2 text-xl font-bold">{DIAGNOSIS_COPY.title}</h1>

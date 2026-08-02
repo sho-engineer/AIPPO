@@ -29,3 +29,8 @@ test-results/
 
 # TypeScript build info
 *.tsbuildinfo
+
+# 本番用の実際の値（.env.docker.example のみコミットする）
+/.env
+backend/staticfiles/
+test_db.sqlite3

@@ -21,7 +21,27 @@ function deferred(): Deferred {
 }
 
 const jsonResponse = (body: unknown) =>
-  ({ ok: true, status: 200, json: async () => body }) as unknown as Response;
+  ({
+    ok: true,
+    status: 200,
+    headers: new Headers({ "Content-Type": "application/json" }),
+    json: async () => body,
+  }) as unknown as Response;
+
+/**
+ * 流し込みが使えない環境の応答。
+ *
+ * ここでは通常の生成へ倒れたあとの挙動を見たいので、
+ * 流し込みは使えない前提にしておく（倒れること自体は E2E で確かめている）。
+ */
+const streamUnavailable = () =>
+  ({
+    ok: false,
+    status: 501,
+    headers: new Headers({ "Content-Type": "text/plain" }),
+    body: null,
+    json: async () => ({}),
+  }) as unknown as Response;
 
 const INPUT = {
   audience: "社外のお客様",
@@ -42,6 +62,9 @@ describe("useLesson の実行制御", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
+        if (url.includes("/api/lessons/rewrite-text/stream/")) {
+          return streamUnavailable();
+        }
         if (url.includes("/api/lessons/rewrite-text/generate/")) {
           rewriteCount += 1;
           return jsonResponse({ rewritten_text: `結果${rewriteCount}` });
@@ -60,7 +83,12 @@ describe("useLesson の実行制御", () => {
         if (url.includes("/api/lessons/") && url.includes("/session/")) {
           return jsonResponse({ session: null });
         }
-        return { ok: true, status: 204, json: async () => ({}) } as unknown as Response;
+        return {
+          ok: true,
+          status: 204,
+          headers: new Headers(),
+          json: async () => ({}),
+        } as unknown as Response;
       }),
     );
   });
@@ -124,6 +152,9 @@ describe("useLesson の実行制御", () => {
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
+        if (url.includes("/rewrite-text/stream/")) {
+          return streamUnavailable();
+        }
         if (url.includes("/session/")) {
           await pendingSession.promise;
           return jsonResponse({
@@ -138,7 +169,12 @@ describe("useLesson の実行制御", () => {
             },
           });
         }
-        return { ok: true, status: 204, json: async () => ({}) } as unknown as Response;
+        return {
+          ok: true,
+          status: 204,
+          headers: new Headers(),
+          json: async () => ({}),
+        } as unknown as Response;
       }),
     );
 

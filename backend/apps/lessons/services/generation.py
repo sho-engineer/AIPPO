@@ -9,11 +9,17 @@
 
 import logging
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 from django.conf import settings
 
-from apps.tutor.services.base import AiProvider, AiProviderError, AiTimeoutError
+from apps.tutor.services.base import (
+    AiProvider,
+    AiProviderError,
+    AiTimeoutError,
+    StreamingAiProvider,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +109,66 @@ def rewrite_text(
     )
 
 
+def rewrite_text_stream(
+    *,
+    original_text: str,
+    audience: str,
+    tone: str,
+    length: str,
+    instruction: str = "",
+    provider: AiProvider,
+) -> Iterator[str | GenerationResult]:
+    """文章を書き直しながら、書けたところから順に返す。
+
+    学習者の待ち時間はほぼすべてAIの応答待ち。
+    書き上がるまで黙って待たせるより、途中から見せたほうが体感が変わる。
+
+    本文の断片を順に yield し、**最後に一度だけ** `GenerationResult` を返す。
+    呼び出し側は型で区別すること。
+
+    ストリーミングに対応していないプロバイダのときは `NotImplementedError`。
+    呼び出し側は `rewrite_text()` へ倒す。
+    """
+    if not isinstance(provider, StreamingAiProvider):
+        raise NotImplementedError("provider does not support streaming")
+
+    user_content = build_instruction(
+        original_text=original_text,
+        audience=audience,
+        tone=tone,
+        length=length,
+        instruction=instruction,
+    )
+
+    meta: dict = {}
+    parts: list[str] = []
+    started = time.monotonic()
+
+    for chunk in provider.stream_text(
+        system_prompt=SYSTEM_PROMPT,
+        user_content=user_content,
+        timeout_seconds=settings.LESSON_RUN_TIMEOUT_SECONDS,
+        meta_out=meta,
+    ):
+        if chunk:
+            parts.append(chunk)
+            yield chunk
+
+    latency_ms = int((time.monotonic() - started) * 1000)
+    text = "".join(parts).strip()
+
+    if not text:
+        logger.warning("lesson.stream.empty_output")
+        raise AiProviderError("AI returned empty text")
+
+    yield GenerationResult(
+        text=text,
+        model_name=meta.get("model_name", ""),
+        token_usage=meta.get("token_usage", {}),
+        latency_ms=latency_ms,
+    )
+
+
 __all__ = [
     "AiProviderError",
     "AiTimeoutError",
@@ -110,4 +176,5 @@ __all__ = [
     "REWRITE_SCHEMA",
     "build_instruction",
     "rewrite_text",
+    "rewrite_text_stream",
 ]

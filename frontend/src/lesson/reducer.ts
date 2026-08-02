@@ -41,6 +41,13 @@ export interface LessonState {
   attemptCount: number;
   tutor: TutorMessage;
   isSubmitting: boolean;
+  /**
+   * 書きかけの文章。AIが書いている途中だけ中身が入る。
+   *
+   * 待ち時間はほぼすべてAIの応答待ちなので、書けたところから見せる。
+   * 書き終わったら `runs` へ移して、ここは空に戻す。
+   */
+  streamingText: string;
   error: string | null;
 }
 
@@ -52,6 +59,7 @@ export type LessonAction =
   | { type: "SET_REAL_TASK"; text: string }
   | { type: "SELECT_IMPROVEMENT"; improvementId: string }
   | { type: "SUBMIT" }
+  | { type: "STREAM_CHUNK"; textSoFar: string }
   | {
       type: "RUN_SUCCEEDED";
       label: string;
@@ -79,6 +87,7 @@ export const initialLessonState: LessonState = {
   attemptCount: 0,
   tutor: DEFAULT_POE,
   isSubmitting: false,
+  streamingText: "",
   error: null,
 };
 
@@ -117,6 +126,11 @@ export function lessonReducer(
       return { ...state, improvementId: action.improvementId };
     case "SET_TUTOR":
       return { ...state, tutor: action.tutor };
+    case "STREAM_CHUNK":
+      // 書きかけを見せるだけ。進行は動かさない（憲章 原則 III）。
+      // 実行中でないときに届いたものは、追い越された古い実行なので捨てる。
+      if (!state.isSubmitting) return state;
+      return { ...state, streamingText: action.textSoFar };
     case "RESUME":
       return {
         ...state,
@@ -153,6 +167,8 @@ export function lessonReducer(
         returnTo: isSubmittable(state.step) ? state.step : state.returnTo,
         attemptCount: state.attemptCount + 1,
         isSubmitting: true,
+        // 前回の書きかけを残すと、今回の結果と見分けがつかない
+        streamingText: "",
         error: null,
         tutor: THINKING_POE,
       };
@@ -162,6 +178,8 @@ export function lessonReducer(
         ...state,
         step: target,
         isSubmitting: false,
+        // 書き終わったので、書きかけの表示は畳む
+        streamingText: "",
         error: null,
         runs: [
           ...state.runs,
@@ -180,6 +198,8 @@ export function lessonReducer(
         ...state,
         step: target, // returnTo（入力内容は保持されたまま）
         isSubmitting: false,
+        // 途中で切れた文章を結果として残さない
+        streamingText: "",
         error: action.message,
       };
 

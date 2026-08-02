@@ -32,6 +32,11 @@ from apps.lessons.services.generation import (
     AiTimeoutError,
     rewrite_text,
 )
+from apps.lessons.services.quota import (
+    QuotaExceeded,
+    consume_ai_run,
+    limit_message,
+)
 from apps.tutor.services.provider import get_provider
 
 logger = logging.getLogger(__name__)
@@ -83,6 +88,20 @@ class RewriteTextGenerateView(_SessionMixin, APIView):
                     }
                 },
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        # Cookie を消せばセッション上限は回避できてしまう。
+        # 接続元と全体の1日あたり上限で、AI利用料の暴走を止める。
+        try:
+            consume_ai_run(request)
+        except QuotaExceeded as exc:
+            return Response(
+                {"errors": {"detail": [limit_message(exc)]}},
+                status=(
+                    status.HTTP_503_SERVICE_UNAVAILABLE
+                    if exc.is_global
+                    else status.HTTP_429_TOO_MANY_REQUESTS
+                ),
             )
 
         sequence = session.attempts.count() + 1

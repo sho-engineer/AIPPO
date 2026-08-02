@@ -166,6 +166,41 @@ test.describe("最初のレッスンを通しで完走する", () => {
   });
 });
 
+test.describe("待ち時間の見せ方", () => {
+  test("書けたところから文章が出る", async ({ page }) => {
+    // わざと細かく刻んで、書き終わる前の状態を捉えられるようにする
+    await stubApi(page, {
+      streamChunkSize: 2,
+      rewrite: () => "書き直した文章がここに入ります。".repeat(4),
+    });
+    await goToLesson(page);
+
+    await page.getByTestId("primary-action").click();
+    await page.getByRole("button", { name: "仕事のメール" }).click();
+    await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
+    await page.getByRole("button", { name: "ていねいに", exact: true }).click();
+    await page.getByRole("button", { name: "3行くらい", exact: true }).click();
+    await page.getByTestId("primary-action").click();
+
+    // 書き終わったら結果の比較に切り替わり、書きかけは畳まれる
+    await expect(page.getByTestId("result-compare")).toBeVisible();
+    await expect(page.getByTestId("streaming-text")).toBeHidden();
+    await expect(page.getByTestId("run-1")).toContainText("書き直した文章");
+  });
+
+  test("流し込みが使えない環境でも、結果は同じように出る", async ({ page }) => {
+    // 途中で溜め込むプロキシや古い環境を想定する。
+    // 学習者の失敗ではないので、画面にエラーを出してはいけない。
+    const stub = await stubApi(page, { streaming: false });
+    await goToLesson(page);
+    await runFirstGeneration(page);
+
+    await expect(page.getByTestId("result-compare")).toBeVisible();
+    await expect(page.getByRole("alert")).toHaveCount(0);
+    expect(stub.rewriteCalls).toHaveLength(1);
+  });
+});
+
 test.describe("迷わせない作りになっているか", () => {
   test("穴埋めが空のまま送ると、足りない項目を1つだけ示す", async ({ page }) => {
     const stub = await stubApi(page);

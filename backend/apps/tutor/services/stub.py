@@ -11,6 +11,9 @@ from apps.tutor.services.base import AiProvider
 
 STUB_META = {"model_name": "stub", "token_usage": {}}
 
+#: スタブが1回に返す文字数。本物のAIの刻みに近い程度の細かさにする。
+STREAM_CHUNK_SIZE = 8
+
 
 class StubProvider(AiProvider):
     def generate_json(
@@ -31,6 +34,26 @@ class StubProvider(AiProvider):
         payload = fallback_feedback("review_input", 1)
         payload["_meta"] = STUB_META
         return payload
+
+    def stream_text(
+        self,
+        *,
+        system_prompt: str,
+        user_content: str,
+        timeout_seconds: float,
+        meta_out: dict,
+    ):
+        """スタブでも少しずつ返す。
+
+        一度に返してしまうと、流し込みの経路がテストで通らず、
+        本物のAIに切り替えた瞬間に壊れていることに気づけない。
+        """
+        text = _stub_rewrite(user_content)
+        for index in range(0, len(text), STREAM_CHUNK_SIZE):
+            yield text[index : index + STREAM_CHUNK_SIZE]
+
+        meta_out["model_name"] = STUB_META["model_name"]
+        meta_out["token_usage"] = dict(STUB_META["token_usage"])
 
 
 def _stub_rewrite(user_content: str) -> str:
