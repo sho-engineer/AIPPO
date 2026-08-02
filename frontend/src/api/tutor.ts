@@ -8,7 +8,7 @@
 import type { TutorFeedback } from "../types/tutor";
 import { FALLBACK_TUTOR_MESSAGE } from "../content/ui";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+import { apiBaseUrl } from "./config";
 
 export interface TutorFeedbackRequest {
   lessonId: string;
@@ -30,7 +30,7 @@ export async function fetchTutorFeedback(
   signal?: AbortSignal,
 ): Promise<TutorFeedback> {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/poe/feedback/`, {
+    const response = await fetch(`${apiBaseUrl()}/api/tutor/feedback/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include", // learner_key Cookie を送る

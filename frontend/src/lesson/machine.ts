@@ -81,6 +81,14 @@ export function nextStep(
   returnTo: SubmittableStep,
 ): LessonStep {
   if (!canTransition(step, event)) return step;
+
+  // 実行が成功したときの行き先は、どこから送ったかで変わる。
+  // 例文での実行は結果を確認する画面へ、自分の文章での実行は
+  // その場で結果を見せて振り返りへ進ませる（AIPPO 開発概要 §10 Step 7-8）。
+  if (step === "GENERATING" && event === "RUN_SUCCEEDED") {
+    return returnTo === "REAL_TASK" ? "REAL_TASK" : "REVIEW_RESULT";
+  }
+
   return TRANSITIONS[step][event] ?? returnTo;
 }
 

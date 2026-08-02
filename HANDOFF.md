@@ -1,131 +1,147 @@
-# 引き継ぎメモ
+# AIPPO — 引き継ぎ
 
-このファイルは移設用の一時ドキュメント。**AIPPO へ push したら削除してよい。**
+このZIPは `https://github.com/sho-engineer/AIPPO` へ入れるための一式です。
+このセッションからは AIPPO へ push できなかったため（GitHub アクセスが
+`sho-engineer/tripix` に固定されており、リポジトリ追加には承認が必要）、
+ファイルの形でお渡しします。
 
-作成日: 2026-08-02
+**状態: MVP の完成条件（`docs/roadmap.md`）10項目をすべて満たしています。**
 
 ---
 
-## 1. これは何か
-
-**AIPPO（アイッポ）** — AI初心者向けハンズオン学習アプリ。
-「AIが気になる。でも、何をすればいいか分からない人へ。」
-
-前のチャットで「AIPPO 開発概要」を受け取り、§20 の依頼
-（設計と影響範囲を提示 → 段階的に実装）に沿って Phase 0〜1 を実装したもの。
-
-## 2. なぜ ZIP で渡されたか
-
-作業したセッションが `sho-engineer/Tripix` にスコープ固定されており、
-`sho-engineer/AIPPO` へ push できなかった。3経路すべて 403 または承認待ち:
-
-| 経路 | 結果 |
-| --- | --- |
-| `add_repo`（push権限） | 承認が必要。非対話セッションではダイアログを出せない |
-| git push（プロキシ経由） | 403 |
-| GitHub REST API | 403（Tripix でさえ 403。API 用トークンではない） |
-
-読み取り（clone）だけは可能で、AIPPO の状態は確認済み（下記 §6）。
-
-## 3. push の手順
-
-AIPPO の `main` には既に `Initial commit`（`# AIPPO` の1行 README）がある。
-このZIPの中身とは**履歴が繋がっていない**ため、そのままでは push できない。
-
-### 推奨: ブランチで push して PR を作る
+## 1. push する手順
 
 ```bash
-unzip aippo.zip -d AIPPO && cd AIPPO
-git init -b main
+# 1. AIPPO を clone する（まだ README しか入っていない状態を想定）
+git clone https://github.com/sho-engineer/AIPPO.git
+cd AIPPO
+
+# 2. このZIPの中身を展開して上書きする（HANDOFF.md は入れなくてよい）
+unzip -o /path/to/aippo.zip -d .
+rm -f HANDOFF.md
+
+# 3. コミットして push
 git add -A
-git commit -m "Initialize AIPPO: Spec Kit, MVP design, Phase 0-1"
-git remote add origin https://github.com/sho-engineer/AIPPO.git
-git fetch origin
-git checkout -b init-aippo
-git push -u origin init-aippo
+git commit -m "AIPPO MVP: レッスン1本の通し体験・ポー・操作ログ・E2E"
+git push -u origin main
 ```
 
-GitHub 上で `init-aippo` → `main` の PR を作成し、マージする。
-README が競合するので、このZIPの README を採用すること。
+`main` へ直接入れたくない場合は、`git switch -c feat/aippo-mvp` してから push してください。
 
-### 代替: main を上書きする
+---
 
-`main` は1行 README だけなので、履歴を捨ててよければこちらが簡単。
+## 2. 動かし方
+
+### バックエンド（Django REST）
 
 ```bash
-unzip aippo.zip -d AIPPO && cd AIPPO
-git init -b main
-git add -A
-git commit -m "Initialize AIPPO: Spec Kit, MVP design, Phase 0-1"
-git remote add origin https://github.com/sho-engineer/AIPPO.git
-git push -u --force origin main
+cd backend
+uv venv && uv pip install -e ".[dev]"
+cp .env.example .env
+uv run python manage.py migrate
+uv run python manage.py runserver 127.0.0.1:8000
 ```
 
-## 4. 現在地
+`.env` の `CORS_ALLOWED_ORIGINS` は **`http://localhost:5173,http://127.0.0.1:5173`
+の両方**を入れてください。片方だけだと、もう片方のホストで開いたときに
+通信が届かず、しかも画面には何も出ません（実際にこれで詰まりました）。
 
-| Phase | 状態 |
-| --- | --- |
-| 0. 改名・設計判断の反映 | ✅ 完了 |
-| 1. 画面モック | ✅ 完了 |
-| 2. レッスン状態管理 | 状態機械と画面遷移は完了。用途選択・穴埋め・結果比較の各コンポーネントが未着手 |
-| 3. AI文章生成 | 未着手 |
-| 4. ポーのフィードバック | API 実装済み |
-| 5. ログ取得 | モデルのみ。API 未着手 |
-| 6. E2Eテスト | 未着手 |
+### フロントエンド（React + Vite）
 
-**テスト**: backend 34 passed / frontend 77 passed / `tsc --noEmit` クリーン /
-`vite build` 成功。
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev          # http://localhost:5173
+```
 
-## 5. 確定済みの設計判断
+`AI_PROVIDER=stub` のままでも、レッスンは最後まで完走できます。
+本物の AI を使うときだけ `backend/.env` に以下を入れてください。
 
-「AIPPO 開発概要」を読んだうえで判断が必要だった5点。
-すべて推奨案で確定し、実装へ反映済み。詳細は `docs/aippo-mvp-design.md` §3.4。
+```
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=sk-ant-...
+AI_MODEL=claude-opus-5
+```
+
+---
+
+## 3. テスト
+
+```bash
+cd backend  && uv run pytest        # 58 件
+cd frontend && npm run test         # 80 件
+cd frontend && npm run test:e2e     # 30 件（PC・スマートフォンの2画面）
+```
+
+E2E のうち `e2e/exploratory.spec.ts` は **本物のバックエンド**に当てます。
+先に Django を `127.0.0.1:8000` で起動しておいてください
+（起動していなければ自動でスキップします）。
+
+CI（`.github/workflows/ci.yml`）は backend / frontend / e2e の3ジョブです。
+e2e ジョブは Django を起動して探索テストまで回します。APIキーは不要です。
+
+---
+
+## 4. 確定している設計判断
 
 | # | 論点 | 決定 |
 | --- | --- | --- |
-| Q-1 | AI活用診断の粒度 | **3問の選択式**に絞る。自由入力・スコアリングなし。`LearnerProfile` は §14 の6項目を定義しつつ MVP で埋めるのは3項目 |
-| Q-2 | 操作ログに入力全文を保存するか | **保存しない**。`LearningEvent` は文字数のみ。本文は `Attempt` 側 |
-| Q-3 | `User` モデル / ログインの要否 | **導入しない**。匿名 `learner_key`（HttpOnly Cookie, 90日） |
-| Q-4 | `hint_level:3` と100文字制限の衝突 | **段階3のみ150文字**まで許容 |
-| Q-5 | `Attempt` と `AiRun`/`TutorFeedback` の関係 | **`Attempt` へ統合**（§14準拠）。`model_name`/`token_usage` を追加 |
+| Q-1 | 学習者の識別 | ログイン無し。HttpOnly の `learner_key` Cookie（UUID・90日） |
+| Q-2 | 操作ログの中身 | **本文は保存しない**。文字数・ヒント回数・やり直し回数のみ |
+| Q-3 | AI実行の上限 | 1セッション10回（`MAX_ATTEMPTS_PER_SESSION`）。超過は 429 |
+| Q-4 | ポーの発話量 | 通常100文字、例を出すときのみ150文字 |
+| Q-5 | 実行と講評のモデル | `AiRun` と `TutorFeedback` を `Attempt` 1つに統合 |
 
-さらに、指摘した課金リスクへの対応として
-**1セッションあたりのAI実行回数に上限**（`MAX_ATTEMPTS_PER_SESSION`、既定10）を実装。
+憲章（`.specify/memory/constitution.md`）の原則 I・II は **交渉不可**です。
 
-## 6. AIPPO リポジトリの実測状態（2026-08-02 時点）
+- **原則 I 迷わなさ最優先** — 1画面につき「次にやること」は必ず1つ。UIに専門用語を出さない
+- **原則 II MVPの範囲を固定** — 検証6項目の外は作らない
+- **原則 III 進行はアプリが持つ。ポーは助言だけ** — AI が止まってもレッスンは進む
 
-| 項目 | 値 |
+---
+
+## 5. 残っていること
+
+**必須はこれだけです。**
+
+- `frontend/public/poe/*.svg` の6枚は**仮画像**（丸に目と口だけ）。
+  正式なポーの画像に差し替えてください。
+  差し替え口は `frontend/src/components/PoeAvatar.tsx` の `POE_IMAGE_EXT` 1か所です。
+  WebP を `neutral.webp` … の名前で同じ場所に置き、値を `"webp"` に変えるだけです。
+  6枚の表情: `neutral` / `question` / `thinking` / `hint` / `warning` / `celebrate`
+
+**MVP には入れていないもの**（意図的な除外・憲章 原則 II）
+
+- ログイン、複数レッスン、学習プラン、法人向け機能
+- Live2D / 音声 / 口パク / 3D / 複数キャラクター
+- 本番デプロイ設定（PostgreSQL への切り替えは `backend/config/settings.py` で対応済み）
+
+---
+
+## 6. 探索テストで見つけて直した不具合
+
+スタブではなく本物の Django・DB・Cookie に当てたことで、
+実装とユニットテストだけでは気づけない不具合が6件見つかりました。
+すべて修正済みで、回帰テストを追加してあります。
+
+| 症状 | 原因 |
 | --- | --- |
-| 公開範囲 | public |
-| 既定ブランチ | `main` |
-| コミット | `Initial commit` 1件のみ |
-| ファイル | `README.md`（`# AIPPO` の1行）のみ |
-| CI / デプロイ設定 | なし |
+| 自分の文章で実行したあと振り返りへ進めない | 実行成功後の行き先が固定だった |
+| ポーの助言が出ない | `dispatch` 直後の古い状態を読んでいた |
+| 通信がまったく届かない（画面には何も出ない） | 接続先ホストの既定が固定・CORS の許可も片方だけ |
+| ポーの返事を待つ間の操作が黙って捨てられる | 二重送信の錠前が助言の通信まで覆っていた |
+| 進んだ画面が後ろへ引き戻される | 再開の問い合わせが遅れて届き、現在地を上書きしていた |
+| 狭い画面でポーが下のボタンのタップを奪う | 画面下部に固定していて重なっていた |
 
-## 7. 次のチャットで最初に言うとよいこと
+詳細は `docs/aippo-mvp-design.md` の「探索テストで見つかった不具合」にあります。
 
-> AIPPO の Phase 2 を進めてください。
-> `docs/aippo-mvp-design.md` の §8 実装順序に従い、
-> 用途選択・穴埋めフォーム・結果比較の各コンポーネントを実装してください。
+---
 
-`docs/aippo-mvp-design.md` に、責務分担・状態管理・API設計・データモデル・
-実装順序・テスト計画（V-01〜V-15）がすべて書いてある。
-`.specify/memory/constitution.md`（開発憲章）が最優先のルール。
+## 7. ドキュメントの読む順
 
-## 8. まだ決まっていないこと
-
-実装をブロックはしないが、いずれ決める必要がある。
-
-| # | 項目 | 補足 |
-| --- | --- | --- |
-| 1 | AIプロバイダとモデル | 現状 Anthropic `claude-opus-5` で実装。コスト重視なら `claude-haiku-4-5` |
-| 2 | ポーの画像6枚 | `frontend/public/poe/` に配置。規格は同ディレクトリの README。未配置でも動作する |
-| 3 | ホスティング先 | Phase 6 の後で必要 |
-| 4 | プライバシーポリシー・利用規約 | ユーザーの文章を保存するため公開前に必須 |
-| 5 | ユーザーテストの対象者と人数 | |
-| 6 | ドメイン（aippo.jp / aippo.app / getaippo.com） | 空き確認が必要 |
-
-また、企画書のロードマップにある **フェーズ1（対面ハンズオン検証）** を
-実施済みかどうかが未確認。飛ばす場合、「初心者がどこで止まるか」は
-MVP のユーザーテストで初めて分かるため、Phase 6 の後に大きめの
-作り直しが入る前提で見ておくのが安全。
+1. `README.md` — 全体像とセットアップ
+2. `.specify/memory/constitution.md` — 開発憲章（最優先）
+3. `docs/aippo-mvp-design.md` — 設計・影響範囲・進捗・テスト状況
+4. `docs/ai-tutor-design.md` — ポーの設計・API契約・レッスン台本
+5. `specs/001-handson-lesson-mvp/` — spec / plan / tasks

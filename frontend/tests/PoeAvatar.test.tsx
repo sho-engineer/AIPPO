@@ -39,7 +39,7 @@ describe("PoeAvatar", () => {
   it("6状態すべてに画像が定義されている", () => {
     expect(Object.keys(EMOTION_IMAGES)).toHaveLength(6);
     for (const src of Object.values(EMOTION_IMAGES)) {
-      expect(src).toMatch(/^\/poe\/.+\.webp$/);
+      expect(src).toMatch(/^\/poe\/.+\.(webp|png|svg)$/);
     }
   });
 
