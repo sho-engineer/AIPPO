@@ -1,0 +1,136 @@
+{
+  "id": "rewrite_text_001",
+  "title": "AIに文章を分かりやすくしてもらう",
+  "goal": "「誰向けか」「何を伝えたいか」「どんな表現か」「どれくらいの長さか」をAIに伝えられるようになる",
+  "useCases": [
+    {
+      "id": "work_email",
+      "label": "仕事のメール",
+      "sampleText": "先日の件ですが、こちらとしても諸事情ございまして、対応につきましては現在社内にて調整中でございまして、追ってご連絡差し上げる所存でございますので、何卒よろしくお願い申し上げます。"
+    },
+    {
+      "id": "long_description",
+      "label": "長い説明文",
+      "sampleText": "本サービスは、利用者の皆様の利便性の向上を図るとともに、より一層のサービス品質の維持および向上に努めることを目的として、各種機能の追加ならびに既存機能の改修を継続的に実施しております。"
+    },
+    {
+      "id": "difficult_text",
+      "label": "難しい文章",
+      "sampleText": "当該事案に係る対応方針については、関係各所との協議を踏まえた上で、然るべき時期に別途通知するものとする。"
+    },
+    {
+      "id": "own_text",
+      "label": "自分の文章",
+      "sampleText": ""
+    }
+  ],
+  "fillInFields": [
+    {
+      "key": "audience",
+      "label": "誰向け",
+      "placeholder": "社外のお客様",
+      "options": [
+        "社外のお客様",
+        "社内の同僚",
+        "上司",
+        "はじめて読む人"
+      ],
+      "required": true
+    },
+    {
+      "key": "tone",
+      "label": "どのような表現",
+      "placeholder": "ていねいで、やわらかく",
+      "options": [
+        "ていねいに",
+        "やわらかく",
+        "きっぱりと",
+        "やさしい言葉で"
+      ],
+      "required": true
+    },
+    {
+      "key": "length",
+      "label": "どれくらいの長さ",
+      "placeholder": "3行くらい",
+      "options": [
+        "1行",
+        "3行くらい",
+        "半分の長さ",
+        "今のままの長さ"
+      ],
+      "required": true
+    }
+  ],
+  "improvements": [
+    {
+      "id": "shorter",
+      "label": "もっと短くしたい",
+      "instruction": "もっと短くしてください。"
+    },
+    {
+      "id": "politer",
+      "label": "もっと丁寧にしたい",
+      "instruction": "もっと丁寧な言い方にしてください。"
+    },
+    {
+      "id": "with_example",
+      "label": "具体例を追加したい",
+      "instruction": "具体例をひとつ加えてください。"
+    },
+    {
+      "id": "alternative",
+      "label": "別の表現も見たい",
+      "instruction": "別の言い回しの案もひとつ出してください。"
+    }
+  ],
+  "steps": {
+    "INTRO": {
+      "primaryAction": "はじめる",
+      "tutorMessage": "はじめまして、ポーです。何から始めればいいか分からなくても大丈夫です。まずは、あなたに合いそうな使い方を一緒に見つけましょう。",
+      "tutorEmotion": "neutral"
+    },
+    "SELECT_USE_CASE": {
+      "primaryAction": "どの文章を分かりやすくするか選ぶ",
+      "tutorMessage": "まずは、短くて身近な文章から試してみましょう。",
+      "tutorEmotion": "question"
+    },
+    "FIRST_INPUT": {
+      "primaryAction": "AIに送る",
+      "tutorMessage": "誰が読む文章なのかを伝えると、AIの回答が変わります。",
+      "tutorEmotion": "hint",
+      "helpText": "この文章を、【誰向け】に、【どのような表現】で、【どれくらいの長さ】にしてください。"
+    },
+    "GENERATING": {
+      "primaryAction": "待つ",
+      "tutorMessage": "入力した内容を確認しています。",
+      "tutorEmotion": "thinking"
+    },
+    "REVIEW_RESULT": {
+      "primaryAction": "次へ",
+      "tutorMessage": "分かりやすくなったか、長さは合っているか、元の意味が変わっていないか、見てみましょう。",
+      "tutorEmotion": "neutral"
+    },
+    "IMPROVE_INPUT": {
+      "primaryAction": "直したいところを選ぶ",
+      "tutorMessage": "直したいところを一つだけ選んでみましょう。",
+      "tutorEmotion": "question"
+    },
+    "REAL_TASK": {
+      "primaryAction": "自分の文章で試す",
+      "tutorMessage": "次は、実際に使いたい文章を一つ入力してみましょう。",
+      "tutorEmotion": "question",
+      "helpText": "会社の秘密や個人情報は入力しないようにしましょう。"
+    },
+    "REFLECTION": {
+      "primaryAction": "完了する",
+      "tutorMessage": "相手と長さを伝えると、結果が変わることを確認できましたね。",
+      "tutorEmotion": "neutral"
+    },
+    "COMPLETE": {
+      "primaryAction": "結果をコピーする",
+      "tutorMessage": "AIに「文章を直して」と頼むだけでなく、相手や長さを伝えられるようになりました。",
+      "tutorEmotion": "celebrate"
+    }
+  }
+}
