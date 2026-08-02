@@ -140,12 +140,12 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
   return (
     <main className="mx-auto max-w-2xl px-6 py-10 pb-56 sm:pb-10">
       <header>
-        <p className="text-xs tracking-[0.3em] text-neutral-500">{BRAND.name}</p>
+        <p className="text-xs tracking-[0.3em] text-neutral-600">{BRAND.name}</p>
         <h1 className="mt-2 text-xl font-bold">{lesson.title}</h1>
         <p className="mt-2 text-sm leading-6 text-neutral-600">{lesson.goal}</p>
       </header>
 
-      <p className="mt-6 text-xs text-neutral-500" data-testid="lesson-progress">
+      <p className="mt-6 text-xs text-neutral-600" data-testid="lesson-progress">
         {stepNumber} / {totalSteps}
       </p>
 
@@ -211,6 +211,27 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
                   ? WAITING.long
                   : WAITING.short}
             </p>
+
+            {/*
+              書けたところから見せる。待ち時間はほぼすべてAIの応答待ちなので、
+              ここが体感を一番左右する。
+              まだ書きかけなので、読み上げの割り込みはしない（aria-live は付けない）。
+            */}
+            {state.streamingText ? (
+              <div
+                data-testid="streaming-text"
+                className="mt-4 rounded-xl border border-neutral-200 bg-white p-4"
+              >
+                <p className="whitespace-pre-wrap text-sm leading-7">
+                  {state.streamingText}
+                  <span
+                    aria-hidden="true"
+                    className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-neutral-400 align-middle"
+                  />
+                </p>
+              </div>
+            ) : null}
+
             {waitedMs >= LIMITS.waitingTooLongMs ? (
               <button
                 type="button"
@@ -250,7 +271,7 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
                 自分の文章で試す
               </PrimaryButton>
               <details className="mt-4">
-                <summary className="cursor-pointer text-xs text-neutral-500">
+                <summary className="cursor-pointer text-xs text-neutral-600">
                   もう一度、別の直し方も試す
                 </summary>
                 <div className="mt-3">
@@ -330,7 +351,7 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-xs leading-5 text-neutral-500">
+            <p className="mt-4 text-xs leading-5 text-neutral-600">
               {SAFETY.checkFacts}
             </p>
             <PrimaryButton onClick={complete}>{BUTTONS.complete}</PrimaryButton>
@@ -362,7 +383,7 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
         <button
           type="button"
           onClick={() => void askTutor(latestRun?.outputText ?? "")}
-          className="mt-6 text-xs text-neutral-500 underline"
+          className="mt-6 text-xs text-neutral-600 underline"
         >
           ポーにヒントをもらう
         </button>
@@ -372,7 +393,7 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
         <button
           type="button"
           onClick={onExit}
-          className="mt-8 block text-xs text-neutral-500 underline"
+          className="mt-8 block text-xs text-neutral-600 underline"
         >
           {BUTTONS.back}
         </button>

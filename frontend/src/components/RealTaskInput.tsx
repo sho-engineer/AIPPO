@@ -48,7 +48,7 @@ export function RealTaskInput({
         className="mt-2 w-full rounded-xl border border-neutral-300 p-3 text-sm
                    leading-6 disabled:bg-neutral-100"
       />
-      <p className="mt-1 text-right text-xs text-neutral-500">
+      <p className="mt-1 text-right text-xs text-neutral-600">
         {value.length} / {LIMITS.maxUserInputLength}
       </p>
       {overLimit ? (
@@ -61,7 +61,7 @@ export function RealTaskInput({
         type="button"
         onClick={onUseSample}
         disabled={disabled}
-        className="mt-3 text-xs text-neutral-500 underline"
+        className="mt-3 text-xs text-neutral-600 underline"
       >
         思いつかないので、用意された例文で試す
       </button>

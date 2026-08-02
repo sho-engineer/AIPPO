@@ -58,7 +58,7 @@ export function FillInForm({
         className="mt-2 w-full rounded-xl border border-neutral-300 p-3 text-sm
                    leading-6 disabled:bg-neutral-100"
       />
-      <p className="mt-1 text-right text-xs text-neutral-500">
+      <p className="mt-1 text-right text-xs text-neutral-600">
         {sourceText.length} / {LIMITS.maxUserInputLength}
       </p>
       {overLimit ? (

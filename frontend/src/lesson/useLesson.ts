@@ -11,8 +11,10 @@
 import { useCallback, useEffect, useRef, useReducer } from "react";
 
 import {
+  StreamUnsupportedError,
   fetchSessionState,
   rewriteText,
+  rewriteTextStreaming,
   sendLearningEvent,
   sendSurvey,
 } from "../api/lesson";
@@ -169,17 +171,30 @@ export function useLesson(lessonId: string): UseLessonResult {
       abortRef.current = controller;
 
       try {
-        const outputText = await rewriteText(
-          {
-            originalText,
-            audience: input.audience,
-            tone: input.tone,
-            length: input.length,
-            instruction: input.instruction,
-            step: before.step,
-          },
-          controller.signal,
-        );
+        const request = {
+          originalText,
+          audience: input.audience,
+          tone: input.tone,
+          length: input.length,
+          instruction: input.instruction,
+          step: before.step,
+        };
+
+        // まず、書けたところから見せる経路を試す。
+        // 使えない環境（古いブラウザ、途中で溜め込むプロキシ、
+        // ストリーミング非対応のAI）では、黙って通常の生成へ倒す。
+        // 学習者の失敗ではないので、画面には何も出さない。
+        let outputText: string;
+        try {
+          outputText = await rewriteTextStreaming(
+            request,
+            (textSoFar) => dispatch({ type: "STREAM_CHUNK", textSoFar }),
+            controller.signal,
+          );
+        } catch (error) {
+          if (!(error instanceof StreamUnsupportedError)) throw error;
+          outputText = await rewriteText(request, controller.signal);
+        }
 
         dispatch({
           type: "RUN_SUCCEEDED",

@@ -12,7 +12,11 @@ import logging
 
 from django.conf import settings
 
-from apps.tutor.services.base import AiProvider, AiProviderError, AiTimeoutError
+from apps.tutor.services.base import (
+    AiProvider,
+    AiProviderError,
+    AiTimeoutError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +33,53 @@ class AnthropicProvider(AiProvider):
             # ANTHROPIC_API_KEY を環境から解決する
             self._client = anthropic.Anthropic()
         return self._client
+
+    def stream_text(
+        self,
+        *,
+        system_prompt: str,
+        user_content: str,
+        timeout_seconds: float,
+        meta_out: dict,
+    ):
+        """書きかけの文章を少しずつ返す。
+
+        ここは JSON ではなく素のテキストで受け取る。
+        書きかけの JSON は途中で読めないため、
+        「途中から見せる」という目的と噛み合わない。
+        """
+        import anthropic
+
+        client = self._get_client().with_options(
+            timeout=timeout_seconds, max_retries=0
+        )
+
+        try:
+            with client.messages.stream(
+                model=self._model,
+                max_tokens=1024,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_content}],
+            ) as stream:
+                yield from stream.text_stream
+                final = stream.get_final_message()
+        except anthropic.APITimeoutError as exc:
+            logger.warning("lesson.stream.timeout timeout=%ss", timeout_seconds)
+            raise AiTimeoutError("AI request timed out") from exc
+        except anthropic.APIError as exc:
+            logger.warning("lesson.stream.error type=%s", type(exc).__name__)
+            raise AiProviderError("AI request failed") from exc
+
+        if final.stop_reason == "refusal":
+            logger.warning("lesson.stream.refusal")
+            raise AiProviderError("AI declined the request")
+
+        meta_out["model_name"] = final.model
+        meta_out["token_usage"] = {
+            "input": final.usage.input_tokens,
+            "output": final.usage.output_tokens,
+            "cache_read": getattr(final.usage, "cache_read_input_tokens", 0) or 0,
+        }
 
     def generate_json(
         self,

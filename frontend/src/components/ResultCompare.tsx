@@ -30,7 +30,7 @@ export function ResultCompare({
     <div data-testid="result-compare">
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-          <h3 className="text-xs font-bold text-neutral-500">もとの文章</h3>
+          <h3 className="text-xs font-bold text-neutral-600">もとの文章</h3>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-7">
             {originalText}
           </p>
