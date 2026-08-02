@@ -73,7 +73,11 @@ REST_FRAMEWORK = {
     "UNAUTHENTICATED_USER": None,
 }
 
-CORS_ALLOWED_ORIGINS = _list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
+CORS_ALLOWED_ORIGINS = _list(
+    "CORS_ALLOWED_ORIGINS",
+    # localhost と 127.0.0.1 は別オリジン。どちらで開いても届くようにする
+    "http://localhost:5173,http://127.0.0.1:5173",
+)
 CORS_ALLOW_CREDENTIALS = True
 
 # --- AI プロバイダ -------------------------------------------------------

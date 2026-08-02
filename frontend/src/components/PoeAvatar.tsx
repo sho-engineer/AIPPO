@@ -5,19 +5,35 @@
  * - メッセージを吹き出しで表示し、aria-live でスクリーンリーダーへ通知する
  * - 画面幅が狭い場合は画面下部へ配置し、入力操作を妨げない
  *
+ * ポー自身は押す対象ではない。画面に固定して重ねる以上、
+ * 下にあるボタンのタップを奪わないよう pointer-events を切る
+ * （憲章 原則 I: 押せない行き止まりを作らない）。
+ *
  * Live2D / 3D / 音声 / 口パクは MVP に含めない。
  */
 
 import type { TutorEmotion, TutorMessage } from "../types/tutor";
 
-export const EMOTION_IMAGES: Record<TutorEmotion, string> = {
-  neutral: "/poe/neutral.webp",
-  question: "/poe/question.webp",
-  thinking: "/poe/thinking.webp",
-  hint: "/poe/hint.webp",
-  warning: "/poe/warning.webp",
-  celebrate: "/poe/celebrate.webp",
-};
+/**
+ * 画像の拡張子。
+ *
+ * いまは仮画像の SVG。正式な WebP が用意できたら
+ * `frontend/public/poe/` に同名で置き、ここを "webp" に変えるだけでよい。
+ */
+export const POE_IMAGE_EXT = "svg";
+
+const EMOTIONS: readonly TutorEmotion[] = [
+  "neutral",
+  "question",
+  "thinking",
+  "hint",
+  "warning",
+  "celebrate",
+];
+
+export const EMOTION_IMAGES = Object.fromEntries(
+  EMOTIONS.map((emotion) => [emotion, `/poe/${emotion}.${POE_IMAGE_EXT}`]),
+) as Record<TutorEmotion, string>;
 
 export type PoeAvatarProps = {
   tutor: TutorMessage;
@@ -33,7 +49,7 @@ export function PoeAvatar({ tutor, isVisible = true }: PoeAvatarProps) {
     <aside
       data-testid="poe-avatar"
       data-emotion={tutor.emotion}
-      className="fixed inset-x-0 bottom-0 z-10 flex items-end gap-3 p-3
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-10 flex items-end gap-3 p-3
                  sm:inset-x-auto sm:bottom-4 sm:right-4 sm:max-w-sm sm:p-0"
       aria-live="polite"
     >

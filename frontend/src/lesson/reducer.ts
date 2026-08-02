@@ -2,9 +2,9 @@
  * レッスン進行の reducer（useReducer 本体）。
  *
  * - 遷移は machine.ts の遷移表に基づいてのみ行う
- * - 不正な遷移は現在の状態を維持する（FR-002）
- * - 前のステップへ戻っても入力内容は保持する（FR-004）
- * - AI の応答は状態を進めない。表示するチューターの発言だけを差し替える（憲章 原則 III）
+ * - 不正な遷移は現在の状態を維持する
+ * - 前のステップへ戻っても入力内容は保持する
+ * - AI の応答は状態を進めない。表示するポーの発言だけを差し替える（憲章 原則 III）
  */
 
 import {
@@ -20,6 +20,10 @@ import type { TutorMessage } from "../types/tutor";
 
 export interface AiRunResult {
   sequence: number;
+  /** どのステップから実行したか。自分の文章での実行を見分けるのに使う。 */
+  fromStep: LessonStep;
+  /** 何をした回か（「1回目」「もっと短く」「自分の文章」）。比較表示の見出しに使う。 */
+  label: string;
   inputText: string;
   outputText: string;
 }
@@ -28,6 +32,8 @@ export interface LessonState {
   step: LessonStep;
   returnTo: SubmittableStep;
   useCaseId: string | null;
+  /** いま書き換えの対象にしている文章。用途選択で例文が入り、編集もできる。 */
+  sourceText: string;
   fillInValues: Record<string, string>;
   realTaskText: string;
   improvementId: string | null;
@@ -40,12 +46,19 @@ export interface LessonState {
 
 export type LessonAction =
   | { type: "START" }
-  | { type: "SELECT_CASE"; useCaseId: string }
+  | { type: "SELECT_CASE"; useCaseId: string; sampleText: string }
+  | { type: "SET_SOURCE_TEXT"; text: string }
   | { type: "SET_FILL_IN"; key: string; value: string }
   | { type: "SET_REAL_TASK"; text: string }
   | { type: "SELECT_IMPROVEMENT"; improvementId: string }
   | { type: "SUBMIT" }
-  | { type: "RUN_SUCCEEDED"; inputText: string; outputText: string }
+  | {
+      type: "RUN_SUCCEEDED";
+      label: string;
+      fromStep: LessonStep;
+      inputText: string;
+      outputText: string;
+    }
   | { type: "RUN_FAILED"; message: string }
   | { type: "CANCEL" }
   | { type: "NEXT" }
@@ -58,6 +71,7 @@ export const initialLessonState: LessonState = {
   step: "INTRO",
   returnTo: "FIRST_INPUT",
   useCaseId: null,
+  sourceText: "",
   fillInValues: {},
   realTaskText: "",
   improvementId: null,
@@ -90,6 +104,8 @@ export function lessonReducer(
 ): LessonState {
   // --- 遷移を伴わない、入力の保持のみのアクション ---
   switch (action.type) {
+    case "SET_SOURCE_TEXT":
+      return { ...state, sourceText: action.text };
     case "SET_FILL_IN":
       return {
         ...state,
@@ -122,10 +138,15 @@ export function lessonReducer(
 
   switch (action.type) {
     case "SELECT_CASE":
-      return { ...state, step: target, useCaseId: action.useCaseId };
+      return {
+        ...state,
+        step: target,
+        useCaseId: action.useCaseId,
+        sourceText: action.sampleText,
+      };
 
     case "SUBMIT":
-      if (state.isSubmitting) return state; // 二重送信を防ぐ（FR-019）
+      if (state.isSubmitting) return state; // 二重送信を防ぐ
       return {
         ...state,
         step: target,
@@ -146,6 +167,8 @@ export function lessonReducer(
           ...state.runs,
           {
             sequence: state.runs.length + 1,
+            label: action.label,
+            fromStep: action.fromStep,
             inputText: action.inputText,
             outputText: action.outputText,
           },
@@ -166,4 +189,17 @@ export function lessonReducer(
     default:
       return { ...state, step: target };
   }
+}
+
+/** 自分の文章での実行が済んでいるか（§10 Step 7）。 */
+export function hasRealTaskRun(state: LessonState): boolean {
+  return state.runs.some((run) => run.fromStep === "REAL_TASK");
+}
+
+/** いまAIへ渡す対象の文章。REAL_TASK 以降は自分の文章を使う。 */
+export function currentSourceText(state: LessonState): string {
+  if (state.step === "REAL_TASK" || state.realTaskText) {
+    return state.realTaskText || state.sourceText;
+  }
+  return state.sourceText;
 }

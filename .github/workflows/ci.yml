@@ -62,3 +62,64 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      # 探索テストは本物のバックエンドに当てる。
+      # AI_PROVIDER=stub のままで完走できることが憲章 原則 III の要件なので、
+      # APIキーは要らない。
+      - name: Start backend
+        working-directory: backend
+        env:
+          AI_PROVIDER: stub
+          CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+          MAX_ATTEMPTS_PER_SESSION: "10"
+        run: |
+          python manage.py migrate --noinput
+          nohup python manage.py runserver 127.0.0.1:8000 --noreload > /tmp/django.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8000/api/lessons/rewrite_text_001/session/ > /dev/null && exit 0
+            sleep 1
+          done
+          echo "バックエンドが起動しませんでした"; cat /tmp/django.log; exit 1
+
+      - name: Run E2E and exploratory tests
+        working-directory: frontend
+        run: npx playwright test
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7

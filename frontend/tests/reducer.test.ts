@@ -21,7 +21,7 @@ describe("許可された遷移", () => {
     ["INTRO", { type: "START" }, "SELECT_USE_CASE"],
     [
       "SELECT_USE_CASE",
-      { type: "SELECT_CASE", useCaseId: "work_email" },
+      { type: "SELECT_CASE", useCaseId: "work_email", sampleText: "例文" },
       "FIRST_INPUT",
     ],
     ["FIRST_INPUT", { type: "SUBMIT" }, "GENERATING"],
@@ -98,13 +98,21 @@ describe("GENERATING からの復帰", () => {
     });
     const done = lessonReducer(generating, {
       type: "RUN_SUCCEEDED",
+      label: "はじめの条件",
+      fromStep: "FIRST_INPUT",
       inputText: "もとの文章",
       outputText: "分かりやすくした文章",
     });
 
     expect(done.step).toBe("REVIEW_RESULT");
     expect(done.runs).toEqual([
-      { sequence: 1, inputText: "もとの文章", outputText: "分かりやすくした文章" },
+      {
+        sequence: 1,
+        label: "はじめの条件",
+        fromStep: "FIRST_INPUT",
+        inputText: "もとの文章",
+        outputText: "分かりやすくした文章",
+      },
     ]);
     expect(done.isSubmitting).toBe(false);
   });
@@ -113,10 +121,18 @@ describe("GENERATING からの復帰", () => {
     let s = apply(
       state({ step: "FIRST_INPUT" }),
       { type: "SUBMIT" },
-      { type: "RUN_SUCCEEDED", inputText: "1回目", outputText: "出力1" },
+      {
+      type: "RUN_SUCCEEDED",
+      label: "はじめの条件",
+      fromStep: "FIRST_INPUT",
+      inputText: "1回目", outputText: "出力1" },
       { type: "NEXT" },
       { type: "SUBMIT" },
-      { type: "RUN_SUCCEEDED", inputText: "2回目", outputText: "出力2" },
+      {
+      type: "RUN_SUCCEEDED",
+      label: "はじめの条件",
+      fromStep: "FIRST_INPUT",
+      inputText: "2回目", outputText: "出力2" },
     );
 
     expect(s.runs.map((r) => r.sequence)).toEqual([1, 2]);
@@ -141,7 +157,11 @@ describe("試行回数", () => {
     const s = apply(
       state({ step: "FIRST_INPUT" }),
       { type: "SUBMIT" },
-      { type: "RUN_SUCCEEDED", inputText: "a", outputText: "b" },
+      {
+      type: "RUN_SUCCEEDED",
+      label: "はじめの条件",
+      fromStep: "FIRST_INPUT",
+      inputText: "a", outputText: "b" },
       { type: "NEXT" },
       { type: "SUBMIT" },
     );

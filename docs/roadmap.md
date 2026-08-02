@@ -43,16 +43,19 @@ AIチューターの通し体験。
 
 以下まで動けば、最初の実証実験に使える。
 
-- [ ] キャラクター1体
-- [ ] 表情6枚
-- [ ] 吹き出し
-- [ ] 1つのレッスン
-- [ ] 穴埋め入力
-- [ ] AI実行
-- [ ] 1回の改善
-- [ ] 自分の文章で再実行
-- [ ] 完了画面
-- [ ] 操作ログ
+- [x] キャラクター1体 — ポー（`PoeAvatar`）
+- [x] 表情6枚 — `frontend/public/poe/*.svg`（**仮画像**。正式画像に差し替える）
+- [x] 吹き出し — `PoeAvatar` の `aria-live="polite"`
+- [x] 1つのレッスン — `rewrite_text_001`（9ステップ）
+- [x] 穴埋め入力 — `FillInForm`（誰向け・どんな表現・どれくらいの長さ）
+- [x] AI実行 — `POST /api/lessons/rewrite-text/generate/`
+- [x] 1回の改善 — `ImprovementSelector` → `IMPROVE_INPUT`
+- [x] 自分の文章で再実行 — `RealTaskInput` → `REAL_TASK`
+- [x] 完了画面 — `CompletionView`（celebrate＋アンケート4問）
+- [x] 操作ログ — `POST /api/learning-events/`（本文は送らない）
+
+**残っているのは正式なポー画像の差し替えのみ**。仮画像のままでも通しで動く。
+差し替え口は `PoeAvatar.POE_IMAGE_EXT` の1か所。
 
 Live2D / 音声 / 口パク / 3D / 複数キャラクターは不要。
 最初は「キャラクターがかわいいか」よりも、

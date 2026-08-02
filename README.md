@@ -68,11 +68,14 @@ AI を使わない固定レスポンスで通しの導線が動きます。
 | --- | --- |
 | 0. 移設準備・改名・設計判断の反映 | ✅ 完了 |
 | 1. 画面モック | ✅ 完了 |
-| 2. レッスン状態管理 | 状態機械と画面遷移は完了。各コンポーネントが未着手 |
-| 3. AI文章生成 | 未着手 |
-| 4. ポーのフィードバック | API 実装済み |
-| 5. ログ取得 | モデルのみ |
-| 6. E2Eテスト | 未着手 |
+| 2. レッスン状態管理 | ✅ 完了 |
+| 3. AI文章生成 | ✅ 完了 |
+| 4. ポーのフィードバック | ✅ 完了 |
+| 5. ログ取得 | ✅ 完了 |
+| 6. E2Eテスト | ✅ 完了 |
+
+**MVP の完成条件（[`docs/roadmap.md`](docs/roadmap.md)）は全10項目を満たしています。**
+残るのは仮画像のポー6枚を正式な画像に差し替えることだけです。
 
 ---
 
@@ -115,10 +118,27 @@ npm run dev          # http://localhost:5173
 ### テスト
 
 ```bash
-cd backend  && uv run pytest        # 34 tests
-cd frontend && npm run test         # 77 tests
+cd backend  && uv run pytest        # 58 tests
+cd frontend && npm run test         # 80 tests
 cd frontend && npm run test:e2e     # Playwright（AI はスタブ応答）
 ```
+
+E2E は **PC（Chrome）と スマートフォン（Pixel 5）の2画面** で回します。
+
+#### 探索テスト（本物のバックエンドに当てる）
+
+`e2e/exploratory.spec.ts` だけは API をスタブせず、実際の Django・DB・Cookie を通します。
+スタブでは見つからない不具合（接続先のずれ・Cookie・同時実行・重なり）を拾うためのものです。
+
+```bash
+# 別のターミナルで Django を起動しておく
+cd backend && uv run python manage.py runserver 127.0.0.1:8000
+
+cd frontend && npm run test:e2e
+```
+
+Django が起動していないときは自動でスキップします。
+`AI_PROVIDER=stub` のままで完走できることを確かめるので、APIキーは不要です。
 
 ---
 
