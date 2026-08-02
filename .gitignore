@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+db.sqlite3
+
+# Node
+node_modules/
+dist/
+.vite/
+coverage/
+playwright-report/
+test-results/
+
+# 環境変数（.env.example のみコミットする）
+.env
+.env.local
+.env.*.local
+
+# エディタ・OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# TypeScript build info
+*.tsbuildinfo
