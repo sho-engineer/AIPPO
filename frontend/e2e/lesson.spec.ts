@@ -19,7 +19,7 @@ import { stubApi } from "./support/stubApi";
 /** トップから診断を抜けてレッスン画面まで進む。 */
 async function openLesson(page: Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "はじめる" }).click();
+  await page.getByRole("button", { name: "はじめる" }).first().click();
 
   // 診断3問
   for (let i = 0; i < 3; i++) {
@@ -270,8 +270,37 @@ test.describe("迷わせない作りになっているか", () => {
     await page.goto("/");
     await expect(page.getByTestId("poe-avatar")).toBeVisible();
 
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "はじめる" }).first().click();
     await expect(page.getByTestId("poe-avatar")).toBeVisible();
+  });
+});
+
+test.describe("完了したあと", () => {
+  test("もう一度はじめから試せる", async ({ page }) => {
+    // レッスンは1本しかない。ここで行き止まりにすると、
+    // いちばん乗り気になっている人を取り逃がす。
+    await stubApi(page);
+    await goToLesson(page);
+    await runFirstGeneration(page);
+
+    await page.getByTestId("primary-action").click();
+    await page.getByRole("button", { name: "もっと短くしたい" }).click();
+    await page.getByTestId("primary-action").click();
+    await page.getByRole("button", { name: "自分の文章で試す" }).click();
+    await page.getByLabel("あなたの文章").fill("自分で書いた文章です。");
+    await page.getByTestId("primary-action").click();
+    await page.getByTestId("primary-action").click();
+    await page.getByTestId("primary-action").click();
+    await expect(page.getByTestId("completion-view")).toBeVisible();
+
+    await page.getByTestId("restart-lesson").click();
+
+    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
+      "data-step",
+      "INTRO",
+    );
+    // 前回の結果は残っていない
+    await expect(page.getByTestId("result-compare")).toHaveCount(0);
   });
 });
 

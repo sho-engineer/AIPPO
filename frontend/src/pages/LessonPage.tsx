@@ -7,6 +7,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 
+import { BrandLogo } from "../components/BrandLogo";
 import { CompletionView } from "../components/CompletionView";
 import { FillInForm, firstMissingField } from "../components/FillInForm";
 import { ImprovementSelector } from "../components/ImprovementSelector";
@@ -15,7 +16,7 @@ import { RealTaskInput } from "../components/RealTaskInput";
 import { ResultCompare } from "../components/ResultCompare";
 import { UseCaseSelector } from "../components/UseCaseSelector";
 import lessonData from "../content/lessons/rewrite_text_001.json";
-import { BRAND, BUTTONS, ERRORS, LIMITS, SAFETY, WAITING } from "../content/ui";
+import { BUTTONS, ERRORS, LIMITS, SAFETY, WAITING } from "../content/ui";
 import { hasRealTaskRun } from "../lesson/reducer";
 import { useLesson } from "../lesson/useLesson";
 import type { TutorEmotion } from "../types/tutor";
@@ -140,17 +141,36 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
   return (
     <main className="mx-auto max-w-2xl px-6 py-10 pb-56 sm:pb-10">
       <header>
-        <p className="text-xs tracking-[0.3em] text-neutral-600">{BRAND.name}</p>
+        <BrandLogo className="h-7" />
         <h1 className="mt-2 text-xl font-bold">{lesson.title}</h1>
-        <p className="mt-2 text-sm leading-6 text-neutral-600">{lesson.goal}</p>
+        <p className="mt-2 text-sm leading-6 text-ink-muted">{lesson.goal}</p>
       </header>
 
-      <p className="mt-6 text-xs text-neutral-600" data-testid="lesson-progress">
-        {stepNumber} / {totalSteps}
-      </p>
+      {/*
+        今どこにいて、あとどれくらいかを見せる。
+        数字だけだと、初心者には「まだ先が長いのか」が伝わらない。
+      */}
+      <div className="mt-6" data-testid="lesson-progress">
+        <div
+          className="h-1.5 overflow-hidden rounded-full bg-brand-soft"
+          role="progressbar"
+          aria-valuemin={1}
+          aria-valuemax={totalSteps}
+          aria-valuenow={stepNumber}
+          aria-label="レッスンの進み具合"
+        >
+          <div
+            className="h-full rounded-full bg-brand transition-all duration-500"
+            style={{ width: `${(stepNumber / totalSteps) * 100}%` }}
+          />
+        </div>
+        <p className="mt-1.5 text-xs text-ink-muted">
+          {stepNumber} / {totalSteps}
+        </p>
+      </div>
 
       <section
-        className="mt-3 rounded-2xl bg-white p-6 shadow-sm"
+        className="mt-3 rounded-2xl bg-surface p-6 shadow-sm"
         data-testid="lesson-step"
         data-step={state.step}
       >
@@ -220,13 +240,13 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
             {state.streamingText ? (
               <div
                 data-testid="streaming-text"
-                className="mt-4 rounded-xl border border-neutral-200 bg-white p-4"
+                className="mt-4 rounded-xl border border-line bg-surface p-4"
               >
                 <p className="whitespace-pre-wrap text-sm leading-7">
                   {state.streamingText}
                   <span
                     aria-hidden="true"
-                    className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-neutral-400 align-middle"
+                    className="ml-0.5 inline-block h-4 w-2 animate-pulse bg-brand align-middle"
                   />
                 </p>
               </div>
@@ -236,7 +256,7 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
               <button
                 type="button"
                 onClick={() => dispatch({ type: "CANCEL" })}
-                className="mt-4 rounded-xl border border-neutral-300 px-5 py-3 text-sm"
+                className="mt-4 rounded-xl border border-line px-5 py-3 text-sm"
               >
                 {BUTTONS.cancel}
               </button>
@@ -271,7 +291,7 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
                 自分の文章で試す
               </PrimaryButton>
               <details className="mt-4">
-                <summary className="cursor-pointer text-xs text-neutral-600">
+                <summary className="cursor-pointer text-xs text-ink-muted">
                   もう一度、別の直し方も試す
                 </summary>
                 <div className="mt-3">
@@ -351,7 +371,7 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
                 </li>
               ))}
             </ul>
-            <p className="mt-4 text-xs leading-5 text-neutral-600">
+            <p className="mt-4 text-xs leading-5 text-ink-muted">
               {SAFETY.checkFacts}
             </p>
             <PrimaryButton onClick={complete}>{BUTTONS.complete}</PrimaryButton>
@@ -364,16 +384,20 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
             resultText={latestRun?.outputText ?? ""}
             nextSuggestion={NEXT_SUGGESTION}
             onSubmitSurvey={submitSurvey}
+            onRestart={() => {
+              logEvent("lesson_started");
+              dispatch({ type: "RESTART" });
+            }}
           />
         ) : null}
 
         {formError ? (
-          <p className="mt-4 text-sm text-red-700" role="alert">
+          <p className="mt-4 text-sm text-caution" role="alert">
             {formError}
           </p>
         ) : null}
         {state.error ? (
-          <p className="mt-4 text-sm text-red-700" role="alert">
+          <p className="mt-4 text-sm text-caution" role="alert">
             {state.error}
           </p>
         ) : null}
@@ -383,7 +407,7 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
         <button
           type="button"
           onClick={() => void askTutor(latestRun?.outputText ?? "")}
-          className="mt-6 text-xs text-neutral-600 underline"
+          className="mt-6 text-xs text-ink-muted underline"
         >
           ポーにヒントをもらう
         </button>
@@ -393,7 +417,7 @@ export function LessonPage({ onExit }: LessonPageProps = {}) {
         <button
           type="button"
           onClick={onExit}
-          className="mt-8 block text-xs text-neutral-600 underline"
+          className="mt-8 block text-xs text-ink-muted underline"
         >
           {BUTTONS.back}
         </button>
@@ -425,8 +449,8 @@ function PrimaryButton({
       onClick={onClick}
       disabled={disabled}
       data-testid="primary-action"
-      className="mt-6 w-full rounded-xl bg-neutral-900 px-5 py-3 text-white
-                 disabled:cursor-not-allowed disabled:bg-neutral-300 sm:w-auto"
+      className="mt-6 w-full rounded-xl bg-brand px-5 py-3 text-white
+                 disabled:cursor-not-allowed disabled:bg-brand-line sm:w-auto"
     >
       {children}
     </button>

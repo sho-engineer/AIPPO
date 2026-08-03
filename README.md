@@ -56,10 +56,10 @@ AIPPOは、プロンプトを暗記させるサービスではありません。
 
 ## 現在地
 
-**Phase 1 完了**（画面モック）。次は Phase 2（レッスンの各コンポーネント）。
+**Phase 0〜6 完了。公開に向けた地固めまで済んでいます。**
 
-トップ → AI活用診断（3問）→ おすすめ用途 → レッスン画面 まで、
-AI を使わない固定レスポンスで通しの導線が動きます。
+トップ → AI活用診断（3問）→ おすすめ用途 → レッスン（9ステップ）→ 完了画面 まで、
+通しで動きます。`AI_PROVIDER=stub` のままでも完走できます。
 
 最初のレッスンは **「AIに文章を分かりやすくしてもらう」** の1本のみ。
 まず1レッスンを最後まで完成させます。
@@ -158,9 +158,9 @@ npm run dev          # http://localhost:5173
 ### テスト
 
 ```bash
-cd backend  && uv run pytest        # 112 tests
-cd frontend && npm run test         # 86 tests
-cd frontend && npm run test:e2e     # Playwright 52（PC・スマートフォンの2画面）
+cd backend  && uv run pytest        # 124 tests
+cd frontend && npm run test         # 92 tests
+cd frontend && npm run test:e2e     # Playwright 58（PC・スマートフォンの2画面）
 ```
 
 E2E には次の3種類が入っています。
@@ -170,6 +170,7 @@ E2E には次の3種類が入っています。
 | `e2e/lesson.spec.ts` | 通しの導線。APIはスタブに差し替える |
 | `e2e/a11y.spec.ts` | アクセシビリティ（WCAG 2.1 A/AA の自動検査） |
 | `e2e/exploratory.spec.ts` | 本物のバックエンドに当てる探索テスト |
+| `e2e/screenshots.spec.ts` | 各画面の書き出し（検証用。`CAPTURE_SCREENSHOTS=1` のときだけ動く） |
 
 本番と同じビルド成果物に当てたいときは `E2E_TARGET=build` を付けます。
 開発サーバーでしか見ないと、ビルドしたときだけ壊れるものを取りこぼします。

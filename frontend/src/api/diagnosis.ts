@@ -12,6 +12,8 @@
 
 import type { CompletedDiagnosisAnswers } from "../content/diagnosis";
 
+import { apiBaseUrl } from "./config";
+
 export interface UseCaseRecommendation {
   lessonId: string;
   useCaseId: string;
@@ -83,4 +85,34 @@ export async function fetchRecommendations(
 ): Promise<UseCaseRecommendation[]> {
   const upcoming = UPCOMING[answers.pain_point] ?? [];
   return [REWRITE_TEXT, ...upcoming];
+}
+
+/**
+ * 診断の回答を保存する。
+ *
+ * 実証実験で「どんな人が来て、どんな人が完走したか」を見るために要る。
+ * 完了率だけでは、AIを使ったことがない人が離脱しているのか、
+ * ふだん使う人が物足りなくて離脱しているのかを区別できない。
+ *
+ * 診断は本題ではないので、**結果を待たせない**。
+ * 失敗しても学習者には何も見せず、そのまま先へ進める。
+ */
+export async function saveProfile(
+  answers: CompletedDiagnosisAnswers,
+): Promise<boolean> {
+  try {
+    const response = await fetch(`${apiBaseUrl()}/api/profile/`, {
+      method: "POST",
+      credentials: "include", // learner_key Cookie を送る
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ai_experience: answers.ai_experience,
+        job_category: answers.job_category,
+        pain_point: answers.pain_point,
+      }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }

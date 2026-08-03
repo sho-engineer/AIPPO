@@ -8,6 +8,7 @@
  */
 
 import { ERRORS, LIMITS } from "../content/ui";
+import { SafetyNote } from "./SafetyNote";
 
 export interface FillInField {
   key: string;
@@ -55,17 +56,20 @@ export function FillInForm({
         disabled={disabled}
         rows={5}
         onChange={(e) => onChangeSourceText(e.target.value)}
-        className="mt-2 w-full rounded-xl border border-neutral-300 p-3 text-sm
-                   leading-6 disabled:bg-neutral-100"
+        className="mt-2 w-full rounded-xl border border-line p-3 text-sm
+                   leading-6 disabled:bg-canvas"
       />
-      <p className="mt-1 text-right text-xs text-neutral-600">
+      <p className="mt-1 text-right text-xs text-ink-muted">
         {sourceText.length} / {LIMITS.maxUserInputLength}
       </p>
       {overLimit ? (
-        <p className="text-xs text-red-700" role="alert">
+        <p className="text-xs text-caution" role="alert">
           {ERRORS.tooLong(LIMITS.maxUserInputLength)}
         </p>
       ) : null}
+
+      {/* 自由に文章を書ける場所なので、入れてはいけないものを先に伝える（§15） */}
+      <SafetyNote placement="input" />
 
       <p className="mt-6 text-sm leading-7">
         この文章を、
@@ -91,10 +95,8 @@ export function FillInForm({
                       disabled={disabled}
                       onClick={() => onChange(field.key, option)}
                       className={[
-                        "rounded-full border px-3 py-1.5 text-xs transition",
-                        isSelected
-                          ? "border-neutral-900 bg-neutral-900 text-white"
-                          : "border-neutral-300 bg-white hover:border-neutral-500",
+                        "chip",
+                        isSelected ? "chip-on" : "chip-off",
                       ].join(" ")}
                     >
                       {option}
@@ -111,8 +113,8 @@ export function FillInForm({
               value={values[field.key] ?? ""}
               disabled={disabled}
               onChange={(e) => onChange(field.key, e.target.value)}
-              className="mt-2 w-full rounded-xl border border-neutral-300 px-3 py-2
-                         text-sm disabled:bg-neutral-100"
+              className="mt-2 w-full rounded-xl border border-line px-3 py-2
+                         text-sm disabled:bg-canvas"
             />
           </fieldset>
         ))}

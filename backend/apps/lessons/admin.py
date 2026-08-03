@@ -19,6 +19,7 @@ from apps.lessons.models import (
     SkillProgress,
     Survey,
 )
+from apps.profiles.models import LearnerProfile
 
 
 class SurveyInline(admin.TabularInline):
@@ -187,6 +188,31 @@ class VerificationSummaryAdmin(admin.ModelAdmin):
                 input_tokens += usage.get("input", 0) or 0
                 output_tokens += usage.get("output", 0) or 0
 
+        # 誰が来て、誰が完走したか。
+        # 完了率だけでは、AIを使ったことがない人が離脱しているのか、
+        # ふだん使う人が物足りなくて離脱しているのかを区別できない。
+        completed_keys = set(
+            sessions.filter(completed_at__isnull=False).values_list(
+                "learner_key", flat=True
+            )
+        )
+        by_experience: dict[str, dict[str, int]] = {}
+        for profile in LearnerProfile.objects.all():
+            row = by_experience.setdefault(
+                profile.get_ai_experience_display(), {"came": 0, "completed": 0}
+            )
+            row["came"] += 1
+            if profile.learner_key in completed_keys:
+                row["completed"] += 1
+        for row in by_experience.values():
+            row["rate"] = (
+                round(row["completed"] / row["came"] * 100, 1) if row["came"] else 0
+            )
+
+        pain_points: dict[str, int] = {}
+        for pain in LearnerProfile.objects.values_list("pain_point", flat=True):
+            pain_points[pain] = pain_points.get(pain, 0) + 1
+
         surveys = Survey.objects.all()
         survey_tally: dict[str, dict[str, int]] = {}
         for answers in surveys.values_list("answers", flat=True):
@@ -210,6 +236,11 @@ class VerificationSummaryAdmin(admin.ModelAdmin):
                 "output_tokens": output_tokens,
                 "survey_count": surveys.count(),
                 "survey_tally": survey_tally,
+                "by_experience": by_experience,
+                "pain_points": sorted(
+                    pain_points.items(), key=lambda kv: kv[1], reverse=True
+                ),
+                "profile_count": LearnerProfile.objects.count(),
                 "skills_acquired": SkillProgress.objects.aggregate(n=Count("id"))["n"],
                 "usage_today": AiUsageCounter.objects.filter(
                     scope=AiUsageCounter.GLOBAL_SCOPE

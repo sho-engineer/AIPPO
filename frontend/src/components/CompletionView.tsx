@@ -65,6 +65,8 @@ export type CompletionViewProps = {
   /** 次に試せる用途。 */
   nextSuggestion: string;
   onSubmitSurvey: (answers: Record<string, string>) => void;
+  /** もう一度はじめから試す。渡さないとボタンを出さない。 */
+  onRestart?: () => void;
 };
 
 export function CompletionView({
@@ -72,6 +74,7 @@ export function CompletionView({
   resultText,
   nextSuggestion,
   onSubmitSurvey,
+  onRestart,
 }: CompletionViewProps) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [copied, setCopied] = useState(false);
@@ -113,27 +116,27 @@ export function CompletionView({
 
       <section className="mt-8">
         <h3 className="text-sm font-bold">できあがった文章</h3>
-        <p className="mt-2 whitespace-pre-wrap rounded-xl border border-neutral-200
-                      bg-white p-4 text-sm leading-7">
+        <p className="mt-2 whitespace-pre-wrap rounded-xl border border-line
+                      bg-surface p-4 text-sm leading-7">
           {resultText}
         </p>
         <button
           type="button"
           onClick={handleCopy}
-          className="mt-3 rounded-xl bg-neutral-900 px-5 py-3 text-sm text-white"
+          className="mt-3 rounded-xl bg-brand px-5 py-3 text-sm text-white"
         >
           {BUTTONS.copy}
         </button>
         {copied ? (
-          <span className="ml-3 text-xs text-neutral-600" role="status">
+          <span className="ml-3 text-xs text-ink-muted" role="status">
             コピーしました
           </span>
         ) : null}
       </section>
 
-      <section className="mt-10 rounded-2xl bg-neutral-50 p-5">
+      <section className="mt-10 rounded-2xl bg-brand-soft p-5">
         <h3 className="text-sm font-bold">最後に、4つだけ教えてください</h3>
-        <p className="mt-1 text-xs text-neutral-600">
+        <p className="mt-1 text-xs text-ink-muted">
           今後の改善に使います。答えなくても大丈夫です。
         </p>
 
@@ -151,10 +154,8 @@ export function CompletionView({
                         aria-pressed={isSelected}
                         onClick={() => handleAnswer(q.key, choice.value)}
                         className={[
-                          "rounded-full border px-3 py-1.5 text-xs transition",
-                          isSelected
-                            ? "border-neutral-900 bg-neutral-900 text-white"
-                            : "border-neutral-300 bg-white hover:border-neutral-500",
+                          "chip",
+                          isSelected ? "chip-on" : "chip-off",
                         ].join(" ")}
                       >
                         {choice.label}
@@ -168,7 +169,7 @@ export function CompletionView({
         </div>
 
         {surveySent && allAnswered ? (
-          <p className="mt-4 text-xs text-neutral-600" role="status">
+          <p className="mt-4 text-xs text-ink-muted" role="status">
             ありがとうございました。
           </p>
         ) : null}
@@ -176,9 +177,25 @@ export function CompletionView({
 
       <section className="mt-8">
         <h3 className="text-sm font-bold">次に試せること</h3>
-        <p className="mt-2 text-sm leading-6 text-neutral-600">
+        <p className="mt-2 text-sm leading-6 text-ink-muted">
           {nextSuggestion}
         </p>
+
+        {/*
+          レッスンは1本しかないので、ここで終わると行き止まりになる。
+          いちばん乗り気になっている人が「もう一度やってみたい」と思ったときに
+          戻る道が無いのは、原則 I に反する。
+        */}
+        {onRestart ? (
+          <button
+            type="button"
+            data-testid="restart-lesson"
+            onClick={onRestart}
+            className="mt-4 rounded-xl border border-line bg-surface px-5 py-2.5 text-sm"
+          >
+            {BUTTONS.restart}
+          </button>
+        ) : null}
       </section>
     </div>
   );

@@ -6,6 +6,7 @@
  */
 
 import type { AiRunResult } from "../lesson/reducer";
+import { SafetyNote } from "./SafetyNote";
 
 export type ResultCompareProps = {
   originalText: string;
@@ -29,8 +30,10 @@ export function ResultCompare({
   return (
     <div data-testid="result-compare">
       <div className="grid gap-4 sm:grid-cols-2">
-        <section className="rounded-xl border border-neutral-200 bg-neutral-50 p-4">
-          <h3 className="text-xs font-bold text-neutral-600">もとの文章</h3>
+        <section className="rounded-xl border border-line bg-brand-soft p-4">
+          <h3 className="text-xs font-bold text-ink-muted">
+            <span className="rounded-full bg-line px-2 py-0.5">もとの文章</span>
+          </h3>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-7">
             {originalText}
           </p>
@@ -40,10 +43,13 @@ export function ResultCompare({
           <section
             key={run.sequence}
             data-testid={`run-${run.sequence}`}
-            className="rounded-xl border border-neutral-900 bg-white p-4"
+            className="rounded-xl border border-brand bg-surface p-4"
           >
-            <h3 className="text-xs font-bold text-neutral-900">
-              {run.sequence}回目：{run.label}
+            <h3 className="flex items-center gap-2 text-xs font-bold text-ink">
+              <span className="rounded-full bg-brand px-2 py-0.5 text-white">
+                {run.sequence}回目
+              </span>
+              {run.label}
             </h3>
             <p className="mt-2 whitespace-pre-wrap text-sm leading-7">
               {run.outputText}
@@ -53,17 +59,20 @@ export function ResultCompare({
       </div>
 
       {showChecklist ? (
-        <div className="mt-6 rounded-xl bg-neutral-50 p-4">
+        <div className="mt-6 rounded-xl bg-brand-soft p-4">
           <h3 className="text-sm font-bold">見てみましょう</h3>
           <ul className="mt-2 grid gap-1" role="list">
             {CHECKLIST.map((item) => (
-              <li key={item} className="text-sm text-neutral-700">
+              <li key={item} className="text-sm text-ink">
                 ・{item}
               </li>
             ))}
           </ul>
         </div>
       ) : null}
+
+      {/* AIの回答を読む場所なので、そのまま信じてはいけないことを伝える（§15） */}
+      <SafetyNote placement="output" />
     </div>
   );
 }

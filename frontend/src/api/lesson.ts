@@ -223,6 +223,13 @@ export interface LearningEventInput {
   retryCount?: number;
   completed?: boolean;
   durationMs?: number;
+  /**
+   * 画面が閉じられても送り切る。
+   *
+   * 離脱の記録はまさに画面が消える瞬間に送るので、
+   * これが無いと途中で打ち切られて届かない。
+   */
+  keepalive?: boolean;
 }
 
 /**
@@ -239,6 +246,7 @@ export async function sendLearningEvent(
   try {
     await request<void>("/api/learning-events/", {
       method: "POST",
+      keepalive: input.keepalive ?? false,
       body: JSON.stringify({
         lesson_id: input.lessonId,
         event_type: input.eventType,

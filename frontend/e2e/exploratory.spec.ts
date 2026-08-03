@@ -1,5 +1,7 @@
 import { expect, test, type ConsoleMessage, type Page } from "@playwright/test";
 
+import { POE_IMAGE_EXT } from "../src/components/PoeAvatar";
+
 /**
  * 探索テスト。
  *
@@ -45,7 +47,7 @@ function collectConsole(page: Page) {
 
 async function openLesson(page: Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "はじめる" }).click();
+  await page.getByRole("button", { name: "はじめる" }).first().click();
   for (let i = 0; i < 3; i++) {
     const choices = page.locator("main section button");
     await choices.first().waitFor();
@@ -233,7 +235,7 @@ test.describe("探索テスト（本物のバックエンド）", () => {
       "celebrate",
     ];
     for (const emotion of emotions) {
-      const res = await page.request.get(`/poe/${emotion}.svg`);
+      const res = await page.request.get(`/poe/${emotion}.${POE_IMAGE_EXT}`);
       expect(res.status(), `${emotion} の画像が無い`).toBe(200);
     }
   });

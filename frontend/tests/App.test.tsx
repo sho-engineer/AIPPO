@@ -22,7 +22,7 @@ describe("トップ → 診断 → レッスン の通し導線", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "はじめる" }));
+    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
 
     for (const question of DIAGNOSIS_QUESTIONS) {
       await screen.findByRole("heading", { name: question.question });
@@ -50,7 +50,7 @@ describe("トップ → 診断 → レッスン の通し導線", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "はじめる" }));
+    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
     for (const question of DIAGNOSIS_QUESTIONS) {
       await screen.findByRole("heading", { name: question.question });
       await user.click(
@@ -74,7 +74,7 @@ describe("トップ → 診断 → レッスン の通し導線", () => {
 
     expect(screen.getByTestId("poe-avatar")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "はじめる" }));
+    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
     expect(screen.getByTestId("poe-avatar")).toBeInTheDocument();
   });
 });

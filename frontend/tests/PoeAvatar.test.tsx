@@ -68,6 +68,27 @@ describe("PoeAvatar", () => {
     expect(avatar.className).toContain("bottom-0");
   });
 
+  it("hero では画面に固定せず、その場で浮かせる", () => {
+    // タイトル画面の主役。隅に貼り付いていると主役に見えない。
+    render(<PoeAvatar variant="hero" tutor={tutor()} />);
+    const avatar = screen.getByTestId("poe-avatar");
+    expect(avatar.className).not.toContain("fixed");
+    expect(screen.getByAltText("AIPPOの案内役 ポー").className).toContain(
+      "animate-float",
+    );
+  });
+
+  it("imageSrc で表情の画像を差し替えられる", () => {
+    // トップでは表情ではなく「手を振っているポー」を出す
+    render(
+      <PoeAvatar variant="hero" imageSrc="/brand/poe-wave.webp" tutor={tutor()} />,
+    );
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "src",
+      "/brand/poe-wave.webp",
+    );
+  });
+
   it("メッセージが変わると表示も変わる", () => {
     const { rerender } = render(<PoeAvatar tutor={tutor()} />);
     rerender(

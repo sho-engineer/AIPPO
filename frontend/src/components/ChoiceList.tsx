@@ -40,8 +40,8 @@ export function ChoiceList({
               className={[
                 "w-full rounded-xl border px-4 py-3 text-left text-sm transition",
                 isSelected
-                  ? "border-neutral-900 bg-neutral-900 text-white"
-                  : "border-neutral-300 bg-white hover:border-neutral-500",
+                  ? "border-brand bg-brand text-white"
+                  : "border-line bg-surface hover:border-brand",
                 disabled ? "cursor-not-allowed opacity-50" : "",
               ].join(" ")}
             >

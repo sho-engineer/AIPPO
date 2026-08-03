@@ -8,7 +8,7 @@
  * 行き止まりを作らないため（憲章 原則 I）。
  */
 
-import { ERRORS, LIMITS, SAFETY } from "../content/ui";
+import { BUTTONS, ERRORS, LIMITS, SAFETY } from "../content/ui";
 
 export type RealTaskInputProps = {
   value: string;
@@ -45,14 +45,14 @@ export function RealTaskInput({
         rows={6}
         placeholder="ここに、実際に直したい文章を貼り付けてください。"
         onChange={(e) => onChange(e.target.value)}
-        className="mt-2 w-full rounded-xl border border-neutral-300 p-3 text-sm
-                   leading-6 disabled:bg-neutral-100"
+        className="mt-2 w-full rounded-xl border border-line p-3 text-sm
+                   leading-6 disabled:bg-canvas"
       />
-      <p className="mt-1 text-right text-xs text-neutral-600">
+      <p className="mt-1 text-right text-xs text-ink-muted">
         {value.length} / {LIMITS.maxUserInputLength}
       </p>
       {overLimit ? (
-        <p className="text-xs text-red-700" role="alert">
+        <p className="text-xs text-caution" role="alert">
           {ERRORS.tooLong(LIMITS.maxUserInputLength)}
         </p>
       ) : null}
@@ -61,9 +61,9 @@ export function RealTaskInput({
         type="button"
         onClick={onUseSample}
         disabled={disabled}
-        className="mt-3 text-xs text-neutral-600 underline"
+        className="mt-3 text-xs text-ink-muted underline"
       >
-        思いつかないので、用意された例文で試す
+        {BUTTONS.useSample}
       </button>
     </div>
   );

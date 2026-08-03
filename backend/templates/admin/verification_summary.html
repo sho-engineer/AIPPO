@@ -45,6 +45,39 @@
 </div>
 
 <div class="aippo-section">
+  <h2>誰が来て、誰が完走したか</h2>
+  {% if by_experience %}
+    <table class="aippo-table">
+      <tr><th>AIを使った経験</th><th>来た人</th><th>完走</th><th>完走率</th></tr>
+      {% for label, row in by_experience.items %}
+        <tr>
+          <td>{{ label }}</td>
+          <td>{{ row.came }}</td>
+          <td>{{ row.completed }}</td>
+          <td>{{ row.rate }}%</td>
+        </tr>
+      {% endfor %}
+    </table>
+    <p class="note">
+      全体の完了率だけでは、AIを使ったことがない人が離脱しているのか、
+      ふだん使う人が物足りなくて離脱しているのかを区別できません。
+    </p>
+  {% else %}
+    <p class="aippo-empty">まだ診断の回答がありません。</p>
+  {% endif %}
+
+  {% if pain_points %}
+    <table class="aippo-table" style="margin-top:16px">
+      <tr><th>いま困っていること</th><th>人数</th></tr>
+      {% for pain, n in pain_points %}
+        <tr><td>{{ pain }}</td><td>{{ n }}</td></tr>
+      {% endfor %}
+    </table>
+    <p class="note">次にどのレッスンを作るかの判断材料になります。</p>
+  {% endif %}
+</div>
+
+<div class="aippo-section">
   <h2>どこで離脱したか</h2>
   {% if abandoned_steps %}
     <table class="aippo-table">
