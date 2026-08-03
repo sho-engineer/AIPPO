@@ -28,7 +28,7 @@
     {
       "key": "audience",
       "label": "誰向け",
-      "placeholder": "社外のお客様",
+      "placeholder": "ほかの相手を書く（例：取引先の担当者）",
       "options": [
         "社外のお客様",
         "社内の同僚",
@@ -40,7 +40,7 @@
     {
       "key": "tone",
       "label": "どのような表現",
-      "placeholder": "ていねいで、やわらかく",
+      "placeholder": "ほかの言い方を書く（例：かんたんな言葉で）",
       "options": [
         "ていねいに",
         "やわらかく",
@@ -52,7 +52,7 @@
     {
       "key": "length",
       "label": "どれくらいの長さ",
-      "placeholder": "3行くらい",
+      "placeholder": "ほかの長さを書く（例：2行）",
       "options": [
         "1行",
         "3行くらい",

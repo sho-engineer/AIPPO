@@ -73,7 +73,8 @@ export type LessonAction =
   | { type: "BACK" }
   | { type: "COMPLETE" }
   | { type: "SET_TUTOR"; tutor: TutorMessage }
-  | { type: "RESUME"; step: LessonStep };
+  | { type: "RESUME"; step: LessonStep }
+  | { type: "RESTART" };
 
 export const initialLessonState: LessonState = {
   step: "INTRO",
@@ -126,6 +127,10 @@ export function lessonReducer(
       return { ...state, improvementId: action.improvementId };
     case "SET_TUTOR":
       return { ...state, tutor: action.tutor };
+    case "RESTART":
+      // はじめから試し直す。前回の入力も結果も残さない。
+      // 遷移表は通さない。COMPLETE からの「戻り」ではなく、やり直しなので。
+      return initialLessonState;
     case "STREAM_CHUNK":
       // 書きかけを見せるだけ。進行は動かさない（憲章 原則 III）。
       // 実行中でないときに届いたものは、追い越された古い実行なので捨てる。

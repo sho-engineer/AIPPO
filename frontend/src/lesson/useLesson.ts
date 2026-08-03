@@ -76,6 +76,34 @@ export function useLesson(lessonId: string): UseLessonResult {
     return () => abortRef.current?.abort();
   }, []);
 
+  /**
+   * 途中で離れたことを記録する。
+   *
+   * これが無いと、管理画面では「最後にいた画面」からしか離脱を推測できない。
+   * どの画面で何回目のやり直しの最中に諦めたのかが分かると、
+   * 直すべき場所が具体的になる。
+   *
+   * `pagehide` はタブを閉じたときにも発火する。
+   * `keepalive` を付けないと、画面が消える時点で送信が打ち切られる。
+   */
+  useEffect(() => {
+    const onLeave = () => {
+      const current = stateRef.current;
+      if (current.step === "INTRO" || current.step === "COMPLETE") return;
+
+      void sendLearningEvent({
+        lessonId,
+        eventType: "lesson_abandoned",
+        step: current.step,
+        retryCount: current.attemptCount,
+        keepalive: true,
+      });
+    };
+
+    window.addEventListener("pagehide", onLeave);
+    return () => window.removeEventListener("pagehide", onLeave);
+  }, [lessonId]);
+
   const logEvent = useCallback(
     (eventType: string, extra: Record<string, number> = {}) => {
       // 送信結果は待たない。失敗してもレッスンを止めない。

@@ -26,7 +26,7 @@ export function ImprovementSelector({
   return (
     <div data-testid="improvement-selector">
       <h2 className="text-base font-bold">どこを直したいですか？</h2>
-      <p className="mt-1 text-xs text-neutral-600">一つだけ選んでください。</p>
+      <p className="mt-1 text-xs text-ink-muted">一つだけ選んでください。</p>
 
       <ul className="mt-4 grid gap-2" role="list">
         {improvements.map((improvement) => {
@@ -41,8 +41,8 @@ export function ImprovementSelector({
                 className={[
                   "w-full rounded-xl border px-4 py-3 text-left text-sm transition",
                   isSelected
-                    ? "border-neutral-900 bg-neutral-900 text-white"
-                    : "border-neutral-300 bg-white hover:border-neutral-500",
+                    ? "border-brand bg-brand text-white"
+                    : "border-line bg-surface hover:border-brand",
                   disabled ? "cursor-not-allowed opacity-50" : "",
                 ].join(" ")}
               >

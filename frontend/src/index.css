@@ -1,7 +1,54 @@
+/* 丸ゴシック。分割してあるので、必要な断片だけが読み込まれる */
+@import "./styles/fonts.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-body {
-  background-color: #f7f7f5;
+@layer base {
+  body {
+    /* 真っ白より、ほんのり色を入れたほうが緊張しない */
+    @apply bg-canvas text-ink;
+  }
+
+  /*
+    キーボードで操作している人に、いまどこにいるかを必ず見せる。
+    輪郭を消すと、マウスを使えない人が迷子になる。
+  */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-canvas;
+  }
+
+  /*
+    動きが体調に響く人がいる（めまい・吐き気）。
+    端末で「視差効果を減らす」を選んでいる人には、動きを出さない。
+
+    消すのではなく一瞬で終わらせている。
+    animation: none にすると、遅らせて出している要素が
+    現れないまま消えてしまう。
+  */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-delay: 0ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* 選択肢のチップ。押されているかが一目で分かるようにする */
+  .chip {
+    @apply rounded-full border px-3.5 py-2 text-xs transition;
+  }
+  .chip-off {
+    @apply border-brand-line bg-surface text-ink hover:border-brand hover:bg-brand-soft;
+  }
+  .chip-on {
+    @apply border-brand bg-brand text-white shadow-pop;
+  }
 }

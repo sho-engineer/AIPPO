@@ -38,7 +38,7 @@ function describe(violations: Awaited<ReturnType<typeof scan>>["violations"]) {
 
 async function openLesson(page: Page) {
   await page.goto("/");
-  await page.getByRole("button", { name: "はじめる" }).click();
+  await page.getByRole("button", { name: "はじめる" }).first().click();
   for (let i = 0; i < 3; i++) {
     const choices = page.locator("main section button");
     await choices.first().waitFor();
@@ -60,7 +60,7 @@ test.describe("アクセシビリティ", () => {
   test("診断画面", async ({ page }) => {
     await stubApi(page);
     await page.goto("/");
-    await page.getByRole("button", { name: "はじめる" }).click();
+    await page.getByRole("button", { name: "はじめる" }).first().click();
     await page.locator("main section button").first().waitFor();
 
     const { violations } = await scan(page);
@@ -112,6 +112,171 @@ test.describe("アクセシビリティ", () => {
 
     await page.keyboard.press("Enter");
     await expect(page.locator("main section button").first()).toBeVisible();
+  });
+
+  test("ポーが画面の外へはみ出さない", async ({ page }) => {
+    // はみ出すと発言が読めず、ポー自身も見えなくなる。
+    // 発言が長いときに起きるので、長めの発言で確かめる。
+    await stubApi(page, {
+      feedback: {
+        message:
+          "読む相手を伝えると、AIの直し方が変わります。" +
+          "たとえば「社外のお客様に」「ていねいに」「3行くらいで」のように、" +
+          "相手と言い方と長さをまとめて伝えてみましょう。",
+      },
+    });
+    await openLesson(page);
+    await page.getByTestId("primary-action").click();
+    await page.getByRole("button", { name: "仕事のメール" }).click();
+    await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
+    await page.getByRole("button", { name: "ていねいに", exact: true }).click();
+    await page.getByRole("button", { name: "3行くらい", exact: true }).click();
+    await page.getByTestId("primary-action").click();
+    await expect(page.getByTestId("result-compare")).toBeVisible();
+
+    const viewport = page.viewportSize()!;
+    const box = (await page.getByTestId("poe-avatar").boundingBox())!;
+
+    expect(box.x, "左へはみ出している").toBeGreaterThanOrEqual(-1);
+    expect(
+      box.x + box.width,
+      "右へはみ出していて発言が読めない",
+    ).toBeLessThanOrEqual(viewport.width + 1);
+    expect(box.height, "縦に伸びすぎて下の内容を覆う").toBeLessThan(
+      viewport.height * 0.5,
+    );
+
+    // ポー自身も見えていること
+    const poeImage = page.getByAltText("AIPPOの案内役 ポー");
+    const imageBox = (await poeImage.boundingBox())!;
+    expect(imageBox.x + imageBox.width).toBeLessThanOrEqual(viewport.width + 1);
+    expect(imageBox.width).toBeGreaterThan(0);
+  });
+
+  test("ポーが「次にやること」を覆わない", async ({ page }) => {
+    // 覆われると、次の一手が見えなくなる（憲章 原則 I）。
+    // 画面を一番下までスクロールした状態が一番きわどい。
+    await stubApi(page);
+    await openLesson(page);
+    await page.getByTestId("primary-action").click();
+    await page.getByRole("button", { name: "仕事のメール" }).click();
+
+    await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+    await page.waitForTimeout(300);
+
+    const action = page.getByTestId("primary-action");
+    const actionBox = (await action.boundingBox())!;
+    const poeBox = (await page.getByTestId("poe-avatar").boundingBox())!;
+
+    const overlaps =
+      actionBox.x < poeBox.x + poeBox.width &&
+      actionBox.x + actionBox.width > poeBox.x &&
+      actionBox.y < poeBox.y + poeBox.height &&
+      actionBox.y + actionBox.height > poeBox.y;
+
+    expect(overlaps, "ポーが次にやることを覆っている").toBe(false);
+  });
+
+  test("動きを減らす設定のときは動かさない", async ({ page }) => {
+    // 動きで気分が悪くなる人がいる。端末の設定に必ず従う。
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await stubApi(page);
+    await page.goto("/");
+
+    await expect(page.getByAltText("AIPPOの案内役 ポー")).toBeVisible();
+
+    const moving = await page.evaluate(() =>
+      [...document.querySelectorAll("*")]
+        .map((el) => getComputedStyle(el).animationDuration)
+        .filter((d) => parseFloat(d) > 0.05),
+    );
+    expect(moving, `${moving.length} 個がまだ動いている`).toEqual([]);
+
+    // 止めた結果、遅らせて出していたものが消えてしまわないこと
+    await expect(
+      page.getByRole("button", { name: "はじめる" }).first(),
+    ).toBeVisible();
+  });
+
+  test("タイトル画面が最初の1画面に収まる", async ({ page }) => {
+    // ゲームのタイトル画面として作っている以上、
+    // スクロールしないと始められないのでは形になっていない。
+    await stubApi(page);
+    await page.goto("/");
+
+    const viewport = page.viewportSize()!;
+    const start = page.getByRole("button", { name: "はじめる" }).first();
+    const box = (await start.boundingBox())!;
+
+    expect(
+      box.y + box.height,
+      "スクロールしないと「はじめる」が見えない",
+    ).toBeLessThanOrEqual(viewport.height);
+
+    // ロゴとポーも、同じ1画面の中に収まっていること
+    for (const target of [
+      page.getByTestId("brand-logo"),
+      page.getByAltText("AIPPOの案内役 ポー"),
+    ]) {
+      const targetBox = (await target.boundingBox())!;
+      expect(targetBox.y + targetBox.height).toBeLessThanOrEqual(
+        viewport.height,
+      );
+    }
+
+    // 下の2行が重ならないこと。
+    // 送り先の案内を画面の下端へ貼り付けていたときは、
+    // 縦 800px 前後の画面で注記と重なって文字が二重になっていた。
+    const hint = (await page.getByText(/登録は必要ありません/).boundingBox())!;
+    const cue = (await page.getByText(/この先に、やることが3つ/).boundingBox())!;
+    expect(cue.y, "注記と送り先の案内が重なっている").toBeGreaterThanOrEqual(
+      hint.y + hint.height,
+    );
+  });
+
+  test("丸ゴシックが実際に使われている", async ({ page }) => {
+    // 読み込みに失敗しても、端末のフォントで表示されてしまうので気づけない。
+    // 「用意したファイルが実際に使われたか」を確かめる。
+    const fontRequests: string[] = [];
+    page.on("response", (res) => {
+      if (res.url().includes("/fonts/") && res.status() === 200) {
+        fontRequests.push(res.url());
+      }
+    });
+
+    await stubApi(page);
+    await page.goto("/");
+    await page.evaluate(() => document.fonts.ready);
+
+    expect(fontRequests.length, "フォントが読み込まれていない").toBeGreaterThan(0);
+
+    const used = await page.evaluate(() =>
+      getComputedStyle(document.body).fontFamily,
+    );
+    expect(used).toContain("Zen Maru Gothic");
+
+    // 端末に無い場合に備えて、代わりの丸ゴシックが並んでいること
+    expect(used).toContain("Hiragino Maru Gothic ProN");
+  });
+
+  test("最初の1画面で読み込むフォントが重すぎない", async ({ page }) => {
+    // 日本語のフォントは全部で 3MB ある。
+    // 分割が効いていないと、最初に開いた人がそれを全部待たされる。
+    let bytes = 0;
+    page.on("response", async (res) => {
+      if (!res.url().includes("/fonts/") || res.status() !== 200) return;
+      const body = await res.body().catch(() => null);
+      if (body) bytes += body.length;
+    });
+
+    await stubApi(page);
+    await page.goto("/");
+    await page.evaluate(() => document.fonts.ready);
+
+    expect(
+      bytes,
+      `最初の1画面で ${Math.round(bytes / 1024)}KB 読み込んでいる`,
+    ).toBeLessThan(600 * 1024);
   });
 
   test("読み上げの邪魔をしない", async ({ page }) => {

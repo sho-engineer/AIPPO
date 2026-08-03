@@ -16,6 +16,15 @@ export const BRAND = {
   tutorName: "ポー",
 } as const;
 
+/**
+ * タイトル画面でポーが言うこと。
+ *
+ * 短くする。タイトル画面は「ここから始まる」と分かれば足り、
+ * 説明を吹き出しに詰めると、狭い画面でボタンが下へ押し出される。
+ */
+export const POE_TITLE_GREETING =
+  "はじめまして、ポーです。いっしょに、最初の一歩を。";
+
 /** ポーの初回メッセージ（AIPPO 開発概要 §6）。 */
 export const POE_GREETING =
   "はじめまして、ポーです。\n" +
@@ -31,7 +40,8 @@ export const BUTTONS = {
   cancel: "やめる",
   complete: "完了する",
   copy: "結果をコピーする",
-  useSample: "用意された例文で試す",
+  useSample: "思いつかないので、用意された例文で試す",
+  restart: "もう一度はじめから試す",
 } as const;
 
 export const WAITING = {
