@@ -90,3 +90,18 @@ export const LIMITS = {
   waitingLongMs: 15_000,
   waitingTooLongMs: 30_000,
 } as const;
+
+/**
+ * 版と、法務まわりの行き先。
+ *
+ * 設定の「AIPPOについて」に出す。
+ * 行き先はまだ用意していないので、無いものへ飛ばさず同じページに留める
+ * （`#` ではなく、実際の文書ができたときにここだけ直せばよい形にする）。
+ */
+export const APP_VERSION = "1.0.0";
+
+export const LEGAL_LINKS = [
+  { label: "利用規約", href: "/legal/terms" },
+  { label: "プライバシーポリシー", href: "/legal/privacy" },
+  { label: "特定商取引法に基づく表記", href: "/legal/tokushoho" },
+] as const;

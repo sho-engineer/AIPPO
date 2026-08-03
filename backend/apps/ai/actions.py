@@ -1,0 +1,365 @@
+"""教材が AI に頼めることの一覧。
+
+`POST /api/v1/ai/generate/` の `action` はここに載っているものだけ。
+教材（LessonStep）はこの名前を指すだけで、プロンプトを持たない。
+
+なぜ分けるか
+------------
+プロンプトを教材データやフロントエンドに置くと、
+利用者側から書き換えられるうえ、安全ルール（§11）を1か所で
+守れなくなる。**AI へ送る文面はサーバーが組み立てる**。
+
+文章生成の指示は §11 に従い、共通で次を守る。
+
+- 利用者が指定した目的を優先する
+- 指定されていない事実を勝手に足さない
+- 元の文章の意味を不必要に変えない
+- 日本語として自然にする
+- 出力だけを返す。解説を混ぜない
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass, field
+
+from apps.ai.providers.mock import SOURCE_MARKER
+
+#: すべての生成に共通する土台。ここを外れる指示は各アクションに書かない。
+BASE_RULES = """あなたは、日本語を扱う作業の担当者です。
+
+守ること:
+- 利用者が指定した目的・対象者・条件を最優先する
+- 指定されていない事実を勝手に足さない。分からないことは書かない
+- 元の内容の意味を不必要に変えない
+- 中学生でも読める日本語にする
+- 依頼された成果物だけを返す。前置き・言い訳・解説を混ぜない
+- 指定された JSON 形式だけを返す
+"""
+
+#: 1件のテキストを返すときの共通スキーマ。
+TEXT_SCHEMA: dict = {
+    "type": "object",
+    "properties": {"result": {"type": "string"}},
+    "required": ["result"],
+    "additionalProperties": False,
+}
+
+
+@dataclass(frozen=True)
+class ActionField:
+    """アクションが受け取る入力1つ分。"""
+
+    key: str
+    label: str
+    required: bool = True
+    max_length: int = 200
+
+
+@dataclass(frozen=True)
+class Action:
+    id: str
+    #: 対応するレッスン。教材外からの呼び出しを弾くために使う。
+    lesson_ids: tuple[str, ...]
+    system_prompt: str
+    schema: dict
+    fields: tuple[ActionField, ...]
+    build: Callable[[dict], str]
+    #: 本文として受け取る項目。文字数上限が別枠になる。
+    body_field: str = ""
+    #: 生成後にポーが言うこと。100文字以内（§11）。
+    tutor_message: str = ""
+    tutor_emotion: str = "neutral"
+    tutor_action: str = "review"
+    extras: dict = field(default_factory=dict)
+
+
+def _line(label: str, value: str) -> str:
+    return f"- {label}: {value}" if value else ""
+
+
+def _compose(headline: str, pairs: list[tuple[str, str]], body: str = "") -> str:
+    """依頼文を組み立てる。
+
+    条件を箇条書きで先に置き、対象の本文は目印の後ろへ回す。
+    本文の中に「〜してください」と書かれていても、
+    条件と混ざらないようにするため。
+    """
+    lines = [headline, ""]
+    lines += [text for text in (_line(label, value) for label, value in pairs) if text]
+    if body:
+        lines += ["", SOURCE_MARKER, body]
+    return "\n".join(lines)
+
+
+# --- Lesson 1: 文章を分かりやすくする ------------------------------------
+
+REWRITE = Action(
+    id="rewrite",
+    lesson_ids=("rewrite_text", "final_challenge"),
+    system_prompt=BASE_RULES
+    + """
+やること: 与えられた文章を、指定された相手・表現・長さに合わせて書き直す。
+書き直した文章だけを result に入れる。
+""",
+    schema=TEXT_SCHEMA,
+    fields=(
+        ActionField("original_text", "元の文章", max_length=5000),
+        ActionField("audience", "誰向け"),
+        ActionField("tone", "表現"),
+        ActionField("length", "長さ"),
+        ActionField("instruction", "追加の条件", required=False),
+    ),
+    body_field="original_text",
+    build=lambda v: _compose(
+        "次の文章を書き直してください。",
+        [
+            ("読む相手", v["audience"]),
+            ("表現", v["tone"]),
+            ("長さ", v["length"]),
+            ("追加の条件", v.get("instruction", "")),
+        ],
+        v["original_text"],
+    ),
+    tutor_message="相手と長さを伝えたので、目的に近い文章になりました。元の意味が変わっていないか見てみましょう。",
+)
+
+# --- Lesson 2: 長い文章を短くまとめる ------------------------------------
+
+SUMMARIZE = Action(
+    id="summarize",
+    lesson_ids=("summarize_text", "final_challenge"),
+    system_prompt=BASE_RULES
+    + """
+やること: 与えられた文章を、指定された目的・形式・長さでまとめる。
+元の文章に書かれていないことは足さない。
+まとめた結果だけを result に入れる。
+""",
+    schema=TEXT_SCHEMA,
+    fields=(
+        ActionField("original_text", "元の文章", max_length=5000),
+        ActionField("purpose", "まとめる目的"),
+        ActionField("format", "出力形式"),
+        ActionField("length", "長さ"),
+        ActionField("instruction", "追加の条件", required=False),
+    ),
+    body_field="original_text",
+    build=lambda v: _compose(
+        "次の文章をまとめてください。",
+        [
+            ("まとめる目的", v["purpose"]),
+            ("出力形式", v["format"]),
+            ("長さ", v["length"]),
+            ("追加の条件", v.get("instruction", "")),
+        ],
+        v["original_text"],
+    ),
+    tutor_message="目的と形式を先に伝えると、まとめ方が変わります。元に無い話が混ざっていないか確かめましょう。",
+)
+
+# --- Lesson 3: 分からないことを説明してもらう ----------------------------
+
+EXPLAIN = Action(
+    id="explain",
+    lesson_ids=("explain_topic", "final_challenge"),
+    system_prompt=BASE_RULES
+    + """
+やること: 与えられた言葉や内容を、指定された相手に向けて説明する。
+確信が持てないことは書かない。
+説明の文章だけを result に入れる。
+""",
+    schema=TEXT_SCHEMA,
+    fields=(
+        ActionField("topic", "知りたいこと", max_length=500),
+        ActionField("audience", "説明する相手"),
+        ActionField("style", "説明のしかた"),
+        ActionField("example", "具体例の有無"),
+        ActionField("length", "長さ"),
+        ActionField("instruction", "追加の条件", required=False),
+    ),
+    body_field="topic",
+    build=lambda v: _compose(
+        "次のことを説明してください。",
+        [
+            ("説明する相手", v["audience"]),
+            ("説明のしかた", v["style"]),
+            ("具体例", v["example"]),
+            ("長さ", v["length"]),
+            ("追加の条件", v.get("instruction", "")),
+        ],
+        v["topic"],
+    ),
+    tutor_message="「誰に向けて」を伝えると、言葉の難しさが変わります。分からない言葉が残っていないか見てみましょう。",
+)
+
+# --- Lesson 4: 選択肢を比較する ------------------------------------------
+
+COMPARE = Action(
+    id="compare",
+    lesson_ids=("compare_options", "final_challenge"),
+    system_prompt=BASE_RULES
+    + """
+やること: 与えられた選択肢を、指定された基準で比べる。
+
+特に守ること:
+- 価格・仕様・最新の情報は、確かなことだけを書く。分からなければ
+  「確認が必要」と書く。数字を推測で書かない
+- 断定して1つに決めない。判断は利用者がする
+""",
+    schema={
+        "type": "object",
+        "properties": {
+            "result": {"type": "string"},
+            "check_points": {"type": "array", "items": {"type": "string"}},
+        },
+        "required": ["result", "check_points"],
+        "additionalProperties": False,
+    },
+    fields=(
+        ActionField("options_text", "比べたいもの", max_length=2000),
+        ActionField("criteria", "比べる基準", max_length=500),
+        ActionField("priority", "いちばん大事にしたいこと"),
+        ActionField("as_table", "表にするか"),
+        ActionField("instruction", "追加の条件", required=False),
+    ),
+    body_field="options_text",
+    build=lambda v: _compose(
+        "次の選択肢を比べてください。",
+        [
+            ("比べる基準", v["criteria"]),
+            ("いちばん大事にしたいこと", v["priority"]),
+            ("表にするか", v["as_table"]),
+            ("追加の条件", v.get("instruction", "")),
+        ],
+        v["options_text"],
+    ),
+    tutor_message="AIのおすすめは答えではありません。価格や仕様は、必ず自分で確かめましょう。",
+    tutor_emotion="warning",
+    extras={"needs_fact_check": True},
+)
+
+# --- Lesson 5: 計画を作る ------------------------------------------------
+
+PLAN = Action(
+    id="plan",
+    lesson_ids=("make_plan", "final_challenge"),
+    system_prompt=BASE_RULES
+    + """
+やること: 与えられた目標を、実行できる小さな手順に分ける。
+
+特に守ること:
+- 1つの手順は、その日のうちに始められる大きさにする
+- 期限・使える時間・予算をはみ出す案を出さない
+- 避けたいことに挙がったものを手順に入れない
+""",
+    schema={
+        "type": "object",
+        "properties": {
+            "result": {"type": "string"},
+            "steps": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "title": {"type": "string"},
+                        "detail": {"type": "string"},
+                    },
+                    "required": ["title", "detail"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "required": ["result", "steps"],
+        "additionalProperties": False,
+    },
+    fields=(
+        ActionField("goal", "達成したいこと", max_length=500),
+        ActionField("deadline", "期限"),
+        ActionField("available_time", "使える時間"),
+        ActionField("budget", "予算", required=False),
+        ActionField("priority", "優先したいこと", required=False),
+        ActionField("avoid", "避けたいこと", required=False),
+        ActionField("instruction", "追加の条件", required=False),
+    ),
+    body_field="goal",
+    build=lambda v: _compose(
+        "次のことを達成する計画を作ってください。",
+        [
+            ("期限", v["deadline"]),
+            ("使える時間", v["available_time"]),
+            ("予算", v.get("budget", "")),
+            ("優先したいこと", v.get("priority", "")),
+            ("避けたいこと", v.get("avoid", "")),
+            ("追加の条件", v.get("instruction", "")),
+        ],
+        v["goal"],
+    ),
+    tutor_message="期限と使える時間を伝えると、計画の粒が変わります。明日から始められる大きさか見てみましょう。",
+)
+
+# --- Lesson 6: 回答を改善する --------------------------------------------
+
+#: AI を使うレッスン。改善はどのレッスンからも呼べる。
+AI_LESSON_IDS = (
+    "rewrite_text",
+    "summarize_text",
+    "explain_topic",
+    "compare_options",
+    "make_plan",
+    "improve_answer",
+    "final_challenge",
+)
+
+IMPROVE = Action(
+    id="improve",
+    # 「もう少し直す」はどの教材にも入っている共通のステップ。
+    # ここを絞ると、レッスンを1本足すたびに 400 になる（実際になった）。
+    lesson_ids=AI_LESSON_IDS,
+    system_prompt=BASE_RULES
+    + """
+やること: すでにある回答を、指定された方向に直す。
+
+特に守ること:
+- 直す方向として指定されたこと**だけ**を変える
+- 元の回答に無い事実を足さない
+- 「足りない情報を質問する」と指定されたときは、
+  回答を書き直さず、確認したいことを箇条書きで返す
+""",
+    schema=TEXT_SCHEMA,
+    fields=(
+        ActionField("original_text", "元の回答", max_length=5000),
+        ActionField("improvement", "直したい方向"),
+        ActionField("instruction", "追加の条件", required=False),
+    ),
+    body_field="original_text",
+    build=lambda v: _compose(
+        "次の回答を直してください。",
+        [
+            ("直したい方向", v["improvement"]),
+            ("追加の条件", v.get("instruction", "")),
+        ],
+        v["original_text"],
+    ),
+    tutor_message="一度で完成させる必要はありません。条件を足すたびに近づいていきます。",
+    tutor_action="next",
+)
+
+
+ACTIONS: dict[str, Action] = {
+    action.id: action
+    for action in (REWRITE, SUMMARIZE, EXPLAIN, COMPARE, PLAN, IMPROVE)
+}
+
+
+def get_action(action_id: str) -> Action | None:
+    return ACTIONS.get(action_id)
+
+
+__all__ = [
+    "ACTIONS",
+    "Action",
+    "ActionField",
+    "BASE_RULES",
+    "TEXT_SCHEMA",
+    "get_action",
+]

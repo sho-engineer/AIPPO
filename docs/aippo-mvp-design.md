@@ -1,17 +1,35 @@
 # AIPPO MVP 設計・影響範囲
 
 **作成日**: 2026-08-02
-**最終更新**: 2026-08-02（Phase 0〜6 完了。§19 の MVP 完成条件を充足）
+**最終更新**: 2026-08-03
 **位置づけ**: 「AIPPO 開発概要」§20 への回答。
 
-## 進捗
+> **この文書は Phase 0〜6 の設計記録です。**
+> そのあと教材と画面を作り直しているため、いまのコードとは食い違う箇所があります。
+> **現在の姿は [`README.md`](../README.md) を見てください。**
+>
+> 主な差分（この文書のあとに変わったこと）
+>
+> | この文書の記述 | いまのコード |
+> | --- | --- |
+> | レッスン1本（`rewrite_text_001`）・9ステップの状態機械 | 教材9本・19ステップ。骨格は `frontend/src/course/shared.ts` が組む |
+> | `frontend/src/lesson/`（machine.ts / reducer.ts） | **削除済み**。`frontend/src/course/` が置き換えた |
+> | `POST /api/lessons/rewrite-text/generate/` | `POST /api/v1/ai/generate/`（教材共通の入口） |
+> | チューター専用の Anthropic 実装 | `apps/ai/providers/` に統合。既定は openai / gpt-5-nano、鍵が無ければ mock |
+> | トップ → 診断 → レッスンの3画面 | タイトル → ホーム → 教材一覧 → レッスン ＋ 設定の5画面 |
+> | 状態は useReducer | `useCourseLesson` フック |
+>
+> 設計の**考え方**（進行はアプリが決める・固定文にAIを使わない・
+> AIが止まってもレッスンは止まらない）は、いまもそのまま守っています。
+
+## 進捗（Phase 0〜6 時点の記録）
 
 | Phase | 状態 |
 | --- | --- |
 | **0. 移設準備・改名・設計判断の反映** | ✅ **完了** |
 | **1. 画面モック** | ✅ **完了**（トップ・診断3問・用途提案・レッスンレイアウト） |
 | **2. レッスン状態管理** | ✅ **完了**（9状態の状態機械＋各コンポーネント） |
-| **3. AI文章生成** | ✅ **完了**（`POST /api/lessons/rewrite-text/generate/`） |
+| **3. AI文章生成** | ✅ **完了** |
 | **4. AIチューターフィードバック** | ✅ **完了**（§8 準拠の hint_level 0-3） |
 | **5. ログ取得** | ✅ **完了**（学習イベント・セッション再開・アンケート） |
 | **6. E2Eテスト** | ✅ **完了**（Playwright 30件＋探索テスト） |
@@ -24,15 +42,10 @@ Q-6（バックエンドの言語）も §3.4 で確定済み — **Django の�
 
 | 種類 | 件数 | 実行方法 |
 | --- | --- | --- |
-| バックエンド（pytest） | 126 | `cd backend && pytest` |
-| フロントエンド（Vitest） | 95 | `cd frontend && npm test` |
-| E2E（Playwright / APIスタブ） | 12 × 2画面 | `npx playwright test e2e/lesson.spec.ts` |
-| アクセシビリティ（axe / WCAG 2.1 A・AA） | 13 × 2画面 | `npx playwright test e2e/a11y.spec.ts` |
-| 探索テスト（本物のバックエンド） | 11 × 2画面 | Django 起動後に `npx playwright test e2e/exploratory.spec.ts` |
-
-E2E は desktop Chrome と Pixel 5 の2プロジェクトで回す。
-`E2E_TARGET=build` を付けると、開発サーバーではなく
-本番と同じビルド成果物に当たる（CI はこちら）。
+| バックエンド（pytest） | 178 | `cd backend && uv run pytest` |
+| フロントエンド（Vitest） | 164 | `cd frontend && npm test` |
+| アクセシビリティ（axe / WCAG 2.1 A・AA） | 15画面 | `cd frontend && npm run check:a11y` |
+| E2E（Playwright） | — | **いまは失敗します**。成果物ファーストの流れに追随できておらず、作り直しが必要 |
 
 ---
 
@@ -682,7 +695,10 @@ REFLECTION      --BACK-->           REAL_TASK
 AI の応答（`action: "next"` など）は表示のヒントであって、遷移の指示ではない。
 遷移を実行するのは reducer だけ。
 
-実装済み・テスト済み（`frontend/src/lesson/`、31 tests）。
+当時の実装は `frontend/src/lesson/` にあり 31 tests で守っていた。
+**このディレクトリは削除済み**で、いまは `frontend/src/course/` が同じ役目を負う
+（進行は `engine.ts`、状態は `useCourseLesson.ts`）。
+「遷移を実行するのはアプリ側だけ」という決まりは変わっていない。
 
 ---
 
@@ -779,7 +795,7 @@ views.py → services/generation.py → AiProvider（Protocol）
 ```
 
 プロバイダ固有の型・SDK をビュー層へ漏らさない。
-`AI_PROVIDER=stub` のままレッスンを完走できることを統合テストで担保する。
+`AI_PROVIDER=mock` のままレッスンを完走できることを統合テストで担保する（`stub` は同じものの旧名）。
 
 ### 6.6 AIへ送るデータの範囲
 
@@ -1000,7 +1016,7 @@ id / session / answers（JSON）/ created_at
 
 ### Phase 6: E2Eテスト
 
-- Playwright で §18 の9ステップシナリオ
+- Playwright で §18 のシナリオ（**19ステップの流れに未追随。要修正**）
 - AI はテスト用レスポンスへ差し替え
 
 **完了条件**: E2E が緑。§19 の完成条件をすべて満たす。

@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "check:a11y": "node axe-check.mjs",
     "fonts": "python3 scripts/build-fonts.py",
     "poe": "python3 scripts/build-poe.py"
   },

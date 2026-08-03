@@ -40,6 +40,17 @@ def _generate(api_client, **extra):
     )
 
 
+def _ip_counter() -> AiUsageCounter:
+    """接続元単位のカウンタだけを取り出す。
+
+    カウンタは「全体」「接続元」「学習者」の3種類あるので、
+    全体を除くだけでは絞れない。
+    """
+    return AiUsageCounter.objects.exclude(
+        scope=AiUsageCounter.GLOBAL_SCOPE
+    ).exclude(scope__startswith=quota.LEARNER_PREFIX).get()
+
+
 @pytest.mark.django_db
 class TestIpLimit:
     def test_clearing_the_cookie_does_not_grant_unlimited_runs(
@@ -67,10 +78,7 @@ class TestIpLimit:
             api_client.cookies.clear()
             _generate(api_client)
 
-        counter = AiUsageCounter.objects.exclude(
-            scope=AiUsageCounter.GLOBAL_SCOPE
-        ).get()
-        assert counter.count == 1, "弾いた分まで数えている"
+        assert _ip_counter().count == 1, "弾いた分まで数えている"
 
     def test_message_has_no_jargon(self, api_client, stub_ai, settings):
         settings.AI_RUNS_PER_IP_PER_DAY = 1
@@ -232,6 +240,7 @@ class TestNoLimit:
     def test_zero_means_unlimited(self, api_client, stub_ai, settings):
         settings.AI_RUNS_PER_IP_PER_DAY = 0
         settings.AI_RUNS_PER_DAY = 0
+        settings.AI_DAILY_REQUEST_LIMIT_PER_USER = 0
         settings.MAX_ATTEMPTS_PER_SESSION = 100
 
         for _ in range(4):
@@ -246,7 +255,7 @@ def test_counters_are_per_day(api_client, stub_ai, settings):
     settings.AI_RUNS_PER_IP_PER_DAY = 5
     _generate(api_client)
 
-    counter = AiUsageCounter.objects.exclude(scope=AiUsageCounter.GLOBAL_SCOPE).get()
+    counter = _ip_counter()
     assert counter.date is not None
     assert counter.count == 1
 

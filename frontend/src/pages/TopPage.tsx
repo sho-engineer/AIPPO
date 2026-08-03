@@ -20,35 +20,38 @@
  * 動きはすべて CSS。prefers-reduced-motion のときは index.css で一括して止める。
  */
 
+import { IconBadge } from "../components/AppShell";
 import { BrandLogo } from "../components/BrandLogo";
+import { IconChat, IconChecklist, IconWrite } from "../components/Icons";
 import { PoeAvatar } from "../components/PoeAvatar";
 import { TitleBackdrop } from "../components/TitleBackdrop";
 import { BRAND, BUTTONS, POE_TITLE_GREETING } from "../content/ui";
 
-/** 始める前に、何が起きるかを見せる。長さは3つまで。 */
+/**
+ * 始める前に、何が起きるかを見せる。長さは3つまで。
+ *
+ * 絵は絵文字ではなく線画を使う（components/Icons.tsx に理由を書いた）。
+ * 絵文字は端末ごとに絵柄も色も変わるので、丸ゴシックとやわらかい青で
+ * そろえた画面の中で、そこだけ他所から貼ったように浮く。
+ */
 const STEPS = [
   {
     number: "1",
     title: "3つの質問に答える",
     body: "いまの仕事と、困っていることを選ぶだけ。",
-    /** 段差。右へ行くほど高くする＝登っていく */
-    lift: "sm:mt-16",
-    tone: "bg-brand",
+    Icon: IconChecklist,
   },
   {
     number: "2",
     title: "AIに実際にお願いする",
-    body: "相手・言い方・長さを伝えて、文章を直してもらいます。",
-    lift: "sm:mt-8",
-    tone: "bg-brand",
+    body: "相手・言い方・長さを伝えて、文章を整えてもらいます。",
+    Icon: IconChat,
   },
   {
     number: "3",
     title: "自分の文章で試す",
     body: "覚えたやり方を、そのまま自分の仕事に使えます。",
-    lift: "sm:mt-0",
-    // ここが上がり。青が3つ並ぶと段差が読み取れないので、色を変える
-    tone: "bg-joy",
+    Icon: IconWrite,
   },
 ] as const;
 
@@ -72,11 +75,20 @@ function StartButton({ onClick }: { onClick: () => void }) {
       <button
         type="button"
         onClick={onClick}
-        className="relative w-64 rounded-full bg-brand px-10 py-4 text-lg font-bold
-                   text-white shadow-pop transition hover:-translate-y-0.5
-                   hover:bg-brand-dark active:translate-y-0"
+        className="relative flex w-64 items-center justify-center gap-3 rounded-full
+                   bg-brand-grad py-4 pl-10 pr-4 text-lg font-bold text-white shadow-pop
+                   transition hover:-translate-y-0.5 hover:brightness-110
+                   active:translate-y-0 active:brightness-95"
       >
-        {BUTTONS.start}
+        <span className="flex-1">{BUTTONS.start}</span>
+        {/* 進む向きを形でも示す。文字だけより速く伝わる */}
+        <span
+          aria-hidden="true"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
+                     bg-white text-base text-brand"
+        >
+          ›
+        </span>
       </button>
     </div>
   );
@@ -157,114 +169,131 @@ export function TopPage({ onStart }: TopPageProps) {
         </div>
       </section>
 
-      {/* ── 進む道。すごろくの盤面として見せる ── */}
-      <section
-        className="relative z-10 -mt-10 rounded-t-[2.5rem] bg-surface px-6
-                   pb-16 pt-12 sm:pt-16"
-        aria-labelledby="steps-heading"
-      >
+      {/* ── やることは3つ。1枚の白い面にまとめて置く ── */}
+      <section className="relative z-10 px-5 pb-14" aria-labelledby="steps-heading">
         {/*
-          上辺を丸めて、タイトル画面へ少しかぶせている。
-          白い面をぴったり突き合わせると、切り貼りしたように見える。
+          下地がほぼ白になったので、面を重ねて段差を作る手は使えない
+          （白の上に白を置いても境目が出ない）。輪郭は影だけで出す。
         */}
-        <div className="mx-auto max-w-4xl">
-          <h2 id="steps-heading" className="text-xl font-bold">
-            はじめの一歩は、3つだけ
-          </h2>
+        <div className="mx-auto max-w-4xl rounded-panel bg-surface px-6 py-10 shadow-panel sm:px-10">
+          {/* 見出しの左右に点線を添えて、章の切れ目だと分かるようにする */}
+          <div className="flex items-center justify-center gap-3">
+            <span
+              aria-hidden="true"
+              className="hidden h-px w-16 border-t-2 border-dotted border-brand-line sm:block"
+            />
+            <h2 id="steps-heading" className="text-center text-xl font-bold sm:text-2xl">
+              はじめの一歩は、3つだけ
+            </h2>
+            <span
+              aria-hidden="true"
+              className="hidden h-px w-16 border-t-2 border-dotted border-brand-line sm:block"
+            />
+          </div>
 
-          <p className="mt-3 text-sm leading-8 text-ink-muted">
+          <p className="mt-3 text-center text-sm leading-8 text-ink-muted">
             {BRAND.subHeadline}
           </p>
 
-          <div className="relative mt-10 sm:mt-12">
-            {/*
-              道は ol の外に置く。
-              ol の直下に li 以外を入れると、読み上げが一覧として扱えなくなる。
-
-              横に並ぶときは登っていく曲線、縦に積むときは左端の点線。
-            */}
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-              className="absolute inset-x-0 top-0 hidden h-28 w-full sm:block"
-            >
-              {/*
-                非等比に伸ばすので、線の太さと点線の間隔が潰れないよう
-                non-scaling-stroke を指定する。
-              */}
-              <path
-                d="M16.7 82 C30 82, 37 54, 50 54 C63 54, 70 26, 83.3 26"
-                fill="none"
-                strokeWidth={2}
-                strokeDasharray="5 8"
-                strokeLinecap="round"
-                vectorEffect="non-scaling-stroke"
-                className="stroke-brand-line"
-              />
-            </svg>
-            <span
-              aria-hidden="true"
-              className="absolute left-7 top-8 h-[calc(100%-5rem)] border-l-2
-                         border-dashed border-brand-line sm:hidden"
-            />
-
-            <ol className="grid gap-8 sm:grid-cols-3 sm:gap-6" role="list">
-              {STEPS.map((step) => (
-                <li
-                  key={step.number}
-                  className={`relative flex gap-4 sm:block ${step.lift}`}
-                >
+          {/*
+            3つを横に並べ、あいだを点線でつなぐ。
+            番号はカードの上辺にまたがせて、順番が先に目に入るようにする。
+          */}
+          <ol
+            className="mt-10 grid gap-8 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-start sm:gap-0"
+            role="list"
+          >
+            {STEPS.map((step, index) => (
+              <li
+                key={step.number}
+                className={`contents sm:contents`}
+                style={{ display: "contents" }}
+              >
+                <div className="relative rounded-card bg-brand-soft/50 px-5 pb-6 pt-9 text-center">
                   <span
                     aria-hidden="true"
-                    className={`relative z-10 flex h-14 w-14 shrink-0 items-center
-                                justify-center rounded-full text-lg font-bold
-                                text-white shadow-card ring-4 ring-surface
-                                sm:mx-auto ${step.tone}`}
+                    className="absolute left-1/2 top-0 flex h-10 w-10 -translate-x-1/2
+                               -translate-y-1/2 items-center justify-center rounded-full
+                               bg-brand text-sm font-bold text-white shadow-card
+                               ring-4 ring-surface"
                   >
                     {step.number}
                   </span>
-                  <div className="sm:mt-4 sm:text-center">
-                    <h3 className="text-base font-bold">{step.title}</h3>
-                    <p className="mt-1.5 text-sm leading-7 text-ink-muted">
-                      {step.body}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </div>
+                  {/*
+                    絵は角丸の四角に載せる（components/AppShell.tsx の IconBadge
+                    と同じ形）。丸にすると四角い絵が縮んで弱く見える。
+                  */}
+                  <span className="mx-auto flex w-fit">
+                    <IconBadge icon={step.Icon} tone="plain" size="lg" />
+                  </span>
+                  <h3 className="mt-3 text-base font-bold">{step.title}</h3>
+                  <p className="mt-1.5 text-sm leading-7 text-ink-muted">
+                    {step.body}
+                  </p>
+                </div>
+
+                {index < STEPS.length - 1 && (
+                  <span
+                    aria-hidden="true"
+                    className="hidden items-center gap-1 self-center px-2 sm:flex"
+                  >
+                    <span className="h-px w-4 border-t-2 border-dotted border-brand-line" />
+                    <span
+                      className="flex h-6 w-6 items-center justify-center rounded-full
+                                 border border-brand-line text-xs text-brand"
+                    >
+                      ›
+                    </span>
+                    <span className="h-px w-4 border-t-2 border-dotted border-brand-line" />
+                  </span>
+                )}
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
-      {/* ── 締め。登りきった先を見せて、その場から始められるようにする ── */}
-      <section className="relative bg-brand px-6 py-14 text-center text-white">
-        {/*
-          紙吹雪の中のポー。ここが道の終わり。
-          読み上げには要らない（同じことがすぐ下に文で書いてある）。
-        */}
-        <img
-          src="/poe/celebrate.webp"
-          alt=""
-          aria-hidden="true"
-          className="mx-auto h-32 w-32 animate-float object-contain sm:h-40 sm:w-40"
-        />
-        <p className="mt-3 text-xl font-bold sm:text-2xl">{BRAND.tagline}</p>
+      {/* ── 締め。ポーを左に、行き先を右に置く ── */}
+      <section className="relative mx-5 mb-8 overflow-hidden rounded-panel bg-brand px-6 py-10 text-white">
+        <div className="mx-auto flex max-w-4xl flex-col items-center gap-6 sm:flex-row sm:gap-10">
+          {/*
+            紙吹雪の中のポー。読み上げには要らない
+            （同じことがすぐ横に文で書いてある）。
+          */}
+          <img
+            src="/poe/celebrate.webp"
+            alt=""
+            aria-hidden="true"
+            className="h-32 w-32 shrink-0 animate-float object-contain sm:h-40 sm:w-40"
+          />
 
-        {/*
-          ここでも始められるようにする。
-          読み終えた場所から画面の上まで戻らせるのは行き止まりに近い
-          （憲章 原則 I）。行き先はタイトル画面のボタンと同じで、選択肢は増えない。
-        */}
-        <button
-          type="button"
-          onClick={onStart}
-          className="mt-7 w-64 rounded-full bg-white px-10 py-4 text-lg font-bold
-                     text-brand shadow-pop transition hover:-translate-y-0.5
-                     hover:bg-brand-soft active:translate-y-0"
-        >
-          {BUTTONS.start}
-        </button>
+          <div className="flex-1 text-center sm:text-left">
+            <p className="text-xl font-bold sm:text-2xl">{BRAND.tagline}</p>
+
+            {/*
+              ここでも始められるようにする。
+              読み終えた場所から画面の上まで戻らせるのは行き止まりに近い
+              （憲章 原則 I）。行き先はタイトル画面のボタンと同じ。
+            */}
+            <button
+              type="button"
+              onClick={onStart}
+              className="mt-6 flex w-full items-center justify-center gap-3 rounded-full
+                         bg-white py-4 pl-8 pr-4 text-lg font-bold text-brand shadow-pop
+                         transition hover:-translate-y-0.5 hover:bg-brand-soft
+                         active:translate-y-0 sm:w-72"
+            >
+              <span className="flex-1">{BUTTONS.start}</span>
+              <span
+                aria-hidden="true"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
+                           bg-brand text-base text-white"
+              >
+                ›
+              </span>
+            </button>
+          </div>
+        </div>
       </section>
     </main>
   );

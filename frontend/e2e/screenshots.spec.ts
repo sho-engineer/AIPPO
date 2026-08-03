@@ -42,58 +42,69 @@ test("各画面を書き出す", async ({ page }) => {
   await stubApi(page);
 
   await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
   await shot(page, "01-top");
 
+  const next = () => page.getByTestId("primary-action").click();
+  const choose = (label: string) =>
+    page.getByRole("button", { name: label, exact: true }).click();
+
   await page.getByRole("button", { name: "はじめる" }).first().click();
-  await page.locator("main section button").first().waitFor();
-  await shot(page, "02-diagnosis");
+  await shot(page, "02-course");
 
-  for (let i = 0; i < 3; i++) {
-    const choices = page.locator("main section button");
-    await choices.first().waitFor();
-    await choices.first().click();
-  }
-  await page.getByRole("button", { name: "これを試す" }).waitFor();
+  // Lesson 0: 診断
+  await page.getByTestId("lesson-diagnosis").click();
+  await next();
+  await choose("文章を書くことが多い");
+  await next();
+  await choose("使ったことがない");
+  await next();
+  await choose("文章を書く・直す");
+  await next();
   await shot(page, "03-recommendation");
+  await next();
 
-  await page.getByRole("button", { name: "これを試す" }).click();
-  await expect(page.getByTestId("lesson-step")).toBeVisible();
+  // Lesson 1: 文章を分かりやすくする
+  await page.getByTestId("lesson-rewrite_text").click();
   await shot(page, "04-intro");
-
-  await page.getByTestId("primary-action").click();
+  await next();
   await shot(page, "05-use-case");
+  await choose("仕事のメール");
+  await next();
+  await page.getByRole("button", { name: "用意された例文を使う" }).click();
+  await shot(page, "06-source-text");
+  await next();
+  await choose("社外のお客様");
+  await next();
+  await choose("ていねいに");
+  await next();
+  await choose("3行くらい");
+  await next();
+  await shot(page, "07-prompt-preview");
 
-  await page.getByRole("button", { name: "仕事のメール" }).click();
-  await shot(page, "06-first-input");
-
-  await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
-  await page.getByRole("button", { name: "ていねいに", exact: true }).click();
-  await page.getByRole("button", { name: "3行くらい", exact: true }).click();
-  await page.getByTestId("primary-action").click();
-
+  await next();
   await expect(page.getByTestId("result-compare")).toBeVisible();
-  await shot(page, "07-review-result");
+  await shot(page, "08-result");
 
-  await page.getByTestId("primary-action").click();
-  await shot(page, "08-improve");
+  await next();
+  await shot(page, "09-improve");
+  await choose("もっと短く");
+  await next();
+  await shot(page, "10-improve-result");
 
-  await page.getByRole("button", { name: "もっと短くしたい" }).click();
-  await expect(page.getByTestId("run-2")).toBeVisible();
-  await shot(page, "09-review-2");
+  await next();
+  await shot(page, "11-safety-check");
+  await next();
+  await shot(page, "12-real-task");
 
-  await page.getByTestId("primary-action").click();
-  await page.getByRole("button", { name: "自分の文章で試す" }).click();
-  await shot(page, "10-real-task");
-
-  await page.getByLabel("あなたの文章").fill("お世話になっております。例の件、いかがでしょうか。");
-  await page.getByTestId("primary-action").click();
+  await page.getByRole("textbox").fill("お世話になっております。例の件、いかがでしょうか。");
+  await next();
   await expect(page.getByTestId("result-compare")).toBeVisible();
-  await shot(page, "11-real-task-result");
-
-  await page.getByTestId("primary-action").click();
-  await shot(page, "12-reflection");
-
-  await page.getByTestId("primary-action").click();
-  await expect(page.getByTestId("completion-view")).toBeVisible();
-  await shot(page, "13-complete");
+  await next();
+  await shot(page, "13-reflection");
+  await next();
+  await shot(page, "14-complete");
+  await next();
+  await shot(page, "15-progress");
 });

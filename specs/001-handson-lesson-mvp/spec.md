@@ -1,5 +1,11 @@
 # Feature Specification: ハンズオンレッスン1本 + AIチューター（MVP）
 
+> **これは最初のフィーチャー（レッスン1本）の仕様書で、完了時点の記録です。**
+> そのあと教材を9本へ増やし、流れを成果物ファーストへ組み替えているため、
+> ステップ数・ファイル名・API のパスはいまのコードと食い違います。
+> 現在の姿は [`README.md`](../../README.md) を、差分は
+> [`docs/aippo-mvp-design.md`](../../docs/aippo-mvp-design.md) の冒頭を見てください。
+
 **Feature Branch**: `001-handson-lesson-mvp`
 
 **Created**: 2026-08-02

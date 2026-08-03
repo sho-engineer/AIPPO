@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "rest_framework",
+    "apps.ai",
     "apps.lessons",
     "apps.profiles",
     "apps.tutor",
@@ -186,9 +187,30 @@ CORS_ALLOWED_ORIGINS = _list(
 CORS_ALLOW_CREDENTIALS = True
 
 # --- AI プロバイダ -------------------------------------------------------
-# "stub" のままでもレッスンを完走できることが憲章 原則 III の要件。
-AI_PROVIDER = os.getenv("AI_PROVIDER", "stub")
-AI_MODEL = os.getenv("AI_MODEL", "claude-opus-5")
+# "mock" のままでも全教材を完走できることが憲章 原則 III の要件。
+#
+# 既定は openai / gpt-5-nano。ただし OPENAI_API_KEY が空のときは
+# 起動を止めず mock へ倒す（apps/ai/providers/registry.py）。
+# 鍵を入れ忘れただけでアプリ全体が動かないように見えるのを避ける。
+# 倒したことは警告ログに残る。
+AI_PROVIDER = os.getenv("AI_PROVIDER", "openai")
+AI_MODEL = os.getenv("AI_MODEL", "gpt-5-nano")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+
+# 1回の呼び出しの上限。長くすると待ち時間も費用も伸びる。
+AI_REQUEST_TIMEOUT_SECONDS = float(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "20"))
+AI_MAX_OUTPUT_TOKENS = int(os.getenv("AI_MAX_OUTPUT_TOKENS", "600"))
+
+# 学習者ひとりが1日に実行できる回数。0以下で「上限なし」。
+# 悪用対策ではなく、ふつうに使っている人の使いすぎを止める目安。
+AI_DAILY_REQUEST_LIMIT_PER_USER = int(
+    os.getenv("AI_DAILY_REQUEST_LIMIT_PER_USER", "50")
+)
+
+# 利用者が貼った本文を DB に保存するか。
+# 既定は保存しない。会社の文章が入ってくる前提なので、
+# 黙って溜め込むと要らない責任を抱えることになる。
+AI_STORE_RAW_INPUT = _bool("AI_STORE_RAW_INPUT", False)
 
 # チューターのフィードバック（短い・速さ優先）
 TUTOR_TIMEOUT_SECONDS = float(os.getenv("TUTOR_TIMEOUT_SECONDS", "12"))

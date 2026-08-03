@@ -46,7 +46,7 @@ AIチューターの通し体験。
 - [x] キャラクター1体 — ポー（`PoeAvatar`）
 - [x] 表情6枚 — `frontend/public/poe/*.svg`（**仮画像**。正式画像に差し替える）
 - [x] 吹き出し — `PoeAvatar` の `aria-live="polite"`
-- [x] 1つのレッスン — `rewrite_text_001`（9ステップ）
+- [x] 1つのレッスン — `rewrite_text`（当初9ステップ。現在は成果物ファーストの19ステップ、教材は9本）
 - [x] 穴埋め入力 — `FillInForm`（誰向け・どんな表現・どれくらいの長さ）
 - [x] AI実行 — `POST /api/lessons/rewrite-text/generate/`
 - [x] 1回の改善 — `ImprovementSelector` → `IMPROVE_INPUT`

@@ -1,12 +1,13 @@
 import { expect, test, type ConsoleMessage, type Page } from "@playwright/test";
 
-import { POE_IMAGE_EXT } from "../src/components/PoeAvatar";
+import { PO_EMOTIONS } from "../src/course/types";
+import { poAssets } from "../src/po/assets";
 
 /**
  * 探索テスト。
  *
  * 通常の E2E と違い、API をスタブせず **本物のバックエンド** に当てる。
- * AI_PROVIDER=stub のまま完走できること（憲章 原則 III）を、
+ * `AI_PROVIDER=mock` のまま完走できること（憲章 原則 III）を、
  * 実際の HTTP・DB・Cookie を通して確かめる。
  *
  * 実行前に Django を http://127.0.0.1:8000 で起動しておくこと。
@@ -14,18 +15,19 @@ import { POE_IMAGE_EXT } from "../src/components/PoeAvatar";
  *
  * テストは全部おなじ接続元から来るため、接続元単位の上限は外して起動する。
  *
- *   AI_RUNS_PER_IP_PER_DAY=0 AI_RUNS_PER_DAY=0 python manage.py runserver 127.0.0.1:8000
+ *   AI_PROVIDER=mock AI_RUNS_PER_IP_PER_DAY=0 AI_RUNS_PER_DAY=0 \
+ *     AI_DAILY_REQUEST_LIMIT_PER_USER=0 python manage.py runserver 127.0.0.1:8000
  *
  * 付けたままだと、テストを増やしたときに上限へ当たり、
  * アプリが壊れたように見える。上限そのものは
- * backend/tests/test_ai_quota.py で確かめている。
+ * backend/tests/test_ai_generate.py で確かめている。
  */
 
 const API = "http://127.0.0.1:8000";
 
 async function backendIsUp(page: Page): Promise<boolean> {
   try {
-    const res = await page.request.get(`${API}/api/lessons/rewrite_text_001/session/`);
+    const res = await page.request.get(`${API}/healthz`);
     return res.ok();
   } catch {
     return false;
@@ -45,16 +47,39 @@ function collectConsole(page: Page) {
   return problems;
 }
 
-async function openLesson(page: Page) {
+async function next(page: Page) {
+  await page.getByTestId("primary-action").click();
+}
+
+async function choose(page: Page, label: string) {
+  await page.getByRole("button", { name: label, exact: true }).click();
+}
+
+async function openLessonList(page: Page) {
   await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
   await page.getByRole("button", { name: "はじめる" }).first().click();
-  for (let i = 0; i < 3; i++) {
-    const choices = page.locator("main section button");
-    await choices.first().waitFor();
-    await choices.first().click();
-  }
-  await page.getByRole("button", { name: "これを試す" }).click();
-  await expect(page.getByTestId("lesson-step")).toBeVisible();
+}
+
+/** 文章改善レッスンを、結果が出るところまで進める。 */
+async function runRewrite(page: Page) {
+  await openLessonList(page);
+  await page.getByTestId("lesson-rewrite_text").click();
+
+  await next(page); // intro
+  await choose(page, "仕事のメール");
+  await next(page);
+  await page.getByRole("button", { name: "用意された例文を使う" }).click();
+  await next(page);
+  await choose(page, "社外のお客様");
+  await next(page);
+  await choose(page, "ていねいに");
+  await next(page);
+  await choose(page, "3行くらい");
+  await next(page); // 依頼の確認
+  await next(page); // 送る
+  await expect(page.getByTestId("result-compare")).toBeVisible({ timeout: 20_000 });
 }
 
 test.describe("探索テスト（本物のバックエンド）", () => {
@@ -62,247 +87,224 @@ test.describe("探索テスト（本物のバックエンド）", () => {
     test.skip(!(await backendIsUp(page)), "Django が起動していないためスキップ");
   });
 
-  test("AI_PROVIDER=stub のままレッスンを完走できる", async ({ page }) => {
+  test("mock のままレッスンを完走できる", async ({ page }) => {
     const problems = collectConsole(page);
-    await openLesson(page);
-
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "仕事のメール" }).click();
-    await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
-    await page.getByRole("button", { name: "ていねいに", exact: true }).click();
-    await page.getByRole("button", { name: "3行くらい", exact: true }).click();
-    await page.getByTestId("primary-action").click();
-
-    // 本物のAPIから結果が返る
-    await expect(page.getByTestId("run-1")).toBeVisible({ timeout: 15_000 });
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "REVIEW_RESULT",
-    );
+    await runRewrite(page);
 
     // 改善
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "もっと短くしたい" }).click();
-    await expect(page.getByTestId("run-2")).toBeVisible({ timeout: 15_000 });
+    await next(page); // 結果 → 改善
+    await choose(page, "もっと短く");
+    await next(page);
+    await expect(page.getByTestId("result-compare")).toBeVisible({
+      timeout: 20_000,
+    });
 
     // 自分の文章
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "自分の文章で試す" }).click();
-    await page.getByLabel("あなたの文章").fill("探索テストで入力した文章です。");
-    await page.getByTestId("primary-action").click();
-    await expect(page.getByTestId("result-compare")).toBeVisible({ timeout: 15_000 });
+    await next(page); // → 安全の確認
+    await next(page); // → 自分の課題
+    await page.getByRole("textbox").fill("探索テストで入力した文章です。");
+    await next(page);
+    await expect(page.getByTestId("result-compare")).toBeVisible({
+      timeout: 20_000,
+    });
 
     // 完了
-    await page.getByTestId("primary-action").click();
-    await page.getByTestId("primary-action").click();
+    await next(page); // → ふりかえり
+    await next(page); // → 完了
     await expect(page.getByTestId("completion-view")).toBeVisible();
 
     expect(problems, `コンソールに問題が出た:\n${problems.join("\n")}`).toEqual([]);
   });
 
-  test("本物のバックエンドから文章が分割して届く", async ({ page }) => {
-    // まとめて届くなら、待ち時間の体感は変わらない。
-    // スタブでは分割を作り込めてしまうので、ここは本物で確かめる。
-    const res = await page.request.post(
-      `${API}/api/lessons/rewrite-text/stream/`,
-      {
-        // ブラウザが SSE を読むときに送るヘッダ。
-        // これを受け付けないと、ブラウザからだけ 406 で弾かれる。
-        headers: { Accept: "text/event-stream" },
-        data: {
-          original_text: "分割して届くかの確認です。",
+  test("利用実績（provider / model / token / latency）が返ってくる", async ({
+    page,
+  }) => {
+    // 記録の経路が動いていないと、費用を後から追えない
+    const response = await page.request.post(`${API}/api/v1/ai/generate/`, {
+      data: {
+        lesson_id: "rewrite_text",
+        step_id: "generate_result",
+        action: "rewrite",
+        input: {
+          original_text: "先日の件ですが、追ってご連絡差し上げます。",
           audience: "社外のお客様",
           tone: "ていねいに",
           length: "3行くらい",
         },
       },
-    );
-
-    expect(res.status(), "ブラウザが送る Accept で弾かれている").toBe(200);
-    expect(res.headers()["content-type"]).toContain("text/event-stream");
-    expect(res.headers()["x-accel-buffering"], "途中で溜め込まれる恐れがある").toBe(
-      "no",
-    );
-
-    const body = await res.text();
-    const chunks = (body.match(/event: chunk/g) ?? []).length;
-    expect(chunks, "1回でまとめて届いている").toBeGreaterThan(1);
-    expect(body).toContain("event: done");
-  });
-
-  test("画面が流し込みの経路を実際に使っている", async ({ page }) => {
-    // 使われていなければ、毎回むだな往復をしてから通常の生成へ倒れている。
-    const streamRequests: number[] = [];
-    page.on("response", (res) => {
-      if (res.url().includes("/rewrite-text/stream/")) {
-        streamRequests.push(res.status());
-      }
     });
 
-    await openLesson(page);
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "仕事のメール" }).click();
-    await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
-    await page.getByRole("button", { name: "ていねいに", exact: true }).click();
-    await page.getByRole("button", { name: "3行くらい", exact: true }).click();
-    await page.getByTestId("primary-action").click();
+    expect(response.status()).toBe(200);
+    const body = await response.json();
 
-    await expect(page.getByTestId("run-1")).toBeVisible({ timeout: 15_000 });
-    expect(streamRequests, "流す経路が呼ばれていない").not.toHaveLength(0);
-    expect(streamRequests.every((s) => s === 200), "弾かれている").toBe(true);
+    expect(body.result).toBeTruthy();
+    expect(body.tutor.message).toBeTruthy();
+    expect(body.usage.provider).toBeTruthy();
+    expect(body.usage.model).toBeTruthy();
+    expect(body.usage.output_tokens).toBeGreaterThan(0);
+    expect(body.usage.latency_ms).toBeGreaterThanOrEqual(0);
   });
 
-  test("learner_key の Cookie が発行され、再訪で引き継がれる", async ({ page }) => {
-    await openLesson(page);
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "仕事のメール" }).click();
+  test("教材の外から任意の操作を流し込めない", async ({ page }) => {
+    // action とレッスンの対応はサーバーが持つ。
+    // ここが緩いと、教材と関係ない指示を投げられる。
+    const response = await page.request.post(`${API}/api/v1/ai/generate/`, {
+      data: {
+        lesson_id: "make_plan",
+        step_id: "generate_result",
+        action: "rewrite",
+        input: { original_text: "x", audience: "a", tone: "b", length: "c" },
+      },
+    });
+
+    expect(response.status()).toBe(400);
+  });
+
+  test("learner_key の Cookie が発行され、JavaScript から読めない", async ({
+    page,
+  }) => {
+    await runRewrite(page);
 
     const cookies = await page.context().cookies();
-    const learnerKey = cookies.find((c) => c.name === "learner_key");
-    expect(learnerKey, "learner_key が発行されていない").toBeDefined();
-    expect(learnerKey?.httpOnly, "HttpOnly になっていない").toBe(true);
+    const key = cookies.find((cookie) => cookie.name === "learner_key");
+
+    expect(key, "learner_key が発行されていない").toBeTruthy();
+    expect(key?.httpOnly, "JavaScript から読めてしまう").toBe(true);
   });
 
   test("操作ログに本文が渡っていない", async ({ page }) => {
     const bodies: Record<string, unknown>[] = [];
-    page.on("request", (req) => {
-      if (req.url().includes("/api/learning-events/") && req.method() === "POST") {
-        const body = req.postDataJSON();
-        if (body) bodies.push(body);
+    page.on("request", (request) => {
+      if (request.url().includes("/api/learning-events/")) {
+        const data = request.postDataJSON();
+        if (data) bodies.push(data);
       }
     });
 
-    await openLesson(page);
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "仕事のメール" }).click();
-    await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
-    await page.getByRole("button", { name: "ていねいに", exact: true }).click();
-    await page.getByRole("button", { name: "3行くらい", exact: true }).click();
-    await page.getByTestId("primary-action").click();
-    await expect(page.getByTestId("run-1")).toBeVisible({ timeout: 15_000 });
+    await runRewrite(page);
 
-    expect(bodies.length).toBeGreaterThan(0);
+    expect(bodies.length, "操作ログが1件も送られていない").toBeGreaterThan(0);
     for (const body of bodies) {
-      expect(Object.keys(body)).not.toContain("user_input");
-      expect(Object.keys(body)).not.toContain("original_text");
-      // 文字数は入っていてよい
-      expect(body).toHaveProperty("input_length");
+      for (const key of ["user_input", "text", "content", "original_text"]) {
+        expect(body, `操作ログに ${key} が入っている`).not.toHaveProperty(key);
+      }
     }
   });
 
-  test("実行回数の上限を超えると 429 が返る", async ({ page }) => {
+  test("同じ内容を続けて送っても、二重に実行しない", async ({ page }) => {
     const payload = {
-      original_text: "上限の確認に使う文章です。",
-      audience: "社外のお客様",
-      tone: "ていねいに",
-      length: "3行くらい",
+      lesson_id: "rewrite_text",
+      step_id: "generate_result",
+      action: "rewrite",
+      input: {
+        original_text: "二重送信をためす文章です。",
+        audience: "上司",
+        tone: "ていねいに",
+        length: "1行",
+      },
     };
 
-    let lastStatus = 0;
-    for (let i = 0; i < 12; i++) {
-      const res = await page.request.post(
-        `${API}/api/lessons/rewrite-text/generate/`,
-        { data: payload },
-      );
-      lastStatus = res.status();
-      if (lastStatus === 429) break;
-    }
+    const first = await page.request.post(`${API}/api/v1/ai/generate/`, {
+      data: payload,
+    });
+    const second = await page.request.post(`${API}/api/v1/ai/generate/`, {
+      data: payload,
+    });
 
-    expect(lastStatus, "上限に達しても 429 が返らない").toBe(429);
+    expect(first.status()).toBe(200);
+    expect(second.status(), "同じ内容がもう一度実行されている").toBe(409);
   });
 
   test("極端に長い入力は 400 で拒否される", async ({ page }) => {
-    const res = await page.request.post(`${API}/api/lessons/rewrite-text/generate/`, {
+    const response = await page.request.post(`${API}/api/v1/ai/generate/`, {
       data: {
-        original_text: "あ".repeat(5001),
-        audience: "社外のお客様",
-        tone: "ていねいに",
-        length: "3行くらい",
+        lesson_id: "rewrite_text",
+        step_id: "generate_result",
+        action: "rewrite",
+        input: {
+          original_text: "あ".repeat(6000),
+          audience: "上司",
+          tone: "ていねいに",
+          length: "1行",
+        },
       },
     });
 
-    expect(res.status()).toBe(400);
-    expect(await res.text()).toContain("original_text");
+    expect(response.status()).toBe(400);
   });
 
-  test("ポーの画像6枚がすべて配信される", async ({ page }) => {
-    const emotions = [
-      "neutral",
-      "question",
-      "thinking",
-      "hint",
-      "warning",
-      "celebrate",
-    ];
-    for (const emotion of emotions) {
-      const res = await page.request.get(`/poe/${emotion}.${POE_IMAGE_EXT}`);
-      expect(res.status(), `${emotion} の画像が無い`).toBe(200);
+  test("マニフェストにあるポーの画像が配信される", async ({ page }) => {
+    // マニフェストに書いてあるのに 404 だと、
+    // プレースホルダーばかりになって案内役に見えない。
+    // 開発サーバーは、無いパスでも index.html を 200 で返す。
+    // 状態コードだけでは判定できないので、中身の型で見る。
+    const missing: string[] = [];
+    for (const emotion of PO_EMOTIONS) {
+      const response = await page.request.get(
+        `http://127.0.0.1:5173${poAssets[emotion]}`,
+      );
+      const type = response.headers()["content-type"] ?? "";
+      if (!response.ok() || !type.startsWith("image/")) missing.push(emotion);
     }
+
+    // talking と blink は専用の絵がまだ無い（近い絵へ寄せている）
+    expect(missing.sort()).toEqual(["blink", "talking"]);
   });
 
-  test("スマートフォン幅でポーが入力欄を隠さない", async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await openLesson(page);
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "仕事のメール" }).click();
+  test("スマートフォン幅で、入力欄と送信ボタンが同時に見える", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 780 });
+    await openLessonList(page);
+    await page.getByTestId("lesson-rewrite_text").click();
+    await next(page);
+    await choose(page, "仕事のメール");
+    await next(page);
 
-    const textarea = page.getByLabel("分かりやすくしたい文章");
-    await textarea.scrollIntoViewIfNeeded();
-    const textBox = await textarea.boundingBox();
-    const poeBox = await page.getByTestId("poe-avatar").boundingBox();
+    const textarea = (await page.getByRole("textbox").boundingBox())!;
+    const action = (await page.getByTestId("primary-action").boundingBox())!;
 
-    expect(textBox).not.toBeNull();
-    expect(poeBox).not.toBeNull();
-    // 入力欄の下端がポーの上端より上にあること
-    expect(textBox!.y + textBox!.height).toBeLessThanOrEqual(poeBox!.y + 1);
+    expect(textarea.y, "入力欄が画面の外にある").toBeLessThan(780);
+    expect(action.y + action.height, "ボタンが画面の外にある").toBeLessThanOrEqual(
+      781,
+    );
+    // 重なっていないこと
+    expect(textarea.y + textarea.height).toBeLessThanOrEqual(action.y + 1);
+  });
+
+  test("横スクロールが出ない", async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await openLessonList(page);
+    await page.getByTestId("lesson-rewrite_text").click();
+
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    );
+    expect(overflow, "横スクロールが出ている").toBeLessThanOrEqual(1);
   });
 
   test("ポーが下のボタンのタップを奪わない", async ({ page }) => {
-    await page.setViewportSize({ width: 375, height: 667 });
-    await openLesson(page);
-    await page.getByTestId("primary-action").click();
+    await page.setViewportSize({ width: 390, height: 780 });
+    await openLessonList(page);
+    await page.getByTestId("lesson-rewrite_text").click();
 
-    // ポーの吹き出しの真下にある座標を押しても、下のボタンへ届くこと
-    const poe = page.getByTestId("poe-avatar");
-    await expect(poe).toBeVisible();
-    const poeBox = (await poe.boundingBox())!;
-
-    const covered = await page.evaluate(
-      ([x, y]) => {
-        const el = document.elementFromPoint(x, y);
-        return el?.closest('[data-testid="poe-avatar"]') !== null;
+    const box = (await page.getByTestId("po-avatar").boundingBox())!;
+    const grabbed = await page.evaluate(
+      ({ x, y }) => {
+        const element = document.elementFromPoint(x, y);
+        return element?.closest("[data-testid='po-avatar']") !== null;
       },
-      [poeBox.x + poeBox.width / 2, poeBox.y + poeBox.height / 2],
+      { x: box.x + box.width / 2, y: box.y + box.height / 2 },
     );
-    expect(covered, "ポーがクリックを受け取ってしまっている").toBe(false);
 
-    // 実際に用途を選べること
-    await page.getByRole("button", { name: "自分の文章" }).click();
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "FIRST_INPUT",
-    );
+    expect(grabbed, "ポーがタップを奪っている").toBe(false);
   });
 
   test("UI に専門用語が出ていない", async ({ page }) => {
-    const banned = ["プロンプト", "トークン", "モデル", "API", "コンテキスト"];
+    await openLessonList(page);
+    await page.getByTestId("lesson-rewrite_text").click();
 
-    await page.goto("/");
-    for (const word of banned) {
-      await expect(
-        page.locator("body"),
-        `トップに「${word}」が出ている`,
-      ).not.toContainText(word);
-    }
-
-    await openLesson(page);
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "仕事のメール" }).click();
-    for (const word of banned) {
-      await expect(
-        page.locator("body"),
-        `レッスン画面に「${word}」が出ている`,
-      ).not.toContainText(word);
+    const text = (await page.textContent("body")) ?? "";
+    for (const word of ["プロンプト", "トークン", "パラメータ", "API", "モデル"]) {
+      expect(text, `画面に「${word}」が出ている`).not.toContain(word);
     }
   });
 });
