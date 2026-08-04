@@ -307,6 +307,41 @@ class TestDoubleSubmission:
             == 200
         )
 
+    def test_a_write_failure_in_the_cache_does_not_block_the_first_request(
+        self, api_client, monkeypatch
+    ):
+        """cache.set() が失敗しても、初回の送信は通す。
+
+        Django の DatabaseCache は、書き込みが失敗しても例外を投げずに
+        黙って諦める（django/core/cache/backends/db.py）。SQLite の
+        書き込みロック競合などで実際に起こりうる。判定を書き込みの
+        成否に乗せていると、この失敗が「連打だ」に化けて、
+        まだ一度も送っていない内容まで拒んでしまう。
+        """
+
+        def _always_fails(*args, **kwargs):
+            raise RuntimeError("simulated cache write failure")
+
+        monkeypatch.setattr("apps.ai.views.cache.set", _always_fails)
+
+        assert _post(api_client).status_code == 200
+
+    def test_a_read_failure_in_the_cache_does_not_block_the_request(
+        self, api_client, monkeypatch
+    ):
+        """cache.get() が読めなくても、連打とはみなさない。
+
+        判定できないときに拒む側へ倒すと、通信の瞬断のたびに
+        学習者を止めてしまう。分からないときは通す。
+        """
+
+        def _always_fails(*args, **kwargs):
+            raise RuntimeError("simulated cache read failure")
+
+        monkeypatch.setattr("apps.ai.views.cache.get", _always_fails)
+
+        assert _post(api_client).status_code == 200
+
 
 @pytest.mark.django_db
 class TestLimits:

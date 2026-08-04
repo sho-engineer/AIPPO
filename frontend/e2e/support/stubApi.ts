@@ -162,20 +162,10 @@ export async function stubApi(
     });
   });
 
-  // ログインしていない状態を返す。登録の導線は別の検査で見る。
-  await page.route("**/api/v1/accounts/me/", async (route: Route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ authenticated: false, user: null }),
-    });
-  });
-
   for (const pattern of [
     "**/api/lessons/**",
     "**/api/profile/**",
     "**/api/tutor/**",
-    "**/api/v1/progress/**",
   ]) {
     await page.route(pattern, async (route: Route) => {
       await route.fulfill({

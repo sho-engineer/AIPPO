@@ -257,6 +257,21 @@ class GenerateView(APIView):
 
         画面側でもボタンを止めているが、それだけでは足りない。
         通信が遅いときに再読み込みされると、同じ内容がもう一度届く。
+
+        判定は cache.get() の「読めるか」だけで行い、cache.set() の成否は見ない。
+
+        以前は cache.add()（無ければ書く、を1回で行う）の戻り値だけで
+        判定していた。だが Django の DatabaseCache は、書き込みが
+        DatabaseError で失敗したときも例外を投げずに False を返す仕様
+        （django/core/cache/backends/db.py）。SQLite はファイル単位の
+        書き込みロックを取るため、操作ログの記録など他の書き込みと
+        重なるとこの失敗が起きる。その False を「連打だ」と読むと、
+        書き込み待ちが少しでも重なっただけで**初回の送信まで**拒んでしまう
+        （実際に負荷のかかる状況で再現した）。
+
+        読み取りだけで判定すれば、書き込みが失敗しても実害は
+        「本当にまれな連打を取りこぼす」側にしか倒れない。
+        取りこぼしよりも、初回を拒むほうが害が大きい。
         """
         learner_key = getattr(request, "learner_key", None)
         if learner_key is None:
@@ -272,8 +287,21 @@ class GenerateView(APIView):
             ]
         )
         key = "ai:dedupe:" + hashlib.sha256(payload.encode()).hexdigest()
-        # add は「無いときだけ書く」。あれば False が返る＝連打
-        return not cache.add(key, 1, DUPLICATE_WINDOW_SECONDS)
+
+        try:
+            already_recorded = cache.get(key) is not None
+        except Exception:
+            already_recorded = False
+
+        if already_recorded:
+            return True
+
+        try:
+            cache.set(key, 1, DUPLICATE_WINDOW_SECONDS)
+        except Exception:
+            pass
+
+        return False
 
     @staticmethod
     def _validate(action: Action, result: AIResult) -> str:

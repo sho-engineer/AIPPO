@@ -15,7 +15,32 @@ import { stubApi } from "./support/stubApi";
 
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
+/**
+ * 動きが終わるのを待つ。
+ *
+ * 画面が変わるとき、中身は薄い状態から浮かび上がってくる（animate-slide-in）。
+ * その途中で測ると、文字の色が下地と混ざった色として読まれ、
+ * 出ていないコントラスト不足が出たことになる。
+ * 実際に人が読むのは動きが終わったあとなので、そこで測る。
+ */
+async function settle(page: Page) {
+  await page.evaluate(async () => {
+    // ずっと続く動き（ポーがゆれるなど）は終わりを待てない。
+    // 一度きりの動きだけを待ち、念のため上限も置く。
+    const once = document.getAnimations().filter((animation) => {
+      const timing = animation.effect?.getComputedTiming();
+      return timing !== undefined && timing.iterations !== Infinity;
+    });
+
+    await Promise.race([
+      Promise.all(once.map((animation) => animation.finished.catch(() => undefined))),
+      new Promise((resolve) => window.setTimeout(resolve, 1500)),
+    ]);
+  });
+}
+
 async function scan(page: Page) {
+  await settle(page);
   return new AxeBuilder({ page }).withTags(TAGS).analyze();
 }
 

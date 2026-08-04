@@ -87,12 +87,44 @@ async function throughConcepts(page: Page) {
   await next(page); // 解説3 → 条件を足す
 }
 
+/**
+ * この回だけの学習者になる。
+ *
+ * サーバーは「同じ人が同じ内容を5秒のうちにもう一度送った」ものを
+ * 連打とみなして 409 を返す（apps/ai/views.py）。教材の最初の1回は
+ * どのテストでも同じ内容になるため、並べて走らせると別のテスト同士が
+ * 連打に見えてしまう。あらかじめ別の人として名乗っておく。
+ *
+ * 発行そのものを確かめるテストでは、これを呼ばない。
+ */
+async function beADifferentLearner(page: Page) {
+  await page.context().addCookies([
+    {
+      name: "learner_key",
+      value: crypto.randomUUID(),
+      domain: "127.0.0.1",
+      path: "/",
+      httpOnly: true,
+    },
+  ]);
+}
+
+/*
+  ここだけは順に走らせる。
+
+  サーバーは同じ内容の連打を 5 秒のあいだ断る（apps/ai/views.py）。
+  教材の最初の1回はどの検査でも同じ内容になるため、並べて走らせると
+  別の検査どうしが連打とみなされ、アプリが壊れているように見える。
+*/
+test.describe.configure({ mode: "serial" });
+
 test.describe("探索テスト（本物のバックエンド）", () => {
   test.beforeEach(async ({ page }) => {
     test.skip(!(await backendIsUp(page)), "Django が起動していないためスキップ");
   });
 
   test("mock のままレッスンを完走できる", async ({ page }) => {
+    await beADifferentLearner(page);
     const problems = collectConsole(page);
     await runRewrite(page);
 
@@ -173,7 +205,10 @@ test.describe("探索テスト（本物のバックエンド）", () => {
   test("learner_key の Cookie が発行され、JavaScript から読めない", async ({
     page,
   }) => {
-    await runRewrite(page);
+    // 発行そのものを見るので、こちらから名乗らない。
+    // 画面をひらいてサーバーと1往復すれば発行される。
+    await openLessonList(page);
+    await expect(page.getByTestId("lesson-rewrite_text")).toBeVisible();
 
     const cookies = await page.context().cookies();
     const key = cookies.find((cookie) => cookie.name === "learner_key");
@@ -184,6 +219,7 @@ test.describe("探索テスト（本物のバックエンド）", () => {
 
   test("操作ログに本文が渡っていない", async ({ page }) => {
     const bodies: Record<string, unknown>[] = [];
+    await beADifferentLearner(page);
     page.on("request", (request) => {
       if (request.url().includes("/api/learning-events/")) {
         const data = request.postDataJSON();
@@ -264,6 +300,7 @@ test.describe("探索テスト（本物のバックエンド）", () => {
   test("スマートフォン幅で、入力欄と送信ボタンが同時に見える", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 780 });
 
+    await beADifferentLearner(page);
     // 入力欄が出るのは「自分の文章」。ここが狭い画面で一番きわどい
     await runRewrite(page);
     await throughConcepts(page);

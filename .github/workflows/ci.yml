@@ -111,12 +111,88 @@ jobs:
       - name: Check every screen
         run: npm run check:a11y
 
-  # 本物のバックエンドに当てる通し確認。
+  e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install browser
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      # 探索テスト（e2e/exploratory.spec.ts）は本物のバックエンドに当てる。
+      # AI_PROVIDER=mock のままで完走できることが憲章 原則 III の要件なので、
+      # APIキーは要らない。ほかの e2e はスタブに当てるので、
+      # ここで起きているのは exploratory 用の準備だけ。
+      - name: Start backend
+        working-directory: backend
+        env:
+          AI_PROVIDER: mock
+          FRONTEND_URL: http://127.0.0.1:5173
+          CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+          MAX_ATTEMPTS_PER_SESSION: "10"
+          # テストは全部おなじ接続元から来るので、接続元単位の上限は外す。
+          # 付けたままだと、テストを増やしたときに上限へ当たって
+          # 「アプリが壊れた」ように見える。
+          # 上限そのものは backend/tests/test_ai_quota.py で確かめている。
+          AI_RUNS_PER_IP_PER_DAY: "0"
+          AI_RUNS_PER_DAY: "0"
+        run: |
+          python manage.py migrate --noinput
+          python manage.py seed_catalog
+          nohup python manage.py runserver 127.0.0.1:8000 --noreload > /tmp/django.log 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8000/health/live > /dev/null && exit 0
+            sleep 1
+          done
+          echo "バックエンドが起動しませんでした"; cat /tmp/django.log; exit 1
+
+      # 開発サーバーではなく本番と同じビルド成果物に当てる。
+      # 開発サーバーでしか見ないと、ビルドしたときだけ壊れるものを取りこぼす。
+      - name: Run E2E and exploratory tests (production build)
+        working-directory: frontend
+        env:
+          E2E_TARGET: build
+        run: npx playwright test
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+
+      - name: Show the backend log on failure
+        if: failure()
+        run: cat /tmp/django.log
+
+  # 本物のバックエンドに当てる通し確認（登録・CSRF・保持ポリシー）。
   #
-  # スタブでは見つからない不具合（接続先のずれ・Cookie・CSRF・同時実行）を
-  # 拾うためのもの。Playwright の e2e/ 一式は成果物ファーストの流れに
-  # 追随できておらず失敗するので、いまは動かしていない（README 参照）。
-  # 代わりに、公開の可否を分ける経路だけをここで確かめる。
+  # e2e ジョブが画面の導線を確かめるのに対して、こちらは
+  # Playwright を介さず curl で直接 API を叩く、公開の可否を分ける経路。
   smoke:
     name: Smoke (real backend)
     runs-on: ubuntu-latest
