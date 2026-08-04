@@ -29,7 +29,9 @@ async function choose(page: Page, label: string) {
 }
 
 async function openCourse(page: Page) {
+  // 「はじめる」の行き先はホーム。レッスンの一覧は下タブの「教材一覧」にある
   await page.getByRole("button", { name: START }).first().click();
+  await page.getByRole("button", { name: "教材一覧" }).click();
 }
 
 /** 診断を最後まで答える。 */

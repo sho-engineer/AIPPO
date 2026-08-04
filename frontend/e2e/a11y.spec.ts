@@ -40,7 +40,9 @@ async function openCourse(page: Page) {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
+  // 「はじめる」の行き先はホーム。レッスンの一覧は下タブの「教材一覧」にある
   await page.getByRole("button", { name: "はじめる" }).first().click();
+  await page.getByRole("button", { name: "教材一覧" }).click();
   await expect(page.getByTestId("lesson-rewrite_text")).toBeVisible();
 }
 
