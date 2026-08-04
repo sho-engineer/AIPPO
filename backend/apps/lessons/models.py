@@ -33,9 +33,9 @@ class LearningSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     learner_key = models.UUIDField(db_index=True)
     lesson_id = models.CharField(max_length=100)
-    current_step = models.CharField(
-        max_length=50, choices=LessonStep.choices, default=LessonStep.INTRO
-    )
+    # 教材データ側が step の id を決めるので、選択肢では縛らない。
+    # 縛ると、レッスンを1本足すたびにマイグレーションが要る。
+    current_step = models.CharField(max_length=50, default=LessonStep.INTRO)
     use_case_id = models.CharField(max_length=100, blank=True)
     fill_in_values = models.JSONField(default=dict)
     real_task_text = models.TextField(blank=True)
@@ -100,10 +100,17 @@ class Attempt(models.Model):
     )
     sequence = models.PositiveIntegerField()
     lesson_id = models.CharField(max_length=100)
-    step = models.CharField(max_length=50, choices=LessonStep.choices)
+    step = models.CharField(max_length=50)
+    #: 何を頼んだか（rewrite / summarize / …）。apps/ai/actions.py の id。
+    action = models.CharField(max_length=50, blank=True)
 
-    # 入出力（本文はここに置く）
+    # 入出力
+    #
+    # user_input は **既定では空**。AI_STORE_RAW_INPUT=true を明示した
+    # ときだけ本文を入れる。学習者は会社の文章を貼るので、
+    # 既定で溜め込むと、要らない責任を抱えることになる。
     user_input = models.TextField(blank=True)
+    input_length = models.PositiveIntegerField(default=0)
     conditions = models.JSONField(default=dict)
     generated_output = models.TextField(blank=True)
 
@@ -116,8 +123,12 @@ class Attempt(models.Model):
 
     completed = models.BooleanField(default=False)
     status = models.CharField(max_length=20, choices=AttemptStatus.choices)
+    #: 失敗したときの種別（timeout / refused / malformed / provider_error）。
+    #: 本文を残さない以上、あとから原因を追える手がかりはここだけ。
+    error_kind = models.CharField(max_length=40, blank=True)
 
     # AI 利用料の記録（開発方針 §17）
+    provider = models.CharField(max_length=40, blank=True)
     model_name = models.CharField(max_length=100, blank=True)
     token_usage = models.JSONField(default=dict, blank=True)
     latency_ms = models.PositiveIntegerField(null=True, blank=True)
@@ -132,6 +143,33 @@ class Attempt(models.Model):
 
 
 class LearningEventType(models.TextChoices):
+    COURSE_STARTED = "course_started"
+    COURSE_COMPLETED = "course_completed"
+    STEP_VIEWED = "step_viewed"
+    OPTION_SELECTED = "option_selected"
+    TEXT_ENTERED = "text_entered"
+    PROMPT_PREVIEW_OPENED = "prompt_preview_opened"
+    AI_REQUEST_STARTED = "ai_request_started"
+    AI_REQUEST_SUCCEEDED = "ai_request_succeeded"
+    AI_REQUEST_FAILED = "ai_request_failed"
+    HINT_OPENED = "hint_opened"
+    REAL_TASK_STARTED = "real_task_started"
+    REAL_TASK_SKIPPED = "real_task_skipped"
+    PRIVACY_WARNING_SHOWN = "privacy_warning_shown"
+    PRIVACY_WARNING_CANCELLED = "privacy_warning_cancelled"
+    PRIVACY_WARNING_OVERRIDDEN = "privacy_warning_overridden"
+
+    # 成果物ファーストの骨格（course/shared.ts の buildLessonFlow）で送るもの。
+    # ここに無いと 400 で弾かれ、操作ログが丸ごと落ちる。
+    OUTCOME_PREVIEW_VIEWED = "outcome_preview_viewed"
+    QUICK_TRY_STARTED = "quick_try_started"
+    RESULT_OBSERVATION_SUBMITTED = "result_observation_submitted"
+    CONCEPT_CARD_VIEWED = "concept_card_viewed"
+    CONCEPT_CARD_SKIPPED = "concept_card_skipped"
+    CONDITION_ADDED = "condition_added"
+    REAL_TASK_COMPLETED = "real_task_completed"
+
+    # 旧レッスンから使っているもの。消すと過去のログが読めなくなる。
     LESSON_STARTED = "lesson_started"
     USE_CASE_SELECTED = "use_case_selected"
     STEP_ENTERED = "step_entered"
@@ -157,7 +195,7 @@ class LearningEvent(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(LearningSession, on_delete=models.CASCADE, related_name="events")
     lesson_id = models.CharField(max_length=100, blank=True)
-    step = models.CharField(max_length=50, choices=LessonStep.choices, blank=True)
+    step = models.CharField(max_length=50, blank=True)
     event_type = models.CharField(max_length=50, choices=LearningEventType.choices, db_index=True)
     input_length = models.PositiveIntegerField(default=0)
     hint_count = models.PositiveIntegerField(default=0)

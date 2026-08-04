@@ -6,9 +6,28 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+    下地。
+
+    支給デザインの背景を実際に測ると #FEFEFE、ほぼ白だった。
+    以前敷いていた水色（#F2FAFE）は色が強すぎて、上に置いた白い
+    カードが沈み、階層が1段つぶれていた。
+
+    ただし完全な平面にはしない。上端にだけ、気づかない濃さの
+    青をひと刷毛置く。画面を下へ送ると白へ抜けていき、
+    「ここが始まり」であることが色でも分かる。
+    固定背景なので、中身をどれだけ足しても継ぎ目が出ない。
+  */
   body {
-    /* 真っ白より、ほんのり色を入れたほうが緊張しない */
     @apply bg-canvas text-ink;
+    background-image:
+      radial-gradient(
+        58rem 30rem at 50% -8rem,
+        rgba(18, 104, 232, 0.07),
+        rgba(18, 104, 232, 0) 70%
+      );
+    background-attachment: fixed;
+    background-repeat: no-repeat;
   }
 
   /*

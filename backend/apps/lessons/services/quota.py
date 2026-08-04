@@ -30,7 +30,13 @@ logger = logging.getLogger(__name__)
 
 class QuotaScope:
     IP = "ip"
+    LEARNER = "learner"
     GLOBAL = "global"
+
+
+#: 学習者ごとのカウンタにだけ付ける印。
+#: IPのHMACと同じ長さの文字列なので、印が無いと区別できない。
+LEARNER_PREFIX = "learner:"
 
 
 class QuotaExceeded(Exception):
@@ -67,9 +73,11 @@ def fingerprint(value: str) -> str:
 
 
 def _scope_kind(scope: str) -> str:
-    return (
-        QuotaScope.GLOBAL if scope == AiUsageCounter.GLOBAL_SCOPE else QuotaScope.IP
-    )
+    if scope == AiUsageCounter.GLOBAL_SCOPE:
+        return QuotaScope.GLOBAL
+    if scope.startswith(LEARNER_PREFIX):
+        return QuotaScope.LEARNER
+    return QuotaScope.IP
 
 
 def _consume(scope: str, limit: int) -> None:
@@ -106,20 +114,45 @@ def _consume(scope: str, limit: int) -> None:
             raise QuotaExceeded(_scope_kind(scope)) from None
 
 
+def learner_scope(learner_key) -> str:
+    """学習者ごとのカウンタ名。
+
+    learner_key は Cookie なので消せば作り直せる。
+    これは悪用対策ではなく、**ふつうに使っている人が
+    1日に使いすぎないための目安**として置いている。
+    悪用対策は接続元単位のほうが受け持つ。
+    """
+    return f"{LEARNER_PREFIX}{fingerprint(str(learner_key))}"
+
+
 def consume_ai_run(request) -> None:
     """AIを1回実行する権利を消費する。
 
     上限に達していれば `QuotaExceeded` を投げる。
     呼び出し側は AI を呼ぶ**直前**に実行すること。
+
+    消費する順は「広いほうから」。狭いほうで弾いたときは、
+    先に消費した広いほうを戻す。戻さないと、1人の使いすぎで
+    全体の安全弁が先に落ちてしまう。
     """
-    _consume(AiUsageCounter.GLOBAL_SCOPE, settings.AI_RUNS_PER_DAY)
-    try:
-        _consume(fingerprint(client_ip(request)), settings.AI_RUNS_PER_IP_PER_DAY)
-    except QuotaExceeded:
-        # 接続元で弾いた分は全体のカウントから戻す。
-        # 戻さないと、1人の使いすぎで全体の安全弁が先に落ちてしまう。
-        _release(AiUsageCounter.GLOBAL_SCOPE)
-        raise
+    consumed: list[str] = []
+
+    def _take(scope: str, limit: int) -> None:
+        try:
+            _consume(scope, limit)
+        except QuotaExceeded:
+            for done in consumed:
+                _release(done)
+            raise
+        if limit > 0:
+            consumed.append(scope)
+
+    _take(AiUsageCounter.GLOBAL_SCOPE, settings.AI_RUNS_PER_DAY)
+    _take(fingerprint(client_ip(request)), settings.AI_RUNS_PER_IP_PER_DAY)
+
+    learner_key = getattr(request, "learner_key", None)
+    if learner_key is not None:
+        _take(learner_scope(learner_key), settings.AI_DAILY_REQUEST_LIMIT_PER_USER)
 
 
 def _release(scope: str) -> None:
@@ -140,5 +173,15 @@ GLOBAL_LIMIT_MESSAGE = (
 )
 
 
+LEARNER_LIMIT_MESSAGE = (
+    "今日はたくさん練習しましたね。"
+    "続きは、また明日ここから試してみてください。"
+)
+
+
 def limit_message(exc: QuotaExceeded) -> str:
-    return GLOBAL_LIMIT_MESSAGE if exc.is_global else IP_LIMIT_MESSAGE
+    if exc.is_global:
+        return GLOBAL_LIMIT_MESSAGE
+    if exc.scope == QuotaScope.LEARNER:
+        return LEARNER_LIMIT_MESSAGE
+    return IP_LIMIT_MESSAGE

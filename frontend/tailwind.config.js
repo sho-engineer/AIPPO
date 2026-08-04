@@ -49,20 +49,56 @@ export default {
         ],
       },
       colors: {
-        // 画面の下地。ポーの白い体になじむ、ほんのり青い白
-        canvas: "#F2FAFE",
+        /*
+          画面の下地は「ほぼ白」。
+
+          以前は はっきりした水色（#F2FAFE）を敷いていたが、支給された
+          デザインは違った。下地を白に近づけ、白いカードを影で浮かせて
+          奥行きを出している。下地に色を持たせると、その上のカードが
+          沈んで見え、情報の階層が1段つぶれる。
+        */
+        canvas: "#FCFDFF",
         surface: "#FFFFFF",
 
-        // 主役の色。ポーの青から取っている。
-        // DEFAULT は白文字を載せるので、明るい水色そのままでは薄すぎる。
-        // 白文字とのコントラストが 4.5 以上になるところまで濃くしてある。
+        /*
+          主役の青。
+
+          ロゴ画像の文字色を実際に調べると #0972CE → #2BB0EE の
+          グラデーションだった。以前の #0079AC は青緑寄りで、ロゴから
+          外れていた。支給デザインのボタンは #1771F7。
+
+          DEFAULT は白文字を載せるので 4.5:1 が要る。#1771F7 は 4.43 で
+          わずかに足りないため、見た目をほぼ保ったまま #1268E8（5.03）
+          まで寄せている。
+        */
         brand: {
-          DEFAULT: "#0079AC",
-          dark: "#005C82",
-          //: ポーのアンテナの水色。文字には使わない（薄すぎる）。飾り専用。
-          bright: "#18E4FC",
-          soft: "#E4F5FD",
-          line: "#A9DDF3",
+          DEFAULT: "#1268E8",
+          dark: "#0B5FD0",
+          // ロゴの水色。文字には使わない（薄すぎる）。飾り専用
+          bright: "#2BB0EE",
+          soft: "#E8F1FE",
+          line: "#C9DEFB",
+        },
+
+        /*
+          添える色。用途ごとに絵を描き分けるための、飾り専用。
+
+          薄い地の色は、支給デザインの設定行から実際に測って合わせている。
+          （青 #E4F0FB / 水 #E6F6F9 / 桃 #FCF1EA / 乳 #FBF6E5 / 翠 #EDF8F6）
+          濃いほうは、その地に載せて 4.5:1 を満たすところまで濃くしたもの。
+          飾りの印だけに使い、本文の色には使わない。
+        */
+        accent: {
+          sky: "#0B6F9F",
+          "sky-soft": "#E6F6F9",
+          teal: "#087A6E",
+          "teal-soft": "#EDF8F6",
+          amber: "#8A6200",
+          "amber-soft": "#FBF6E5",
+          rose: "#C2371C",
+          "rose-soft": "#FCF1EA",
+          violet: "#5B46E0",
+          "violet-soft": "#EFEEFD",
         },
 
         // できた・進んだ。ポーのほおの色を、文字に使える濃さにしたもの
@@ -74,7 +110,7 @@ export default {
         // 気をつけて（赤ほど強くしない）
         caution: {
           DEFAULT: "#A8480A",
-          soft: "#FDF1E7",
+          soft: "#FEF6E7",
         },
 
         // 文字。ポーの輪郭と目の紺色から取っている
@@ -83,14 +119,43 @@ export default {
           muted: "#47657E",
         },
 
-        line: "#D2EBF8",
+        line: "#E6EDF6",
       },
       borderRadius: {
         card: "1.25rem",
+        panel: "1.5rem",
+        /*
+          アイコンを入れる器。
+
+          丸ではなく角丸の四角にする。支給デザインを測ると 40px の器に
+          半径 12px だった。丸だと、四角い絵（用紙・かばん・こよみ）が
+          器の中で小さく見えるうえ、画面じゅうが丸だらけになって
+          「どれも同じ部品」に見えてしまう。
+          丸は意味のある場所にだけ残す（進み具合の輪、順番の点、似顔絵）。
+        */
+        badge: "0.75rem",
       },
       boxShadow: {
-        card: "0 2px 12px rgba(10, 30, 58, 0.08)",
-        pop: "0 6px 20px rgba(0, 121, 172, 0.22)",
+        /*
+          下地が白なので、影だけがカードの輪郭になる。
+          濃い1枚ではなく、近くの締まった影と遠くの広い影を重ねる。
+          1枚だと縁がくっきり出て、切り抜いて貼ったように見える。
+        */
+        card: "0 1px 2px rgba(10, 30, 58, 0.04), 0 8px 24px -8px rgba(10, 30, 58, 0.10)",
+        panel: "0 1px 3px rgba(10, 30, 58, 0.05), 0 16px 40px -16px rgba(10, 30, 58, 0.14)",
+        pop: "0 4px 14px rgba(18, 104, 232, 0.30)",
+      },
+
+      /*
+        グラデーション。
+
+        支給デザインの主ボタンと選択中の区分は、単色ではなく
+        左上が明るく右下が沈む青。平らな塗りより、押せる面に見える。
+        角度と2色だけに絞る。増やすと途端に安っぽくなる。
+      */
+      backgroundImage: {
+        "brand-grad": "linear-gradient(135deg, #2B7BF0 0%, #0B5FD0 100%)",
+        "brand-grad-soft": "linear-gradient(135deg, #EDF4FE 0%, #DCE9FD 100%)",
       },
 
       /**
@@ -153,10 +218,31 @@ export default {
           "70%": { transform: "scale(1.05)", opacity: "1" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
+        // 送信中の棒。左右に流して「動いている」ことだけを伝える
+        "drift-x": {
+          "0%": { transform: "translateX(-120%)" },
+          "100%": { transform: "translateX(320%)" },
+        },
         // 「この下にもある」と教える
         nudge: {
           "0%, 100%": { transform: "translateY(0)", opacity: "0.6" },
           "50%": { transform: "translateY(6px)", opacity: "1" },
+        },
+        /*
+          画面が入れ替わったことを、ごく短く伝える。
+
+          設定のように下位画面へ潜る作りでは、切り替わりが一瞬すぎると
+          「押したのに同じ画面が出た」と読み違える。
+          18px ぶん横から入れて 0.22 秒で止める。それ以上は待たされる。
+        */
+        "slide-in": {
+          from: { transform: "translateX(16px)", opacity: "0" },
+          to: { transform: "translateX(0)", opacity: "1" },
+        },
+        // 一覧が上から順に現れる。1行ごとの遅れは 30ms ほどに留める
+        "fade-up": {
+          from: { transform: "translateY(8px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
         },
       },
       animation: {
@@ -172,6 +258,9 @@ export default {
         "rise-in": "rise-in 0.6s ease-out both",
         "pop-in": "pop-in 0.55s cubic-bezier(0.34, 1.4, 0.64, 1) both",
         nudge: "nudge 1.9s ease-in-out infinite",
+        "drift-x": "drift-x 1.4s ease-in-out infinite",
+        "slide-in": "slide-in 0.22s ease-out both",
+        "fade-up": "fade-up 0.28s ease-out both",
       },
     },
   },

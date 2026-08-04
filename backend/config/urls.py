@@ -5,6 +5,8 @@ from apps.health.views import healthz, readyz
 from apps.lessons.views import LearningEventView
 
 urlpatterns = [
+    # 教材から AI を呼ぶ唯一の入口。レッスンが増えてもここは1つ
+    path("api/v1/ai/", include("apps.ai.urls")),
     path("api/tutor/", include("apps.tutor.urls")),
     path("api/lessons/", include("apps.lessons.urls")),
     # AI活用診断の回答。誰が来たかを実証実験で見るために要る

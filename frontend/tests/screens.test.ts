@@ -3,30 +3,55 @@ import { describe, expect, it } from "vitest";
 import { SCREENS, canTransition, nextScreen } from "../src/app/screens";
 
 describe("画面遷移", () => {
-  it("MVP は3画面（トップ・診断・レッスン）", () => {
-    expect(SCREENS).toEqual(["TOP", "DIAGNOSIS", "LESSON"]);
+  it("5画面（タイトル・ホーム・教材一覧・レッスン・設定）", () => {
+    expect(SCREENS).toEqual(["TOP", "HOME", "COURSE", "LESSON", "SETTINGS"]);
   });
 
-  it("トップ → 診断 → レッスン と進める", () => {
-    expect(nextScreen("TOP", "START")).toBe("DIAGNOSIS");
-    expect(nextScreen("DIAGNOSIS", "SELECT_LESSON")).toBe("LESSON");
+  it("タイトル → ホーム → レッスン と進める", () => {
+    expect(nextScreen("TOP", "START")).toBe("HOME");
+    expect(nextScreen("HOME", "SELECT_LESSON")).toBe("LESSON");
   });
 
-  it("診断とレッスンからトップへ戻れる", () => {
-    expect(nextScreen("DIAGNOSIS", "BACK_TO_TOP")).toBe("TOP");
+  it("ホームとコース一覧は行き来できる（下タブ）", () => {
+    expect(nextScreen("HOME", "OPEN_COURSE")).toBe("COURSE");
+    expect(nextScreen("COURSE", "BACK_TO_HOME")).toBe("HOME");
+  });
+
+  it("コース一覧からもレッスンへ入れる", () => {
+    expect(nextScreen("COURSE", "SELECT_LESSON")).toBe("LESSON");
+  });
+
+  it("レッスンを終えたらホームへ戻る（行き止まりにしない）", () => {
+    expect(nextScreen("LESSON", "BACK_TO_HOME")).toBe("HOME");
+  });
+
+  it("レッスンから一覧へも抜けられる", () => {
+    expect(nextScreen("LESSON", "OPEN_COURSE")).toBe("COURSE");
+  });
+
+  it("一覧とレッスンからタイトルへ戻れる", () => {
+    expect(nextScreen("COURSE", "BACK_TO_TOP")).toBe("TOP");
     expect(nextScreen("LESSON", "BACK_TO_TOP")).toBe("TOP");
   });
 
-  it("診断を飛ばしてレッスンへは進めない", () => {
+  it("タイトルから直接レッスンへは進めない", () => {
     expect(canTransition("TOP", "SELECT_LESSON")).toBe(false);
     expect(nextScreen("TOP", "SELECT_LESSON")).toBe("TOP");
   });
 
-  it("トップから戻ろうとしても状態は変わらない", () => {
-    expect(nextScreen("TOP", "BACK_TO_TOP")).toBe("TOP");
+  it("設定はホームと教材一覧から開け、どちらへも抜けられる", () => {
+    expect(nextScreen("HOME", "OPEN_SETTINGS")).toBe("SETTINGS");
+    expect(nextScreen("COURSE", "OPEN_SETTINGS")).toBe("SETTINGS");
+    expect(nextScreen("SETTINGS", "BACK_TO_HOME")).toBe("HOME");
+    expect(nextScreen("SETTINGS", "OPEN_COURSE")).toBe("COURSE");
   });
 
-  it("レッスンから診断へは直接戻らない", () => {
+  it("レッスンの途中からは設定へ入れない（1画面1タスクを崩さない）", () => {
+    expect(canTransition("LESSON", "OPEN_SETTINGS")).toBe(false);
+  });
+
+  it("遷移表に無いイベントは現在の画面を維持する", () => {
+    expect(nextScreen("TOP", "BACK_TO_TOP")).toBe("TOP");
     expect(canTransition("LESSON", "START")).toBe(false);
   });
 });

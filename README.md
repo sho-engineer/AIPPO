@@ -56,26 +56,43 @@ AIPPOは、プロンプトを暗記させるサービスではありません。
 
 ## 現在地
 
-**Phase 0〜6 完了。公開に向けた地固めまで済んでいます。**
+**教材9本ぶんが通しで動きます。** `AI_PROVIDER=mock` のままでも最後まで完走できます。
 
-トップ → AI活用診断（3問）→ おすすめ用途 → レッスン（9ステップ）→ 完了画面 まで、
-通しで動きます。`AI_PROVIDER=stub` のままでも完走できます。
+```
+タイトル → ホーム ─┬─ 教材一覧 ─┬─ レッスン（19ステップ）→ 完了
+                   │             └─ 設定
+                   └─ 設定
+```
 
-最初のレッスンは **「AIに文章を分かりやすくしてもらう」** の1本のみ。
-まず1レッスンを最後まで完成させます。
+| レッスン | 内容 | AI |
+| --- | --- | --- |
+| 0 | AI活用診断（3問）→ おすすめ3本 | 使わない |
+| 1 | 文章を分かりやすくする | 使う |
+| 2 | 長い文章を短くまとめる | 使う |
+| 3 | 分からないことを説明してもらう | 使う |
+| 4 | 選択肢を比較する | 使う |
+| 5 | 計画を作る | 使う |
+| 6 | 回答を改善する | 使う |
+| 7 | AIの回答を安全に使う | 使わない |
+| 8 | 自分の困りごとで試す（Final Challenge） | 使う |
 
-| Phase | 状態 |
-| --- | --- |
-| 0. 移設準備・改名・設計判断の反映 | ✅ 完了 |
-| 1. 画面モック | ✅ 完了 |
-| 2. レッスン状態管理 | ✅ 完了 |
-| 3. AI文章生成 | ✅ 完了 |
-| 4. ポーのフィードバック | ✅ 完了 |
-| 5. ログ取得 | ✅ 完了 |
-| 6. E2Eテスト | ✅ 完了 |
+レッスン1〜6と8は、同じ骨格から組み立てています（`frontend/src/course/shared.ts`）。
 
-**MVP の完成条件（[`docs/roadmap.md`](docs/roadmap.md)）は全10項目を満たしています。**
-残るのは仮画像のポー6枚を正式な画像に差し替えることだけです。
+```
+完成イメージ → お試し → 比較 → 自分で試す
+```
+
+**成果物ファースト**にしてあります。先に説明を読ませず、
+1つ選ぶだけで最初の結果まで届かせてから、短い解説を挟みます。
+
+### まだ無いもの
+
+- 利用者登録・課金・外部連携（設定画面に「準備中」と出しています）
+- 通知の配信（設定は保存できますが、送る仕組みがまだありません）
+- 教材の多言語化（言語設定は画面の言葉だけ。教材本文は日本語のまま）
+- Playwright の E2E 一式（成果物ファーストの流れに追随できておらず、
+  **いまは失敗します**。作り直しが必要です）
+- ポーの `talking` / `blink` 用の絵（`neutral` で代用しています）
 
 ---
 
@@ -114,7 +131,7 @@ docker compose up --build
 docker compose exec backend python manage.py createsuperuser
 ```
 
-`AI_PROVIDER=stub` のままでもレッスンは完走できるので、APIキー無しで試せます。
+`AI_PROVIDER=mock` のままでもレッスンは完走できるので、APIキー無しで試せます。
 
 ### 公開するときに必ず確認すること
 
@@ -144,7 +161,7 @@ uv run python manage.py migrate
 uv run python manage.py runserver 8000
 ```
 
-`AI_PROVIDER=stub` のままでもレッスンは完走できます。
+`AI_PROVIDER=mock` のままでもレッスンは完走できます（`stub` は同じものの旧名）。
 
 ### フロントエンド（React + Vite）
 
@@ -158,19 +175,27 @@ npm run dev          # http://localhost:5173
 ### テスト
 
 ```bash
-cd backend  && uv run pytest        # 124 tests
-cd frontend && npm run test         # 92 tests
-cd frontend && npm run test:e2e     # Playwright 58（PC・スマートフォンの2画面）
+cd backend  && uv run pytest        # 178 tests
+cd frontend && npm run test         # 164 tests
+cd frontend && npm run check:a11y   # 15画面の WCAG 2.1 A/AA 検査
 ```
 
-E2E には次の3種類が入っています。
+`check:a11y` は `npm run build && npm run preview` で立てた本番ビルドに当てます。
+配色を変えたときに、読めなくなった場所が無いかを機械に調べさせるためのものです
+（実際にここで、うすい青の上の文字が 4.42 で 4.5 に届かないのを見つけました）。
 
-| ファイル | 何を見るか |
-| --- | --- |
-| `e2e/lesson.spec.ts` | 通しの導線。APIはスタブに差し替える |
-| `e2e/a11y.spec.ts` | アクセシビリティ（WCAG 2.1 A/AA の自動検査） |
-| `e2e/exploratory.spec.ts` | 本物のバックエンドに当てる探索テスト |
-| `e2e/screenshots.spec.ts` | 各画面の書き出し（検証用。`CAPTURE_SCREENSHOTS=1` のときだけ動く） |
+#### E2E（いまは失敗します）
+
+`e2e/` の一式は、成果物ファーストの流れに追随できていません。
+古いステップ（「用意された例文を使う」など）を操作しているため、**現状では失敗します**。
+作り直しが要ります。
+
+| ファイル | 何を見るか | 状態 |
+| --- | --- | --- |
+| `e2e/lesson.spec.ts` | 通しの導線。APIはスタブに差し替える | 要修正 |
+| `e2e/a11y.spec.ts` | アクセシビリティ | 要修正（`check:a11y` が代役） |
+| `e2e/exploratory.spec.ts` | 本物のバックエンドに当てる探索テスト | 要修正 |
+| `e2e/screenshots.spec.ts` | 各画面の書き出し（`CAPTURE_SCREENSHOTS=1` のときだけ） | 要修正 |
 
 本番と同じビルド成果物に当てたいときは `E2E_TARGET=build` を付けます。
 開発サーバーでしか見ないと、ビルドしたときだけ壊れるものを取りこぼします。
@@ -191,7 +216,7 @@ cd frontend && npm run test:e2e
 ```
 
 Django が起動していないときは自動でスキップします。
-`AI_PROVIDER=stub` のままで完走できることを確かめるので、APIキーは不要です。
+`AI_PROVIDER=mock` のままで完走できることを確かめるので、APIキーは不要です。
 
 ---
 
@@ -204,13 +229,18 @@ Django が起動していないときは自動でスキップします。
 docs/              設計・事業ドキュメント
 specs/             フィーチャー別の spec / plan / tasks
 backend/           Django REST Framework
+  apps/ai/         教材からAIを呼ぶ唯一の入口。アクション定義・プロバイダ抽象
+                   models_catalog.py … 選べるモデルの名簿（画面に名前を書かないため）
   apps/lessons/    LearningSession / Attempt / LearningEvent / SkillProgress / Survey
   apps/profiles/   LearnerProfile（AI活用診断）
-  apps/tutor/      ポーのフィードバックAPI・プロンプト・プロバイダ抽象
+  apps/tutor/      ポーのフィードバックAPI・プロンプト
 frontend/          React + TypeScript + Vite + Tailwind
-  src/lesson/      状態機械と useReducer
-  src/components/  PoeAvatar ほか
-  src/content/     固定文言・レッスン教材JSON
+  src/course/      教材データと進行。catalog.ts（9本）/ shared.ts（骨格）/
+                   engine.ts（遷移）/ useCourseLesson.ts（状態）/ presentation.ts（見た目の割当）
+  src/pages/       TopPage / HomePage / CoursePage / LessonRunner / SettingsPage
+  src/components/  AppShell（ヘッダー・下タブ・カード）/ Icons（線画）/ course/ settings/
+  src/lib/         draft（下書きと進捗）/ privacy（送信前の検査）/ settings（設定の保存）
+  src/content/     固定文言
 ```
 
 ---
@@ -234,8 +264,11 @@ AI の応答（`action`）は表示のヒントであって遷移の指示では
 
 ネイティブアプリ / 複数キャラクター / Live2D / 3D / 音声会話 /
 高度なゲーミフィケーション / ランキング / コミュニティ / 法人管理画面 /
-資格制度 / 多言語 / 高度なAI自動採点 / ベンダー別コース /
+資格制度 / **教材の多言語化** / 高度なAI自動採点 / ベンダー別コース /
 自由な教材生成 / 決済機能
+
+設定に言語の項目はありますが、切り替わるのは画面の言葉だけです。
+教材本文とAIの答えは日本語のままで、そのことを設定画面に明記しています。
 
 将来構想は [`docs/business-plan.md`](docs/business-plan.md) に記録しますが、
 **将来像は広げても、最初のプロダクトは広げません。**

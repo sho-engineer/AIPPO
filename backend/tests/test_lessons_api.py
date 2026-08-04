@@ -185,6 +185,31 @@ class TestRewriteTextGenerate:
 class TestLearningEvents:
     url = reverse("learning-events")
 
+    @pytest.mark.parametrize(
+        "event_type",
+        [
+            "outcome_preview_viewed",
+            "quick_try_started",
+            "result_observation_submitted",
+            "concept_card_viewed",
+            "concept_card_skipped",
+            "condition_added",
+            "real_task_completed",
+        ],
+    )
+    def test_accepts_course_engine_events(self, api_client, learner_key, event_type):
+        """画面が送る種類を拒むと、操作ログが丸ごと落ちる。"""
+        client = _client_with_key(api_client, learner_key)
+
+        response = client.post(
+            self.url,
+            {"lesson_id": LESSON_ID, "event_type": event_type, "step": "quick_try"},
+            format="json",
+        )
+
+        assert response.status_code == 204
+        assert LearningEvent.objects.get().event_type == event_type
+
     def test_records_event(self, api_client, learner_key):
         client = _client_with_key(api_client, learner_key)
 
@@ -364,3 +389,43 @@ def test_lesson_completes_with_stub_provider(api_client, learner_key, settings):
     assert Attempt.objects.count() == 4
     assert LearningSession.objects.get().completed_at is not None
     assert SkillProgress.objects.count() == 4
+
+@pytest.mark.django_db
+class TestEventStepIds:
+    """ステップの id は教材データが決める。
+
+    選択肢で縛っていたころは、レッスンを1本足すたびに
+    操作ログが 400 で落ちていた。画面は動いて見えるのに
+    記録だけが欠ける、いちばん気づきにくい壊れ方だった。
+    """
+
+    def test_new_step_ids_are_accepted(self, api_client):
+        from apps.lessons.models import LearningEvent
+
+        for step in ("use_case", "source_text", "prompt_preview", "real_task"):
+            response = api_client.post(
+                reverse("learning-events"),
+                {
+                    "lesson_id": "rewrite_text",
+                    "step": step,
+                    "event_type": "step_viewed",
+                },
+                format="json",
+            )
+            assert response.status_code == 204, response.json()
+
+        assert LearningEvent.objects.count() == 4
+
+    def test_body_is_still_refused(self, api_client):
+        # 縛りを外しても、本文だけは受け取らない
+        response = api_client.post(
+            reverse("learning-events"),
+            {
+                "lesson_id": "rewrite_text",
+                "step": "source_text",
+                "event_type": "text_entered",
+                "user_input": "本文です",
+            },
+            format="json",
+        )
+        assert response.status_code == 400

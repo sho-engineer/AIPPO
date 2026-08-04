@@ -35,7 +35,9 @@ class LearningEventSerializer(serializers.Serializer):
     """
 
     lesson_id = serializers.CharField(max_length=100)
-    step = serializers.ChoiceField(choices=LessonStep.choices, required=False, default="")
+    # ステップの id は教材データが決める。選択肢で縛ると、
+    # レッスンを1本足すたびに操作ログが 400 で落ちる（実際に落ちた）。
+    step = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")
     event_type = serializers.ChoiceField(choices=LearningEventType.choices)
     input_length = serializers.IntegerField(min_value=0, required=False, default=0)
     hint_count = serializers.IntegerField(min_value=0, required=False, default=0)

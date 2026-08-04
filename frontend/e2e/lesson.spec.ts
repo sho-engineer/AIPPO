@@ -3,315 +3,417 @@ import { expect, test, type Page } from "@playwright/test";
 import { stubApi } from "./support/stubApi";
 
 /**
- * AIPPO 開発概要 §18 Phase 6 のシナリオ。
+ * レッスンを実際に「始めて・進めて・終えられる」ことを通しで確かめる。
  *
- * 1. レッスンを開始する
- * 2. 用途を選択する
- * 3. 文章と条件を入力する
- * 4. AIを実行する
- * 5. ポーのヒントを確認する
- * 6. 条件を修正する
- * 7. 自分の文章で試す
- * 8. 課題を完了する
- * 9. celebrate状態が表示される
+ * 画面の並びは教材データ（course/shared.ts の buildLessonFlow）が決めている。
+ *
+ *   完成イメージ → お試し（相手を1つ選ぶ）→ 変化の観察 → 短い解説×3
+ *   → 条件を1つ足す → 見比べる → 安全の確認 → 自分の文章
+ *   → 誰が読むか → どう変えたいか → 送る前の確認 → 結果 → ふりかえり → 完了
+ *
+ * 実APIは呼ばない。すべて stubApi で差し替える（要件 §15）。
  */
 
-/** トップから診断を抜けてレッスン画面まで進む。 */
-async function openLesson(page: Page) {
-  await page.goto("/");
-  await page.getByRole("button", { name: "はじめる" }).first().click();
+const START = "はじめる";
+const LESSON_TAB = "教材一覧";
 
-  // 診断3問
-  for (let i = 0; i < 3; i++) {
-    const choices = page.locator("main section button");
-    await choices.first().waitFor();
-    await choices.first().click();
+/** 最初の1回で選ぶ相手。quick_try の選択肢はこの3つだけ。 */
+const AUDIENCE = "上司";
+/** 条件を1つ足すときに選ぶもの。 */
+const CONDITION = "もっと短く";
+
+const REAL_TASK_TEXT =
+  "お世話になっております。先日の件、ご確認いただけますでしょうか。よろしくお願いいたします。";
+
+async function openTop(page: Page) {
+  await page.goto("/");
+  // 端末に残った下書きが前のテストから漏れないようにする
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
+}
+
+async function next(page: Page) {
+  await page.getByTestId("primary-action").click();
+}
+
+async function choose(page: Page, label: string) {
+  await page.getByRole("button", { name: label, exact: true }).click();
+}
+
+/**
+ * レッスンの一覧まで出す。
+ *
+ * 「はじめる」の行き先はホームで、一覧は下タブの「教材一覧」にある。
+ */
+async function openLessonList(page: Page) {
+  await page.getByRole("button", { name: START }).first().click();
+  await page.getByRole("button", { name: LESSON_TAB }).click();
+  await expect(page.getByTestId("lesson-rewrite_text")).toBeVisible();
+}
+
+/** レッスンの進み具合（何歩目か）。 */
+function lessonProgress(page: Page) {
+  return page.getByRole("progressbar", { name: "レッスンの進み具合" });
+}
+
+/** コース全体の進み具合（9本のうち何本終わったか）。 */
+function courseProgress(page: Page) {
+  return page.getByRole("progressbar", { name: "コース全体の進み具合" });
+}
+
+/** 診断を最後まで答える。おすすめが決まる。 */
+async function completeDiagnosis(page: Page) {
+  await page.getByTestId("lesson-diagnosis").click();
+
+  await next(page); // まずは3つだけ教えてください
+  await choose(page, "文章を書くことが多い");
+  await next(page);
+  await choose(page, "使ったことがない");
+  await next(page);
+  await choose(page, "文章を書く・直す");
+  await next(page);
+}
+
+/** 文章改善レッスンを開き、最初の1回を送るところまで進める。 */
+async function openRewrite(page: Page) {
+  await page.getByTestId("lesson-rewrite_text").click();
+  await next(page); // 完成イメージ
+}
+
+/** 最初の1回を送り、観察の画面まで進める。 */
+async function firstRun(page: Page) {
+  await choose(page, AUDIENCE);
+  await next(page); // 送る → 生成 → 観察
+  await expect(
+    page.getByRole("heading", { name: "どこが変わったと思いますか" }),
+  ).toBeVisible();
+}
+
+/** 観察 → 解説3枚 → 条件を足す画面。 */
+async function throughConcepts(page: Page) {
+  await next(page); // 観察 → 解説1
+  await next(page); // 解説1 → 解説2
+  await next(page); // 解説2 → 解説3
+  await next(page); // 解説3 → 条件を足す
+  await expect(
+    page.getByRole("heading", { name: "条件を一つ足してみましょう" }),
+  ).toBeVisible();
+}
+
+/** 条件を1つ足して送り、見比べの画面まで進める。 */
+async function improve(page: Page, condition = CONDITION) {
+  await choose(page, condition);
+  await next(page); // 送る → 生成 → 見比べ
+  await expect(
+    page.getByRole("heading", { name: "変わり方を見比べる" }),
+  ).toBeVisible();
+}
+
+/** 見比べ → 安全の確認 → 自分の文章の入力画面。 */
+async function toRealTask(page: Page) {
+  await next(page); // 見比べ → 安全の確認
+  await expect(
+    page.getByRole("heading", { name: "次は、自分の文章で試してみましょう" }),
+  ).toBeVisible();
+  await next(page); // 安全の確認 → 自分の文章
+  await expect(page.getByRole("heading", { name: "自分の文章" })).toBeVisible();
+}
+
+/** 自分の文章を入れて、送る前の確認画面まで進める。 */
+async function toPromptPreview(page: Page, text = REAL_TASK_TEXT) {
+  await page.getByRole("textbox").fill(text);
+  await next(page); // 自分の文章 → 誰が読みますか
+  await next(page); // → どう変えたいですか
+  await next(page); // → AIにはこう伝えます
+  await expect(
+    page.getByRole("heading", { name: "AIにはこう伝えます", level: 1 }),
+  ).toBeVisible();
+}
+
+// ---------------------------------------------------------------- 通しシナリオ
+
+test.describe("通しシナリオ", () => {
+  test("診断からレッスン完了まで、迷わず進める", async ({ page }) => {
+    const stub = await stubApi(page);
+    await openTop(page);
+    await openLessonList(page);
+
+    // 1. 診断を終えると、おすすめが3つ決まる
+    await completeDiagnosis(page);
+    await expect(page.getByTestId("completion-view")).toBeVisible();
+    await expect(page.getByTestId("recommended-rewrite_text")).toBeVisible();
+    await expect(page.locator('[data-testid^="recommended-"]')).toHaveCount(3);
+    // 診断は AI を使わない
+    expect(stub.calls, "診断でAIを呼んでいる").toHaveLength(0);
+
+    await next(page); // 完了する → ホームへ
+
+    // 2. 診断のぶんだけ進む（9本のうち1本）
+    await expect(courseProgress(page)).toHaveAttribute("aria-valuenow", "1");
+    await expect(courseProgress(page)).toHaveAttribute("aria-valuemax", "9");
+
+    // 3. 文章改善レッスンを開く。19歩の1歩目から始まる
+    await page.getByRole("button", { name: LESSON_TAB }).click();
+    await page.getByTestId("lesson-rewrite_text").click();
+    await expect(lessonProgress(page)).toHaveAttribute("aria-valuenow", "1");
+    await expect(lessonProgress(page)).toHaveAttribute("aria-valuemax", "19");
+    await next(page); // 完成イメージ
+    await expect(lessonProgress(page)).toHaveAttribute("aria-valuenow", "2");
+
+    // 4. 相手を選ぶだけで、最初の結果まで届く
+    await firstRun(page);
+    expect(stub.calls).toHaveLength(1);
+    expect(stub.calls[0].action).toBe("rewrite");
+    expect(stub.calls[0].input.audience).toBe(AUDIENCE);
+    await expect(page.getByTestId("result-compare")).toContainText(
+      "【スタブ応答 1回目】",
+    );
+
+    // 5. 解説を読み、条件を1つ足す
+    await throughConcepts(page);
+    await improve(page);
+    expect(stub.calls).toHaveLength(2);
+    expect(stub.calls[1].action).toBe("improve");
+    expect(stub.calls[1].input.improvement).toBe(CONDITION);
+    // 前の結果も消えずに残る（消すと比べられない）
+    await expect(page.getByTestId("result-compare")).toContainText(
+      "【スタブ応答 2回目】",
+    );
+
+    // 6. 自分の文章で試す。送る前に、伝える内容を確認できる
+    await toRealTask(page);
+    await toPromptPreview(page);
+    // 送る条件が、送る前に読める形で並んでいる
+    await expect(page.getByTestId("prompt-cards")).toContainText("読む相手");
+    await expect(page.getByTestId("prompt-cards")).toContainText(AUDIENCE);
+    expect(stub.calls, "確認の前に送ってしまっている").toHaveLength(2);
+
+    await next(page); // 送る
+    await expect(
+      page.getByRole("heading", { name: "自分の文章の結果" }),
+    ).toBeVisible();
+    expect(stub.calls).toHaveLength(3);
+    expect(stub.calls[2].input.original_text).toContain("お世話になっております");
+
+    // 7. ふりかえって完了する
+    await next(page); // 結果 → ふりかえり
+    await next(page); // ふりかえり → 完了
+    await expect(page.getByTestId("completion-view")).toBeVisible();
+    await expect(page.getByTestId("completion-view")).toContainText(
+      "誰向けかを伝える",
+    );
+    // 完了画面の時点で、9本のうち2本（診断＋このレッスン）
+    await expect(courseProgress(page)).toHaveAttribute("aria-valuenow", "2");
+
+    await next(page); // 完了する → ホームへ
+
+    // 8. ホームの進捗へ反映される
+    await expect(courseProgress(page)).toHaveAttribute("aria-valuenow", "2");
+    await expect(courseProgress(page)).toHaveAttribute("aria-valuemax", "9");
+    await expect(page.getByTestId("progress-summary")).toContainText("2");
+    // 自分の課題で試した回数も数えられている
+    await expect(page.getByTestId("progress-summary")).toContainText("1回");
+  });
+});
+
+// ------------------------------------------------------------ 迷わせない作り
+
+test.describe("迷わせない作りか", () => {
+  test("選ぶまで進めず、理由をボタンのそばに出す", async ({ page }) => {
+    await stubApi(page);
+    await openTop(page);
+    await openLessonList(page);
+    await openRewrite(page);
+
+    // 何も選ばずに進もうとする
+    await expect(page.getByTestId("primary-action")).toBeDisabled();
+    await expect(page.getByRole("status")).toContainText("えらんでみましょう");
+
+    // 選べば進める
+    await choose(page, AUDIENCE);
+    await expect(page.getByTestId("primary-action")).toBeEnabled();
+  });
+
+  test("短すぎる入力は止めずに、書き足しを勧める", async ({ page }) => {
+    await stubApi(page);
+    await openTop(page);
+    await openLessonList(page);
+    await openRewrite(page);
+    await firstRun(page);
+    await throughConcepts(page);
+    await improve(page);
+    await toRealTask(page);
+
+    await page.getByRole("textbox").fill("短い");
+
+    // 提案は出るが、進めなくはしない
+    await expect(page.getByRole("status")).toContainText("書き足す");
+    await expect(page.getByTestId("primary-action")).toBeEnabled();
+  });
+
+  test("入力済みの内容は、あとから直せる", async ({ page }) => {
+    await stubApi(page);
+    await openTop(page);
+    await openLessonList(page);
+    await openRewrite(page);
+    await firstRun(page);
+
+    // ここまでに答えた内容をひらいて、選び直しへ戻る
+    await page.getByText(/ここまでに答えた内容/).click();
+    await page.getByRole("button", { name: "なおす" }).first().click();
+
+    await expect(
+      page.getByRole("heading", { name: "この文章は誰に送りますか？" }),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: AUDIENCE, exact: true })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  test("読み込み直しても、続きから再開できる", async ({ page }) => {
+    await stubApi(page);
+    await openTop(page);
+    await openLessonList(page);
+    await openRewrite(page);
+    await firstRun(page);
+    await throughConcepts(page);
+    await improve(page);
+    await toRealTask(page);
+
+    await page.getByRole("textbox").fill(REAL_TASK_TEXT);
+    const before = await page.getByRole("textbox").inputValue();
+    await page.reload();
+
+    // 同じ画面に戻り、入力も残っている
+    await expect(page.getByRole("heading", { name: "自分の文章" })).toBeVisible();
+    await expect(page.getByRole("textbox")).toHaveValue(before);
+  });
+});
+
+// ------------------------------------------------------------ AI が失敗したとき
+
+test.describe("AI が失敗したとき", () => {
+  test("入力を消さず、もう一度送れる", async ({ page }) => {
+    const stub = await stubApi(page, { failStatus: 502, failOnCall: 1 });
+    await openTop(page);
+    await openLessonList(page);
+    await openRewrite(page);
+
+    await choose(page, AUDIENCE);
+    await next(page); // 送る → 失敗
+
+    await expect(page.getByTestId("step-error")).toContainText("うまく届かなかった");
+    // ポーは黙らない
+    await expect(page.getByTestId("po-avatar")).toHaveAttribute(
+      "data-emotion",
+      "warning",
+    );
+    // 選んだ内容は消えない
+    await page.getByText(/ここまでに答えた内容/).click();
+    await expect(page.getByRole("group")).toContainText(AUDIENCE);
+
+    await next(page); // もう一度送る
+    await expect(
+      page.getByRole("heading", { name: "どこが変わったと思いますか" }),
+    ).toBeVisible();
+    expect(stub.calls).toHaveLength(2);
+    // 同じ条件で送り直せている
+    expect(stub.calls[1].input.audience).toBe(AUDIENCE);
+  });
+});
+
+// -------------------------------------------------- 個人情報・機密情報の確認
+
+test.describe("個人情報・機密情報の確認", () => {
+  /** 自分の文章に text を入れて、送るところまで進める。 */
+  async function sendRealTask(page: Page, text: string) {
+    await openLessonList(page);
+    await openRewrite(page);
+    await firstRun(page);
+    await throughConcepts(page);
+    await improve(page);
+    await toRealTask(page);
+    await toPromptPreview(page, text);
+    await next(page); // 送る
   }
 
-  await page.getByRole("button", { name: "これを試す" }).click();
-  await expect(page.getByTestId("lesson-step")).toBeVisible();
-}
-
-async function goToLesson(page: Page) {
-  await openLesson(page);
-  await expect(page.getByTestId("lesson-step")).toHaveAttribute("data-step", "INTRO");
-}
-
-async function runFirstGeneration(page: Page) {
-  await page.getByTestId("primary-action").click(); // はじめる
-  await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-    "data-step",
-    "SELECT_USE_CASE",
-  );
-
-  await page.getByRole("button", { name: "仕事のメール" }).click();
-  await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-    "data-step",
-    "FIRST_INPUT",
-  );
-
-  await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
-  await page.getByRole("button", { name: "ていねいに", exact: true }).click();
-  await page.getByRole("button", { name: "3行くらい", exact: true }).click();
-  await page.getByTestId("primary-action").click(); // AIに送る
-
-  await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-    "data-step",
-    "REVIEW_RESULT",
-  );
-}
-
-test.describe("最初のレッスンを通しで完走する", () => {
-  test("開始から celebrate まで到達する", async ({ page }) => {
+  test("メールアドレスは、確認したうえで送れる", async ({ page }) => {
     const stub = await stubApi(page);
-    await goToLesson(page);
+    await openTop(page);
+    await sendRealTask(page, "連絡先は tanaka@example.co.jp です。ご確認ください。");
 
-    // 1-4. 開始 → 用途選択 → 条件入力 → AI実行
-    await runFirstGeneration(page);
-    expect(stub.rewriteCalls).toHaveLength(1);
-    expect(stub.rewriteCalls[0].audience).toBe("社外のお客様");
+    await expect(page.getByTestId("privacy-dialog")).toBeVisible();
+    expect(stub.calls, "確認の前に送ってしまっている").toHaveLength(2);
 
-    // 改善前後の比較が出る
-    await expect(page.getByTestId("result-compare")).toBeVisible();
-    await expect(page.getByText("もとの文章")).toBeVisible();
-    await expect(page.getByTestId("run-1")).toBeVisible();
-
-    // 5. ポーのヒントを確認する
-    await expect(page.getByTestId("poe-avatar")).toContainText(
-      "【スタブ応答】",
-    );
-
-    // 6. 条件を修正する（改善）
-    await page.getByTestId("primary-action").click(); // 次へ
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "IMPROVE_INPUT",
-    );
-    await page.getByRole("button", { name: "もっと短くしたい" }).click();
-
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "REVIEW_RESULT",
-    );
-    await expect(page.getByTestId("run-2")).toBeVisible();
-    expect(stub.rewriteCalls[1].instruction).toContain("短く");
-
-    // 7. 自分の文章で試す
-    await page.getByTestId("primary-action").click(); // 次へ
-    await page.getByRole("button", { name: "自分の文章で試す" }).click();
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "REAL_TASK",
-    );
-
-    await page
-      .getByLabel("あなたの文章")
-      .fill("お世話になっております。先日の資料の件、ご確認いただけましたでしょうか。");
-    await page.getByTestId("primary-action").click();
-
-    await expect(page.getByTestId("result-compare")).toBeVisible();
-    expect(stub.rewriteCalls).toHaveLength(3);
-    expect(stub.rewriteCalls[2].original_text).toContain("先日の資料");
-    // 自分の文章での実行後は、その場で結果を見せる（画面を行き来させない）
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "REAL_TASK",
-    );
-
-    // 8. 課題を完了する
-    await page.getByTestId("primary-action").click(); // 振り返りへ進む
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "REFLECTION",
-    );
-    await page.getByTestId("primary-action").click(); // 完了する
-
-    // 9. celebrate 状態
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "COMPLETE",
-    );
-    await expect(page.getByTestId("completion-view")).toBeVisible();
-    await expect(page.getByText("できるようになりました")).toBeVisible();
-
-    // 完了イベントが送られている
-    expect(stub.events.some((e) => e.event_type === "lesson_completed")).toBe(true);
-  });
-
-  test("完了画面でアンケートに答えられる", async ({ page }) => {
-    const stub = await stubApi(page);
-    await goToLesson(page);
-    await runFirstGeneration(page);
-
-    // 最短で完了まで進む
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "もっと短くしたい" }).click();
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "自分の文章で試す" }).click();
-    await page.getByLabel("あなたの文章").fill("自分で書いた文章です。");
-    await page.getByTestId("primary-action").click(); // AIに送る
-    await page.getByTestId("primary-action").click(); // 振り返りへ進む
-    await page.getByTestId("primary-action").click(); // 完了する
-
-    await expect(page.getByTestId("completion-view")).toBeVisible();
-
-    await page.getByRole("button", { name: "なかった" }).click();
-    await page.getByRole("button", { name: "使うと思う" }).click();
-    await page.getByRole("button", { name: "学びたい" }).click();
-    await page.getByRole("button", { name: "興味がある" }).click();
-
-    await expect(page.getByText("ありがとうございました。")).toBeVisible();
-    expect(stub.surveys).toHaveLength(1);
-    expect(stub.surveys[0].would_pay).toBe("yes");
-  });
-});
-
-test.describe("待ち時間の見せ方", () => {
-  test("書けたところから文章が出る", async ({ page }) => {
-    // わざと細かく刻んで、書き終わる前の状態を捉えられるようにする
-    await stubApi(page, {
-      streamChunkSize: 2,
-      rewrite: () => "書き直した文章がここに入ります。".repeat(4),
-    });
-    await goToLesson(page);
-
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "仕事のメール" }).click();
-    await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
-    await page.getByRole("button", { name: "ていねいに", exact: true }).click();
-    await page.getByRole("button", { name: "3行くらい", exact: true }).click();
-    await page.getByTestId("primary-action").click();
-
-    // 書き終わったら結果の比較に切り替わり、書きかけは畳まれる
-    await expect(page.getByTestId("result-compare")).toBeVisible();
-    await expect(page.getByTestId("streaming-text")).toBeHidden();
-    await expect(page.getByTestId("run-1")).toContainText("書き直した文章");
-  });
-
-  test("流し込みが使えない環境でも、結果は同じように出る", async ({ page }) => {
-    // 途中で溜め込むプロキシや古い環境を想定する。
-    // 学習者の失敗ではないので、画面にエラーを出してはいけない。
-    const stub = await stubApi(page, { streaming: false });
-    await goToLesson(page);
-    await runFirstGeneration(page);
-
-    await expect(page.getByTestId("result-compare")).toBeVisible();
-    await expect(page.getByRole("alert")).toHaveCount(0);
-    expect(stub.rewriteCalls).toHaveLength(1);
-  });
-});
-
-test.describe("迷わせない作りになっているか", () => {
-  test("穴埋めが空のまま送ると、足りない項目を1つだけ示す", async ({ page }) => {
-    const stub = await stubApi(page);
-    await goToLesson(page);
-
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "仕事のメール" }).click();
-    await page.getByTestId("primary-action").click(); // 何も選ばずに送信
-
-    const alerts = page.getByRole("alert");
-    await expect(alerts).toHaveCount(1);
-    await expect(alerts).toContainText("誰向け");
-    expect(stub.rewriteCalls).toHaveLength(0);
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "FIRST_INPUT",
-    );
-  });
-
-  test("自分の文章が空のときは、例文で試す道を残す", async ({ page }) => {
-    await stubApi(page);
-    await goToLesson(page);
-    await runFirstGeneration(page);
-
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "もっと短くしたい" }).click();
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "自分の文章で試す" }).click();
-
-    await page.getByTestId("primary-action").click(); // 空のまま送信
-    await expect(page.getByRole("alert")).toContainText("入力してみましょう");
-
-    // 行き止まりにならない
-    await page
-      .getByRole("button", { name: "思いつかないので、用意された例文で試す" })
-      .click();
-    await expect(page.getByLabel("あなたの文章")).not.toHaveValue("");
-  });
-
-  test("AI が失敗しても入力が消えず、やり直せる", async ({ page }) => {
-    await stubApi(page, { rewriteStatus: 502 });
-    await goToLesson(page);
-
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "仕事のメール" }).click();
-    await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
-    await page.getByRole("button", { name: "ていねいに", exact: true }).click();
-    await page.getByRole("button", { name: "3行くらい", exact: true }).click();
-
-    const sourceText = await page.getByLabel("分かりやすくしたい文章").inputValue();
-    await page.getByTestId("primary-action").click();
-
-    await expect(page.getByRole("alert")).toContainText("もう一度");
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "FIRST_INPUT",
-    );
-    // 入力が保持されている
-    await expect(page.getByLabel("分かりやすくしたい文章")).toHaveValue(sourceText);
+    await page.getByTestId("privacy-send-anyway").click();
     await expect(
-      page.getByRole("button", { name: "社外のお客様", exact: true }),
-    ).toHaveAttribute("aria-pressed", "true");
+      page.getByRole("heading", { name: "自分の文章の結果" }),
+    ).toBeVisible();
+    expect(stub.calls).toHaveLength(3);
   });
 
-  test("ポーはどの画面にも表示される", async ({ page }) => {
-    await stubApi(page);
-    await page.goto("/");
-    await expect(page.getByTestId("poe-avatar")).toBeVisible();
+  test("APIキーらしいものは送信そのものを止める", async ({ page }) => {
+    const stub = await stubApi(page);
+    await openTop(page);
+    await sendRealTask(page, "鍵は sk-abcdefghijklmnopqrstuvwx です。ご確認ください。");
 
-    await page.getByRole("button", { name: "はじめる" }).first().click();
-    await expect(page.getByTestId("poe-avatar")).toBeVisible();
+    await expect(page.getByTestId("privacy-dialog")).toBeVisible();
+    await expect(page.getByTestId("privacy-send-anyway")).toBeDisabled();
+    // 最初の2回ぶんから増えていない
+    expect(stub.calls).toHaveLength(2);
   });
 });
 
-test.describe("完了したあと", () => {
-  test("もう一度はじめから試せる", async ({ page }) => {
-    // レッスンは1本しかない。ここで行き止まりにすると、
-    // いちばん乗り気になっている人を取り逃がす。
-    await stubApi(page);
-    await goToLesson(page);
-    await runFirstGeneration(page);
+// ---------------------------------------------------------------- 自分の課題
 
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "もっと短くしたい" }).click();
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "自分の文章で試す" }).click();
-    await page.getByLabel("あなたの文章").fill("自分で書いた文章です。");
-    await page.getByTestId("primary-action").click();
-    await page.getByTestId("primary-action").click();
-    await page.getByTestId("primary-action").click();
+test.describe("自分の課題", () => {
+  test("スキップできるが、飛ばしたことは記録する", async ({ page }) => {
+    const stub = await stubApi(page);
+    await openTop(page);
+    await openLessonList(page);
+    await openRewrite(page);
+    await firstRun(page);
+    await throughConcepts(page);
+    await improve(page);
+    await toRealTask(page);
+
+    await page.getByRole("button", { name: "今回はスキップする" }).click();
+
+    const skipped = stub.events.some(
+      (event) => event.event_type === "real_task_skipped",
+    );
+    expect(skipped, "飛ばしたことが記録されていない").toBe(true);
+  });
+});
+
+// ------------------------------------------------------- AI を使わないレッスン
+
+test.describe("AI を使わないレッスン", () => {
+  test("Lesson 7 は AI を呼ばずに最後まで進める", async ({ page }) => {
+    const stub = await stubApi(page);
+    await openTop(page);
+    await openLessonList(page);
+    await page.getByTestId("lesson-use_ai_safely").click();
+
+    await next(page); // はじめに
+
+    // 選んだ時点で、その場に解説が出る（答え合わせに画面を挟まない）
+    await choose(page, "日付");
+    await expect(page.getByTestId("quiz-explanation")).toBeVisible();
+    await next(page);
+
+    await choose(page, "パスワード");
+    await expect(page.getByTestId("quiz-explanation")).toBeVisible();
+    await next(page);
+
+    await choose(page, "自分");
+    await expect(page.getByTestId("quiz-explanation")).toBeVisible();
+    await next(page);
+
+    await next(page); // ふりかえり → 完了
     await expect(page.getByTestId("completion-view")).toBeVisible();
 
-    await page.getByTestId("restart-lesson").click();
-
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "INTRO",
-    );
-    // 前回の結果は残っていない
-    await expect(page.getByTestId("result-compare")).toHaveCount(0);
-  });
-});
-
-test.describe("再訪", () => {
-  test("前回の到達ステップから再開できる", async ({ page }) => {
-    await stubApi(page, { resumeStep: "IMPROVE_INPUT" });
-    await openLesson(page);
-
-    await expect(page.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "IMPROVE_INPUT",
-    );
+    expect(stub.calls, "AIを使わないレッスンで呼んでいる").toHaveLength(0);
   });
 });

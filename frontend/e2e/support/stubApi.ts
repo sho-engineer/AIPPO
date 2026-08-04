@@ -3,174 +3,137 @@ import type { Page, Route } from "@playwright/test";
 /**
  * バックエンドの応答をスタブへ差し替える。
  *
- * AIPPO 開発概要 §18 Phase 6 の「AI APIはテスト用レスポンスに置き換える」。
  * E2E は画面と導線を確かめるものなので、AI の揺れを持ち込まない。
+ * **実APIは絶対に呼ばない**（要件 §15）。
  */
 
+export interface GenerateBody {
+  lesson_id: string;
+  step_id: string;
+  action: string;
+  input: Record<string, string>;
+}
+
 export interface StubOptions {
-  /** 文章生成の応答。呼ばれた回数を受け取る。 */
-  rewrite?: (callCount: number, body: RewriteBody) => string;
-  /** 文章生成を失敗させる。 */
-  rewriteStatus?: number;
-  /** ポーのフィードバック。 */
-  feedback?: Partial<TutorFeedbackBody>;
-  /** 再訪時の到達ステップ。 */
-  resumeStep?: string | null;
-  /**
-   * 流し込みを使えなくする（既定は使える）。
-   *
-   * 古い環境や、途中で溜め込むプロキシの下では流し込みが成立しない。
-   * そのとき通常の生成へ黙って倒れるかを確かめるために使う。
-   */
-  streaming?: false;
-  /** 1回に流す文字数。分割して届くことを確かめるために使う。 */
-  streamChunkSize?: number;
+  /** 生成結果。呼ばれた回数と本文を受け取る。 */
+  result?: (callCount: number, body: GenerateBody) => string;
+  /** 生成を失敗させる。回数を渡すと、その回だけ失敗する。 */
+  failStatus?: number;
+  failOnCall?: number;
+  /** ポーの発言。 */
+  tutor?: Partial<TutorBody>;
 }
 
-export interface RewriteBody {
-  original_text: string;
-  audience: string;
-  tone: string;
-  length: string;
-  instruction: string;
-  step: string;
-}
-
-export interface TutorFeedbackBody {
+export interface TutorBody {
   message: string;
   emotion: string;
   action: string;
-  hint_level: number;
-  completed: boolean;
 }
 
 export interface StubHandle {
-  rewriteCalls: RewriteBody[];
+  calls: GenerateBody[];
   events: { event_type: string; step: string; input_length: number }[];
-  surveys: Record<string, string>[];
 }
 
-const DEFAULT_FEEDBACK: TutorFeedbackBody = {
-  message: "【スタブ応答】読む相手を伝えると、結果が変わります。",
-  emotion: "hint",
-  action: "retry",
-  hint_level: 1,
-  completed: false,
+const DEFAULT_TUTOR: TutorBody = {
+  message: "【スタブ応答】どこが変わったか見てみましょう。",
+  emotion: "neutral",
+  action: "review",
 };
+
+/** 条件を映した固定応答。条件を変えると結果が変わることを確かめられる。 */
+function defaultResult(callCount: number, body: GenerateBody): string {
+  const conditions = Object.entries(body.input)
+    .filter(([key, value]) => value && key !== "original_text" && key !== "topic")
+    .map(([, value]) => value)
+    .join(" / ");
+  const source = body.input.original_text ?? body.input.topic ?? "";
+  return `【スタブ応答 ${callCount}回目】${conditions}\n${source.slice(0, 40)}`;
+}
 
 export async function stubApi(
   page: Page,
   options: StubOptions = {},
 ): Promise<StubHandle> {
-  const handle: StubHandle = { rewriteCalls: [], events: [], surveys: [] };
+  const handle: StubHandle = { calls: [], events: [] };
+  let callCount = 0;
 
-  const json = (route: Route, status: number, body: unknown) =>
-    route.fulfill({
-      status,
-      contentType: "application/json",
-      body: JSON.stringify(body),
-    });
-
-  // 書けたところから流す経路。画面はまずこちらを試す。
-  await page.route("**/api/lessons/rewrite-text/stream/", async (route) => {
-    if (options.streaming === false) {
-      // 流し込みが成立しない環境の再現。
-      // 本体が読めない応答を返し、画面が通常の生成へ倒れることを確かめる。
-      return route.fulfill({ status: 501, body: "" });
+  await page.route("**/api/v1/ai/generate/", async (route: Route) => {
+    if (route.request().method() === "OPTIONS") {
+      await route.fulfill({ status: 200, body: "" });
+      return;
     }
 
-    const body = route.request().postDataJSON() as RewriteBody;
-    handle.rewriteCalls.push(body);
+    const body = route.request().postDataJSON() as GenerateBody;
+    handle.calls.push(body);
+    callCount += 1;
 
-    if (options.rewriteStatus && options.rewriteStatus >= 400) {
-      return route.fulfill({
-        status: options.rewriteStatus,
-        contentType: "text/event-stream",
-        body: sse("error", {
-          message: "うまく届かなかったようです。もう一度おくってみましょう。",
+    const shouldFail =
+      options.failStatus !== undefined &&
+      (options.failOnCall === undefined || options.failOnCall === callCount);
+
+    if (shouldFail) {
+      await route.fulfill({
+        status: options.failStatus as number,
+        contentType: "application/json",
+        body: JSON.stringify({
+          errors: {
+            detail: ["うまく届かなかったようです。もう一度おくってみましょう。"],
+          },
+          tutor: {
+            message: "もう一度おくってみましょう。",
+            emotion: "warning",
+            action: "retry",
+          },
         }),
       });
+      return;
     }
 
-    const text = options.rewrite
-      ? options.rewrite(handle.rewriteCalls.length, body)
-      : defaultRewrite(handle.rewriteCalls.length, body);
-
-    const size = options.streamChunkSize ?? 6;
-    let payload = "";
-    for (let i = 0; i < text.length; i += size) {
-      payload += sse("chunk", { text: text.slice(i, i + size) });
-    }
-    payload += sse("done", { text });
-
-    return route.fulfill({
+    await route.fulfill({
       status: 200,
-      contentType: "text/event-stream",
-      headers: { "Cache-Control": "no-cache", "X-Accel-Buffering": "no" },
-      body: payload,
+      contentType: "application/json",
+      body: JSON.stringify({
+        result: (options.result ?? defaultResult)(callCount, body),
+        tutor: { ...DEFAULT_TUTOR, ...options.tutor },
+        usage: {
+          provider: "mock",
+          model: "mock-1",
+          input_tokens: 10,
+          output_tokens: 20,
+          latency_ms: 5,
+        },
+        extras: {},
+      }),
     });
   });
 
-  await page.route("**/api/lessons/rewrite-text/generate/", async (route) => {
-    const body = route.request().postDataJSON() as RewriteBody;
-    handle.rewriteCalls.push(body);
-
-    if (options.rewriteStatus && options.rewriteStatus >= 400) {
-      return json(route, options.rewriteStatus, {
-        errors: { detail: ["うまく届かなかったようです。もう一度おくってみましょう。"] },
-      });
+  await page.route("**/api/learning-events/", async (route: Route) => {
+    if (route.request().method() === "POST") {
+      handle.events.push(route.request().postDataJSON());
     }
-
-    const text = options.rewrite
-      ? options.rewrite(handle.rewriteCalls.length, body)
-      : defaultRewrite(handle.rewriteCalls.length, body);
-    return json(route, 200, { rewritten_text: text });
+    await route.fulfill({ status: 204, body: "" });
   });
 
-  await page.route("**/api/tutor/feedback/", (route) =>
-    json(route, 200, { ...DEFAULT_FEEDBACK, ...options.feedback }),
-  );
-
-  await page.route("**/api/learning-events/", async (route) => {
-    handle.events.push(route.request().postDataJSON());
-    return route.fulfill({ status: 204, body: "" });
-  });
-
-  await page.route("**/api/lessons/*/session/", (route) =>
-    json(route, 200, {
-      session: options.resumeStep
-        ? {
-            session_id: "00000000-0000-0000-0000-000000000001",
-            lesson_id: "rewrite_text_001",
-            current_step: options.resumeStep,
-            use_case_id: "work_email",
-            fill_in_values: {},
-            attempt_count: 1,
-            completed: false,
-          }
-        : null,
-    }),
-  );
-
-  await page.route("**/api/lessons/*/survey/", async (route) => {
-    handle.surveys.push(route.request().postDataJSON()?.answers ?? {});
-    return route.fulfill({ status: 204, body: "" });
-  });
+  // ほかの通信も実サーバーへ行かないよう塞ぐ。
+  //
+  // ここでまとめて塞ぐ形（api の下すべて）を使ってはいけない。
+  // 開発サーバーはアプリ自身のソースを /src/api/ai.ts として配るので、
+  // それごと JSON に差し替えてしまい、アプリが起動しなくなる。
+  // そのうえ画面が真っ白なまま検査が通り、壊れていることに気づけない。
+  for (const pattern of [
+    "**/api/lessons/**",
+    "**/api/profile/**",
+    "**/api/tutor/**",
+  ]) {
+    await page.route(pattern, async (route: Route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ session: null }),
+      });
+    });
+  }
 
   return handle;
-}
-
-/** SSE の1件分。改行の扱いを間違えると受け手が読めなくなる。 */
-function sse(name: string, data: unknown): string {
-  return `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
-}
-
-function defaultRewrite(callCount: number, body: RewriteBody): string {
-  if (body.instruction) {
-    return `【${callCount}回目・改善】${body.instruction}を反映しました。短く整えた文章です。`;
-  }
-  if (body.step === "REAL_TASK") {
-    return `【${callCount}回目・自分の文章】${body.audience}向けに${body.length}で整えました。`;
-  }
-  return `【${callCount}回目】${body.audience}向けに、${body.tone}、${body.length}にしました。`;
 }

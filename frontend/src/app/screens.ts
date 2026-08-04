@@ -1,23 +1,47 @@
 /**
  * アプリ全体の画面遷移。
  *
- * レッスン内部の9状態（lesson/machine.ts）とは別の層。
- * こちらは「トップ → 診断 → レッスン」の3画面だけを扱う。
+ * レッスンの中の進行（course/engine.ts）とは別の層。
+ * こちらは「タイトル → ホーム → コース一覧 → レッスン」と、設定を扱う。
  *
- * MVP は3画面なのでルーターを入れない。
- * 画面数が増えるか、URL共有・ブラウザバックが必要になった時点で導入する。
+ * ホームとコース一覧を分けたのは、支給デザインの下タブに合わせたため。
+ * ホームは「今日どこから始めるか」、コース一覧は「全体を見渡す」場所で、
+ * 役割が違う。1画面に混ぜると、どちらの用も中途半端になる。
+ *
+ * 画面数が少ないうちはルーターを入れない。
+ * URL共有やブラウザバックが要るようになった時点で導入する。
  */
 
-export const SCREENS = ["TOP", "DIAGNOSIS", "LESSON"] as const;
+export const SCREENS = ["TOP", "HOME", "COURSE", "LESSON", "SETTINGS"] as const;
 
 export type Screen = (typeof SCREENS)[number];
 
-export type ScreenEvent = "START" | "SELECT_LESSON" | "BACK_TO_TOP";
+export type ScreenEvent =
+  | "START"
+  | "SELECT_LESSON"
+  | "BACK_TO_HOME"
+  | "OPEN_COURSE"
+  | "OPEN_SETTINGS"
+  | "BACK_TO_TOP";
 
 const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
-  TOP: { START: "DIAGNOSIS" },
-  DIAGNOSIS: { SELECT_LESSON: "LESSON", BACK_TO_TOP: "TOP" },
-  LESSON: { BACK_TO_TOP: "TOP" },
+  TOP: { START: "HOME" },
+  HOME: {
+    SELECT_LESSON: "LESSON",
+    OPEN_COURSE: "COURSE",
+    OPEN_SETTINGS: "SETTINGS",
+    BACK_TO_TOP: "TOP",
+  },
+  COURSE: {
+    SELECT_LESSON: "LESSON",
+    BACK_TO_HOME: "HOME",
+    OPEN_SETTINGS: "SETTINGS",
+    BACK_TO_TOP: "TOP",
+  },
+  // レッスンを終えたらホームへ戻す。行き止まりにしない（憲章 原則 I）
+  LESSON: { BACK_TO_HOME: "HOME", OPEN_COURSE: "COURSE", BACK_TO_TOP: "TOP" },
+  // 設定はどこからでも抜けられる
+  SETTINGS: { BACK_TO_HOME: "HOME", OPEN_COURSE: "COURSE", BACK_TO_TOP: "TOP" },
 };
 
 /** 遷移表に無いイベントは無視し、現在の画面を維持する。 */

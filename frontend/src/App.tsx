@@ -1,41 +1,105 @@
 /**
- * 画面の切り替え（AIPPO 開発概要 §18 Phase 1）。
+ * 画面の切り替え。
  *
- * トップ → 診断 → レッスン。
- * Phase 1 では AI API を使わず、固定レスポンスで通しの導線を確認する。
+ * タイトル → ホーム → コース一覧 → レッスン。
+ * レッスンの中身は教材データが決めるので、ここは器だけを持つ。
+ *
+ * いまどこにいるかは端末に覚えておく。
+ * 読み込み直したときにトップへ戻されると、入力だけが残って
+ * ちぐはぐな状態になる（要件 §6.6）。
+ *
+ * 下タブはホーム・教材一覧・設定に出す。タイトル画面とレッスン中は
+ * 出さない。前者は「押す場所は1つ」が売りで、後者は1画面1タスクの
+ * 途中だから、抜け道を並べると気が散る（戻る道は画面の中に用意してある）。
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { DiagnosisPage } from "./pages/DiagnosisPage";
-import { LessonPage } from "./pages/LessonPage";
+import { BottomTabBar, type TabKey } from "./components/AppShell";
+import { CoursePage } from "./pages/CoursePage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { HomePage } from "./pages/HomePage";
+import { LessonRunner } from "./pages/LessonRunner";
 import { TopPage } from "./pages/TopPage";
+import { COURSE, getLesson } from "./course/catalog";
+import { loadPlace, savePlace } from "./app/session";
 import { nextScreen, type Screen } from "./app/screens";
 
+/** 下タブのどれが光っているか。 */
+const TAB_OF: Partial<Record<Screen, TabKey>> = {
+  HOME: "home",
+  COURSE: "course",
+  SETTINGS: "settings",
+};
+
+/** 下タブの行き先。実装のある3つだけを持つ。 */
+const SCREEN_OF_TAB: Partial<Record<TabKey, Screen>> = {
+  home: "HOME",
+  course: "COURSE",
+  settings: "SETTINGS",
+};
+
 export function App() {
-  const [screen, setScreen] = useState<Screen>("TOP");
-  const [lessonId, setLessonId] = useState<string | null>(null);
+  const restored = loadPlace();
+  const [screen, setScreen] = useState<Screen>(restored?.screen ?? "TOP");
+  const [lessonId, setLessonId] = useState<string>(
+    restored?.lessonId ?? COURSE.lessons[0].id,
+  );
 
-  switch (screen) {
-    case "TOP":
-      return <TopPage onStart={() => setScreen(nextScreen("TOP", "START"))} />;
+  useEffect(() => savePlace({ screen, lessonId }), [screen, lessonId]);
 
-    case "DIAGNOSIS":
-      return (
-        <DiagnosisPage
-          onSelectLesson={(id) => {
-            setLessonId(id);
-            setScreen(nextScreen("DIAGNOSIS", "SELECT_LESSON"));
-          }}
+  const openLesson = (id: string, from: Screen) => {
+    setLessonId(id);
+    setScreen(nextScreen(from, "SELECT_LESSON"));
+  };
+
+  const tab = TAB_OF[screen];
+
+  const body = (() => {
+    switch (screen) {
+      case "TOP":
+        return <TopPage onStart={() => setScreen(nextScreen("TOP", "START"))} />;
+
+      case "HOME":
+        return (
+          <HomePage
+            onSelectLesson={(id) => openLesson(id, "HOME")}
+            onOpenCourse={() => setScreen(nextScreen("HOME", "OPEN_COURSE"))}
+          />
+        );
+
+      case "COURSE":
+        return <CoursePage onSelectLesson={(id) => openLesson(id, "COURSE")} />;
+
+      case "SETTINGS":
+        return <SettingsPage onBack={() => setScreen("HOME")} />;
+
+      case "LESSON": {
+        // 知らない id が入っても画面を落とさない。先頭のレッスンへ倒す
+        const lesson = getLesson(lessonId) ?? COURSE.lessons[0];
+        return (
+          <LessonRunner
+            key={lesson.id}
+            lesson={lesson}
+            onFinish={() => setScreen(nextScreen("LESSON", "BACK_TO_HOME"))}
+            onExit={() => setScreen(nextScreen("LESSON", "OPEN_COURSE"))}
+            // 完了画面から、そのまま次のレッスンへ入れるようにする
+            onSelectLesson={(id) => openLesson(id, "LESSON")}
+          />
+        );
+      }
+    }
+  })();
+
+  return (
+    <>
+      {body}
+      {tab && (
+        <BottomTabBar
+          current={tab}
+          onSelect={(key) => setScreen(SCREEN_OF_TAB[key] ?? screen)}
         />
-      );
-
-    case "LESSON":
-      return (
-        <LessonPage
-          lessonId={lessonId}
-          onExit={() => setScreen(nextScreen("LESSON", "BACK_TO_TOP"))}
-        />
-      );
-  }
+      )}
+    </>
+  );
 }

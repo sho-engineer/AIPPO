@@ -1,70 +1,109 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { App } from "../src/App";
-import { DIAGNOSIS_QUESTIONS } from "../src/content/diagnosis";
+import { COURSE } from "../src/course/catalog";
 import { BRAND } from "../src/content/ui";
 
 /**
- * Phase 1 の完了条件:
- * 固定レスポンスでトップ → 診断 → レッスン画面まで遷移できること。
+ * タイトル → ホーム → コース一覧 → レッスン の通し導線。
+ *
+ * ここで確かめるのは「たどり着けること」だけ。
+ * レッスンの中身は course のテストが受け持つ。
  */
-describe("トップ → 診断 → レッスン の通し導線", () => {
-  it("トップから始まる", () => {
+describe("画面の行き来", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  const start = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
+  };
+
+  /** 下タブの「コース」を押して一覧へ。 */
+  const openCourseTab = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(await screen.findByRole("button", { name: "教材一覧" }));
+  };
+
+  it("タイトルから始まる", () => {
     render(<App />);
     expect(
       screen.getByRole("heading", { name: BRAND.headline }),
     ).toBeInTheDocument();
   });
 
-  it("3問答えてレッスン画面まで到達できる", async () => {
+  it("タイトルからホームへ進む", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
-
-    for (const question of DIAGNOSIS_QUESTIONS) {
-      await screen.findByRole("heading", { name: question.question });
-      await user.click(
-        screen.getByRole("button", { name: question.choices[0].label }),
-      );
-    }
-
-    await user.click(
-      await screen.findByRole("button", { name: "これを試す" }),
-    );
+    await start(user);
 
     expect(
-      await screen.findByRole("heading", {
-        name: "AIに文章を分かりやすくしてもらう",
-      }),
+      await screen.findByRole("heading", { name: "学習の進み具合" }),
     ).toBeInTheDocument();
-    expect(screen.getByTestId("lesson-step")).toHaveAttribute(
-      "data-step",
-      "INTRO",
-    );
   });
 
-  it("レッスンからトップへ戻れる", async () => {
+  it("ホームのおすすめから、そのままレッスンへ入れる", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
-    for (const question of DIAGNOSIS_QUESTIONS) {
-      await screen.findByRole("heading", { name: question.question });
-      await user.click(
-        screen.getByRole("button", { name: question.choices[0].label }),
-      );
-    }
-    await user.click(await screen.findByRole("button", { name: "これを試す" }));
+    await start(user);
+    await user.click(await screen.findByTestId("recommend-rewrite_text"));
 
-    await user.click(
-      await screen.findByRole("button", { name: "ひとつ前にもどる" }),
-    );
+    // レッスンの最初の画面は、レッスンそのものの名前を見出しにする
+    expect(
+      await screen.findByRole("heading", {
+        name: COURSE.lessons.find((l) => l.id === "rewrite_text")!.outcomeTitle,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Lesson 1")).toBeInTheDocument();
+  });
+
+  it("下タブの教材一覧へ移ると、全レッスンとFinal Challengeが並ぶ", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await start(user);
+    await openCourseTab(user);
 
     expect(
-      await screen.findByRole("heading", { name: BRAND.headline }),
+      await screen.findByRole("heading", { name: COURSE.title }),
+    ).toBeInTheDocument();
+
+    for (const lesson of COURSE.lessons) {
+      expect(
+        await screen.findByTestId(`lesson-${lesson.id}`),
+        `${lesson.title} が一覧に無い`,
+      ).toBeInTheDocument();
+    }
+  });
+
+  it("コース一覧からレッスンを選べる", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await start(user);
+    await openCourseTab(user);
+    await user.click(await screen.findByTestId("lesson-rewrite_text"));
+
+    // レッスンの最初の画面は、レッスンそのものの名前を見出しにする
+    expect(
+      await screen.findByRole("heading", {
+        name: COURSE.lessons.find((l) => l.id === "rewrite_text")!.outcomeTitle,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Lesson 1")).toBeInTheDocument();
+  });
+
+  it("レッスンから一覧へ戻れる（行き止まりにしない）", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await start(user);
+    await user.click(await screen.findByTestId("recommend-rewrite_text"));
+    await user.click(await screen.findByRole("button", { name: "レッスン一覧へ" }));
+
+    expect(
+      await screen.findByRole("heading", { name: COURSE.title }),
     ).toBeInTheDocument();
   });
 
@@ -74,7 +113,32 @@ describe("トップ → 診断 → レッスン の通し導線", () => {
 
     expect(screen.getByTestId("poe-avatar")).toBeInTheDocument();
 
-    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
-    expect(screen.getByTestId("poe-avatar")).toBeInTheDocument();
+    await start(user);
+    expect(await screen.findByTestId("po-greeting")).toBeInTheDocument();
+
+    await user.click(await screen.findByTestId("recommend-rewrite_text"));
+    expect(await screen.findByTestId("po-avatar")).toBeInTheDocument();
+  });
+
+  it("下タブの未実装の行き先は押せない（黙って無反応にしない）", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await start(user);
+
+    expect(await screen.findByRole("button", { name: /学習履歴/ })).toBeDisabled();
+  });
+
+  it("下タブから設定へ入り、ホームへ戻れる", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await start(user);
+
+    await user.click(await screen.findByRole("button", { name: "設定" }));
+    expect(await screen.findByRole("heading", { name: "設定" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "ホーム" }));
+    expect(
+      await screen.findByRole("heading", { name: "学習の進み具合" }),
+    ).toBeInTheDocument();
   });
 });
