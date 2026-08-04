@@ -14,7 +14,8 @@ from apps.ai.actions import Action, get_action
 from apps.ai.models_catalog import is_selectable
 
 #: 対象の本文に許す長さ。長いほど費用も待ち時間も増える。
-MAX_BODY_LENGTH = 5000
+#: 環境変数で下げられるようにしてある（AI_MAX_INPUT_CHARACTERS）。
+MAX_BODY_LENGTH = settings.AI_MAX_INPUT_CHARACTERS
 #: 条件（誰向け・長さ など）1つに許す長さ。
 MAX_FIELD_LENGTH = 500
 

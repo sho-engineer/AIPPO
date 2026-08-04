@@ -7,6 +7,7 @@
  */
 
 import { apiBaseUrl } from "./config";
+import { writeHeaders } from "./http";
 
 /** 画面に出す既定の文言。専門用語を出さない（憲章 原則 I）。 */
 export const GENERIC_ERROR = "うまく届かなかったようです。もう一度おくってみましょう。";
@@ -49,13 +50,19 @@ async function request<T>(
   signal?: AbortSignal,
 ): Promise<T> {
   const url = `${apiBaseUrl()}${path}`;
+  // 読み取りには合言葉が要らない。GET のたびに取りに行かない
+  const isWrite = (init.method ?? "GET").toUpperCase() !== "GET";
+  const base = isWrite
+    ? await writeHeaders()
+    : { "Content-Type": "application/json" };
+
   let response: Response;
   try {
     response = await fetch(url, {
       credentials: "include", // learner_key Cookie を送る
       signal,
       ...init,
-      headers: { "Content-Type": "application/json", ...init.headers },
+      headers: { ...base, ...init.headers },
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
@@ -123,7 +130,7 @@ export async function rewriteTextStreaming(
       method: "POST",
       credentials: "include",
       signal,
-      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      headers: await writeHeaders({ Accept: "text/event-stream" }),
       body: JSON.stringify({
         original_text: input.originalText,
         audience: input.audience,

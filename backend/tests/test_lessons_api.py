@@ -198,7 +198,7 @@ class TestLearningEvents:
         ],
     )
     def test_accepts_course_engine_events(self, api_client, learner_key, event_type):
-        """画面が送る種類を拒むと、操作ログが丸ごと落ちる。"""
+        """画面が送る種類を拒むと、そのステップの操作ログが落ちる。"""
         client = _client_with_key(api_client, learner_key)
 
         response = client.post(

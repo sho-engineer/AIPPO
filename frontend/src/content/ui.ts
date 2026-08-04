@@ -105,3 +105,56 @@ export const LEGAL_LINKS = [
   { label: "プライバシーポリシー", href: "/legal/privacy" },
   { label: "特定商取引法に基づく表記", href: "/legal/tokushoho" },
 ] as const;
+
+/**
+ * アカウントまわりの文言。
+ *
+ * 登録は「するとよいこと」から書く。「登録してください」だけだと、
+ * 何のためかが分からないまま入力させることになる。
+ *
+ * 失敗したときの文は、次にやることまで書く。「エラーが発生しました」は、
+ * 読んだ人が次に何をすればよいか分からない。
+ */
+export const AUTH_COPY = {
+  signUpTitle: "登録して、続きを別の端末でも",
+  signUpLead:
+    "いま作ったものと進み具合を残せます。スマホでもパソコンでも、続きから始められます。",
+  signInTitle: "おかえりなさい",
+  signInLead: "登録したメールアドレスとパスワードを入れてください。",
+  resetTitle: "パスワードを再設定する",
+  resetLead:
+    "登録したメールアドレスを入れてください。再設定の案内をお送りします。",
+
+  email: "メールアドレス",
+  password: "パスワード",
+  passwordHint: "8文字以上。よく使われる言葉だけの組み合わせは避けてください。",
+  displayName: "呼ばれたい名前（任意）",
+  displayNameHint: "あとから変えられます。空のままでもかまいません。",
+
+  submitSignUp: "登録する",
+  submitSignIn: "ログインする",
+  submitReset: "案内を送る",
+  toSignIn: "登録済みの方はこちら",
+  toSignUp: "はじめての方はこちら",
+  toReset: "パスワードを忘れた",
+  cancel: "あとにする",
+
+  consent: "利用規約とプライバシーポリシーに同意します",
+  consentRequired: "同意がないと登録できません。",
+
+  /** 引き継ぎの結果。件数で言い方を変える。 */
+  migrationLinked: (count: number) =>
+    count > 0
+      ? `登録前に進めた${count}件は、このアカウントに引き継ぎました。`
+      : "このアカウントで、これからの学習を残していきます。",
+  migrationRetryable:
+    "登録はできました。学習の記録の引き継ぎは、もう一度ログインするとやり直せます。",
+
+  resetSent: "登録があれば、再設定の案内をお送りしました。メールをご確認ください。",
+  verifyPending:
+    "メールアドレスの確認がまだです。届いたメールのリンクを開いてください。確認前でも学習は続けられます。",
+
+  signOut: "ログアウトする",
+  signOutDone: "ログアウトしました。",
+  guestNotice: "いまは登録なしで使っています。この端末にだけ記録が残ります。",
+} as const;

@@ -21,6 +21,19 @@ await p.route("**/api/v1/ai/generate/", (r) =>
     },
   }));
 await p.route("**/api/learning-events/", (r) => r.fulfill({ json: {} }));
+// ログイン状態は「ゲスト」に固定する。登録の誘いが出た状態も検査したい
+await p.route("**/api/v1/accounts/me/", (r) =>
+  r.fulfill({ json: { authenticated: false } }));
+await p.route("**/api/v1/accounts/csrf/", (r) => r.fulfill({ json: { ok: true } }));
+// 教材はサーバーから来る。ここでは同梱の分で検査したいので空を返す
+await p.route("**/api/v1/catalog/", (r) => r.fulfill({ json: { courses: [] } }));
+await p.route("**/api/v1/progress/", (r) =>
+  r.fulfill({
+    json: {
+      lessons: [], completed_count: 0, in_progress_count: 0,
+      skills: [], signed_in: false,
+    },
+  }));
 await p.route("**/api/v1/ai/models/", (r) =>
   r.fulfill({
     json: {
@@ -63,10 +76,26 @@ await scan("教材一覧");
 await p.getByRole("button", { name: "設定" }).click();
 await p.waitForTimeout(700);
 await scan("設定");
-for (const name of ["AI設定", "学習設定", "通知設定", "言語設定", "学習データ・プライバシー"]) {
+for (const name of ["アカウント設定", "AI設定", "学習設定", "通知設定", "言語設定", "学習データ・プライバシー", "規約とポリシー"]) {
   await p.getByRole("button", { name: new RegExp(name) }).click();
   await p.waitForTimeout(500);
   await scan(`設定 ${name}`);
+  // 登録・ログインの1枚は、アカウント設定の中からしか開かない
+  if (name === "アカウント設定") {
+    await p.getByTestId("account-open-auth").click();
+    await p.waitForTimeout(400);
+    await scan("登録・ログイン");
+    await p.getByRole("button", { name: "あとにする" }).click();
+    await p.waitForTimeout(300);
+  }
+  // 規約は一覧から本文へもう1段潜る
+  if (name === "規約とポリシー") {
+    await p.getByTestId("legal-open-terms").click();
+    await p.waitForTimeout(400);
+    await scan("規約 利用規約");
+    await p.getByRole("button", { name: "前の画面へ戻る" }).click();
+    await p.waitForTimeout(300);
+  }
   await p.getByRole("button", { name: "前の画面へ戻る" }).click();
   await p.waitForTimeout(400);
 }

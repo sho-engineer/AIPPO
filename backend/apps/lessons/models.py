@@ -160,14 +160,30 @@ class LearningEventType(models.TextChoices):
     PRIVACY_WARNING_OVERRIDDEN = "privacy_warning_overridden"
 
     # 成果物ファーストの骨格（course/shared.ts の buildLessonFlow）で送るもの。
-    # ここに無いと 400 で弾かれ、操作ログが丸ごと落ちる。
+    # ここに無いと 400 で弾かれ、そのステップの操作ログが落ちる。
     OUTCOME_PREVIEW_VIEWED = "outcome_preview_viewed"
     QUICK_TRY_STARTED = "quick_try_started"
     RESULT_OBSERVATION_SUBMITTED = "result_observation_submitted"
     CONCEPT_CARD_VIEWED = "concept_card_viewed"
     CONCEPT_CARD_SKIPPED = "concept_card_skipped"
+
+    # 第一リリース（Closed Beta）で足したもの。
+    # 登録までの落ち方と、引き継ぎの成否を見るために要る。
+    DIAGNOSIS_STARTED = "diagnosis_started"
+    DIAGNOSIS_COMPLETED = "diagnosis_completed"
+    LESSON_VIEWED = "lesson_viewed"
+    FIRST_RESULT_GENERATED = "first_result_generated"
     CONDITION_ADDED = "condition_added"
+    IMPROVED_RESULT_GENERATED = "improved_result_generated"
     REAL_TASK_COMPLETED = "real_task_completed"
+    SIGNUP_PROMPT_VIEWED = "signup_prompt_viewed"
+    SIGNUP_STARTED = "signup_started"
+    SIGNUP_COMPLETED = "signup_completed"
+    GUEST_DATA_MIGRATION_STARTED = "guest_data_migration_started"
+    GUEST_DATA_MIGRATION_COMPLETED = "guest_data_migration_completed"
+    GUEST_DATA_MIGRATION_FAILED = "guest_data_migration_failed"
+    LOGIN_COMPLETED = "login_completed"
+    COMING_SOON_VIEWED = "coming_soon_viewed"
 
     # 旧レッスンから使っているもの。消すと過去のログが読めなくなる。
     LESSON_STARTED = "lesson_started"

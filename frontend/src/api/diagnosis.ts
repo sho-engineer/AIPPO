@@ -13,6 +13,7 @@
 import type { CompletedDiagnosisAnswers } from "../content/diagnosis";
 
 import { apiBaseUrl } from "./config";
+import { writeHeaders } from "./http";
 
 export interface UseCaseRecommendation {
   lessonId: string;
@@ -104,7 +105,7 @@ export async function saveProfile(
     const response = await fetch(`${apiBaseUrl()}/api/profile/`, {
       method: "POST",
       credentials: "include", // learner_key Cookie を送る
-      headers: { "Content-Type": "application/json" },
+      headers: await writeHeaders(),
       body: JSON.stringify({
         ai_experience: answers.ai_experience,
         job_category: answers.job_category,

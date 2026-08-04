@@ -76,6 +76,11 @@ AIPPOは、プロンプトを暗記させるサービスではありません。
 | 7 | AIの回答を安全に使う | 使わない |
 | 8 | 自分の困りごとで試す（Final Challenge） | 使う |
 
+教材の本体は **DB にあり、管理画面から直せます**（`backend/apps/catalog`）。
+画面は起動時に `GET /api/v1/catalog/` を1回聞き、届いたらそれに差し替えます。
+届かないときは同梱の9本で動きます（`frontend/src/course/live.ts`）。
+教材が1本も無い画面は「壊れている」のと見分けがつかないためです。
+
 レッスン1〜6と8は、同じ骨格から組み立てています（`frontend/src/course/shared.ts`）。
 
 ```
@@ -85,9 +90,31 @@ AIPPOは、プロンプトを暗記させるサービスではありません。
 **成果物ファースト**にしてあります。先に説明を読ませず、
 1つ選ぶだけで最初の結果まで届かせてから、短い解説を挟みます。
 
+**登録なしで最後まで使えます。** 記録は匿名の `learner_key`（HttpOnly Cookie）に
+紐づいています。登録すると、その鍵が自分のものとして結びつき、別の端末から
+ログインしても続きから始められます。記録そのものは書き換えないので、
+引き継ぎは何度実行しても同じ結果になります。
+
+```
+ゲスト（learner_key）── 登録 ─→ LearnerIdentity: learner_key → user
+                                  ↑ 別端末でログインすると、その端末の鍵も同じ人へ
+```
+
+| 入口 | できること |
+| --- | --- |
+| 設定 > アカウント設定 | 登録・ログイン・表示名・パスワード変更・ログアウト・退会 |
+| レッスン完了画面 | 「登録して残す」の誘い（ログイン済みなら出ません） |
+
+進み具合は **端末とサーバーの両方から取り、足し合わせて** 出します
+（`frontend/src/course/progress.ts`）。どちらか一方を選ぶと、返事を待つ
+あいだに「終わったはずのレッスンが未完了に戻った」ように見える瞬間が出ます。
+
 ### まだ無いもの
 
-- 利用者登録・課金・外部連携（設定画面に「準備中」と出しています）
+- 課金・外部連携（設定画面に「準備中」と出しています）
+- 規約の**運営者情報**（名称・所在地・連絡先）。事実でないものを書けないので
+  `frontend/src/content/legal.ts` の `OPERATOR` に「（公開前に記入）」を
+  置いてあります。埋め忘れると画面にそのまま出るので気づけます
 - 通知の配信（設定は保存できますが、送る仕組みがまだありません）
 - 教材の多言語化（言語設定は画面の言葉だけ。教材本文は日本語のまま）
 - Playwright の E2E 一式（成果物ファーストの流れに追随できておらず、
@@ -123,7 +150,7 @@ docker compose up --build
 | --- | --- |
 | 画面 | http://localhost:5173 |
 | 管理画面 | http://localhost:8000/admin/ （`createsuperuser` が必要） |
-| 死活監視 | `/healthz`（DBを見ない） `/readyz`（DBを見る） |
+| 死活監視 | `/health/live`（何も見ない。落ちていたら**再起動**） `/health/ready`（DB・AI・メールを見る。だめなら**振り分けを外す**） |
 
 管理者を作る:
 
@@ -135,17 +162,103 @@ docker compose exec backend python manage.py createsuperuser
 
 ### 公開するときに必ず確認すること
 
-- `DJANGO_SECRET_KEY` を50文字以上の乱数にする（開発用のままだと**起動しません**）
-- `DJANGO_ALLOWED_HOSTS` に実際のドメインを入れる（未設定だと**起動しません**）
-- `SECURE_SSL_REDIRECT=true` に戻す
-- ロードバランサ配下に置くなら `TRUST_FORWARDED_FOR=true`
-  （設定しないと、接続元単位の実行回数の上限が全員まとめて数えられます）
-- `AI_RUNS_PER_DAY` を予算に合わせる。**これが最後の安全弁**です
+**入れないと起動しません。** 設定を1つ忘れたまま公開されるより、
+動き出す前に止まったほうがよいからです。
+
+| 変数 | なぜ要るか |
+| --- | --- |
+| `DJANGO_SECRET_KEY` | 50文字以上の乱数。開発用のままだと署名を誰でも偽造できます |
+| `DJANGO_ALLOWED_HOSTS` | 実際のドメイン |
+| `FRONTEND_URL` | 確認メールと再設定メールのリンクの行き先 |
+| `EMAIL_HOST` / `DEFAULT_FROM_EMAIL` | `EMAIL_BACKEND` に smtp を指定したときのみ |
+
+**入れないと事故になります。**
+
+| 変数 | なぜ要るか |
+| --- | --- |
+| `AI_RUNS_PER_DAY` | 予算に合わせる。**これが最後の安全弁**です |
+| `SECURE_SSL_REDIRECT=true` | 公開時は戻す |
+| `TRUST_FORWARDED_FOR=true` | ロードバランサ配下のときだけ。設定しないと、接続元単位の上限が全員まとめて数えられます |
+| `OPENAI_API_KEY` | `AI_PROVIDER=openai` のとき。無いと 503 で**はっきり失敗**します（黙って mock へ倒しません） |
+
+画面と API を**別ドメイン**に置くときは、次も要ります。
+
+| 変数 | 値 |
+| --- | --- |
+| `SESSION_COOKIE_SAMESITE` / `CSRF_COOKIE_SAMESITE` | `None`（HTTPS 必須） |
+| `CSRF_TRUSTED_ORIGINS` | 画面のオリジン |
+| `CORS_ALLOWED_ORIGINS` | 同上 |
+
+任意: `SENTRY_DSN`（`pip install -e ".[monitoring]"`）。
+空なら何も読み込みません。本文は送らない設定で初期化します。
 
 ```bash
 # 設定の抜けを Django 自身に検査させる
 docker compose exec backend python manage.py check --deploy
+
+# 起きたあと、捌ける状態かを確かめる
+curl -fsS https://<ドメイン>/health/ready
+# {"status":"ok","checks":{"database":true,"ai":true,"email":true},...}
 ```
+
+`/health/ready` が 503 のときは `checks` を見ます。
+どれがだめかまでは返しますが、理由は返しません（攻撃の下調べに使えるため）。
+
+### Preview 環境へ出す
+
+このリポジトリだけでは出せません。**下の3つは人が用意する必要があります。**
+コードの側は、渡されればそのまま動く形になっています。
+
+| 要るもの | 何に使うか | 無いとどうなるか |
+| --- | --- | --- |
+| 置き場所（VM / コンテナ基盤 / PaaS）とドメイン | `DJANGO_ALLOWED_HOSTS` `FRONTEND_URL` | 起動しません |
+| SMTPの接続情報 | 確認メールとパスワード再設定 | 送れないまま登録が開き、確認も再設定もできない人が溜まります（`/health/ready` が 503 になります） |
+| AIプロバイダのAPIキー | 教材のAI実行 | `AI_PROVIDER=mock` なら不要。本物を使うなら必須で、無いと 503 |
+
+手順（compose で出す場合）:
+
+```bash
+cp .env.docker.example .env
+# .env を埋める。最低限:
+#   DJANGO_SECRET_KEY  POSTGRES_PASSWORD
+#   DJANGO_ALLOWED_HOSTS  CORS_ALLOWED_ORIGINS  FRONTEND_URL
+#   SECURE_SSL_REDIRECT=true  TRUST_FORWARDED_FOR=true（LB配下なら）
+#   EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend と EMAIL_HOST / DEFAULT_FROM_EMAIL
+#   AI_PROVIDER と鍵（mock のままなら鍵は不要）
+
+docker compose up -d --build
+docker compose exec backend python manage.py migrate --noinput
+docker compose exec backend python manage.py seed_catalog     # 教材をDBへ入れる
+docker compose exec backend python manage.py createsuperuser  # 管理画面に入る人
+
+curl -fsS https://<ドメイン>/health/ready
+```
+
+**1日1回、古い記録を消す仕組みを止めないでください。**
+プライバシーポリシーに「最後の利用から180日で削除します」と書いてあります。
+書いたなら、そのとおりに動かなければ意味がありません。
+
+```bash
+# cron でも、コンテナ基盤の定期実行でもよい
+docker compose exec backend python manage.py prune_data
+
+# はじめて動かすときは、何が消えるかを先に見る
+docker compose exec backend python manage.py prune_data --dry-run
+```
+
+消えるのは**登録していない人**の古い記録だけです。登録した人の記録は、
+本人が設定画面から消すまで残ります。
+
+Preview では、まず `AI_PROVIDER=mock` で通しの動作を確かめ、
+そのあと鍵を入れて本物へ切り替えるのが安全です。鍵を入れた瞬間から費用が
+発生するので、`AI_RUNS_PER_DAY` を先に決めてください。
+
+出したあと最初に見るもの:
+
+1. `/health/ready` が `ok`（3つとも `true`）
+2. 教材一覧に9本出て、公開した2本だけ始められる
+3. 登録 → 確認メールが届く → 別の端末でログイン → 続きが出る
+4. 管理画面で教材の文言を直す → 画面を再読み込みして反映される
 
 ---
 
@@ -175,20 +288,27 @@ npm run dev          # http://localhost:5173
 ### テスト
 
 ```bash
-cd backend  && uv run pytest        # 178 tests
-cd frontend && npm run test         # 164 tests
-cd frontend && npm run check:a11y   # 15画面の WCAG 2.1 A/AA 検査
+cd backend  && uv run pytest        # 321 tests
+cd frontend && npm run test         # 203 tests
+cd frontend && npm run check:a11y   # 19画面の WCAG 2.1 A/AA 検査
 ```
 
 `check:a11y` は `npm run build && npm run preview` で立てた本番ビルドに当てます。
 配色を変えたときに、読めなくなった場所が無いかを機械に調べさせるためのものです
 （実際にここで、うすい青の上の文字が 4.42 で 4.5 に届かないのを見つけました）。
 
-#### E2E（いまは失敗します）
+#### E2E（いまは失敗します。CIでも動かしていません）
 
 `e2e/` の一式は、成果物ファーストの流れに追随できていません。
 古いステップ（「用意された例文を使う」など）を操作しているため、**現状では失敗します**。
 作り直しが要ります。
+
+そのあいだ、CI では代わりに2つを動かしています。
+
+| CIのジョブ | 何を見るか |
+| --- | --- |
+| `a11y` | 本番ビルドの19画面を WCAG 2.1 A/AA で検査 |
+| `smoke` | 本物の Django に当てて、`/health/ready`・教材の配信・登録とログイン状態・合言葉なしの書き込みが断られること |
 
 | ファイル | 何を見るか | 状態 |
 | --- | --- | --- |
@@ -229,18 +349,31 @@ Django が起動していないときは自動でスキップします。
 docs/              設計・事業ドキュメント
 specs/             フィーチャー別の spec / plan / tasks
 backend/           Django REST Framework
+  apps/accounts/   登録・ログイン・ゲストの記録の引き継ぎ
+                   models.py … LearnerIdentity（learner_key → user）/ UserProfile
+                   migration.py … claim_guest_data（冪等。記録は書き換えない）
   apps/ai/         教材からAIを呼ぶ唯一の入口。アクション定義・プロバイダ抽象
                    models_catalog.py … 選べるモデルの名簿（画面に名前を書かないため）
+  apps/catalog/    教材そのもの（骨格＋差分）。Django Admin から編集する
+                   flow.py / expand.py … 骨格に差分を重ねて1本ぶんへ組み立てる
+                   access.py … 近日公開の教材を開かせない
+                   validation.py … 公開前の検査（admin.py から呼ぶ）
   apps/lessons/    LearningSession / Attempt / LearningEvent / SkillProgress / Survey
   apps/profiles/   LearnerProfile（AI活用診断）
   apps/tutor/      ポーのフィードバックAPI・プロンプト
 frontend/          React + TypeScript + Vite + Tailwind
-  src/course/      教材データと進行。catalog.ts（9本）/ shared.ts（骨格）/
-                   engine.ts（遷移）/ useCourseLesson.ts（状態）/ presentation.ts（見た目の割当）
+  src/course/      教材データと進行。live.ts（サーバーの教材へ差し替え）/
+                   catalog.ts（同梱の9本）/ shared.ts（骨格）/ engine.ts（遷移）/
+                   useCourseLesson.ts（状態）/ progress.ts（進み具合）/
+                   presentation.ts（見た目の割当）
   src/pages/       TopPage / HomePage / CoursePage / LessonRunner / SettingsPage
-  src/components/  AppShell（ヘッダー・下タブ・カード）/ Icons（線画）/ course/ settings/
+  src/auth/        AuthContext（ログイン状態。端末には何も貯めない）
+  src/api/         http.ts（Cookie と CSRF の作法）/ accounts.ts / ai.ts / lesson.ts
+  src/components/  AppShell（ヘッダー・下タブ・カード）/ Icons（線画）/
+                   auth/（登録・ログイン）/ course/ settings/
   src/lib/         draft（下書きと進捗）/ privacy（送信前の検査）/ settings（設定の保存）
-  src/content/     固定文言
+  src/content/     固定文言。legal.ts に利用規約・プライバシーポリシー・
+                   AI利用上の注意（外部へ飛ばさず、アプリの中で読ませる）
 ```
 
 ---
@@ -257,6 +390,24 @@ AI の応答（`action`）は表示のヒントであって遷移の指示では
 
 **AIが止まってもレッスンは止まりません。** 障害・タイムアウト・形式逸脱の
 いずれでも HTTP 200 と固定ヒントを返します。
+
+**ログイン状態は Cookie にしかありません。** 合言葉（トークン）を
+localStorage へ置きません。置くと、画面に差し込まれた script から読み取れます。
+セッション Cookie は HttpOnly / Secure / SameSite で、書き込みのときだけ
+CSRF の合言葉をヘッダで添えます（`frontend/src/api/http.ts`）。
+
+**認証の連打は数えて止めます。** 登録・ログイン・パスワード再設定は、
+接続元と宛先の**両方**で回数を数えます（`backend/apps/accounts/throttle.py`）。
+接続元だけだと複数の場所から1つのアカウントを狙う形を、宛先だけだと1か所から
+多数のアカウントを試す形を止められません。数は DB に置きます。プロセス内に
+置くと gunicorn の worker ごとに別々の数になり、上限が worker の数だけ緩みます。
+IPもメールアドレスもそのままでは保存せず、HMAC だけを持ちます。
+
+**引き継ぎは記録を書き換えません。** 登録でやるのは「その learner_key が
+誰のものか」を1行足すことだけです。二度実行しても結びつきは1つのままで、
+途中で失敗しても学習の記録は元の場所に残ります。引き継ぎに失敗しても
+**登録そのものは成功させます**。ここで登録ごと失敗させると、次の登録で
+「そのメールアドレスは使われています」に当たって詰みます。
 
 ---
 

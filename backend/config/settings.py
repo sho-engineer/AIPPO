@@ -44,14 +44,31 @@ if not DEBUG:
         )
     if not os.getenv("DJANGO_ALLOWED_HOSTS"):
         problems.append("DJANGO_ALLOWED_HOSTS が設定されていません")
+
+    # 画面の場所。確認メールと再設定メールのリンクがここへ向く。
+    # 間違えると、届いたメールのリンクが開けないか、よそへ飛ぶ
+    if not os.getenv("FRONTEND_URL"):
+        problems.append(
+            "FRONTEND_URL が設定されていません"
+            "（確認メールと再設定メールのリンクの行き先です）"
+        )
+
+    # メールを送れないまま登録を開くと、確認も再設定もできない人が出る。
+    # 「あとで直す」が効かない種類の抜けなので、起動時に止める
+    if os.getenv("EMAIL_BACKEND", "").endswith("smtp.EmailBackend"):
+        if not os.getenv("EMAIL_HOST"):
+            problems.append("EMAIL_HOST が設定されていません")
+        if not os.getenv("DEFAULT_FROM_EMAIL"):
+            problems.append("DEFAULT_FROM_EMAIL が設定されていません")
+
     if problems:
         raise ImproperlyConfigured(
             "本番設定で起動できません:\n  - " + "\n  - ".join(problems)
         )
 
 INSTALLED_APPS = [
-    # 管理画面。実証実験で集めたデータを見るために入れている。
-    # 学習者向けのログインではない（学習者は匿名のまま／憲章 原則 VI）。
+    # 管理画面。教材の編集と、実証実験で集めたデータの確認に使う。
+    # 学習者のログインとは別物（学習者側は apps/accounts）。
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -61,6 +78,8 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "apps.ai",
+    "apps.accounts",
+    "apps.catalog",
     "apps.lessons",
     "apps.profiles",
     "apps.tutor",
@@ -129,6 +148,20 @@ else:
         }
     }
 
+# パスワードの弱さを止める。既定は空なので、書かないと "password" が通る。
+# 文言はそのまま画面に出るので、日本語（LANGUAGE_CODE = "ja"）で出る。
+AUTH_PASSWORD_VALIDATORS = [
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
+    {
+        "NAME": "django.contrib.auth.password_validation.MinimumLengthValidator",
+        "OPTIONS": {"min_length": 8},
+    },
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
+]
+
 LANGUAGE_CODE = "ja"
 TIME_ZONE = "Asia/Tokyo"
 USE_I18N = True
@@ -173,18 +206,62 @@ X_FRAME_OPTIONS = "DENY"
 DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", "1048576"))
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 100
 
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": [],
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
-    "UNAUTHENTICATED_USER": None,
-}
-
 CORS_ALLOWED_ORIGINS = _list(
     "CORS_ALLOWED_ORIGINS",
     # localhost と 127.0.0.1 は別オリジン。どちらで開いても届くようにする
     "http://localhost:5173,http://127.0.0.1:5173",
 )
 CORS_ALLOW_CREDENTIALS = True
+
+# --- ログイン状態の持ち方 -------------------------------------------------
+# 合言葉（トークン）は画面へ渡さない。Django のセッション Cookie だけを使う。
+# localStorage へ置くと、画面に差し込まれた script から読み取れてしまう。
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", "Lax")
+# CSRF の合言葉は script から読めないと送り返せないので HttpOnly にしない。
+# 読めても、別サイトからは Cookie ごと送れないので目的は果たせる。
+CSRF_COOKIE_HTTPONLY = False
+# 30日。毎日開くものではないので、短くするとログインし直しばかりになる。
+SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", str(60 * 60 * 24 * 30)))
+SESSION_SAVE_EVERY_REQUEST = True
+# 画面と API が別ホストのとき、POST の送り元として明示が要る。
+CSRF_TRUSTED_ORIGINS = _list("CSRF_TRUSTED_ORIGINS", ",".join(CORS_ALLOWED_ORIGINS))
+
+# --- 認証の連打を止める ---------------------------------------------------
+# 接続元（SOURCE）と、狙われている宛先（TARGET）の両方で数える
+# （apps/accounts/throttle.py）。0以下にすると「上限なし」。
+#
+# 接続元のほうを緩くしてあるのは、会社や学校からは何人もが同じ接続元に
+# 見えるため。同じ厳しさにすると、隣の席の人が数回試しただけで
+# その場の全員が締め出される。狙い撃ちを止めるのは宛先ごとの数え。
+AUTH_THROTTLE_SIGNIN_MAX_SOURCE = int(os.getenv("AUTH_THROTTLE_SIGNIN_MAX_SOURCE", "30"))
+AUTH_THROTTLE_SIGNIN_MAX_TARGET = int(os.getenv("AUTH_THROTTLE_SIGNIN_MAX_TARGET", "10"))
+AUTH_THROTTLE_SIGNIN_WINDOW = int(os.getenv("AUTH_THROTTLE_SIGNIN_WINDOW", "900"))
+
+AUTH_THROTTLE_PASSWORD_RESET_MAX_SOURCE = int(
+    os.getenv("AUTH_THROTTLE_PASSWORD_RESET_MAX_SOURCE", "20")
+)
+AUTH_THROTTLE_PASSWORD_RESET_MAX_TARGET = int(
+    os.getenv("AUTH_THROTTLE_PASSWORD_RESET_MAX_TARGET", "5")
+)
+AUTH_THROTTLE_PASSWORD_RESET_WINDOW = int(
+    os.getenv("AUTH_THROTTLE_PASSWORD_RESET_WINDOW", "3600")
+)
+
+# 登録には宛先という概念が無い（毎回ちがうメールアドレス）ので接続元だけ。
+AUTH_THROTTLE_SIGNUP_MAX_SOURCE = int(os.getenv("AUTH_THROTTLE_SIGNUP_MAX_SOURCE", "10"))
+AUTH_THROTTLE_SIGNUP_MAX_TARGET = 0
+AUTH_THROTTLE_SIGNUP_WINDOW = int(os.getenv("AUTH_THROTTLE_SIGNUP_WINDOW", "3600"))
+
+REST_FRAMEWORK = {
+    # セッション認証のみ。未ログインは AnonymousUser になる。
+    # DRF の SessionAuthentication は POST/PATCH/DELETE で CSRF を照合する。
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
+}
 
 # --- AI プロバイダ -------------------------------------------------------
 # "mock" のままでも全教材を完走できることが憲章 原則 III の要件。
@@ -203,9 +280,20 @@ AI_MAX_OUTPUT_TOKENS = int(os.getenv("AI_MAX_OUTPUT_TOKENS", "600"))
 
 # 学習者ひとりが1日に実行できる回数。0以下で「上限なし」。
 # 悪用対策ではなく、ふつうに使っている人の使いすぎを止める目安。
-AI_DAILY_REQUEST_LIMIT_PER_USER = int(
-    os.getenv("AI_DAILY_REQUEST_LIMIT_PER_USER", "50")
+# 登録済みの人。指定が無ければ従来の名前も見る（設定を書き換えずに移れるように）
+AI_DAILY_REQUEST_LIMIT_USER = int(
+    os.getenv(
+        "AI_DAILY_REQUEST_LIMIT_USER",
+        os.getenv("AI_DAILY_REQUEST_LIMIT_PER_USER", "50"),
+    )
 )
+# 登録前の人。少なめにする。登録なしで無制限に使えると、
+# 費用の見通しが立たないうえ、登録する理由も無くなる
+AI_DAILY_REQUEST_LIMIT_GUEST = int(
+    os.getenv("AI_DAILY_REQUEST_LIMIT_GUEST", "10")
+)
+# AI へ送ってよい本文の長さ。長いほど費用も待ち時間も増える
+AI_MAX_INPUT_CHARACTERS = int(os.getenv("AI_MAX_INPUT_CHARACTERS", "5000"))
 
 # 利用者が貼った本文を DB に保存するか。
 # 既定は保存しない。会社の文章が入ってくる前提なので、
@@ -240,6 +328,86 @@ TRUST_FORWARDED_FOR = _bool("TRUST_FORWARDED_FOR", False)
 # 匿名学習者の識別
 LEARNER_KEY_COOKIE = "learner_key"
 LEARNER_KEY_MAX_AGE = 60 * 60 * 24 * 90  # 90日
+
+# 登録していない人の記録を、最後の利用から何日残すか。
+# プライバシーポリシーに書いた期間と揃える（食い違えば、それは嘘になる）。
+#
+# Cookie の寿命は90日。それを過ぎた時点で本人からも取り出せなくなるので、
+# さらに余裕を見た180日で消す。消すのは `manage.py prune_data`。
+GUEST_DATA_RETENTION_DAYS = int(os.getenv("GUEST_DATA_RETENTION_DAYS", "180"))
+
+# --- メール -------------------------------------------------------------
+# 送るのは3通だけ（apps/accounts/emails.py）。
+#   メールアドレスの確認 / パスワードの再設定 / 登録完了のお知らせ
+#
+# 開発ではコンソールへ出す。実際に送らないので、宛先を間違えても
+# 誰にも届かない。本番では smtp を明示する。
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend"
+    if DEBUG
+    else "django.core.mail.backends.smtp.EmailBackend",
+)
+EMAIL_HOST = os.getenv("EMAIL_HOST", "")
+EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = _bool("EMAIL_USE_TLS", True)
+# 587 は TLS、465 は SSL。両方 true にすると Django が起動時に止まる
+EMAIL_USE_SSL = _bool("EMAIL_USE_SSL", False)
+# 送れないまま待たせない。届かないなら早く分かったほうがよい
+EMAIL_TIMEOUT = int(os.getenv("EMAIL_TIMEOUT", "10"))
+
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "AIPPO <no-reply@localhost>")
+SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
+
+#: 画面の場所。メールのリンクはここへ向く。
+#: 末尾の / は付けても付けなくてもよい（apps/accounts/emails.py で落とす）。
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+# --- 見張り -------------------------------------------------------------
+# Sentry は任意。DSN が無ければ何も読み込まない。
+# 入れていないだけで起動しない、という作りにはしない。
+SENTRY_DSN = os.getenv("SENTRY_DSN", "")
+if SENTRY_DSN:
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=SENTRY_DSN,
+            environment=os.getenv("SENTRY_ENVIRONMENT", "production"),
+            # 本文を送らない。学習者が書いた文章がそのまま外へ出る
+            send_default_pii=False,
+            traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "0")),
+        )
+    except ImportError:  # pragma: no cover - 入れていない環境ではただ黙る
+        pass
+
+# --- キャッシュ -----------------------------------------------------------
+# 使っているのは1か所だけ。二重送信の抑止（apps/ai/views.py）。
+#
+# 既定のキャッシュは**プロセスの中**にある。gunicorn を複数の worker で
+# 動かすと worker ごとに別々の記憶になり、二重送信が別の worker に当たると
+# 素通りする。AI をもう1回呼ぶことになり、学習者の実行回数と利用料が
+# 二重に減る。だから worker をまたいで共有できる置き場を使う。
+#
+# REDIS_URL があればそちら。無ければ DB の表（migration で作ってある）。
+# AI実行回数の上限そのものは DB のカウンタなので、ここが何であっても効く。
+_redis_url = os.getenv("REDIS_URL", "")
+if _redis_url:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": _redis_url,
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+            "LOCATION": "aippo_cache",
+        }
+    }
 
 LOGGING = {
     "version": 1,

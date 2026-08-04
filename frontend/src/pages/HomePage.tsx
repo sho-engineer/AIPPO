@@ -28,14 +28,21 @@ import {
   IconChevronRight,
   IconClock,
   IconFolder,
+  IconLock,
   IconSparkle,
   IconStar,
   IconTrend,
 } from "../components/Icons";
-import { COURSE } from "../course/catalog";
+import { useCourse } from "../course/live";
+import {
+  comingSoonNote,
+  isComingSoon,
+  startableLessons,
+} from "../course/availability";
 import { CATEGORIES, lookOf } from "../course/presentation";
 import { recommendationsForHome } from "../course/recommend";
-import { listCompleted, readStreak, touchStreak } from "../lib/draft";
+import { useCompletedLessons } from "../course/progress";
+import { readStreak, touchStreak } from "../lib/draft";
 import type { Lesson } from "../course/types";
 
 export interface HomePageProps {
@@ -63,7 +70,7 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
     <div
       className="relative flex h-28 w-28 shrink-0 items-center justify-center"
       /*
-        輪と割合は「9本中いくつ終わったか」を表している。
+        輪と割合は「何本中いくつ終わったか」を表している。
         割合の文字だけでは、読み上げに何本中の何本かが届かない。
         値そのものを持たせておくと、検査でも文字の書き方に依存せず読める。
       */
@@ -209,30 +216,39 @@ function RecommendCard({
   onSelect: () => void;
 }) {
   const look = lookOf(lesson.id);
+  const soon = isComingSoon(lesson);
 
   return (
     <li className="w-64 shrink-0 sm:w-auto">
       <button
         type="button"
         onClick={onSelect}
+        disabled={soon}
+        aria-disabled={soon}
         data-testid={`recommend-${lesson.id}`}
+        data-availability={soon ? "coming_soon" : "available"}
         className="flex h-full w-full flex-col overflow-hidden rounded-panel bg-surface
-                   text-left shadow-card transition hover:-translate-y-0.5
-                   hover:shadow-panel active:translate-y-0 active:scale-[0.99]"
+                   text-left shadow-card transition
+                   enabled:hover:-translate-y-0.5 enabled:hover:shadow-panel
+                   enabled:active:translate-y-0 enabled:active:scale-[0.99]
+                   disabled:cursor-not-allowed"
       >
         <div className={`relative flex h-28 items-center justify-center ${look.wash}`}>
           <IconBadge icon={look.icon} tone={look.tone} size="lg" />
           <span
-            className="absolute left-3 top-3 rounded-full bg-surface/90 px-2.5 py-1
-                       text-[0.6875rem] font-bold text-brand"
+            className="absolute left-3 top-3 flex items-center gap-1 rounded-full
+                       bg-surface/90 px-2.5 py-1 text-[0.6875rem] font-bold text-brand-dark"
           >
-            {done ? "おわった" : "初級"}
+            {soon && <IconLock className="h-3 w-3" />}
+            {soon ? "近日公開" : done ? "おわった" : "初級"}
           </span>
         </div>
 
         <div className="flex flex-1 flex-col p-4">
           <h3 className="text-sm font-bold leading-6">{lesson.title}</h3>
-          <p className="mt-1.5 flex-1 text-xs leading-6 text-ink-muted">{lesson.goal}</p>
+          <p className="mt-1.5 flex-1 text-xs leading-6 text-ink-muted">
+            {soon ? comingSoonNote(lesson) : lesson.goal}
+          </p>
 
           <div className="mt-3 flex items-center gap-4 border-t border-line pt-3">
             {lesson.estimatedMinutes !== undefined && (
@@ -249,26 +265,39 @@ function RecommendCard({
 // ------------------------------------------------------------------ 本体
 
 export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
-  const [completed, setCompleted] = useState<string[]>([]);
+  /*
+    終わったレッスンは、端末とサーバーの両方から取る。
+    登録して別の端末で開いた人にも、同じ数が出るようにする。
+  */
+  const course = useCourse();
+  const completed = useCompletedLessons();
   const [recommended, setRecommended] = useState<string[]>([]);
   const [streak, setStreak] = useState({ days: 0, realTaskCount: 0 });
 
   useEffect(() => {
-    setCompleted(listCompleted());
     setRecommended(recommendationsForHome());
     // 「今日ひらいた」ことをここで1回だけ数える
     const touched = touchStreak();
     setStreak({ days: touched.days, realTaskCount: readStreak().realTaskCount });
   }, []);
 
+  /*
+    進捗も「次」も、始められる教材だけで数える。
+
+    近日公開を分母に混ぜると、始めようのないもので割ることになり、
+    どれだけやっても終わらない画面になる。
+    「次におすすめ」に混ざれば、押せないものを勧めることになる。
+  */
+  const startable = startableLessons(course.lessons);
+
   const cards = recommended
-    .map((id) => COURSE.lessons.find((lesson) => lesson.id === id))
+    .map((id) => course.lessons.find((lesson) => lesson.id === id))
     .filter((lesson): lesson is Lesson => lesson !== undefined);
 
   const nextLesson =
-    COURSE.lessons.find(
+    startable.find(
       (lesson) => recommended.includes(lesson.id) && !completed.includes(lesson.id),
-    ) ?? COURSE.lessons.find((lesson) => !completed.includes(lesson.id));
+    ) ?? startable.find((lesson) => !completed.includes(lesson.id));
 
   return (
     <>
@@ -303,7 +332,7 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
         <div className="mt-4 animate-fade-up [animation-delay:0.04s]">
           <ProgressCard
             done={completed.length}
-            total={COURSE.lessons.length}
+            total={startable.length}
             days={streak.days}
             realTaskCount={streak.realTaskCount}
             onOpenCourse={onOpenCourse}
@@ -365,7 +394,7 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
                 無料
               </span>
               <h2 id="course-banner-heading" className="text-lg font-bold leading-7">
-                {COURSE.title}
+                {course.title}
               </h2>
             </div>
             <p className="mt-2 text-sm leading-6 text-ink-muted">
@@ -374,23 +403,29 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
 
             {/* 全体の中でどこまで来たか。番号は押せる */}
             <ol className="mt-4 flex gap-1.5 sm:gap-2" role="list">
-              {COURSE.lessons.map((lesson) => {
+              {course.lessons.map((lesson) => {
                 const isDone = completed.includes(lesson.id);
                 const isNext = lesson.id === nextLesson.id;
+                const soon = isComingSoon(lesson);
                 return (
                   <li key={lesson.id} className="flex-1">
                     <button
                       type="button"
                       onClick={() => onSelectLesson(lesson.id)}
-                      aria-label={`${lesson.title}${isDone ? "（おわった）" : ""}`}
+                      disabled={soon}
+                      aria-label={
+                        `${lesson.title}` +
+                        (soon ? "（近日公開）" : isDone ? "（おわった）" : "")
+                      }
                       className={`flex aspect-square w-full items-center justify-center rounded-full
                                   text-xs font-bold transition
+                                  disabled:cursor-not-allowed disabled:opacity-45
                                   ${
                                     isDone
                                       ? "bg-brand text-white"
                                       : isNext
                                         ? "bg-surface text-brand ring-2 ring-brand"
-                                        : "bg-surface text-ink-muted hover:text-brand"
+                                        : "bg-surface text-ink-muted enabled:hover:text-brand"
                                   }`}
                     >
                       {lesson.number}

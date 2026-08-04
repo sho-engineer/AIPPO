@@ -380,10 +380,13 @@ test.describe("自分の課題", () => {
 
     await page.getByRole("button", { name: "今回はスキップする" }).click();
 
-    const skipped = stub.events.some(
-      (event) => event.event_type === "real_task_skipped",
-    );
-    expect(skipped, "飛ばしたことが記録されていない").toBe(true);
+    // 記録は画面を止めずに送る（合言葉の往復が入るぶん、少し遅れて届く）
+    await expect
+      .poll(
+        () => stub.events.some((event) => event.event_type === "real_task_skipped"),
+        { message: "飛ばしたことが記録されていない" },
+      )
+      .toBe(true);
   });
 });
 

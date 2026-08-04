@@ -240,7 +240,7 @@ class TestNoLimit:
     def test_zero_means_unlimited(self, api_client, stub_ai, settings):
         settings.AI_RUNS_PER_IP_PER_DAY = 0
         settings.AI_RUNS_PER_DAY = 0
-        settings.AI_DAILY_REQUEST_LIMIT_PER_USER = 0
+        settings.AI_DAILY_REQUEST_LIMIT_GUEST = 0
         settings.MAX_ATTEMPTS_PER_SESSION = 100
 
         for _ in range(4):

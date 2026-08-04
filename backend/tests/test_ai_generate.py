@@ -311,7 +311,7 @@ class TestDoubleSubmission:
 @pytest.mark.django_db
 class TestLimits:
     def test_daily_limit_per_learner(self, api_client, settings):
-        settings.AI_DAILY_REQUEST_LIMIT_PER_USER = 2
+        settings.AI_DAILY_REQUEST_LIMIT_GUEST = 2
         settings.AI_RUNS_PER_IP_PER_DAY = 0
         settings.AI_RUNS_PER_DAY = 0
 
@@ -328,7 +328,7 @@ class TestLimits:
         assert response.json()["tutor"]["message"]
 
     def test_limit_message_has_no_jargon(self, api_client, settings):
-        settings.AI_DAILY_REQUEST_LIMIT_PER_USER = 1
+        settings.AI_DAILY_REQUEST_LIMIT_GUEST = 1
         _post(api_client)
         response = _post(api_client, input={**REWRITE_INPUT, "length": "1行"})
 

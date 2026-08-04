@@ -13,6 +13,7 @@
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 
 import { Card, CardHeading, IconBadge, MetaPill } from "../AppShell";
+import { SaveProgressCard } from "../auth/SaveProgressCard";
 import {
   IconArrowDown,
   IconBars,
@@ -1201,6 +1202,13 @@ export function CompletionView({
           </span>
         </div>
       </Card>
+
+      {/*
+        登録の誘いは、ここ以外に置かない。
+        作ったものが目の前にある、この1回だけ聞く。
+        ログイン済みの人には何も出ない。
+      */}
+      <SaveProgressCard />
 
       {next.length > 0 && (
         <section aria-labelledby="next-heading">

@@ -263,10 +263,17 @@ test.describe("探索テスト（本物のバックエンド）", () => {
 
   test("スマートフォン幅で、入力欄と送信ボタンが同時に見える", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 780 });
-    await openLessonList(page);
-    // 2歩目が文章の入力になる教材で見る。入力欄が出る画面が一番きわどい
-    await page.getByTestId("lesson-final_challenge").click();
-    await next(page); // はじめに → いま面倒に感じていること
+
+    // 入力欄が出るのは「自分の文章」。ここが狭い画面で一番きわどい
+    await runRewrite(page);
+    await throughConcepts(page);
+    await choose(page, "もっと短く");
+    await next(page); // 送る → 見比べ
+    await expect(
+      page.getByRole("heading", { name: "変わり方を見比べる" }),
+    ).toBeVisible({ timeout: 20_000 });
+    await next(page); // → 安全の確認
+    await next(page); // → 自分の文章
 
     const textarea = (await page.getByRole("textbox").boundingBox())!;
     const action = (await page.getByTestId("primary-action").boundingBox())!;

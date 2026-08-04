@@ -1,0 +1,466 @@
+"""アカウントの入口。
+
+置き方の決まり
+--------------
+- 認証は Django のセッション。合言葉を localStorage へ置かない
+  （置くと、画面に差し込まれた script から読み取れる）
+- Cookie は HttpOnly / Secure / SameSite。本番設定は config/settings.py
+- 登録の直後にログイン状態にする。もう一度ログインさせない
+- 引き継ぎに失敗しても**登録は成功させる**。
+  「登録できませんでした」と言われた人は、もう一度登録しようとして
+  「そのメールアドレスは使われています」に当たり、そこで詰む
+"""
+
+from __future__ import annotations
+
+import logging
+
+from django.contrib.auth import authenticate, get_user_model, login, logout
+from django.contrib.auth.tokens import default_token_generator
+from django.db import transaction
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
+from django.views.decorators.csrf import ensure_csrf_cookie
+from rest_framework import status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.accounts import emails
+from apps.accounts.migration import (
+    MIGRATION_COMPLETED,
+    MIGRATION_FAILED,
+    MIGRATION_STARTED,
+    claim_guest_data,
+    record_migration_event,
+)
+from apps.accounts.models import UserProfile, learner_keys_for
+from apps.accounts.serializers import (
+    TERMS_VERSION,
+    EmailVerifySerializer,
+    PasswordChangeSerializer,
+    PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer,
+    ProfileUpdateSerializer,
+    SignInSerializer,
+    SignUpSerializer,
+    describe_user,
+)
+from apps.accounts.throttle import TooManyAttempts
+from apps.accounts.throttle import clear as clear_attempts
+from apps.accounts.throttle import consume as consume_attempt
+from apps.lessons.models import LearningEventType, LearningSession
+
+logger = logging.getLogger(__name__)
+User = get_user_model()
+
+
+def _invalid(errors: dict, code: str = "INVALID_INPUT") -> Response:
+    return Response({"code": code, "errors": errors}, status=status.HTTP_400_BAD_REQUEST)
+
+
+def _too_many(exc: TooManyAttempts) -> Response:
+    """連打を断る。
+
+    何分待てばよいかを言う。「しばらく」だけだと、待つべきか
+    壊れているのかが分からず、結局押し直される。
+
+    その相手が登録済みかどうかは、この応答からは分からない。
+    数えているのは「来た回数」で、実在するかは見ていない。
+    """
+    minutes = max(1, round(exc.retry_after / 60))
+    response = Response(
+        {
+            "code": "TOO_MANY_ATTEMPTS",
+            "errors": {
+                "detail": [
+                    f"回数が多すぎます。{minutes}分ほどおいてから、"
+                    "もう一度お試しください。"
+                ]
+            },
+        },
+        status=status.HTTP_429_TOO_MANY_REQUESTS,
+    )
+    response["Retry-After"] = str(exc.retry_after)
+    return response
+
+
+class CsrfTokenView(APIView):
+    """CSRF の合言葉を Cookie として配る。
+
+    Django は `get_token()` を呼ぶまで Cookie を置かない。画面は
+    最初の POST の前にここを1回叩き、Cookie の値を X-CSRFToken として送り返す。
+    合言葉そのものは応答本文には入れない。Cookie だけで足りる。
+    """
+
+    permission_classes = [AllowAny]
+
+    @method_decorator(ensure_csrf_cookie)
+    def get(self, request: Request) -> Response:
+        return Response({"ok": True})
+
+
+class SignUpView(APIView):
+    """新規登録。
+
+    登録が終わったら、その端末に残っていた学習の記録を引き継ぐ。
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        # 中身を見る前に数える。形の違う要求を投げ続ける手を止める
+        try:
+            consume_attempt("signup", request)
+        except TooManyAttempts as exc:
+            return _too_many(exc)
+
+        serializer = SignUpSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _invalid(serializer.errors)
+
+        data = serializer.validated_data
+        learner_key = getattr(request, "learner_key", None)
+
+        if learner_key is not None:
+            record_migration_event(learner_key, LearningEventType.SIGNUP_STARTED)
+
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=data["email"],
+                email=data["email"],
+                password=data["password"],
+            )
+            UserProfile.objects.create(
+                user=user,
+                display_name=data.get("display_name", ""),
+                terms_version=TERMS_VERSION,
+                terms_agreed_at=timezone.now(),
+            )
+
+        # 登録した本人としてログインさせる。もう一度入力させない
+        login(request, user)
+
+        migration = self._claim(user, learner_key)
+        emails.send_verification(user)
+        emails.send_welcome(user)
+
+        return Response(
+            {
+                "user": describe_user(user),
+                "migration": migration,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+    def _claim(self, user, learner_key) -> dict[str, object]:
+        """引き継ぐ。失敗しても登録は成功のままにする。"""
+        if learner_key is None:
+            return {"linked": False, "sessions": 0, "already_linked": False}
+
+        record_migration_event(learner_key, MIGRATION_STARTED)
+        try:
+            result = claim_guest_data(user, learner_key)
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                "accounts.migration.failed user=%s error=%s", user.pk, type(exc).__name__
+            )
+            record_migration_event(learner_key, MIGRATION_FAILED)
+            return {
+                "linked": False,
+                "sessions": 0,
+                "already_linked": False,
+                "retryable": True,
+            }
+
+        record_migration_event(learner_key, MIGRATION_COMPLETED)
+        return result.as_dict()
+
+
+class SignInView(APIView):
+    """ログイン。
+
+    いまの端末の learner_key も、その人のものとして結びつける。
+    別端末でログインしたときに、その端末で始めた分が迷子にならない。
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        serializer = SignInSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _invalid(serializer.errors)
+
+        email = serializer.validated_data["email"].strip().lower()
+
+        """
+        数えるのは接続元と、狙われている宛先の2つ。
+
+        接続元だけだと、複数の場所から1つのアカウントを狙う形を止められない。
+        宛先だけだと、1か所から多数のアカウントを順に試す形を止められない。
+        """
+        try:
+            consume_attempt("signin", request, email)
+        except TooManyAttempts as exc:
+            logger.info("accounts.signin.throttled")
+            return _too_many(exc)
+
+        user = authenticate(
+            request, username=email, password=serializer.validated_data["password"]
+        )
+        if user is None:
+            """
+            どちらが違うかは言わない。
+
+            「そのメールアドレスは登録されていません」と返すと、
+            どのメールが登録済みかを外から調べられる。
+            """
+            logger.info("accounts.signin.failed")
+            return Response(
+                {
+                    "code": "INVALID_CREDENTIALS",
+                    "errors": {
+                        "detail": [
+                            "メールアドレスかパスワードが違います。もう一度お試しください。"
+                        ]
+                    },
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        login(request, user)
+        # 入れた人の数えは消す。打ち間違いを数回した人が、
+        # 次に開いたときまだ上限の近くにいるのを避ける
+        clear_attempts("signin", request, email)
+
+        learner_key = getattr(request, "learner_key", None)
+        if learner_key is not None:
+            try:
+                claim_guest_data(user, learner_key)
+            except Exception as exc:  # noqa: BLE001
+                # 結びつけに失敗してもログインは通す
+                logger.error("accounts.signin.link_failed error=%s", type(exc).__name__)
+
+        return Response({"user": describe_user(user)})
+
+
+class SignOutView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        logout(request)
+        return Response({"signed_out": True})
+
+
+class MeView(APIView):
+    """いまのログイン状態。画面は開くたびにここを見る。"""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request) -> Response:
+        user = request.user
+        if not user.is_authenticated:
+            return Response({"authenticated": False})
+
+        keys = learner_keys_for(user)
+        sessions = LearningSession.objects.filter(learner_key__in=keys)
+
+        return Response(
+            {
+                "authenticated": True,
+                "user": describe_user(user),
+                "progress": {
+                    "completed": sessions.filter(completed_at__isnull=False).count(),
+                    "in_progress": sessions.filter(completed_at__isnull=True).count(),
+                    "devices": len(keys),
+                },
+            }
+        )
+
+
+class ProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request: Request) -> Response:
+        serializer = ProfileUpdateSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _invalid(serializer.errors)
+
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        profile.display_name = serializer.validated_data["display_name"]
+        profile.save(update_fields=["display_name", "updated_at"])
+
+        return Response({"user": describe_user(request.user)})
+
+
+class PasswordChangeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        serializer = PasswordChangeSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _invalid(serializer.errors)
+
+        user = request.user
+        if not user.check_password(serializer.validated_data["current_password"]):
+            return _invalid(
+                {"current_password": ["いまのパスワードが違います。"]},
+                code="INVALID_CREDENTIALS",
+            )
+
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        # パスワードを変えるとセッションが切れるので、入れ直す
+        login(request, user)
+
+        return Response({"changed": True})
+
+
+class PasswordResetRequestView(APIView):
+    """再設定の案内を送る。
+
+    登録が無いメールでも同じ応答を返す。返し分けると、
+    どのメールが登録済みかを外から調べられる。
+    """
+
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _invalid(serializer.errors)
+
+        email = serializer.validated_data["email"].strip().lower()
+
+        """
+        送る前に数える。数えるのは「来た回数」で、実在するかは見ない。
+
+        見てから数えると、断り方（429 か 200 か）で
+        登録済みかどうかが外から分かってしまう。
+        """
+        try:
+            consume_attempt("password_reset", request, email)
+        except TooManyAttempts as exc:
+            return _too_many(exc)
+
+        user = User.objects.filter(email__iexact=email).first()
+        if user is not None:
+            emails.send_password_reset(user)
+
+        return Response(
+            {
+                "sent": True,
+                "detail": "登録があれば、再設定の案内をお送りしました。",
+            }
+        )
+
+
+def _user_from_uid(uid: str):
+    try:
+        return User.objects.filter(pk=force_str(urlsafe_base64_decode(uid))).first()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if not serializer.is_valid():
+            return _invalid(serializer.errors)
+
+        data = serializer.validated_data
+        user = _user_from_uid(data["uid"])
+        if user is None or not default_token_generator.check_token(user, data["token"]):
+            return Response(
+                {
+                    "code": "INVALID_TOKEN",
+                    "errors": {
+                        "detail": [
+                            "この案内はすでに使われたか、期限が切れています。"
+                            "もう一度お試しください。"
+                        ]
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(data["new_password"])
+        user.save(update_fields=["password"])
+
+        return Response({"changed": True})
+
+
+class EmailVerifyView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request) -> Response:
+        serializer = EmailVerifySerializer(data=request.data)
+        if not serializer.is_valid():
+            return _invalid(serializer.errors)
+
+        data = serializer.validated_data
+        user = _user_from_uid(data["uid"])
+        if user is None or not default_token_generator.check_token(user, data["token"]):
+            return Response(
+                {
+                    "code": "INVALID_TOKEN",
+                    "errors": {
+                        "detail": ["この確認リンクは使えません。もう一度お送りします。"]
+                    },
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        if profile.email_verified_at is None:
+            profile.email_verified_at = timezone.now()
+            profile.save(update_fields=["email_verified_at", "updated_at"])
+
+        return Response({"verified": True})
+
+
+class DeleteLearningDataView(APIView):
+    """学習の記録だけ消す。アカウントは残す。"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        keys = learner_keys_for(request.user)
+        deleted, _ = LearningSession.objects.filter(learner_key__in=keys).delete()
+
+        from apps.lessons.models import SkillProgress
+        from apps.profiles.models import LearnerProfile
+
+        LearnerProfile.objects.filter(learner_key__in=keys).delete()
+        SkillProgress.objects.filter(learner_key__in=keys).delete()
+
+        logger.info("accounts.learning_data.deleted user=%s", request.user.pk)
+        return Response({"deleted": True, "rows": deleted})
+
+
+class DeleteAccountView(APIView):
+    """アカウントごと消す。取り消せない。"""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request: Request) -> Response:
+        user = request.user
+        keys = learner_keys_for(user)
+
+        from apps.lessons.models import SkillProgress
+        from apps.profiles.models import LearnerProfile
+
+        LearningSession.objects.filter(learner_key__in=keys).delete()
+        LearnerProfile.objects.filter(learner_key__in=keys).delete()
+        SkillProgress.objects.filter(learner_key__in=keys).delete()
+
+        logout(request)
+        user.delete()
+
+        logger.info("accounts.deleted")
+        return Response({"deleted": True})

@@ -9,6 +9,7 @@ import type { TutorFeedback } from "../types/tutor";
 import { FALLBACK_TUTOR_MESSAGE } from "../content/ui";
 
 import { apiBaseUrl } from "./config";
+import { writeHeaders } from "./http";
 
 export interface TutorFeedbackRequest {
   lessonId: string;
@@ -32,7 +33,7 @@ export async function fetchTutorFeedback(
   try {
     const response = await fetch(`${apiBaseUrl()}/api/tutor/feedback/`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await writeHeaders(),
       credentials: "include", // learner_key Cookie を送る
       signal,
       body: JSON.stringify({

@@ -580,3 +580,13 @@ export function IconShield({ className }: IconProps) {
     </Svg>
   );
 }
+
+/** 錠。まだ開けられない。 */
+export function IconLock({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="4.6" y="10.4" width="14.8" height="10.2" rx="2.4" />
+      <path d="M8.2 10.4V7.6a3.8 3.8 0 0 1 7.6 0v2.8" />
+    </Svg>
+  );
+}

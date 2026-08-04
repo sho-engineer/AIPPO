@@ -9,6 +9,7 @@
  */
 
 import { apiBaseUrl } from "./config";
+import { writeHeaders } from "./http";
 import type { PoAction, PoEmotion, StepValues } from "../course/types";
 
 /** 要件 §3 の AI_REQUEST_TIMEOUT_SECONDS に合わせる。 */
@@ -80,7 +81,7 @@ export async function generate(
     const response = await fetch(`${apiBaseUrl()}/api/v1/ai/generate/`, {
       method: "POST",
       credentials: "include", // learner_key Cookie を送る
-      headers: { "Content-Type": "application/json" },
+      headers: await writeHeaders(),
       signal: controller.signal,
       body: JSON.stringify({
         session_id: params.sessionId ?? null,

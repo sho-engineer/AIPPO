@@ -1,5 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
+import { COURSE } from "../../src/course/catalog";
+
 /**
  * バックエンドの応答をスタブへ差し替える。
  *
@@ -115,16 +117,65 @@ export async function stubApi(
     await route.fulfill({ status: 204, body: "" });
   });
 
+  /*
+    教材は全部そろった形で配る。
+
+    実際に配られる教材には公開範囲（近日公開）が入っている。そのまま使うと、
+    どのレッスンを試せるかが公開状況で変わり、学びの流れを確かめるはずの
+    検査が、そのときの公開範囲を確かめるものに変わってしまう。
+
+    公開範囲そのものは、実バックエンドに当てる探索テストと、
+    backend/apps/catalog の検査で確かめている。
+  */
+  await page.route("**/api/v1/catalog/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        courses: [
+          {
+            ...COURSE,
+            lessons: COURSE.lessons.map((lesson) => ({
+              ...lesson,
+              availability: "available",
+            })),
+          },
+        ],
+      }),
+    });
+  });
+
   // ほかの通信も実サーバーへ行かないよう塞ぐ。
   //
   // ここでまとめて塞ぐ形（api の下すべて）を使ってはいけない。
   // 開発サーバーはアプリ自身のソースを /src/api/ai.ts として配るので、
   // それごと JSON に差し替えてしまい、アプリが起動しなくなる。
   // そのうえ画面が真っ白なまま検査が通り、壊れていることに気づけない。
+  // 合言葉（CSRF）の受け口。書き込みのたびに一度取りに行くので、
+  // 塞いでおかないと実サーバーへ出ていく。
+  await page.route("**/api/v1/accounts/csrf/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      headers: { "set-cookie": "csrftoken=e2e-stub-token; Path=/; SameSite=Lax" },
+      body: JSON.stringify({ detail: "ok" }),
+    });
+  });
+
+  // ログインしていない状態を返す。登録の導線は別の検査で見る。
+  await page.route("**/api/v1/accounts/me/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ authenticated: false, user: null }),
+    });
+  });
+
   for (const pattern of [
     "**/api/lessons/**",
     "**/api/profile/**",
     "**/api/tutor/**",
+    "**/api/v1/progress/**",
   ]) {
     await page.route(pattern, async (route: Route) => {
       await route.fulfill({
