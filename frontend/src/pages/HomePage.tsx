@@ -60,7 +60,20 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
   const circumference = 2 * Math.PI * radius;
 
   return (
-    <div className="relative flex h-28 w-28 shrink-0 items-center justify-center">
+    <div
+      className="relative flex h-28 w-28 shrink-0 items-center justify-center"
+      /*
+        輪と割合は「9本中いくつ終わったか」を表している。
+        割合の文字だけでは、読み上げに何本中の何本かが届かない。
+        値そのものを持たせておくと、検査でも文字の書き方に依存せず読める。
+      */
+      role="progressbar"
+      aria-label="コース全体の進み具合"
+      aria-valuemin={0}
+      aria-valuemax={total}
+      aria-valuenow={done}
+      aria-valuetext={`${total}本のうち${done}本おわりました`}
+    >
       <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-hidden="true">
         <circle
           cx="50"

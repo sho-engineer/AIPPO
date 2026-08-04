@@ -159,6 +159,16 @@ class LearningEventType(models.TextChoices):
     PRIVACY_WARNING_CANCELLED = "privacy_warning_cancelled"
     PRIVACY_WARNING_OVERRIDDEN = "privacy_warning_overridden"
 
+    # 成果物ファーストの骨格（course/shared.ts の buildLessonFlow）で送るもの。
+    # ここに無いと 400 で弾かれ、操作ログが丸ごと落ちる。
+    OUTCOME_PREVIEW_VIEWED = "outcome_preview_viewed"
+    QUICK_TRY_STARTED = "quick_try_started"
+    RESULT_OBSERVATION_SUBMITTED = "result_observation_submitted"
+    CONCEPT_CARD_VIEWED = "concept_card_viewed"
+    CONCEPT_CARD_SKIPPED = "concept_card_skipped"
+    CONDITION_ADDED = "condition_added"
+    REAL_TASK_COMPLETED = "real_task_completed"
+
     # 旧レッスンから使っているもの。消すと過去のログが読めなくなる。
     LESSON_STARTED = "lesson_started"
     USE_CASE_SELECTED = "use_case_selected"

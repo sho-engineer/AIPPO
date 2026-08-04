@@ -64,24 +64,27 @@ async function openLessonList(page: Page) {
   await page.getByRole("button", { name: "教材一覧" }).click();
 }
 
-/** 文章改善レッスンを、結果が出るところまで進める。 */
+/**
+ * 文章改善レッスンを、最初の結果が出るところまで進める。
+ *
+ * 最初の1回で選ばせるのは相手だけ。ほかの条件は教材の既定値で埋まる。
+ */
 async function runRewrite(page: Page) {
   await openLessonList(page);
   await page.getByTestId("lesson-rewrite_text").click();
 
-  await next(page); // intro
-  await choose(page, "仕事のメール");
-  await next(page);
-  await page.getByRole("button", { name: "用意された例文を使う" }).click();
-  await next(page);
-  await choose(page, "社外のお客様");
-  await next(page);
-  await choose(page, "ていねいに");
-  await next(page);
-  await choose(page, "3行くらい");
-  await next(page); // 依頼の確認
-  await next(page); // 送る
+  await next(page); // 完成イメージ
+  await choose(page, "上司");
+  await next(page); // 送る → 生成 → 観察
   await expect(page.getByTestId("result-compare")).toBeVisible({ timeout: 20_000 });
+}
+
+/** 観察 → 解説3枚 → 条件を足す画面。 */
+async function throughConcepts(page: Page) {
+  await next(page); // 観察 → 解説1
+  await next(page);
+  await next(page);
+  await next(page); // 解説3 → 条件を足す
 }
 
 test.describe("探索テスト（本物のバックエンド）", () => {
@@ -93,8 +96,8 @@ test.describe("探索テスト（本物のバックエンド）", () => {
     const problems = collectConsole(page);
     await runRewrite(page);
 
-    // 改善
-    await next(page); // 結果 → 改善
+    // 条件を一つ足す
+    await throughConcepts(page);
     await choose(page, "もっと短く");
     await next(page);
     await expect(page.getByTestId("result-compare")).toBeVisible({
@@ -102,10 +105,15 @@ test.describe("探索テスト（本物のバックエンド）", () => {
     });
 
     // 自分の文章
-    await next(page); // → 安全の確認
-    await next(page); // → 自分の課題
-    await page.getByRole("textbox").fill("探索テストで入力した文章です。");
-    await next(page);
+    await next(page); // 見比べ → 安全の確認
+    await next(page); // → 自分の文章
+    await page
+      .getByRole("textbox")
+      .fill("探索テストで入力した文章です。ご確認をお願いいたします。");
+    await next(page); // → 誰が読みますか
+    await next(page); // → どう変えたいですか
+    await next(page); // → AIにはこう伝えます
+    await next(page); // 送る
     await expect(page.getByTestId("result-compare")).toBeVisible({
       timeout: 20_000,
     });
@@ -256,10 +264,9 @@ test.describe("探索テスト（本物のバックエンド）", () => {
   test("スマートフォン幅で、入力欄と送信ボタンが同時に見える", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 780 });
     await openLessonList(page);
-    await page.getByTestId("lesson-rewrite_text").click();
-    await next(page);
-    await choose(page, "仕事のメール");
-    await next(page);
+    // 2歩目が文章の入力になる教材で見る。入力欄が出る画面が一番きわどい
+    await page.getByTestId("lesson-final_challenge").click();
+    await next(page); // はじめに → いま面倒に感じていること
 
     const textarea = (await page.getByRole("textbox").boundingBox())!;
     const action = (await page.getByTestId("primary-action").boundingBox())!;
@@ -288,16 +295,27 @@ test.describe("探索テスト（本物のバックエンド）", () => {
     await openLessonList(page);
     await page.getByTestId("lesson-rewrite_text").click();
 
-    const box = (await page.getByTestId("po-avatar").boundingBox())!;
-    const grabbed = await page.evaluate(
+    // ポーは本文の流れの中にいる。次にやることへ重ならないことを見る
+    const po = (await page.getByTestId("po-avatar").boundingBox())!;
+    const action = (await page.getByTestId("primary-action").boundingBox())!;
+
+    const overlaps =
+      action.x < po.x + po.width &&
+      action.x + action.width > po.x &&
+      action.y < po.y + po.height &&
+      action.y + action.height > po.y;
+
+    expect(overlaps, "ポーが次にやることに重なっている").toBe(false);
+
+    // ボタンの中心を押したときに、実際に届くのはボタンであること
+    const hit = await page.evaluate(
       ({ x, y }) => {
         const element = document.elementFromPoint(x, y);
-        return element?.closest("[data-testid='po-avatar']") !== null;
+        return element?.closest("[data-testid='primary-action']") !== null;
       },
-      { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+      { x: action.x + action.width / 2, y: action.y + action.height / 2 },
     );
-
-    expect(grabbed, "ポーがタップを奪っている").toBe(false);
+    expect(hit, "ポーがタップを奪っている").toBe(true);
   });
 
   test("UI に専門用語が出ていない", async ({ page }) => {

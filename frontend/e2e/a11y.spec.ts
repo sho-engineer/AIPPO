@@ -46,28 +46,36 @@ async function openCourse(page: Page) {
   await expect(page.getByTestId("lesson-rewrite_text")).toBeVisible();
 }
 
-/** 文章改善レッスンの入力画面まで進める。 */
-async function openLesson(page: Page) {
-  await openCourse(page);
-  await page.getByTestId("lesson-rewrite_text").click();
-  await page.getByTestId("primary-action").click(); // intro
-  await page.getByRole("button", { name: "仕事のメール", exact: true }).click();
+async function next(page: Page) {
   await page.getByTestId("primary-action").click();
-  await page.getByRole("button", { name: "用意された例文を使う" }).click();
 }
 
-/** さらに結果の画面まで進める。 */
+/**
+ * 結果の画面（1回目の結果を見ながら観察するところ）まで進める。
+ *
+ * 最初の1回は相手を選ぶだけで送れる。ここが結果を最初に見る画面になる。
+ */
 async function openResult(page: Page) {
-  await openLesson(page);
-  await page.getByTestId("primary-action").click();
-  await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
-  await page.getByTestId("primary-action").click();
-  await page.getByRole("button", { name: "ていねいに", exact: true }).click();
-  await page.getByTestId("primary-action").click();
-  await page.getByRole("button", { name: "3行くらい", exact: true }).click();
-  await page.getByTestId("primary-action").click(); // 依頼の確認
-  await page.getByTestId("primary-action").click(); // 送る
+  await openCourse(page);
+  await page.getByTestId("lesson-rewrite_text").click();
+  await next(page); // 完成イメージ
+  await page.getByRole("button", { name: "上司", exact: true }).click();
+  await next(page); // 送る → 生成 → 観察
   await expect(page.getByTestId("result-compare")).toBeVisible();
+}
+
+/** 文章を打ち込む画面（自分の文章）まで進める。 */
+async function openLesson(page: Page) {
+  await openResult(page);
+  await next(page); // 観察 → 解説1
+  await next(page);
+  await next(page);
+  await next(page); // 解説3 → 条件を足す
+  await page.getByRole("button", { name: "もっと短く", exact: true }).click();
+  await next(page); // 送る → 見比べ
+  await next(page); // 見比べ → 安全の確認
+  await next(page); // 安全の確認 → 自分の文章
+  await expect(page.getByRole("textbox")).toBeVisible();
 }
 
 test.describe("アクセシビリティ", () => {
@@ -107,15 +115,13 @@ test.describe("アクセシビリティ", () => {
     // 割り込んで出す画面ほど、読み上げから外れやすい
     await stubApi(page);
     await openLesson(page);
-    await page.getByRole("textbox").fill("連絡先は tanaka@example.co.jp です。");
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "社外のお客様", exact: true }).click();
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "ていねいに", exact: true }).click();
-    await page.getByTestId("primary-action").click();
-    await page.getByRole("button", { name: "3行くらい", exact: true }).click();
-    await page.getByTestId("primary-action").click();
-    await page.getByTestId("primary-action").click();
+    await page
+      .getByRole("textbox")
+      .fill("連絡先は tanaka@example.co.jp です。ご確認をお願いします。");
+    await next(page); // 自分の文章 → 誰が読みますか
+    await next(page); // → どう変えたいですか
+    await next(page); // → AIにはこう伝えます
+    await next(page); // 送る
     await expect(page.getByTestId("privacy-dialog")).toBeVisible();
 
     const { violations } = await scan(page);
@@ -127,21 +133,27 @@ test.describe("アクセシビリティ", () => {
     await stubApi(page);
     await page.goto("/");
 
+    // ボタンの見た目には矢印などが混ざる。実際の中身と突き合わせる
+    const start = page.getByRole("button", { name: "はじめる" }).first();
+    const startLabel = (await start.textContent())?.trim() ?? "";
+
     for (let i = 0; i < 10; i++) {
       await page.keyboard.press("Tab");
       const label = await page.evaluate(
         () => document.activeElement?.textContent?.trim() ?? "",
       );
-      if (label === "はじめる") break;
+      if (label === startLabel) break;
     }
 
     const focused = await page.evaluate(
       () => document.activeElement?.textContent?.trim() ?? "",
     );
-    expect(focused, "「はじめる」までタブで到達できない").toBe("はじめる");
+    expect(focused, "「はじめる」までタブで到達できない").toBe(startLabel);
 
     await page.keyboard.press("Enter");
-    await expect(page.getByTestId("lesson-rewrite_text")).toBeVisible();
+    // 押した先はホーム。そこから続きへ入るボタンが出ていること
+    await expect(page.getByTestId("progress-summary")).toBeVisible();
+    await expect(page.getByTestId("continue-lesson")).toBeVisible();
   });
 
   test("ポーが画面の外へはみ出さない", async ({ page }) => {
