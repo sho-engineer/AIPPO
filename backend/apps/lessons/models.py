@@ -262,7 +262,13 @@ class AiUsageCounter(models.Model):
     #: 全体の上限に使う固定スコープ。
     GLOBAL_SCOPE = "global"
 
-    scope = models.CharField(max_length=64, help_text="global、またはIPのHMAC")
+    #: HMAC-SHA256 の16進表記は 64 文字。学習者ごとのものは
+    #: `learner:` が付いて 72 文字になる。64 では入りきらない。
+    #: SQLite は長さを無視して書けてしまうので、PostgreSQL で初めて落ちる。
+    #: 印を足す余地も含めて広めに取る（`tests/test_ai_quota.py` が見張る）。
+    scope = models.CharField(
+        max_length=128, help_text="global、またはIP・学習者のHMAC"
+    )
     date = models.DateField()
     count = models.PositiveIntegerField(default=0)
 

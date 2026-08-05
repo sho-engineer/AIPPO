@@ -447,6 +447,7 @@ export function LessonRunner({
             outcomeLabel={
               api.realTaskSkipped ? "AIが書いた文章（練習）" : "AIが書いた文章"
             }
+            lessonId={lesson.id}
             lessonNumber={lesson.number}
             /*
               このレッスンぶんを足して数える。

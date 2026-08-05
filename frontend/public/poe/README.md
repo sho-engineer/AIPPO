@@ -1,6 +1,6 @@
 # ポーの画像
 
-AIチューター「ポー」の表示状態。このディレクトリに6枚を配置する。
+AIチューター「ポー」の表示状態。このディレクトリに8枚を配置する。
 
 > **置き場所が2つある。差し替えるときは両方を直す。**
 >
@@ -9,7 +9,7 @@ AIチューター「ポー」の表示状態。このディレクトリに6枚�
 > | `public/poe/` （ここ） | タイトル画面、エラー画面（`components/PoeAvatar.tsx`） |
 > | `public/assets/po/` | レッスン、コース一覧（`src/po/PoAvatar.tsx`） |
 >
-> 同じ6枚を2か所に置いている。片方だけ差し替えると、画面によって
+> 同じ8枚を2か所に置いている。片方だけ差し替えると、画面によって
 > 別の絵が出る。作り直すときに1系統へまとめるのが本筋だが、
 > まとめるまでは**必ず両方**へ入れること。
 
@@ -17,18 +17,16 @@ AIチューター「ポー」の表示状態。このディレクトリに6枚�
 neutral.webp    通常の説明、待機
 question.webp   ユーザーへの質問
 thinking.webp   AI処理中
+talking.webp    説明・案内をしているとき
 hint.webp       ヒントや改善案
 warning.webp    個人情報、誤情報などへの注意
 celebrate.webp  課題完了
+blink.webp      まばたきの瞬間（neutralと同じ構図で目だけ閉じる）
 ```
 
-## まだ無い2枚
-
-`talking`（話している）と `blink`（まばたき）には専用の絵が無く、
-`neutral` で代用している（`src/po/assets.ts` の `PO_FALLBACK`）。
-
-まばたきの動きそのものは実装済みなので、`public/assets/po/blink.webp` を
-置けばコードを触らずに効く。`talking` も同じ。
+8枚とも揃っている。読み込みに失敗したときの保険として
+`talking` → `neutral`、`blink` → `neutral` の代替は残してある
+（`src/po/assets.ts` の `PO_FALLBACK`）が、ふだんは通らない。
 
 ## 要件（AIPPO 開発概要 §7）
 

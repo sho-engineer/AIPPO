@@ -32,6 +32,22 @@ DEBUG = _bool("DJANGO_DEBUG", True)
 
 ALLOWED_HOSTS = _list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
+# メールの送り口。
+#
+# 開発ではコンソールへ出す。実際に送らないので、宛先を間違えても
+# 誰にも届かない。**本番では既定が smtp になる**ので、下の関門で
+# 宛先サーバーまで揃っているかを見る。
+#
+# 定義がこの位置にあるのは、その関門より前に決まっている必要があるため。
+# 環境変数のほうを見に行くと、指定しなかったときに関門を素通りする。
+# 空文字は「指定なし」として扱う。`.env` に `EMAIL_BACKEND=` と行だけ
+# 残っている状態はよくあり、そのまま渡すと読み込めない送り口になる。
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND") or (
+    "django.core.mail.backends.console.EmailBackend"
+    if DEBUG
+    else "django.core.mail.backends.smtp.EmailBackend"
+)
+
 # 本番の姿で起動しようとしているのに、危ない既定値が残っていたら起動させない。
 # 「うっかり本番へ出た」を、動き出す前に止めるための関門。
 if not DEBUG:
@@ -54,8 +70,13 @@ if not DEBUG:
         )
 
     # メールを送れないまま登録を開くと、確認も再設定もできない人が出る。
-    # 「あとで直す」が効かない種類の抜けなので、起動時に止める
-    if os.getenv("EMAIL_BACKEND", "").endswith("smtp.EmailBackend"):
+    # 「あとで直す」が効かない種類の抜けなので、起動時に止める。
+    #
+    # 見るのは**実際に使われる送り口**。環境変数のほうを見ると、
+    # 指定しなかったときに素通りする。本番の既定は smtp なので、
+    # 素通りしたまま起動し、`/health/ready` だけが 503 を返し続ける
+    # ——つまり振り分けが永久に付かない状態になる。
+    if EMAIL_BACKEND.endswith("smtp.EmailBackend"):
         if not os.getenv("EMAIL_HOST"):
             problems.append("EMAIL_HOST が設定されていません")
         if not os.getenv("DEFAULT_FROM_EMAIL"):
@@ -136,17 +157,27 @@ else:
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
-            "OPTIONS": {
-                # 既定では書き込みが重なった瞬間に「database is locked」で落ちる。
-                # 読み書きを並行できるようにし、ぶつかっても少し待つ。
-                "init_command": "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;",
-                "timeout": 20,
-            },
-            # テストも実ファイルで動かす。メモリ上のDBでは WAL が効かず、
-            # 同時アクセスの検証が本番と違う結果になってしまう。
-            "TEST": {"NAME": BASE_DIR / "test_db.sqlite3"},
         }
     }
+
+# SQLite の守りは、**どちらの経路で決まっても**付ける。
+#
+# `DATABASE_URL=sqlite:///...` で指す書き方は珍しくないが、
+# dj_database_url はここの OPTIONS を知らないので、素の設定を返す。
+# 上の分岐の中だけに書いていると、その経路のときに黙って外れる。
+#
+# 外れると、書き込みが重なった瞬間に「database is locked」で落ちる。
+# 普段は1人で触るので気づかず、人が増えたときだけ再現する。
+if DATABASES["default"]["ENGINE"].endswith("sqlite3"):
+    options = DATABASES["default"].setdefault("OPTIONS", {})
+    # 読み書きを並行できるようにし、ぶつかっても少し待つ
+    options.setdefault(
+        "init_command", "PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL;"
+    )
+    options.setdefault("timeout", 20)
+    # テストも実ファイルで動かす。メモリ上のDBでは WAL が効かず、
+    # 同時アクセスの検証が本番と違う結果になってしまう。
+    DATABASES["default"].setdefault("TEST", {"NAME": BASE_DIR / "test_db.sqlite3"})
 
 # パスワードの弱さを止める。既定は空なので、書かないと "password" が通る。
 # 文言はそのまま画面に出るので、日本語（LANGUAGE_CODE = "ja"）で出る。
@@ -366,14 +397,7 @@ GUEST_DATA_RETENTION_DAYS = int(os.getenv("GUEST_DATA_RETENTION_DAYS", "180"))
 # 送るのは3通だけ（apps/accounts/emails.py）。
 #   メールアドレスの確認 / パスワードの再設定 / 登録完了のお知らせ
 #
-# 開発ではコンソールへ出す。実際に送らないので、宛先を間違えても
-# 誰にも届かない。本番では smtp を明示する。
-EMAIL_BACKEND = os.getenv(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend"
-    if DEBUG
-    else "django.core.mail.backends.smtp.EmailBackend",
-)
+# 送り口（EMAIL_BACKEND）は、起動時の関門より前で決めている（冒頭を参照）。
 EMAIL_HOST = os.getenv("EMAIL_HOST", "")
 EMAIL_PORT = int(os.getenv("EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER", "")

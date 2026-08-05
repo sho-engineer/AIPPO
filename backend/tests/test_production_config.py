@@ -17,11 +17,22 @@ from django.urls import reverse
 #: 本番判定を通す長さの鍵（50文字以上）。
 REAL_SECRET = "x" * 50
 
-#: これが揃っていれば本番として起動できる、という最小の組。
-PRODUCTION = {
+#: メールだけを外した組。送り口の抜けを見るときに使う。
+PRODUCTION_WITHOUT_EMAIL = {
     "DJANGO_SECRET_KEY": REAL_SECRET,
     "DJANGO_ALLOWED_HOSTS": "aippo.example.com",
     "FRONTEND_URL": "https://aippo.example.com",
+}
+
+#: これが揃っていれば本番として起動できる、という最小の組。
+#:
+#: メールの送り口も**最小の組に入る**。本番の既定は smtp なので、
+#: 何も指定しないと「送り先の無い smtp」で起動しようとする。
+PRODUCTION = {
+    **PRODUCTION_WITHOUT_EMAIL,
+    "EMAIL_BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+    "EMAIL_HOST": "smtp.example.com",
+    "DEFAULT_FROM_EMAIL": "AIPPO <no-reply@aippo.example.com>",
 }
 
 
@@ -81,15 +92,40 @@ class TestRefusesToStartWithUnsafeDefaults:
         """
         with pytest.raises(ImproperlyConfigured) as exc:
             _load_settings(
-                **PRODUCTION,
+                **PRODUCTION_WITHOUT_EMAIL,
                 EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
             )
         assert "EMAIL_HOST" in str(exc.value)
         assert "DEFAULT_FROM_EMAIL" in str(exc.value)
 
+    def test_no_email_setting_at_all_is_refused(self):
+        """送り口を**何も指定しなかった**ときも止める。
+
+        本番の既定は smtp なので、指定しないと「送り先の無い smtp」に
+        なる。関門が環境変数のほうを見ていると、ここが素通りする。
+
+        素通りすると起動には成功し、`/health/ready` だけが 503 を
+        返し続ける。振り分けが永久に付かず、画面はどこからも見えない。
+        起動時に落ちるのと違って、理由がログのどこにも出ない。
+        """
+        with pytest.raises(ImproperlyConfigured) as exc:
+            _load_settings(**PRODUCTION_WITHOUT_EMAIL)
+        assert "EMAIL_HOST" in str(exc.value)
+
+    def test_console_is_an_explicit_choice(self):
+        """「送らない」と決めたなら、そう書けば起動できる。
+
+        止めたいのは*決め忘れ*であって、決めた運用ではない。
+        """
+        settings = _load_settings(
+            **PRODUCTION_WITHOUT_EMAIL,
+            EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend",
+        )
+        assert settings.DEBUG is False
+
     def test_smtp_with_a_host_starts(self):
         settings = _load_settings(
-            **PRODUCTION,
+            **PRODUCTION_WITHOUT_EMAIL,
             EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
             EMAIL_HOST="smtp.example.com",
             DEFAULT_FROM_EMAIL="AIPPO <no-reply@aippo.example.com>",
@@ -152,6 +188,32 @@ class TestDatabaseSwitch:
         assert "postgresql" in default["ENGINE"]
         assert default["NAME"] == "aippo"
         assert default["HOST"] == "db.example.com"
+
+    def test_sqlite_keeps_its_guards_through_database_url(self):
+        """SQLite を DATABASE_URL で指しても、守りが外れないこと。
+
+        `DATABASE_URL=sqlite:///...` と書くのは珍しくないが、
+        dj_database_url はこちらの OPTIONS を知らず、素の設定を返す。
+        分岐の中だけに書いていると、この経路のときだけ黙って外れる。
+
+        外れると、書き込みが重なった瞬間に「database is locked」で
+        落ちる。普段は1人で触るので気づかず、人が増えたときに出る。
+        """
+        settings = _load_settings(
+            DJANGO_DEBUG="true", DATABASE_URL="sqlite:////var/lib/aippo/db.sqlite3"
+        )
+        options = settings.DATABASES["default"]["OPTIONS"]
+
+        assert "WAL" in options["init_command"], "WAL が効いていない"
+        assert options["timeout"] > 0, "ぶつかったときに待たずに落ちる"
+
+    def test_postgres_does_not_get_sqlite_options(self):
+        """SQLite 用の設定を PostgreSQL へ持ち込まないこと。"""
+        settings = _load_settings(
+            DJANGO_DEBUG="true",
+            DATABASE_URL="postgres://u:p@db.example.com:5432/aippo",
+        )
+        assert settings.DATABASES["default"].get("OPTIONS", {}) == {}
 
 
 @pytest.mark.django_db

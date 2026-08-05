@@ -39,6 +39,8 @@ export interface StubHandle {
   events: { event_type: string; step: string; input_length: number }[];
   /** 登録・ログインへ送られた本文。合言葉が漏れていないか見るのに使う。 */
   auth: { url: string; body: unknown }[];
+  /** 完了時アンケートへ送られた答え。 */
+  surveys: { lessonId: string; answers: Record<string, string> }[];
 }
 
 const DEFAULT_TUTOR: TutorBody = {
@@ -61,7 +63,7 @@ export async function stubApi(
   page: Page,
   options: StubOptions = {},
 ): Promise<StubHandle> {
-  const handle: StubHandle = { calls: [], events: [], auth: [] };
+  const handle: StubHandle = { calls: [], events: [], auth: [], surveys: [] };
   let callCount = 0;
   let signedIn = options.signedIn ?? false;
 
@@ -253,6 +255,23 @@ export async function stubApi(
       });
     });
   }
+
+  // 完了時アンケート。送り先の教材と、答えの中身を控える。
+  //
+  // **上のまとめ塞ぎより後に置くこと。** Playwright は後から足したほうを
+  // 先に使うので、先に置くと api/lessons のまとめ塞ぎに飲まれる。
+  // 飲まれても 200 が返るため、画面は「送れた」と表示し、
+  // 中身だけが記録されない。落ちないぶん気づきにくい。
+  await page.route("**/api/lessons/*/survey/", async (route: Route) => {
+    if (route.request().method() === "POST") {
+      const lessonId = new URL(route.request().url()).pathname.split("/").at(-3) ?? "";
+      handle.surveys.push({
+        lessonId,
+        answers: route.request().postDataJSON().answers,
+      });
+    }
+    await route.fulfill({ status: 204, body: "" });
+  });
 
   return handle;
 }

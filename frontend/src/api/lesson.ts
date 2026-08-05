@@ -296,7 +296,15 @@ export async function fetchSessionState(
   }
 }
 
-/** アンケートを送る。失敗してもレッスンを止めない。 */
+/**
+ * アンケートを送る。失敗してもレッスンを止めない。
+ *
+ * ここまで来た人はレッスンを終えている。送れなかったことを
+ * 失敗として見せる意味がないので、例外を投げず成否だけ返す。
+ *
+ * 答えは選択肢の文字だけ。自由記述は受け取らない
+ * （集計できないうえ、個人情報の入り込む口になる）。
+ */
 export async function sendSurvey(
   lessonId: string,
   answers: Record<string, string>,

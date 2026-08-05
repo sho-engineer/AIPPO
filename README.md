@@ -127,11 +127,6 @@ AIPPOは、プロンプトを暗記させるサービスではありません。
   置いてあります。埋め忘れると画面にそのまま出るので気づけます
 - 通知の配信（設定は保存できますが、送る仕組みがまだありません）
 - 教材の多言語化（言語設定は画面の言葉だけ。教材本文は日本語のまま）
-- ポーの `talking` / `blink` 用の絵（`neutral` で代用しています）。
-  絵は `public/poe/` と `public/assets/po/` の**2か所**にあり、差し替えるときは
-  両方を直します（食い違いは `tests/poeAssets.test.ts` が見張ります）
-- 完了時アンケートの画面（`Survey` モデルと API は残っていますが、成果物
-  ファーストへ作り直したときに画面が落ちました。フェーズ2→3 の判定に要ります）
 
 ---
 
@@ -319,7 +314,7 @@ cd backend && AI_PROVIDER=mock FRONTEND_URL=http://127.0.0.1:5173 \
   AI_RUNS_PER_IP_PER_DAY=0 AI_RUNS_PER_DAY=0 \
   uv run python manage.py runserver 127.0.0.1:8000
 
-cd frontend && npm run test:e2e        # 54件（desktop / mobile）
+cd frontend && npm run test:e2e        # 64件（desktop / mobile）
 ```
 
 | ファイル | 何を見るか | 通信 |
@@ -327,6 +322,7 @@ cd frontend && npm run test:e2e        # 54件（desktop / mobile）
 | `e2e/lesson.spec.ts` | 成果物ファーストの通し・失敗時・送信前の確認 | スタブ |
 | `e2e/auth.spec.ts` | 登録・ログイン・端末に何を残さないか | スタブ |
 | `e2e/comingSoon.spec.ts` | 近日公開の見せ方・教材が届かないとき | スタブ |
+| `e2e/po.spec.ts` | ポーが代用ではなく自分の絵を読んでいること・まばたき | スタブ |
 | `e2e/exploratory.spec.ts` | **本物の Django** に当てる。教材の配信・学習イベント・CSRF | 実物 |
 
 ステップ名を書き下していません。教材は管理画面から直せるので、ステップが

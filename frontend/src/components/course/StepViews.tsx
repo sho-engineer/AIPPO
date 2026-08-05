@@ -14,6 +14,7 @@ import { Fragment, useEffect, useId, useRef, useState } from "react";
 
 import { Card, CardHeading, IconBadge, MetaPill } from "../AppShell";
 import { SaveProgressCard } from "../auth/SaveProgressCard";
+import { SurveyCard } from "./SurveyCard";
 import {
   IconArrowDown,
   IconBars,
@@ -1127,6 +1128,7 @@ export function CompletionView({
   skills,
   outcomeText,
   outcomeLabel,
+  lessonId,
   lessonNumber,
   done,
   total,
@@ -1136,6 +1138,7 @@ export function CompletionView({
   skills: string[];
   outcomeText?: string;
   outcomeLabel: string;
+  lessonId: string;
   lessonNumber: number;
   done: number;
   total: number;
@@ -1209,6 +1212,12 @@ export function CompletionView({
         ログイン済みの人には何も出ない。
       */}
       <SaveProgressCard />
+
+      {/*
+        アンケートは登録の誘いのあと、次の教材より前に出す。
+        いちばん下だと、次を選んで離れた人には見えない。
+      */}
+      <SurveyCard lessonId={lessonId} />
 
       {next.length > 0 && (
         <section aria-labelledby="next-heading">

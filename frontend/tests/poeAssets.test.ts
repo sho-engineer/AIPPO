@@ -6,7 +6,7 @@
  *   public/poe/       … タイトル画面、エラー画面（PoeAvatar）
  *   public/assets/po/ … レッスン、コース一覧（PoAvatar）
  *
- * 同じ6枚を2か所に置いているので、正式画像へ差し替えるときに
+ * 同じ8枚を2か所に置いているので、差し替えるときに
  * 片方だけ直すと、画面によって別の絵が出る。
  *
  * その状態は、差し替えた本人からは見えにくい。直したほうの画面を開いて
@@ -25,14 +25,16 @@ import { describe, expect, it } from "vitest";
 const POE = join(process.cwd(), "public", "poe");
 const PO = join(process.cwd(), "public", "assets", "po");
 
-/** ポーの表示状態6つ。`talking` と `blink` はまだ絵が無い。 */
+/** ポーの表示状態8つ。 */
 const EMOTIONS = [
   "neutral",
   "question",
   "thinking",
+  "talking",
   "hint",
   "warning",
   "celebrate",
+  "blink",
 ] as const;
 
 function digest(path: string): string {
@@ -46,7 +48,7 @@ function images(dir: string): string[] {
 }
 
 describe("ポーの絵", () => {
-  it("6つの表情が、どちらの置き場所にもある", () => {
+  it("8つの表情が、どちらの置き場所にもある", () => {
     const expected = EMOTIONS.map((emotion) => `${emotion}.webp`).sort();
 
     expect(images(POE)).toEqual(expected);
