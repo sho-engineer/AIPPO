@@ -104,7 +104,9 @@ jobs:
       - name: Build and serve
         run: |
           npm run build
-          nohup npx vite preview --port 4319 --strictPort > /tmp/preview.log 2>&1 &
+          # --host を付けないと 127.0.0.1 にバインドされる保証が無く、
+          # 下の curl が待ち続けて毎回タイムアウトすることがある
+          nohup npx vite preview --host 127.0.0.1 --port 4319 --strictPort > /tmp/preview.log 2>&1 &
           for _ in $(seq 1 30); do
             curl -sf http://127.0.0.1:4319/ > /dev/null && exit 0
             sleep 1
