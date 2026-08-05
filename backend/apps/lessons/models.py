@@ -159,15 +159,35 @@ class LearningEventType(models.TextChoices):
     PRIVACY_WARNING_CANCELLED = "privacy_warning_cancelled"
     PRIVACY_WARNING_OVERRIDDEN = "privacy_warning_overridden"
 
-    # 成果物ファーストの骨格（course/shared.ts の buildLessonFlow）で送るもの。
-    # ここに無いと 400 で弾かれ、操作ログが丸ごと落ちる。
+    # 第一リリース（Closed Beta）で足したもの。
+    # 登録までの落ち方と、引き継ぎの成否を見るために要る。
+    DIAGNOSIS_STARTED = "diagnosis_started"
+    DIAGNOSIS_COMPLETED = "diagnosis_completed"
+    LESSON_VIEWED = "lesson_viewed"
+    FIRST_RESULT_GENERATED = "first_result_generated"
+    CONDITION_ADDED = "condition_added"
+    IMPROVED_RESULT_GENERATED = "improved_result_generated"
+    REAL_TASK_COMPLETED = "real_task_completed"
+    SIGNUP_PROMPT_VIEWED = "signup_prompt_viewed"
+    SIGNUP_STARTED = "signup_started"
+    SIGNUP_COMPLETED = "signup_completed"
+    GUEST_DATA_MIGRATION_STARTED = "guest_data_migration_started"
+    GUEST_DATA_MIGRATION_COMPLETED = "guest_data_migration_completed"
+    GUEST_DATA_MIGRATION_FAILED = "guest_data_migration_failed"
+    LOGIN_COMPLETED = "login_completed"
+    COMING_SOON_VIEWED = "coming_soon_viewed"
+
+    # 成果物ファーストの各ステップ。
+    #
+    # 画面を作り直したときに足すのを忘れており、送られてくるのに 400 で
+    # 捨てていた。捨てても画面は止まらない作りなので誰も気づかず、
+    # **レッスンの前半だけ記録が空**という状態になっていた。
+    # 詰まるのはたいてい前半なので、いちばん見たいところが欠けていた。
     OUTCOME_PREVIEW_VIEWED = "outcome_preview_viewed"
     QUICK_TRY_STARTED = "quick_try_started"
     RESULT_OBSERVATION_SUBMITTED = "result_observation_submitted"
     CONCEPT_CARD_VIEWED = "concept_card_viewed"
     CONCEPT_CARD_SKIPPED = "concept_card_skipped"
-    CONDITION_ADDED = "condition_added"
-    REAL_TASK_COMPLETED = "real_task_completed"
 
     # 旧レッスンから使っているもの。消すと過去のログが読めなくなる。
     LESSON_STARTED = "lesson_started"
@@ -242,7 +262,13 @@ class AiUsageCounter(models.Model):
     #: 全体の上限に使う固定スコープ。
     GLOBAL_SCOPE = "global"
 
-    scope = models.CharField(max_length=64, help_text="global、またはIPのHMAC")
+    #: HMAC-SHA256 の16進表記は 64 文字。学習者ごとのものは
+    #: `learner:` が付いて 72 文字になる。64 では入りきらない。
+    #: SQLite は長さを無視して書けてしまうので、PostgreSQL で初めて落ちる。
+    #: 印を足す余地も含めて広めに取る（`tests/test_ai_quota.py` が見張る）。
+    scope = models.CharField(
+        max_length=128, help_text="global、またはIP・学習者のHMAC"
+    )
     date = models.DateField()
     count = models.PositiveIntegerField(default=0)
 

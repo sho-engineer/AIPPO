@@ -7,6 +7,7 @@
  */
 
 import { apiBaseUrl } from "./config";
+import { writeHeaders } from "./http";
 
 /** 画面に出す既定の文言。専門用語を出さない（憲章 原則 I）。 */
 export const GENERIC_ERROR = "うまく届かなかったようです。もう一度おくってみましょう。";
@@ -49,13 +50,19 @@ async function request<T>(
   signal?: AbortSignal,
 ): Promise<T> {
   const url = `${apiBaseUrl()}${path}`;
+  // 読み取りには合言葉が要らない。GET のたびに取りに行かない
+  const isWrite = (init.method ?? "GET").toUpperCase() !== "GET";
+  const base = isWrite
+    ? await writeHeaders()
+    : { "Content-Type": "application/json" };
+
   let response: Response;
   try {
     response = await fetch(url, {
       credentials: "include", // learner_key Cookie を送る
       signal,
       ...init,
-      headers: { "Content-Type": "application/json", ...init.headers },
+      headers: { ...base, ...init.headers },
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
@@ -123,7 +130,7 @@ export async function rewriteTextStreaming(
       method: "POST",
       credentials: "include",
       signal,
-      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+      headers: await writeHeaders({ Accept: "text/event-stream" }),
       body: JSON.stringify({
         original_text: input.originalText,
         audience: input.audience,
@@ -289,7 +296,15 @@ export async function fetchSessionState(
   }
 }
 
-/** アンケートを送る。失敗してもレッスンを止めない。 */
+/**
+ * アンケートを送る。失敗してもレッスンを止めない。
+ *
+ * ここまで来た人はレッスンを終えている。送れなかったことを
+ * 失敗として見せる意味がないので、例外を投げず成否だけ返す。
+ *
+ * 答えは選択肢の文字だけ。自由記述は受け取らない
+ * （集計できないうえ、個人情報の入り込む口になる）。
+ */
 export async function sendSurvey(
   lessonId: string,
   answers: Record<string, string>,

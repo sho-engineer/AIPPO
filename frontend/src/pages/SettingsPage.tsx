@@ -10,15 +10,27 @@
  *
  * 支給デザインにあって、ここに無いもの
  * ------------------------------------
- * アカウント設定・外部連携・サブスクリプションは、押せる形で置いたうえで
- * 「準備中」と書いて止めてある。利用者登録も課金も、まだこのアプリに
- * 無いため。それらしい画面だけ作ると、触った人は「登録したのに
- * 反映されない」と受け取る。無いものは無いと書く。
+ * 外部連携とサブスクリプションは、押せる形で置いたうえで「準備中」と
+ * 書いて止めてある。課金はまだこのアプリに無いため。それらしい画面だけ
+ * 作ると、触った人は「申し込んだのに反映されない」と受け取る。
+ * 無いものは無いと書く。
+ *
+ * アカウント設定は動く。登録なしでも最後まで使えるので、ここは
+ * 「登録しないと始まらない入口」ではなく「残したくなったときの置き場」。
  */
 
 import { useEffect, useState } from "react";
 
 import { AppHeader, Card, IconBadge } from "../components/AppShell";
+import { AuthDialog } from "../components/auth/AuthDialog";
+import { AccountPanel } from "../components/settings/AccountPanel";
+import { LegalMenu, LegalView } from "../components/legal/LegalView";
+import {
+  LEGAL_DOCUMENTS,
+  PRIVACY,
+  findLegalDocument,
+  type LegalDocument,
+} from "../content/legal";
 import {
   IconBell,
   IconBook,
@@ -52,10 +64,18 @@ import {
   saveSettings,
   type Settings,
 } from "../lib/settings";
-import { APP_VERSION, LEGAL_LINKS } from "../content/ui";
+import { APP_VERSION } from "../content/ui";
 
 /** 下位画面の名前。一覧は null。 */
-type Panel = "ai" | "study" | "notification" | "privacy" | "language" | null;
+type Panel =
+  | "account"
+  | "ai"
+  | "study"
+  | "notification"
+  | "privacy"
+  | "language"
+  | "legal"
+  | null;
 
 const LENGTH_OPTIONS = [
   { value: "short" as const, label: "短め" },
@@ -72,6 +92,9 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const [panel, setPanel] = useState<Panel>(null);
   const [models, setModels] = useState<AiModelChoice[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  // 規約の下位画面。null なら3つの一覧
+  const [legalId, setLegalId] = useState<LegalDocument["id"] | null>(null);
 
   /*
     変えたら、その場で端末に書く。
@@ -106,14 +129,21 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     return () => window.clearTimeout(timer);
   }, [notice]);
 
-  const back = () => (panel === null ? onBack() : setPanel(null));
+  const back = () => {
+    // 規約の本文からは、まず一覧へ戻る。1段ずつ戻す
+    if (legalId !== null) return setLegalId(null);
+    if (panel !== null) return setPanel(null);
+    onBack();
+  };
 
   const title = {
+    account: "アカウント設定",
     ai: "AI設定",
     study: "学習設定",
     notification: "通知設定",
     privacy: "学習データ・プライバシー",
     language: "言語設定",
+    legal: "規約とポリシー",
   };
 
   return (
@@ -134,12 +164,34 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
         )}
 
         {panel === null ? (
-          <MainMenu onOpen={setPanel} />
+          <MainMenu
+            onOpen={setPanel}
+            onOpenLegal={(id) => {
+              setPanel("legal");
+              setLegalId(id);
+            }}
+          />
         ) : (
           /* key を付けて、画面が変わるたびに入りの動きをやり直す */
           <div key={panel} className="animate-slide-in">
-            <h1 className="mt-2 text-xl font-bold sm:text-2xl">{title[panel]}</h1>
+            <h1 className="mt-2 text-xl font-bold sm:text-2xl">
+              {panel === "legal" && legalId
+                ? (findLegalDocument(legalId)?.title ?? title[panel])
+                : title[panel]}
+            </h1>
 
+            {panel === "account" && (
+              <AccountPanel
+                onOpenAuth={() => setAuthOpen(true)}
+                onNotice={setNotice}
+              />
+            )}
+            {panel === "legal" &&
+              (legalId === null ? (
+                <LegalMenu onOpen={setLegalId} />
+              ) : (
+                <LegalView document={findLegalDocument(legalId)!} />
+              ))}
             {panel === "ai" && (
               <AiPanel settings={settings} models={models} onChange={update} />
             )}
@@ -164,13 +216,27 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
           </div>
         )}
       </main>
+
+      {/* 登録・ログインはどの下位画面からでも同じ1枚を開く */}
+      {authOpen && (
+        <AuthDialog
+          onClose={() => setAuthOpen(false)}
+          onDone={setNotice}
+        />
+      )}
     </>
   );
 }
 
 // ------------------------------------------------------------------ 一覧
 
-function MainMenu({ onOpen }: { onOpen: (panel: Panel) => void }) {
+function MainMenu({
+  onOpen,
+  onOpenLegal,
+}: {
+  onOpen: (panel: Panel) => void;
+  onOpenLegal: (id: LegalDocument["id"]) => void;
+}) {
   return (
     <div className="animate-fade-up">
       <h1 className="mt-2 text-xl font-bold sm:text-2xl">設定</h1>
@@ -182,11 +248,10 @@ function MainMenu({ onOpen }: { onOpen: (panel: Panel) => void }) {
         <ul role="list">
           <SettingsRow
             icon={IconPerson}
-            tone="plain"
+            tone="sky"
             title="アカウント設定"
-            description="プロフィールやメールアドレスの変更"
-            disabled
-            note="準備中です。いまは登録なしで使えます"
+            description="登録・ログイン・パスワード・退会"
+            onClick={() => onOpen("account")}
           />
           <SettingsRow
             icon={IconSparkle}
@@ -240,6 +305,13 @@ function MainMenu({ onOpen }: { onOpen: (panel: Panel) => void }) {
             note="準備中です。いまは無料で全部使えます"
           />
           <SettingsRow
+            icon={IconDocument}
+            tone="violet"
+            title="規約とポリシー"
+            description="利用規約・プライバシーポリシー・AI利用上の注意"
+            onClick={() => onOpen("legal")}
+          />
+          <SettingsRow
             icon={IconQuestion}
             tone="plain"
             title="ヘルプ・サポート"
@@ -254,15 +326,20 @@ function MainMenu({ onOpen }: { onOpen: (panel: Panel) => void }) {
       <Card className="mt-5">
         <h2 className="text-base font-bold">AIPPOについて</h2>
         <p className="mt-1 text-xs text-ink-muted">バージョン {APP_VERSION}</p>
+        {/*
+          外部の行き先へは飛ばさない。読むのはアプリの中。
+          飛ばすと、登録の途中で読みに行った人が戻れなくなる。
+        */}
         <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2" role="list">
-          {LEGAL_LINKS.map((link) => (
-            <li key={link.label}>
-              <a
-                href={link.href}
+          {LEGAL_DOCUMENTS.map((document) => (
+            <li key={document.id}>
+              <button
+                type="button"
+                onClick={() => onOpenLegal(document.id)}
                 className="text-xs text-brand-dark underline transition hover:text-brand"
               >
-                {link.label}
-              </a>
+                {document.title}
+              </button>
             </li>
           ))}
         </ul>
@@ -623,9 +700,8 @@ function PrivacyPanel({
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-bold">データの扱いについて聞きたい</h2>
             <p className="mt-0.5 text-xs leading-6 text-ink-muted">
-              {LEGAL_LINKS.find((link) => link.label.includes("プライバシー"))
-                ?.label ?? "プライバシーポリシー"}
-              に、預かるものと預からないものを書いています。
+              {PRIVACY.title}に、預かるものと預からないものを書いています。
+              設定の「規約とポリシー」から読めます。
             </p>
           </div>
         </div>

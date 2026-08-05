@@ -240,7 +240,7 @@ class TestNoLimit:
     def test_zero_means_unlimited(self, api_client, stub_ai, settings):
         settings.AI_RUNS_PER_IP_PER_DAY = 0
         settings.AI_RUNS_PER_DAY = 0
-        settings.AI_DAILY_REQUEST_LIMIT_PER_USER = 0
+        settings.AI_DAILY_REQUEST_LIMIT_GUEST = 0
         settings.MAX_ATTEMPTS_PER_SESSION = 100
 
         for _ in range(4):
@@ -270,3 +270,36 @@ def test_learner_key_cookie_is_still_issued(api_client, stub_ai, settings):
     cookie = response.cookies["learner_key"]
     assert cookie["httponly"] is True
     uuid.UUID(cookie.value)
+
+
+class TestScopeFitsTheColumn:
+    """カウンタ名が、入れ物の長さに収まっていること。
+
+    SQLite は `varchar(n)` の n を**無視して**書き込むが、
+    PostgreSQL は拒否する。手元とCIが SQLite だと、
+    ここがずれていても最後まで気づけない。
+
+    実際、学習者ごとのカウンタ名は 72 文字で、入れ物は 64 文字だった。
+    PostgreSQL では AI を1回呼ぶたびに 500 になる
+    （`consume_ai_run` は AI を呼ぶ直前に通るため、AI機能が全部止まる）。
+
+    データベースに書いて確かめる形にすると、SQLite では素通りする。
+    長さそのものを比べる。
+    """
+
+    def _limit(self) -> int:
+        return AiUsageCounter._meta.get_field("scope").max_length
+
+    def test_learner_scope_fits(self):
+        scope = quota.learner_scope(uuid.uuid4())
+        assert len(scope) <= self._limit(), (
+            f"学習者ごとのカウンタ名が {len(scope)} 文字で、"
+            f"入れ物の {self._limit()} 文字に収まっていない"
+        )
+
+    def test_ip_scope_fits(self):
+        scope = quota.fingerprint("203.0.113.9")
+        assert len(scope) <= self._limit()
+
+    def test_global_scope_fits(self):
+        assert len(AiUsageCounter.GLOBAL_SCOPE) <= self._limit()

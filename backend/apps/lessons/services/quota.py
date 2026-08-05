@@ -150,9 +150,23 @@ def consume_ai_run(request) -> None:
     _take(AiUsageCounter.GLOBAL_SCOPE, settings.AI_RUNS_PER_DAY)
     _take(fingerprint(client_ip(request)), settings.AI_RUNS_PER_IP_PER_DAY)
 
+    """
+    1人あたりの上限は、登録しているかどうかで変える。
+
+    登録前に無制限で使えると、費用の見通しが立たないうえ、
+    登録する理由も無くなる。逆に登録した人を絞りすぎると、
+    せっかく登録したのに使えないことになる。
+    """
     learner_key = getattr(request, "learner_key", None)
     if learner_key is not None:
-        _take(learner_scope(learner_key), settings.AI_DAILY_REQUEST_LIMIT_PER_USER)
+        user = getattr(request, "user", None)
+        signed_in = bool(user is not None and user.is_authenticated)
+        limit = (
+            settings.AI_DAILY_REQUEST_LIMIT_USER
+            if signed_in
+            else settings.AI_DAILY_REQUEST_LIMIT_GUEST
+        )
+        _take(learner_scope(learner_key), limit)
 
 
 def _release(scope: str) -> None:

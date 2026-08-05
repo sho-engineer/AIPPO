@@ -27,6 +27,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.scope import device_key, readable_keys
 from apps.ai.actions import Action, get_action
 from apps.ai.models_catalog import available_models
 from apps.ai.providers.base import (
@@ -35,9 +36,10 @@ from apps.ai.providers.base import (
     AIResult,
     AITimeoutError,
 )
-from apps.ai.providers.registry import get_provider
+from apps.ai.providers.registry import AIServiceNotConfigured, get_provider
 from apps.ai.serializers import GenerateRequestSerializer, store_raw_input
 from apps.ai.tutor import build_tutor, failure_tutor, limit_tutor
+from apps.catalog.access import LessonNotStartable, require_startable
 from apps.lessons.models import (
     Attempt,
     AttemptStatus,
@@ -71,6 +73,31 @@ class GenerateView(APIView):
         action = get_action(data["action"])
         values = data["input"]
 
+        """
+        近日公開の教材は、ここでも止める。
+
+        画面から開始ボタンを消すだけでは足りない。URL を直接叩く、
+        古いタブが残っている、開発者ツールから呼ぶ——どれでも通ってしまう。
+        教材が DB に無い環境（取り込み前）では素通しにする。
+        止めたいのは「近日公開と分かっているもの」だけで、
+        取り込み前の環境まで動かなくする必要はない。
+        """
+        try:
+            require_startable(data["lesson_id"])
+        except LessonNotStartable as exc:
+            if exc.code == "LESSON_COMING_SOON":
+                logger.info(
+                    "ai.generate.coming_soon lesson=%s", data["lesson_id"]
+                )
+                return Response(
+                    {
+                        "code": exc.code,
+                        "errors": {"detail": [exc.detail]},
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+            # 教材が DB に無いだけなら止めない（取り込み前の環境で動かなくなる）
+
         if self._is_duplicate(request, data, values):
             logger.info("ai.generate.duplicate lesson=%s", data["lesson_id"])
             return Response(
@@ -80,6 +107,27 @@ class GenerateView(APIView):
                     }
                 },
                 status=status.HTTP_409_CONFLICT,
+            )
+
+        """
+        AI が使える設定になっているかを、**回数を消費する前**に確かめる。
+
+        あとで見ると、設定が抜けているだけで利用者の1日の回数が削れる。
+        設定が無いのは運営側の落ち度で、利用者に払わせるものではない。
+        """
+        try:
+            provider = get_provider(
+                data.get("provider") or None, data.get("model") or None
+            )
+        except AIServiceNotConfigured as exc:
+            logger.error("ai.generate.not_configured detail=%s", exc)
+            return Response(
+                {
+                    "code": AIServiceNotConfigured.code,
+                    "errors": {"detail": [AIServiceNotConfigured.detail]},
+                    "tutor": failure_tutor(),
+                },
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 
         session = self._session(request, data["lesson_id"])
@@ -97,7 +145,6 @@ class GenerateView(APIView):
                 ),
             )
 
-        provider = get_provider(data.get("provider") or None, data.get("model") or None)
         ai_request = AIRequest(
             system_prompt=action.system_prompt,
             user_content=action.build(values),
@@ -164,9 +211,14 @@ class GenerateView(APIView):
 
     @staticmethod
     def _session(request: Request, lesson_id: str) -> LearningSession:
+        """続きを探す。作るのはいまの端末の鍵で。
+
+        探す範囲は「その人が読んでよい鍵ぜんぶ」。別端末で途中まで
+        進めていた人が、ここで最初からやり直しにならないようにする。
+        """
         session = (
             LearningSession.objects.filter(
-                learner_key=request.learner_key,
+                learner_key__in=readable_keys(request),
                 lesson_id=lesson_id,
                 completed_at__isnull=True,
             )
@@ -175,7 +227,7 @@ class GenerateView(APIView):
         )
         if session is None:
             session = LearningSession.objects.create(
-                learner_key=request.learner_key, lesson_id=lesson_id
+                learner_key=device_key(request), lesson_id=lesson_id
             )
         return session
 
@@ -205,6 +257,21 @@ class GenerateView(APIView):
 
         画面側でもボタンを止めているが、それだけでは足りない。
         通信が遅いときに再読み込みされると、同じ内容がもう一度届く。
+
+        判定は cache.get() の「読めるか」だけで行い、cache.set() の成否は見ない。
+
+        以前は cache.add()（無ければ書く、を1回で行う）の戻り値だけで
+        判定していた。だが Django の DatabaseCache は、書き込みが
+        DatabaseError で失敗したときも例外を投げずに False を返す仕様
+        （django/core/cache/backends/db.py）。SQLite はファイル単位の
+        書き込みロックを取るため、操作ログの記録など他の書き込みと
+        重なるとこの失敗が起きる。その False を「連打だ」と読むと、
+        書き込み待ちが少しでも重なっただけで**初回の送信まで**拒んでしまう
+        （実際に負荷のかかる状況で再現した）。
+
+        読み取りだけで判定すれば、書き込みが失敗しても実害は
+        「本当にまれな連打を取りこぼす」側にしか倒れない。
+        取りこぼしよりも、初回を拒むほうが害が大きい。
         """
         learner_key = getattr(request, "learner_key", None)
         if learner_key is None:
@@ -220,8 +287,21 @@ class GenerateView(APIView):
             ]
         )
         key = "ai:dedupe:" + hashlib.sha256(payload.encode()).hexdigest()
-        # add は「無いときだけ書く」。あれば False が返る＝連打
-        return not cache.add(key, 1, DUPLICATE_WINDOW_SECONDS)
+
+        try:
+            already_recorded = cache.get(key) is not None
+        except Exception:
+            already_recorded = False
+
+        if already_recorded:
+            return True
+
+        try:
+            cache.set(key, 1, DUPLICATE_WINDOW_SECONDS)
+        except Exception:
+            pass
+
+        return False
 
     @staticmethod
     def _validate(action: Action, result: AIResult) -> str:

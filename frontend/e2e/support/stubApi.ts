@@ -15,6 +15,10 @@ export interface GenerateBody {
 }
 
 export interface StubOptions {
+  /** ログイン状態。既定は未登録。 */
+  signedIn?: boolean;
+  /** 教材をサーバーから配る。指定しなければ同梱データのまま。 */
+  catalog?: unknown;
   /** 生成結果。呼ばれた回数と本文を受け取る。 */
   result?: (callCount: number, body: GenerateBody) => string;
   /** 生成を失敗させる。回数を渡すと、その回だけ失敗する。 */
@@ -33,6 +37,10 @@ export interface TutorBody {
 export interface StubHandle {
   calls: GenerateBody[];
   events: { event_type: string; step: string; input_length: number }[];
+  /** 登録・ログインへ送られた本文。合言葉が漏れていないか見るのに使う。 */
+  auth: { url: string; body: unknown }[];
+  /** 完了時アンケートへ送られた答え。 */
+  surveys: { lessonId: string; answers: Record<string, string> }[];
 }
 
 const DEFAULT_TUTOR: TutorBody = {
@@ -55,8 +63,9 @@ export async function stubApi(
   page: Page,
   options: StubOptions = {},
 ): Promise<StubHandle> {
-  const handle: StubHandle = { calls: [], events: [] };
+  const handle: StubHandle = { calls: [], events: [], auth: [], surveys: [] };
   let callCount = 0;
+  let signedIn = options.signedIn ?? false;
 
   await page.route("**/api/v1/ai/generate/", async (route: Route) => {
     if (route.request().method() === "OPTIONS") {
@@ -115,6 +124,118 @@ export async function stubApi(
     await route.fulfill({ status: 204, body: "" });
   });
 
+  /*
+    アカウントまわり。
+
+    画面は開くたびに `me` を見るので、ここを塞がないと
+    実サーバーへ行くか、通信できずに毎回ゲスト扱いになる。
+  */
+  await page.route("**/api/v1/accounts/me/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        signedIn
+          ? {
+              authenticated: true,
+              user: {
+                email: "learner@example.com",
+                display_name: "たろう",
+                email_verified: false,
+                terms_version: "2026-08-03",
+                joined_at: "2026-08-01T00:00:00+09:00",
+              },
+              progress: { completed: 0, in_progress: 1, devices: 1 },
+            }
+          : { authenticated: false },
+      ),
+    });
+  });
+
+  await page.route("**/api/v1/accounts/csrf/", async (route: Route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' });
+  });
+
+  await page.route("**/api/v1/accounts/signup/", async (route: Route) => {
+    handle.auth.push({ url: route.request().url(), body: route.request().postDataJSON() });
+    signedIn = true;
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: {
+          email: "learner@example.com",
+          display_name: "",
+          email_verified: false,
+          terms_version: "2026-08-03",
+          joined_at: "2026-08-01T00:00:00+09:00",
+        },
+        migration: { linked: true, sessions: 1, already_linked: false },
+      }),
+    });
+  });
+
+  await page.route("**/api/v1/accounts/signin/", async (route: Route) => {
+    handle.auth.push({ url: route.request().url(), body: route.request().postDataJSON() });
+    signedIn = true;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: {
+          email: "learner@example.com",
+          display_name: "",
+          email_verified: true,
+          terms_version: "2026-08-03",
+          joined_at: "2026-08-01T00:00:00+09:00",
+        },
+      }),
+    });
+  });
+
+  await page.route("**/api/v1/progress/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        lessons: [],
+        completed_count: 0,
+        in_progress_count: 0,
+        skills: [],
+        signed_in: signedIn,
+      }),
+    });
+  });
+
+  /*
+    教材。既定では**配らない**。
+
+    画面は届かなければ同梱の9本で動くので、教材の中身を固定したい
+    テスト以外は、そのほうが揺れが少ない。
+  */
+  await page.route("**/api/v1/catalog/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        options.catalog !== undefined ? options.catalog : { courses: [] },
+      ),
+    });
+  });
+
+  await page.route("**/api/v1/ai/models/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        models: [
+          { id: "mock-1", label: "標準", note: "テスト用", provider: "mock", recommended: true },
+        ],
+        default: "mock-1",
+      }),
+    });
+  });
+
   // ほかの通信も実サーバーへ行かないよう塞ぐ。
   //
   // ここでまとめて塞ぐ形（api の下すべて）を使ってはいけない。
@@ -134,6 +255,23 @@ export async function stubApi(
       });
     });
   }
+
+  // 完了時アンケート。送り先の教材と、答えの中身を控える。
+  //
+  // **上のまとめ塞ぎより後に置くこと。** Playwright は後から足したほうを
+  // 先に使うので、先に置くと api/lessons のまとめ塞ぎに飲まれる。
+  // 飲まれても 200 が返るため、画面は「送れた」と表示し、
+  // 中身だけが記録されない。落ちないぶん気づきにくい。
+  await page.route("**/api/lessons/*/survey/", async (route: Route) => {
+    if (route.request().method() === "POST") {
+      const lessonId = new URL(route.request().url()).pathname.split("/").at(-3) ?? "";
+      handle.surveys.push({
+        lessonId,
+        answers: route.request().postDataJSON().answers,
+      });
+    }
+    await route.fulfill({ status: 204, body: "" });
+  });
 
   return handle;
 }

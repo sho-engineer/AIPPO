@@ -34,10 +34,10 @@ import {
   ThreeWayCompare,
 } from "../components/course/StepViews";
 import { buildAiInput } from "../course/engine";
-import { COURSE, getLesson } from "../course/catalog";
+import { lookupLesson, useCourse } from "../course/live";
 import { recommendLessons, saveRecommendations } from "../course/recommend";
 import { saveProfile } from "../api/diagnosis";
-import { listCompleted } from "../lib/draft";
+import { useCompletedLessons } from "../course/progress";
 import { useCourseLesson } from "../course/useCourseLesson";
 import type { Lesson } from "../course/types";
 
@@ -84,12 +84,12 @@ export function LessonRunner({
 
   /*
     完了画面で使う、コース全体の進み具合と次の行き先。
-    描くたびに端末から読み直さないよう、開いたときに1度だけ取る。
+    端末に残っている分と、サーバーが数えている分の両方から取る。
   */
-  const [completedIds, setCompletedIds] = useState<string[]>([]);
-  useEffect(() => setCompletedIds(listCompleted()), []);
+  const course = useCourse();
+  const completedIds = useCompletedLessons();
   const completedCount = completedIds.length;
-  const nextLessons = COURSE.lessons
+  const nextLessons = course.lessons
     .filter(
       (entry) =>
         entry.id !== lesson.id &&
@@ -420,7 +420,7 @@ export function LessonRunner({
               </p>
               <ol className="mt-4 space-y-3" role="list">
                 {ids.map((id, index) => {
-                  const target = getLesson(id);
+                  const target = lookupLesson(id);
                   if (!target) return null;
                   return (
                     <li
@@ -447,6 +447,7 @@ export function LessonRunner({
             outcomeLabel={
               api.realTaskSkipped ? "AIが書いた文章（練習）" : "AIが書いた文章"
             }
+            lessonId={lesson.id}
             lessonNumber={lesson.number}
             /*
               このレッスンぶんを足して数える。
@@ -454,7 +455,7 @@ export function LessonRunner({
               足さないと「最後の1本を終えたのに 8/9」のままになる。
             */
             done={completedCount + (completedIds.includes(lesson.id) ? 0 : 1)}
-            total={COURSE.lessons.length}
+            total={course.lessons.length}
             next={nextLessons}
             onSelectLesson={onSelectLesson}
           />
@@ -569,7 +570,14 @@ export function LessonRunner({
         <PrivacyDialog
           findings={api.findings}
           onEdit={api.dismissFindings}
-          onSend={() => void confirmAndSend()}
+          /*
+            自分の文章のステップは AI へ送らない。ここで run() を呼んでも
+            送るものが無く、ダイアログから出られなくなる。
+            そのステップだけ「読んだうえで次へ」に振り分ける。
+          */
+          onSend={() =>
+            step.type === "real_task" ? api.continueAnyway() : void confirmAndSend()
+          }
         />
       )}
     </main>

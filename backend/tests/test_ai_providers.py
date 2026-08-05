@@ -16,7 +16,12 @@ from apps.ai.providers.base import (
     AITimeoutError,
 )
 from apps.ai.providers.mock import MockProvider
-from apps.ai.providers.registry import available_providers, get_provider
+from apps.ai.providers.registry import (
+    AIServiceNotConfigured,
+    available_providers,
+    check_configured,
+    get_provider,
+)
 
 REQUEST = AIRequest(system_prompt="決まり", user_content="やること\n\n--- 対象 ---\n本文")
 
@@ -43,32 +48,59 @@ class TestRegistry:
         settings.OPENAI_API_KEY = "sk-test"
         assert get_provider().name == "openai"
 
-    def test_missing_key_falls_back_to_mock(self, settings, caplog):
-        """鍵の入れ忘れでアプリ全体が動かないように見えるのを避ける。
+    def test_missing_key_fails_loudly(self, settings, caplog):
+        """鍵が無いのに openai を指定したら、はっきり失敗すること。
 
-        ただし黙って偽物を返すと、本番で気づけない。警告を必ず残す。
+        以前はここで黙って mock へ倒していた。それはやってはいけない。
+        倒すと、利用者には**固定の偽の結果が本物の AI の答えとして出る**。
+        運営側も画面が動いているので、鍵の入れ忘れに気づけない。
         """
         settings.AI_PROVIDER = "openai"
         settings.OPENAI_API_KEY = ""
 
-        with caplog.at_level("WARNING"):
-            provider = get_provider()
+        with caplog.at_level("ERROR"), pytest.raises(AIServiceNotConfigured):
+            get_provider()
 
-        assert provider.name == "mock"
         assert "missing_key" in caplog.text
 
-    def test_unknown_name_falls_back_to_mock(self, settings, caplog):
+    def test_unknown_name_fails_loudly(self, settings, caplog):
         settings.AI_PROVIDER = "somethingelse"
-        with caplog.at_level("WARNING"):
-            assert get_provider().name == "mock"
+
+        with caplog.at_level("ERROR"), pytest.raises(AIServiceNotConfigured):
+            get_provider()
+
         assert "unknown" in caplog.text
 
-    def test_planned_providers_are_accepted_but_not_implemented(self, settings, caplog):
-        """将来のモデル比較コース用。名前だけ受け付ける。"""
+    def test_planned_providers_fail_loudly(self, settings, caplog):
+        """名前だけある先（google）も、黙って別の先へ回さない。"""
         settings.AI_PROVIDER = "google"
-        with caplog.at_level("WARNING"):
-            assert get_provider().name == "mock"
+
+        with caplog.at_level("ERROR"), pytest.raises(AIServiceNotConfigured):
+            get_provider()
+
         assert "not_implemented" in caplog.text
+
+    def test_the_error_carries_a_code_and_a_message_for_users(self, settings):
+        """画面がコードで分岐でき、利用者には言い訳がましくない文が出ること。"""
+        settings.AI_PROVIDER = "openai"
+        settings.OPENAI_API_KEY = ""
+
+        with pytest.raises(AIServiceNotConfigured) as caught:
+            get_provider()
+
+        assert caught.value.code == "AI_SERVICE_NOT_CONFIGURED"
+        assert "利用できません" in caught.value.detail
+
+    def test_check_configured_passes_on_mock(self, settings):
+        settings.AI_PROVIDER = "mock"
+        check_configured()
+
+    def test_check_configured_fails_without_a_key(self, settings):
+        settings.AI_PROVIDER = "openai"
+        settings.OPENAI_API_KEY = ""
+
+        with pytest.raises(AIServiceNotConfigured):
+            check_configured()
 
     def test_call_site_can_override_provider_and_model(self, settings):
         """モデル比較コースは、呼び出しごとに指定する。"""
@@ -232,3 +264,40 @@ class TestOpenAIProvider:
 
         with pytest.raises(AIMalformedError):
             self._provider(client).generate_text(REQUEST)
+
+
+class TestEveryKeyIsWiredUp:
+    """鍵の設定名が、settings に**存在すること**。
+
+    registry.py は settings しか見ない。環境変数を読む行を settings に
+    書き忘れると、鍵を渡しているのに「設定されていません」で失敗する。
+    エラーの文言が「鍵が無い」なので、渡している本人はまず疑わない。
+
+    実際に ANTHROPIC_API_KEY がこれで死んでいた。
+    .env.example にも compose にも載っていたのに、settings に無かった。
+    """
+
+    def test_each_provider_key_exists_in_settings(self, settings):
+        from apps.ai.providers.registry import REQUIRED_KEYS
+
+        missing = [
+            name for name in REQUIRED_KEYS.values() if not hasattr(settings, name)
+        ]
+
+        assert not missing, f"settings に無い: {missing}（config/settings.py へ足す）"
+
+    def test_a_key_given_through_the_environment_reaches_the_provider(self, settings):
+        """鍵を入れたら、その先が実際に組み立てられること。"""
+        from apps.ai.providers.registry import AIServiceNotConfigured, get_provider
+
+        settings.ANTHROPIC_API_KEY = "test-key-not-a-real-one"
+        settings.AI_PROVIDER = "anthropic"
+
+        try:
+            provider = get_provider()
+        except AIServiceNotConfigured as exc:
+            raise AssertionError(f"鍵を渡したのに断られた: {exc}") from exc
+        except ImportError:
+            pytest.skip("SDK が入っていない")
+
+        assert provider is not None

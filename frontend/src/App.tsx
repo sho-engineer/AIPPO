@@ -21,8 +21,10 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { HomePage } from "./pages/HomePage";
 import { LessonRunner } from "./pages/LessonRunner";
 import { TopPage } from "./pages/TopPage";
-import { COURSE, getLesson } from "./course/catalog";
+import { lookupLesson, useCourse } from "./course/live";
+import { isStartable } from "./course/availability";
 import { loadPlace, savePlace } from "./app/session";
+import { useSocialResult } from "./auth/useSocialResult";
 import { nextScreen, type Screen } from "./app/screens";
 
 /** 下タブのどれが光っているか。 */
@@ -40,20 +42,41 @@ const SCREEN_OF_TAB: Partial<Record<TabKey, Screen>> = {
 };
 
 export function App() {
+  // 教材はサーバーから届いたら差し替わる。届くまでは同梱の分で動く
+  const course = useCourse();
   const restored = loadPlace();
   const [screen, setScreen] = useState<Screen>(restored?.screen ?? "TOP");
   const [lessonId, setLessonId] = useState<string>(
-    restored?.lessonId ?? COURSE.lessons[0].id,
+    restored?.lessonId ?? course.lessons[0].id,
   );
 
   useEffect(() => savePlace({ screen, lessonId }), [screen, lessonId]);
 
   const openLesson = (id: string, from: Screen) => {
+    /*
+      近日公開の教材は開かない。
+
+      画面側でボタンを押せなくしてあるが、ここでも止める。
+      覚えていた場所からの復元（session.ts）や、古いタブに残った
+      押しかけの状態からでも入れてしまうため。
+      最後の砦はサーバー（apps/catalog/access.py）。
+    */
+    const lesson = lookupLesson(id);
+    if (lesson && !isStartable(lesson)) return;
+
     setLessonId(id);
     setScreen(nextScreen(from, "SELECT_LESSON"));
   };
 
   const tab = TAB_OF[screen];
+
+  /*
+    外部サービスから戻ってきたとき。
+
+    サーバーは短い名前だけを URL へ載せる。文はこちらで持つ。
+    読んだら URL から消すので、読み込み直しても二度は出ない。
+  */
+  const social = useSocialResult();
 
   const body = (() => {
     switch (screen) {
@@ -76,7 +99,22 @@ export function App() {
 
       case "LESSON": {
         // 知らない id が入っても画面を落とさない。先頭のレッスンへ倒す
-        const lesson = getLesson(lessonId) ?? COURSE.lessons[0];
+        const lesson = lookupLesson(lessonId) ?? course.lessons[0];
+
+        /*
+          覚えていた場所が、あとから近日公開に変わっていることがある
+          （管理画面で戻した、リリース範囲を絞った）。
+          そのときはホームへ返す。開けない画面で止めない。
+        */
+        if (!isStartable(lesson)) {
+          return (
+            <HomePage
+              onSelectLesson={(id) => openLesson(id, "HOME")}
+              onOpenCourse={() => setScreen("COURSE")}
+            />
+          );
+        }
+
         return (
           <LessonRunner
             key={lesson.id}
@@ -93,6 +131,21 @@ export function App() {
 
   return (
     <>
+      {social.result && (
+        <div className="mx-auto max-w-2xl px-5 pt-4">
+          <p
+            role="status"
+            data-testid="social-result"
+            className={`animate-fade-up rounded-card px-4 py-3 text-sm leading-6 ${
+              social.result.kind === "error"
+                ? "bg-caution-soft text-caution"
+                : "bg-brand-soft text-brand-dark"
+            }`}
+          >
+            {social.result.message}
+          </p>
+        </div>
+      )}
       {body}
       {tab && (
         <BottomTabBar

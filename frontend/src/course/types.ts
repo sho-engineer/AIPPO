@@ -222,6 +222,9 @@ export interface ConceptCard {
  */
 export type LessonMode = "standard" | "model_comparison";
 
+/** いま始められるか。 */
+export type LessonAvailability = "available" | "coming_soon";
+
 export interface Lesson {
   id: string;
   /** 一覧に出す番号。「Lesson 1」など。 */
@@ -248,6 +251,21 @@ export interface Lesson {
   usesAi: boolean;
   /** 既定は standard。将来のモデル比較コース用の目印。 */
   mode?: LessonMode;
+
+  /**
+   * いま始められるか。
+   *
+   * 「一覧に出すか」とは別。近日公開の教材は一覧に出るが始められない。
+   * 1つの項目で表そうとすると、近日公開のつもりが一覧から消える。
+   *
+   * 省略されたときは available とみなす。教材を同梱データから読む
+   * （サーバーへ届かない）場合に、全部が近日公開になると何も始められない。
+   */
+  availability?: LessonAvailability;
+  /** 決まっているときだけ入る。無ければ日付を出さない。 */
+  plannedReleaseDate?: string;
+  comingSoonMessage?: string;
+
   steps: LessonStep[];
 }
 

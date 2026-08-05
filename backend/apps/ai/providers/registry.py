@@ -18,6 +18,23 @@ from apps.ai.providers.mock import MockProvider
 
 logger = logging.getLogger(__name__)
 
+
+class AIServiceNotConfigured(Exception):
+    """AI を使う設定になっているのに、使えない。
+
+    以前はここで黙って mock へ倒していた。それはやってはいけない。
+
+    倒すと、利用者には**固定の偽の結果が本物の AI の答えとして出る**。
+    学習者はそれを見て「AIはこう答えるのか」と覚える。運営側も、
+    画面が動いているので鍵の入れ忘れに気づけない。気づくのは
+    「なぜかいつも同じ答えが返る」と誰かが言い出したときになる。
+
+    鍵が無いなら、はっきり失敗させる。
+    """
+
+    code = "AI_SERVICE_NOT_CONFIGURED"
+    detail = "現在AI機能を利用できません。しばらくしてからもう一度お試しください。"
+
 #: 名前 → 組み立て関数。実装が増えたらここに足す。
 #: import は関数の中でする。SDK が入っていない環境でも
 #: mock だけで動かせるようにしておきたい。
@@ -37,6 +54,16 @@ def available_providers() -> tuple[str, ...]:
     return tuple(sorted(set(_BUILDERS) | set(PLANNED)))
 
 
+#: 鍵の要る先と、その設定名。
+#: プロバイダを足したら、ここと config/settings.py の両方へ足す。
+#: 片方だけだと「鍵を渡しているのに使えない」という失敗になり、
+#: 原因がとても分かりにくい（tests/test_ai_providers.py が見張る）。
+REQUIRED_KEYS: dict[str, str] = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+}
+
+
 def get_provider(name: str | None = None, model: str | None = None) -> AIProvider:
     """プロバイダを1つ返す。
 
@@ -47,25 +74,46 @@ def get_provider(name: str | None = None, model: str | None = None) -> AIProvide
     requested = (name or settings.AI_PROVIDER or "mock").strip().lower()
 
     if requested in PLANNED:
-        logger.warning("ai.provider.not_implemented name=%s falling_back=mock", requested)
-        return MockProvider(model=model)
+        # まだ実装していない先を指定された。黙って別の先へ回さない
+        logger.error("ai.provider.not_implemented name=%s", requested)
+        raise AIServiceNotConfigured(
+            f"{requested} はまだ使えません（AI_PROVIDER を見直してください）"
+        )
 
     resolved = _BUILDERS.get(requested)
     if resolved is None:
-        logger.warning("ai.provider.unknown name=%s falling_back=mock", requested)
-        return MockProvider(model=model)
+        logger.error("ai.provider.unknown name=%s", requested)
+        raise AIServiceNotConfigured(
+            f"AI_PROVIDER={requested} は知らない名前です"
+        )
 
     if resolved == "openai":
-        if not settings.OPENAI_API_KEY:
-            logger.warning("ai.provider.missing_key name=openai falling_back=mock")
-            return MockProvider(model=model)
+        if not getattr(settings, REQUIRED_KEYS["openai"], ""):
+            logger.error("ai.provider.missing_key name=openai")
+            raise AIServiceNotConfigured(
+                "AI_PROVIDER=openai ですが OPENAI_API_KEY が設定されていません"
+            )
         from apps.ai.providers.openai_provider import OpenAIProvider
 
         return OpenAIProvider(model=model)
 
     if resolved == "anthropic":
+        if not getattr(settings, REQUIRED_KEYS["anthropic"], ""):
+            logger.error("ai.provider.missing_key name=anthropic")
+            raise AIServiceNotConfigured(
+                "AI_PROVIDER=anthropic ですが ANTHROPIC_API_KEY が設定されていません"
+            )
         from apps.ai.providers.anthropic_provider import AnthropicChatProvider
 
         return AnthropicChatProvider(model=model)
 
     return MockProvider(model=model)
+
+
+def check_configured() -> None:
+    """設定が揃っているかを確かめる。揃っていなければ例外。
+
+    ヘルスチェック（/health/ready）と起動時の検査から呼ぶ。
+    実際に AI を呼ぶ前に、設定の抜けを見つけるための入口。
+    """
+    get_provider()

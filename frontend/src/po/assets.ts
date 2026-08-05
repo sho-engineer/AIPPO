@@ -25,14 +25,10 @@ export const poAssets: Record<PoEmotion, string> = {
 };
 
 /**
- * 絵が用意されていない状態の、代わりに使う絵。
+ * 絵の読み込みに失敗したときの、代わりに使う絵。
  *
- * `talking` と `blink` は専用の絵がまだ無い。
- * ここを空にしておくと、まばたきのたびにプレースホルダーが
- * 出て壊れて見えるので、いちばん近い絵へ寄せる。
- *
- * あとから `public/assets/po/blink.webp` を置けば、
- * このコードを触らずにそちらが使われる。
+ * 8枚とも揃っているので、ふだんは通らない。
+ * 配信の失敗など、一時的に読めなかったときの保険として残す。
  */
 export const PO_FALLBACK: Partial<Record<PoEmotion, PoEmotion>> = {
   talking: "neutral",

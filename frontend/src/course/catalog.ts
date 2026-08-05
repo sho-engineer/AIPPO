@@ -1055,12 +1055,35 @@ const FINAL: Lesson = {
   ],
 };
 
+/**
+ * 第一リリース（Closed Beta）で始められる教材。
+ *
+ * ここは**同梱データの初期値**。本来の持ち主はサーバーで、
+ * 管理画面から `availability_status` を変えれば画面もそれに従う
+ * （api/catalog.ts で受け取ったものが、こちらより優先される）。
+ *
+ * それでもここに持たせるのは、サーバーへ届かないときに
+ * 全教材が始められる状態に戻ってしまうのを防ぐため。
+ * 「届かなければ止める」を既定にしておく。
+ */
+const RELEASE_AVAILABLE = new Set(["diagnosis", "rewrite_text"]);
+
+/** 同梱データへ、第一リリースの利用可否を当てる。 */
+function withReleaseAvailability(lessons: Lesson[]): Lesson[] {
+  return lessons.map((lesson) => ({
+    ...lesson,
+    availability: RELEASE_AVAILABLE.has(lesson.id)
+      ? ("available" as const)
+      : ("coming_soon" as const),
+  }));
+}
+
 export const COURSE: Course = {
   id: "first_step_7days",
   title: "7日でAIの最初の一歩",
   description:
     "AIに興味はあるけれど何に使えばよいか分からない人が、実際に触りながら使い道を見つけるコースです。",
-  lessons: [
+  lessons: withReleaseAvailability([
     LESSON_0,
     LESSON_1,
     LESSON_2,
@@ -1070,7 +1093,7 @@ export const COURSE: Course = {
     LESSON_6,
     LESSON_7,
     FINAL,
-  ],
+  ]),
 };
 
 export function getLesson(lessonId: string): Lesson | null {

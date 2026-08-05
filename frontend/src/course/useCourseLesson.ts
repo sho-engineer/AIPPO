@@ -77,6 +77,13 @@ export interface CourseLessonApi {
   /** AI を実行する。機密チェックに引っかかったら送らずに知らせる。 */
   run: (options?: { force?: boolean; label?: string }) => Promise<SubmitOutcome>;
   dismissFindings: () => void;
+  /**
+   * 注意を読んだうえで、そのまま次へ進む。
+   *
+   * AI へ送らないステップ（自分の文章を書くところ）で使う。
+   * ここが無いと、注意が出た人はダイアログから出られなくなる。
+   */
+  continueAnyway: () => void;
   skipRealTask: () => void;
   /** 解説カードを飛ばす。飛ばしたことも記録する。 */
   skipConcept: () => void;
@@ -234,8 +241,36 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
         step: step.id,
       });
     }
+
+    /*
+      自分の文章を書くステップを離れるときに、いちど見る。
+
+      送るのはこの先の generate_real で、そこでも必ず見ている。
+      ここで見るのは**言うのが遅すぎるのを防ぐ**ため。ここで見ないと、
+      パスワードを書いた人は「誰が読むか」「どう変えたいか」と
+      3つ4つ答えたあとで初めて「消してください」と言われる。
+      そこまでの操作が丸ごと無駄になり、書き直す気も削がれる。
+    */
+    if (step.type === "real_task") {
+      const found = scanForSensitive(values.real_task_text ?? "");
+      if (found.length > 0) {
+        setFindings(found);
+        setPo({
+          message: "個人情報や会社の非公開情報が含まれていないか確認してください。",
+          emotion: "warning",
+          action: "wait",
+        });
+        void sendLearningEvent({
+          lessonId: lesson.id,
+          eventType: "privacy_warning_shown",
+          step: step.id,
+        });
+        return;
+      }
+    }
+
     move(nextStepId(lesson, stepId));
-  }, [lesson, move, step, stepId]);
+  }, [lesson, move, step, stepId, values]);
 
   const goBack = useCallback(() => move(previousStepId(lesson, stepId)), [
     lesson,
@@ -389,6 +424,26 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     [bodyText, lesson, runs, step, values],
   );
 
+  /*
+    注意を読んだうえで、そのまま進む。
+
+    取り消せない実害が出るもの（パスワード・APIキー・カード番号）は
+    ここでも通さない。画面のボタンも押せなくしてあるが、
+    最後の判断をここに置いておく。
+  */
+  const continueAnyway = useCallback(() => {
+    if (isBlocking(findings)) return;
+
+    void sendLearningEvent({
+      lessonId: lesson.id,
+      eventType: "privacy_warning_overridden",
+      step: step.id,
+    });
+    setFindings([]);
+    setPo(poOf(step));
+    move(nextStepId(lesson, stepId));
+  }, [findings, lesson, move, step, stepId]);
+
   const dismissFindings = useCallback(() => {
     setFindings([]);
     setPo(poOf(step));
@@ -458,6 +513,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     showHint,
     run,
     dismissFindings,
+    continueAnyway,
     skipRealTask,
     skipConcept,
     complete,

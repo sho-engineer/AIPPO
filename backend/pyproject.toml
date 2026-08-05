@@ -18,6 +18,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# 例外の見張り。入れなくても動く（SENTRY_DSN が空なら何も読み込まない）。
+monitoring = [
+    "sentry-sdk>=2.0",
+]
 dev = [
     "pytest>=8.0",
     "pytest-django>=4.8",
@@ -48,3 +52,8 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# 移行ファイルは makemigrations が書く。help_text の日本語が長いだけで
+# 落ちると、モデルを直すたびに手で折り返すことになる。
+"*/migrations/*" = ["E501"]

@@ -12,6 +12,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts.scope import device_key, readable_keys
 from apps.lessons.models import (
     Attempt,
     AttemptStatus,
@@ -48,20 +49,25 @@ REWRITE_SKILLS = ("state_audience", "state_tone", "state_length", "review_output
 
 
 class _SessionMixin:
-    """匿名 learner_key から進行中セッションを解決する。"""
+    """いまの人の、進行中セッションを解決する。
+
+    探すのは「その人が読んでよい鍵ぜんぶ」から。別端末で途中まで
+    進めていたなら、その続きが出る。作るときはいまの端末の鍵で作る。
+    """
 
     def get_or_create_session(self, request: Request, lesson_id: str) -> LearningSession:
-        learner_key = request.learner_key
         session = (
             LearningSession.objects.filter(
-                learner_key=learner_key, lesson_id=lesson_id, completed_at__isnull=True
+                learner_key__in=readable_keys(request),
+                lesson_id=lesson_id,
+                completed_at__isnull=True,
             )
             .order_by("-updated_at")
             .first()
         )
         if session is None:
             session = LearningSession.objects.create(
-                learner_key=learner_key, lesson_id=lesson_id
+                learner_key=device_key(request), lesson_id=lesson_id
             )
         return session
 
@@ -236,7 +242,7 @@ class SessionStateView(APIView):
     def get(self, request: Request, lesson_id: str) -> Response:
         session = (
             LearningSession.objects.filter(
-                learner_key=request.learner_key, lesson_id=lesson_id
+                learner_key__in=readable_keys(request), lesson_id=lesson_id
             )
             .order_by("-updated_at")
             .first()
@@ -258,6 +264,61 @@ class SessionStateView(APIView):
         return Response({"session": payload}, status=status.HTTP_200_OK)
 
 
+class ProgressView(APIView):
+    """GET /api/v1/progress/
+
+    ホーム画面が「どこまで来たか」を出すための1回。
+
+    端末に貯めた記録（`frontend/src/lib/draft.ts`）だけを見ていると、
+    別の端末では 0件から始まったように見える。登録した人には
+    サーバーの数を優先させる。
+
+    出すのは自分のことだけ。順位も他人との比較も出さない。
+    """
+
+    def get(self, request: Request) -> Response:
+        keys = readable_keys(request)
+        sessions = LearningSession.objects.filter(learner_key__in=keys)
+
+        by_lesson: dict[str, dict[str, object]] = {}
+        # 古い順に見て、あとから来たもので上書きする。
+        # 同じ教材を別端末で進めていたら、新しいほうが残る
+        for session in sessions.order_by("updated_at"):
+            done = session.completed_at is not None
+            current = by_lesson.get(session.lesson_id)
+
+            # 一度でも終えたなら「終わった」を保つ。
+            # あとから同じ教材をやり直しても、実績は消さない
+            by_lesson[session.lesson_id] = {
+                "lesson_id": session.lesson_id,
+                "completed": done or bool(current and current["completed"]),
+                "current_step": session.current_step,
+                "attempt_count": session.attempt_count,
+                "updated_at": session.updated_at.isoformat(),
+            }
+
+        lessons = sorted(by_lesson.values(), key=lambda row: row["updated_at"], reverse=True)
+        completed = [row for row in lessons if row["completed"]]
+
+        return Response(
+            {
+                "lessons": lessons,
+                "completed_count": len(completed),
+                "in_progress_count": len(lessons) - len(completed),
+                "skills": sorted(
+                    SkillProgress.objects.filter(learner_key__in=keys)
+                    .values_list("skill_key", flat=True)
+                    .distinct()
+                ),
+                # ログイン中かどうかで、画面の言い方を変えられるようにする
+                "signed_in": bool(
+                    getattr(request, "user", None)
+                    and request.user.is_authenticated
+                ),
+            }
+        )
+
+
 class SurveyView(_SessionMixin, APIView):
     """POST /api/lessons/{lesson_id}/survey/"""
 
@@ -268,7 +329,7 @@ class SurveyView(_SessionMixin, APIView):
 
         session = (
             LearningSession.objects.filter(
-                learner_key=request.learner_key, lesson_id=lesson_id
+                learner_key__in=readable_keys(request), lesson_id=lesson_id
             )
             .order_by("-updated_at")
             .first()
