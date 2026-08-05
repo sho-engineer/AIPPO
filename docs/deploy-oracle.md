@@ -55,37 +55,35 @@ DuckDNS のページで、1で作ったサブドメインの IP を、2で控え
 
 ---
 
-## 4. VM に Docker を入れる
+## 4. VM に入って、1コマンドで準備する
 
 ```bash
 ssh ubuntu@<予約IP>
-
-curl -fsSL https://get.docker.com | sudo sh
-sudo usermod -aG docker $USER
-newgrp docker
+curl -fsSL https://raw.githubusercontent.com/sho-engineer/AIPPO/main/deploy/oracle/bootstrap.sh | bash
 ```
+
+これで Docker の導入・ファイアウォールの開放（VM 内側）・リポジトリの取得・
+`.env` の雛形作成まで終わる。「Docker を入れた」と出たら、一度ログインし直すか
+`newgrp docker` を実行してから続ける。
 
 ---
 
-## 5. リポジトリを配置して設定する
+## 5. `.env` を埋める
 
 ```bash
-git clone https://github.com/sho-engineer/AIPPO.git
-cd AIPPO/deploy/oracle
-
-cp .env.example .env
-nano .env   # DJANGO_SECRET_KEY / POSTGRES_PASSWORD / BACKEND_DOMAIN / ACME_EMAIL などを埋める
+cd ~/AIPPO/deploy/oracle
+nano .env
 ```
 
-`DJANGO_SECRET_KEY` の作り方:
+`DJANGO_SECRET_KEY` と `POSTGRES_PASSWORD` は、この場で生成済みの値をそのまま貼ってよい
+（チャットで渡された値。自分で作り直したいときだけ `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`）。
 
-```bash
-python3 -c "import secrets; print(secrets.token_urlsafe(48))"
-```
+あなたが埋めるのはこの3つだけ:
 
-`FRONTEND_URL` / `CORS_ALLOWED_ORIGINS` は、まだ Vercel の URL が無いなら
-一旦仮の値（`https://placeholder.vercel.app` など）で埋めて起動し、
-7 で実際の URL が決まってから直して再起動すればよい。
+- `BACKEND_DOMAIN`（例: `aippo-yourname.duckdns.org`）
+- `ACME_EMAIL`（自分のメールアドレス）
+- `FRONTEND_URL` / `CORS_ALLOWED_ORIGINS`（Vercel の URL。まだ無ければ
+  `https://placeholder.vercel.app` などの仮値で起動し、7 で確定してから直す）
 
 ---
 
