@@ -1,0 +1,105 @@
+# Oracle Cloud の Always Free VM 1台で、バックエンドを丸ごと動かす構成。
+#
+# フロントエンドは含めない（Vercel でホストするため）。
+# ここにあるのは db・backend・そこへ HTTPS で橋渡しする caddy の3つだけ。
+#
+# 使い方は docs/deploy-oracle.md を参照。
+#
+#   cd deploy/oracle
+#   cp .env.example .env   # 値を埋める
+#   docker compose up -d --build
+#   docker compose exec backend python manage.py migrate
+#   docker compose exec backend python manage.py seed_catalog
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aippo}
+      POSTGRES_USER: ${POSTGRES_USER:-aippo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD を .env に設定してください}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aippo} -d ${POSTGRES_DB:-aippo}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build: ../../backend
+    restart: unless-stopped
+    environment:
+      DJANGO_DEBUG: "false"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?DJANGO_SECRET_KEY を .env に設定してください}
+      # Caddy 経由で来るので、ここは Caddy のドメインだけでよい
+      DJANGO_ALLOWED_HOSTS: ${BACKEND_DOMAIN:?BACKEND_DOMAIN を .env に設定してください}
+      DATABASE_URL: postgres://${POSTGRES_USER:-aippo}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-aippo}
+      # 画面（Vercel）のオリジン。カンマ区切りで複数可
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?Vercel の URL を .env に設定してください}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
+      # 確認メールと再設定メールのリンクの行き先。画面（Vercel）の URL
+      FRONTEND_URL: ${FRONTEND_URL:?Vercel の URL を .env に設定してください}
+      SESSION_COOKIE_SAMESITE: ${SESSION_COOKIE_SAMESITE:-None}
+      CSRF_COOKIE_SAMESITE: ${CSRF_COOKIE_SAMESITE:-None}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-AIPPO <no-reply@localhost>}
+      AI_PROVIDER: ${AI_PROVIDER:-mock}
+      AI_MODEL: ${AI_MODEL:-gpt-5-nano}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GUEST_DATA_RETENTION_DAYS: ${GUEST_DATA_RETENTION_DAYS:-180}
+      BACKEND_URL: https://${BACKEND_DOMAIN}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      LINE_CLIENT_ID: ${LINE_CLIENT_ID:-}
+      LINE_CLIENT_SECRET: ${LINE_CLIENT_SECRET:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      MAX_ATTEMPTS_PER_SESSION: ${MAX_ATTEMPTS_PER_SESSION:-10}
+      AI_RUNS_PER_IP_PER_DAY: ${AI_RUNS_PER_IP_PER_DAY:-100}
+      AI_RUNS_PER_DAY: ${AI_RUNS_PER_DAY:-2000}
+      # 前段に Caddy を置いているので、ここでは true にする。
+      # true にした状態で Caddy を経由せず直接 8000 番を公開すると、
+      # X-Forwarded-For を詐称して接続元単位の上限を回避できてしまう
+      # ——直接公開しないこと（ポートは host に出していない）。
+      TRUST_FORWARDED_FOR: "true"
+      SECURE_SSL_REDIRECT: "true"
+    # host には出さない。Caddy からだけ backend:8000 で届く
+    expose:
+      - "8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=2).status==200 else 1)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 20s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      BACKEND_DOMAIN: ${BACKEND_DOMAIN:?BACKEND_DOMAIN を .env に設定してください}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL を .env に設定してください}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

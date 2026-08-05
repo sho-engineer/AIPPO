@@ -1,0 +1,23 @@
+# Oracle Cloud の無料VM上で、バックエンド（Django）を HTTPS で公開する。
+#
+# Caddy は証明書の取得・更新を自動でやってくれる（Let's Encrypt）。
+# nginx + certbot を自分で組むより事故りにくいので、これだけに絞っている。
+#
+# {$BACKEND_DOMAIN} は .env の値を docker compose 経由で受け取る。
+# ドメインが無いと Let's Encrypt は証明書を発行できないので、
+# IP アドレス直では動かない（README 参照）。
+
+{$BACKEND_DOMAIN} {
+	# 証明書の更新通知に使う。Let's Encrypt の規約上、実在のメールを推奨。
+	tls {$ACME_EMAIL}
+
+	reverse_proxy backend:8000
+
+	# 圧縮は Django 側 (whitenoise) が受け持つので、ここでは重ねない。
+	encode zstd gzip
+
+	log {
+		output stdout
+		format console
+	}
+}
