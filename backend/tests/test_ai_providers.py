@@ -264,3 +264,40 @@ class TestOpenAIProvider:
 
         with pytest.raises(AIMalformedError):
             self._provider(client).generate_text(REQUEST)
+
+
+class TestEveryKeyIsWiredUp:
+    """鍵の設定名が、settings に**存在すること**。
+
+    registry.py は settings しか見ない。環境変数を読む行を settings に
+    書き忘れると、鍵を渡しているのに「設定されていません」で失敗する。
+    エラーの文言が「鍵が無い」なので、渡している本人はまず疑わない。
+
+    実際に ANTHROPIC_API_KEY がこれで死んでいた。
+    .env.example にも compose にも載っていたのに、settings に無かった。
+    """
+
+    def test_each_provider_key_exists_in_settings(self, settings):
+        from apps.ai.providers.registry import REQUIRED_KEYS
+
+        missing = [
+            name for name in REQUIRED_KEYS.values() if not hasattr(settings, name)
+        ]
+
+        assert not missing, f"settings に無い: {missing}（config/settings.py へ足す）"
+
+    def test_a_key_given_through_the_environment_reaches_the_provider(self, settings):
+        """鍵を入れたら、その先が実際に組み立てられること。"""
+        from apps.ai.providers.registry import AIServiceNotConfigured, get_provider
+
+        settings.ANTHROPIC_API_KEY = "test-key-not-a-real-one"
+        settings.AI_PROVIDER = "anthropic"
+
+        try:
+            provider = get_provider()
+        except AIServiceNotConfigured as exc:
+            raise AssertionError(f"鍵を渡したのに断られた: {exc}") from exc
+        except ImportError:
+            pytest.skip("SDK が入っていない")
+
+        assert provider is not None

@@ -54,6 +54,16 @@ def available_providers() -> tuple[str, ...]:
     return tuple(sorted(set(_BUILDERS) | set(PLANNED)))
 
 
+#: 鍵の要る先と、その設定名。
+#: プロバイダを足したら、ここと config/settings.py の両方へ足す。
+#: 片方だけだと「鍵を渡しているのに使えない」という失敗になり、
+#: 原因がとても分かりにくい（tests/test_ai_providers.py が見張る）。
+REQUIRED_KEYS: dict[str, str] = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+}
+
+
 def get_provider(name: str | None = None, model: str | None = None) -> AIProvider:
     """プロバイダを1つ返す。
 
@@ -78,7 +88,7 @@ def get_provider(name: str | None = None, model: str | None = None) -> AIProvide
         )
 
     if resolved == "openai":
-        if not settings.OPENAI_API_KEY:
+        if not getattr(settings, REQUIRED_KEYS["openai"], ""):
             logger.error("ai.provider.missing_key name=openai")
             raise AIServiceNotConfigured(
                 "AI_PROVIDER=openai ですが OPENAI_API_KEY が設定されていません"
@@ -88,7 +98,7 @@ def get_provider(name: str | None = None, model: str | None = None) -> AIProvide
         return OpenAIProvider(model=model)
 
     if resolved == "anthropic":
-        if not getattr(settings, "ANTHROPIC_API_KEY", ""):
+        if not getattr(settings, REQUIRED_KEYS["anthropic"], ""):
             logger.error("ai.provider.missing_key name=anthropic")
             raise AIServiceNotConfigured(
                 "AI_PROVIDER=anthropic ですが ANTHROPIC_API_KEY が設定されていません"

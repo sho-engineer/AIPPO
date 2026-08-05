@@ -2,6 +2,17 @@
 
 AIチューター「ポー」の表示状態。このディレクトリに6枚を配置する。
 
+> **置き場所が2つある。差し替えるときは両方を直す。**
+>
+> | 置き場所 | 使う画面 |
+> | --- | --- |
+> | `public/poe/` （ここ） | タイトル画面、エラー画面（`components/PoeAvatar.tsx`） |
+> | `public/assets/po/` | レッスン、コース一覧（`src/po/PoAvatar.tsx`） |
+>
+> 同じ6枚を2か所に置いている。片方だけ差し替えると、画面によって
+> 別の絵が出る。作り直すときに1系統へまとめるのが本筋だが、
+> まとめるまでは**必ず両方**へ入れること。
+
 ```
 neutral.webp    通常の説明、待機
 question.webp   ユーザーへの質問
@@ -10,6 +21,14 @@ hint.webp       ヒントや改善案
 warning.webp    個人情報、誤情報などへの注意
 celebrate.webp  課題完了
 ```
+
+## まだ無い2枚
+
+`talking`（話している）と `blink`（まばたき）には専用の絵が無く、
+`neutral` で代用している（`src/po/assets.ts` の `PO_FALLBACK`）。
+
+まばたきの動きそのものは実装済みなので、`public/assets/po/blink.webp` を
+置けばコードを触らずに効く。`talking` も同じ。
 
 ## 要件（AIPPO 開発概要 §7）
 

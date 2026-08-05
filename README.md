@@ -117,9 +117,11 @@ AIPPOは、プロンプトを暗記させるサービスではありません。
   置いてあります。埋め忘れると画面にそのまま出るので気づけます
 - 通知の配信（設定は保存できますが、送る仕組みがまだありません）
 - 教材の多言語化（言語設定は画面の言葉だけ。教材本文は日本語のまま）
-- Playwright の E2E 一式（成果物ファーストの流れに追随できておらず、
-  **いまは失敗します**。作り直しが必要です）
-- ポーの `talking` / `blink` 用の絵（`neutral` で代用しています）
+- ポーの `talking` / `blink` 用の絵（`neutral` で代用しています）。
+  絵は `public/poe/` と `public/assets/po/` の**2か所**にあり、差し替えるときは
+  両方を直します（食い違いは `tests/poeAssets.test.ts` が見張ります）
+- 完了時アンケートの画面（`Survey` モデルと API は残っていますが、成果物
+  ファーストへ作り直したときに画面が落ちました。フェーズ2→3 の判定に要ります）
 
 ---
 
@@ -179,7 +181,7 @@ docker compose exec backend python manage.py createsuperuser
 | `AI_RUNS_PER_DAY` | 予算に合わせる。**これが最後の安全弁**です |
 | `SECURE_SSL_REDIRECT=true` | 公開時は戻す |
 | `TRUST_FORWARDED_FOR=true` | ロードバランサ配下のときだけ。設定しないと、接続元単位の上限が全員まとめて数えられます |
-| `OPENAI_API_KEY` | `AI_PROVIDER=openai` のとき。無いと 503 で**はっきり失敗**します（黙って mock へ倒しません） |
+| `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | 指定した `AI_PROVIDER` に対応するもの。無いと 503 で**はっきり失敗**します（黙って mock へ倒しません） |
 
 画面と API を**別ドメイン**に置くときは、次も要ります。
 
@@ -289,7 +291,8 @@ npm run dev          # http://localhost:5173
 
 ```bash
 cd backend  && uv run pytest        # 321 tests
-cd frontend && npm run test         # 203 tests
+cd frontend && npm run test         # 208 tests
+cd frontend && npm run lint         # ESLint（型は tsc が見る）
 cd frontend && npm run check:a11y   # 19画面の WCAG 2.1 A/AA 検査
 ```
 
@@ -297,18 +300,30 @@ cd frontend && npm run check:a11y   # 19画面の WCAG 2.1 A/AA 検査
 配色を変えたときに、読めなくなった場所が無いかを機械に調べさせるためのものです
 （実際にここで、うすい青の上の文字が 4.42 で 4.5 に届かないのを見つけました）。
 
-#### E2E（いまは失敗します。CIでも動かしていません）
+#### E2E
 
-`e2e/` の一式は、成果物ファーストの流れに追随できていません。
-古いステップ（「用意された例文を使う」など）を操作しているため、**現状では失敗します**。
-作り直しが要ります。
+```bash
+# バックエンドを立ててから（居なければ探索テストは自動でスキップ）
+cd backend && AI_PROVIDER=mock FRONTEND_URL=http://127.0.0.1:5173 \
+  AI_RUNS_PER_IP_PER_DAY=0 AI_RUNS_PER_DAY=0 \
+  uv run python manage.py runserver 127.0.0.1:8000
 
-そのあいだ、CI では代わりに2つを動かしています。
+cd frontend && npm run test:e2e        # 54件（desktop / mobile）
+```
 
-| CIのジョブ | 何を見るか |
-| --- | --- |
-| `a11y` | 本番ビルドの19画面を WCAG 2.1 A/AA で検査 |
-| `smoke` | 本物の Django に当てて、`/health/ready`・教材の配信・登録とログイン状態・合言葉なしの書き込みが断られること |
+| ファイル | 何を見るか | 通信 |
+| --- | --- | --- |
+| `e2e/lesson.spec.ts` | 成果物ファーストの通し・失敗時・送信前の確認 | スタブ |
+| `e2e/auth.spec.ts` | 登録・ログイン・端末に何を残さないか | スタブ |
+| `e2e/comingSoon.spec.ts` | 近日公開の見せ方・教材が届かないとき | スタブ |
+| `e2e/exploratory.spec.ts` | **本物の Django** に当てる。教材の配信・学習イベント・CSRF | 実物 |
+
+ステップ名を書き下していません。教材は管理画面から直せるので、ステップが
+1つ増えるたびに落ちるテストは、すぐ誰も直さなくなります。見ているのは
+**最後まで進めること**そのものです。
+
+本番と同じビルド成果物に当てたいときは `E2E_TARGET=build` を付けます。
+アクセシビリティは `npm run check:a11y` が受け持ちます（19画面）。
 
 | ファイル | 何を見るか | 状態 |
 | --- | --- | --- |
@@ -352,6 +367,8 @@ backend/           Django REST Framework
   apps/accounts/   登録・ログイン・ゲストの記録の引き継ぎ
                    models.py … LearnerIdentity（learner_key → user）/ UserProfile
                    migration.py … claim_guest_data（冪等。記録は書き換えない）
+                   throttle.py … 認証の連打を止める（接続元と宛先の両方で数える）
+                   admin.py … 問い合わせの調べ先（結びつき・確認状態・試行回数）
   apps/ai/         教材からAIを呼ぶ唯一の入口。アクション定義・プロバイダ抽象
                    models_catalog.py … 選べるモデルの名簿（画面に名前を書かないため）
   apps/catalog/    教材そのもの（骨格＋差分）。Django Admin から編集する

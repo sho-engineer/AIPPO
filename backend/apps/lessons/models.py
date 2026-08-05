@@ -159,14 +159,6 @@ class LearningEventType(models.TextChoices):
     PRIVACY_WARNING_CANCELLED = "privacy_warning_cancelled"
     PRIVACY_WARNING_OVERRIDDEN = "privacy_warning_overridden"
 
-    # 成果物ファーストの骨格（course/shared.ts の buildLessonFlow）で送るもの。
-    # ここに無いと 400 で弾かれ、そのステップの操作ログが落ちる。
-    OUTCOME_PREVIEW_VIEWED = "outcome_preview_viewed"
-    QUICK_TRY_STARTED = "quick_try_started"
-    RESULT_OBSERVATION_SUBMITTED = "result_observation_submitted"
-    CONCEPT_CARD_VIEWED = "concept_card_viewed"
-    CONCEPT_CARD_SKIPPED = "concept_card_skipped"
-
     # 第一リリース（Closed Beta）で足したもの。
     # 登録までの落ち方と、引き継ぎの成否を見るために要る。
     DIAGNOSIS_STARTED = "diagnosis_started"
@@ -184,6 +176,18 @@ class LearningEventType(models.TextChoices):
     GUEST_DATA_MIGRATION_FAILED = "guest_data_migration_failed"
     LOGIN_COMPLETED = "login_completed"
     COMING_SOON_VIEWED = "coming_soon_viewed"
+
+    # 成果物ファーストの各ステップ。
+    #
+    # 画面を作り直したときに足すのを忘れており、送られてくるのに 400 で
+    # 捨てていた。捨てても画面は止まらない作りなので誰も気づかず、
+    # **レッスンの前半だけ記録が空**という状態になっていた。
+    # 詰まるのはたいてい前半なので、いちばん見たいところが欠けていた。
+    OUTCOME_PREVIEW_VIEWED = "outcome_preview_viewed"
+    QUICK_TRY_STARTED = "quick_try_started"
+    RESULT_OBSERVATION_SUBMITTED = "result_observation_submitted"
+    CONCEPT_CARD_VIEWED = "concept_card_viewed"
+    CONCEPT_CARD_SKIPPED = "concept_card_skipped"
 
     # 旧レッスンから使っているもの。消すと過去のログが読めなくなる。
     LESSON_STARTED = "lesson_started"

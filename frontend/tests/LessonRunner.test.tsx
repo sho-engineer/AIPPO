@@ -80,3 +80,71 @@ describe("自分の課題のステップ", () => {
     expect(screen.queryByRole("heading", { name: "自分の文章" })).not.toBeInTheDocument();
   });
 });
+
+/**
+ * 自分の文章を書くステップで、秘密が混ざっていたら**その場で**知らせる。
+ *
+ * 送るのはこの先の generate_real で、そこでも必ず見ている。
+ * ここで見るのは「言うのが遅すぎるのを防ぐ」ため。ここが無いと、
+ * パスワードを書いた人は「誰が読むか」「どう変えたいか」と
+ * 3つ4つ答えたあとで初めて「消してください」と言われる。
+ * そこまでの操作が丸ごと無駄になる。
+ */
+describe("自分の文章に秘密が混ざったとき", () => {
+  const lesson = getLesson("rewrite_text") as Lesson;
+  const realTaskIndex = lesson.steps.findIndex((step) => step.id === "real_task");
+  const fromRealTask: Lesson = { ...lesson, steps: lesson.steps.slice(realTaskIndex) };
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("パスワードを書いたら、そのステップで止まる", async () => {
+    const user = userEvent.setup();
+    render(<LessonRunner lesson={fromRealTask} onFinish={() => {}} onExit={() => {}} />);
+
+    await user.type(
+      screen.getByRole("textbox"),
+      "パスワードは hunter2secret です",
+    );
+    await user.click(screen.getByTestId("primary-action"));
+
+    expect(await screen.findByTestId("privacy-dialog")).toBeInTheDocument();
+    // 取り消せない実害が出るものは、そのままでは進ませない
+    expect(screen.getByTestId("privacy-send-anyway")).toBeDisabled();
+  });
+
+  it("メールアドレスなら、読んだうえで進める", async () => {
+    const user = userEvent.setup();
+    render(<LessonRunner lesson={fromRealTask} onFinish={() => {}} onExit={() => {}} />);
+
+    await user.type(
+      screen.getByRole("textbox"),
+      "連絡先は tanaka@example.com です。確認をお願いします。",
+    );
+    await user.click(screen.getByTestId("primary-action"));
+
+    const dialog = await screen.findByTestId("privacy-dialog");
+    expect(dialog).toBeInTheDocument();
+
+    await user.click(screen.getByTestId("privacy-send-anyway"));
+
+    // ダイアログから出られること。ここが無いと詰む
+    await waitFor(() => {
+      expect(screen.queryByTestId("privacy-dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("何も混ざっていなければ、そのまま進む", async () => {
+    const user = userEvent.setup();
+    render(<LessonRunner lesson={fromRealTask} onFinish={() => {}} onExit={() => {}} />);
+
+    await user.type(screen.getByRole("textbox"), "来週の打ち合わせの資料をお願いします。");
+    await user.click(screen.getByTestId("primary-action"));
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("privacy-dialog")).not.toBeInTheDocument();
+    });
+  });
+});

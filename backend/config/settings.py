@@ -266,13 +266,18 @@ REST_FRAMEWORK = {
 # --- AI プロバイダ -------------------------------------------------------
 # "mock" のままでも全教材を完走できることが憲章 原則 III の要件。
 #
-# 既定は openai / gpt-5-nano。ただし OPENAI_API_KEY が空のときは
-# 起動を止めず mock へ倒す（apps/ai/providers/registry.py）。
-# 鍵を入れ忘れただけでアプリ全体が動かないように見えるのを避ける。
-# 倒したことは警告ログに残る。
+# 既定は openai / gpt-5-nano。openai / anthropic を指定したのに鍵が無いときは、
+# 黙って mock へ倒さず **はっきり失敗させる**（503 AI_SERVICE_NOT_CONFIGURED、
+# apps/ai/providers/registry.py）。偽物の答えを本物として学習者に見せるほうが
+# 害が大きい。鍵の有無は /health/ready でも見る。
 AI_PROVIDER = os.getenv("AI_PROVIDER", "openai")
 AI_MODEL = os.getenv("AI_MODEL", "gpt-5-nano")
+
+# 鍵は必ずここで settings へ入れる。registry.py は settings しか見ない。
+# 環境変数を直接読む形にすると、片方だけ入れ忘れたときに
+# 「鍵を渡しているのに使えない」という、原因の分かりにくい失敗になる。
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 # 1回の呼び出しの上限。長くすると待ち時間も費用も伸びる。
 AI_REQUEST_TIMEOUT_SECONDS = float(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "20"))

@@ -38,23 +38,7 @@ export default defineConfig({
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], ...channel } },
-    {
-      name: "mobile",
-      use: { ...devices["Pixel 5"], ...channel },
-      /*
-        探索テストは画面幅ではなく、サーバーとのやりとり（Cookie・CSRF・
-        操作ログ・上限）を見るもので、2つの幅で同じことを2回確かめても
-        分かることは増えない。
-
-        むしろ、同じ内容を同時に送ることになる。サーバーは同じ内容の
-        連打を 5 秒のあいだ断る作りなので、別の幅で走っているだけの
-        同じ検査どうしが連打とみなされ、落ちる。
-
-        幅を見る検査（入力欄とボタン・横スクロール）は、テストの中で
-        自分で幅を決めているので、こちらから外しても効きめは変わらない。
-      */
-      testIgnore: /exploratory\.spec\.ts/,
-    },
+    { name: "mobile", use: { ...devices["Pixel 5"], ...channel } },
   ],
   webServer: {
     command: webServerCommand,

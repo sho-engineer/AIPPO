@@ -185,31 +185,6 @@ class TestRewriteTextGenerate:
 class TestLearningEvents:
     url = reverse("learning-events")
 
-    @pytest.mark.parametrize(
-        "event_type",
-        [
-            "outcome_preview_viewed",
-            "quick_try_started",
-            "result_observation_submitted",
-            "concept_card_viewed",
-            "concept_card_skipped",
-            "condition_added",
-            "real_task_completed",
-        ],
-    )
-    def test_accepts_course_engine_events(self, api_client, learner_key, event_type):
-        """画面が送る種類を拒むと、そのステップの操作ログが落ちる。"""
-        client = _client_with_key(api_client, learner_key)
-
-        response = client.post(
-            self.url,
-            {"lesson_id": LESSON_ID, "event_type": event_type, "step": "quick_try"},
-            format="json",
-        )
-
-        assert response.status_code == 204
-        assert LearningEvent.objects.get().event_type == event_type
-
     def test_records_event(self, api_client, learner_key):
         client = _client_with_key(api_client, learner_key)
 

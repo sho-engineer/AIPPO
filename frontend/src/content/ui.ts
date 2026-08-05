@@ -98,7 +98,14 @@ export const LIMITS = {
  * 行き先はまだ用意していないので、無いものへ飛ばさず同じページに留める
  * （`#` ではなく、実際の文書ができたときにここだけ直せばよい形にする）。
  */
-export const APP_VERSION = "1.0.0";
+/*
+  版。設定の「AIPPOについて」に出す。
+
+  クローズドベータなので 0.x にしてある。1.0 と書くと、
+  受け取った人は「完成したもの」として扱う。まだ教材は2本で、
+  実験のためのものなので、そう見えない数字にしておく。
+*/
+export const APP_VERSION = "0.9.0-beta.1";
 
 export const LEGAL_LINKS = [
   { label: "利用規約", href: "/legal/terms" },

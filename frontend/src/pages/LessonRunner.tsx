@@ -569,7 +569,14 @@ export function LessonRunner({
         <PrivacyDialog
           findings={api.findings}
           onEdit={api.dismissFindings}
-          onSend={() => void confirmAndSend()}
+          /*
+            自分の文章のステップは AI へ送らない。ここで run() を呼んでも
+            送るものが無く、ダイアログから出られなくなる。
+            そのステップだけ「読んだうえで次へ」に振り分ける。
+          */
+          onSend={() =>
+            step.type === "real_task" ? api.continueAnyway() : void confirmAndSend()
+          }
         />
       )}
     </main>

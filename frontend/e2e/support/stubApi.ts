@@ -1,7 +1,5 @@
 import type { Page, Route } from "@playwright/test";
 
-import { COURSE } from "../../src/course/catalog";
-
 /**
  * バックエンドの応答をスタブへ差し替える。
  *
@@ -17,6 +15,10 @@ export interface GenerateBody {
 }
 
 export interface StubOptions {
+  /** ログイン状態。既定は未登録。 */
+  signedIn?: boolean;
+  /** 教材をサーバーから配る。指定しなければ同梱データのまま。 */
+  catalog?: unknown;
   /** 生成結果。呼ばれた回数と本文を受け取る。 */
   result?: (callCount: number, body: GenerateBody) => string;
   /** 生成を失敗させる。回数を渡すと、その回だけ失敗する。 */
@@ -35,6 +37,8 @@ export interface TutorBody {
 export interface StubHandle {
   calls: GenerateBody[];
   events: { event_type: string; step: string; input_length: number }[];
+  /** 登録・ログインへ送られた本文。合言葉が漏れていないか見るのに使う。 */
+  auth: { url: string; body: unknown }[];
 }
 
 const DEFAULT_TUTOR: TutorBody = {
@@ -57,8 +61,9 @@ export async function stubApi(
   page: Page,
   options: StubOptions = {},
 ): Promise<StubHandle> {
-  const handle: StubHandle = { calls: [], events: [] };
+  const handle: StubHandle = { calls: [], events: [], auth: [] };
   let callCount = 0;
+  let signedIn = options.signedIn ?? false;
 
   await page.route("**/api/v1/ai/generate/", async (route: Route) => {
     if (route.request().method() === "OPTIONS") {
@@ -118,29 +123,113 @@ export async function stubApi(
   });
 
   /*
-    教材は全部そろった形で配る。
+    アカウントまわり。
 
-    実際に配られる教材には公開範囲（近日公開）が入っている。そのまま使うと、
-    どのレッスンを試せるかが公開状況で変わり、学びの流れを確かめるはずの
-    検査が、そのときの公開範囲を確かめるものに変わってしまう。
+    画面は開くたびに `me` を見るので、ここを塞がないと
+    実サーバーへ行くか、通信できずに毎回ゲスト扱いになる。
+  */
+  await page.route("**/api/v1/accounts/me/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        signedIn
+          ? {
+              authenticated: true,
+              user: {
+                email: "learner@example.com",
+                display_name: "たろう",
+                email_verified: false,
+                terms_version: "2026-08-03",
+                joined_at: "2026-08-01T00:00:00+09:00",
+              },
+              progress: { completed: 0, in_progress: 1, devices: 1 },
+            }
+          : { authenticated: false },
+      ),
+    });
+  });
 
-    公開範囲そのものは、実バックエンドに当てる探索テストと、
-    backend/apps/catalog の検査で確かめている。
+  await page.route("**/api/v1/accounts/csrf/", async (route: Route) => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' });
+  });
+
+  await page.route("**/api/v1/accounts/signup/", async (route: Route) => {
+    handle.auth.push({ url: route.request().url(), body: route.request().postDataJSON() });
+    signedIn = true;
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: {
+          email: "learner@example.com",
+          display_name: "",
+          email_verified: false,
+          terms_version: "2026-08-03",
+          joined_at: "2026-08-01T00:00:00+09:00",
+        },
+        migration: { linked: true, sessions: 1, already_linked: false },
+      }),
+    });
+  });
+
+  await page.route("**/api/v1/accounts/signin/", async (route: Route) => {
+    handle.auth.push({ url: route.request().url(), body: route.request().postDataJSON() });
+    signedIn = true;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        user: {
+          email: "learner@example.com",
+          display_name: "",
+          email_verified: true,
+          terms_version: "2026-08-03",
+          joined_at: "2026-08-01T00:00:00+09:00",
+        },
+      }),
+    });
+  });
+
+  await page.route("**/api/v1/progress/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        lessons: [],
+        completed_count: 0,
+        in_progress_count: 0,
+        skills: [],
+        signed_in: signedIn,
+      }),
+    });
+  });
+
+  /*
+    教材。既定では**配らない**。
+
+    画面は届かなければ同梱の9本で動くので、教材の中身を固定したい
+    テスト以外は、そのほうが揺れが少ない。
   */
   await page.route("**/api/v1/catalog/", async (route: Route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
+      body: JSON.stringify(
+        options.catalog !== undefined ? options.catalog : { courses: [] },
+      ),
+    });
+  });
+
+  await page.route("**/api/v1/ai/models/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
       body: JSON.stringify({
-        courses: [
-          {
-            ...COURSE,
-            lessons: COURSE.lessons.map((lesson) => ({
-              ...lesson,
-              availability: "available",
-            })),
-          },
+        models: [
+          { id: "mock-1", label: "標準", note: "テスト用", provider: "mock", recommended: true },
         ],
+        default: "mock-1",
       }),
     });
   });
@@ -151,17 +240,6 @@ export async function stubApi(
   // 開発サーバーはアプリ自身のソースを /src/api/ai.ts として配るので、
   // それごと JSON に差し替えてしまい、アプリが起動しなくなる。
   // そのうえ画面が真っ白なまま検査が通り、壊れていることに気づけない。
-  // 合言葉（CSRF）の受け口。書き込みのたびに一度取りに行くので、
-  // 塞いでおかないと実サーバーへ出ていく。
-  await page.route("**/api/v1/accounts/csrf/", async (route: Route) => {
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: { "set-cookie": "csrftoken=e2e-stub-token; Path=/; SameSite=Lax" },
-      body: JSON.stringify({ detail: "ok" }),
-    });
-  });
-
   for (const pattern of [
     "**/api/lessons/**",
     "**/api/profile/**",
