@@ -25,6 +25,7 @@ RUN DJANGO_DEBUG=false \
     DJANGO_SECRET_KEY="build-time-only-$(head -c 40 /dev/urandom | base64 | tr -d '\n')" \
     DJANGO_ALLOWED_HOSTS="localhost" \
     FRONTEND_URL="http://localhost" \
+    EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend" \
     python manage.py collectstatic --noinput
 
 # root では動かさない

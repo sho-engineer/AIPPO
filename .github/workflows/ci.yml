@@ -280,6 +280,10 @@ jobs:
           FRONTEND_URL: https://aippo.example.com
           SECURE_SSL_REDIRECT: "true"
           AI_PROVIDER: mock
+          # DEBUG=false だと送り口の既定が smtp になり、EMAIL_HOST /
+          # DEFAULT_FROM_EMAIL が無いと settings の読み込み自体で止まる
+          EMAIL_HOST: smtp.example.com
+          DEFAULT_FROM_EMAIL: "AIPPO <no-reply@aippo.example.com>"
         run: python manage.py check --deploy --fail-level WARNING
 
       # 設定ミスは動かすまで気づけないので、形だけでも先に検査する
