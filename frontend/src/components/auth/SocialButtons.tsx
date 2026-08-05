@@ -1,0 +1,96 @@
+/**
+ * Google と LINE で続けるボタン。
+ *
+ * 押すと画面ごと向こうへ移動する。合言葉は画面を一度も通らない
+ * （サーバーが受け取り、いつもの Cookie にする）。
+ *
+ * 設定が入っていない先は、ボタンそのものを出さない。
+ * 押すと落ちるボタンは、無いより悪い。
+ *
+ * 同意の扱い
+ * ----------
+ * ここを押した時点で登録まで進むので、押す前に見えるところへ
+ * 「続けると同意したことになります」と書く。あとから聞けない。
+ */
+
+import { useEffect, useState } from "react";
+
+import { fetchSocialProviders, type SocialProvider } from "../../api/accounts";
+import { SOCIAL_COPY } from "../../content/ui";
+import { apiBaseUrl } from "../../api/config";
+import { IconGlobe } from "../Icons";
+
+/*
+  各社の色。ボタンの意味が一目で分かるようにする。
+
+  LINE の緑（#06C755）はそのまま使うが、**文字は白ではなく濃紺**にする。
+  白文字だと 2.26 で、本文に必要な 4.5 に遠く届かない（明るい場所や
+  安い画面で読めなくなる）。濃紺なら 7.39 で、緑はブランドどおりのまま。
+  ブランドの見た目より、読めることを優先する。
+*/
+const LOOK: Record<string, string> = {
+  google: "border-line bg-surface text-ink hover:bg-canvas",
+  line: "border-[#06C755] bg-[#06C755] text-ink hover:brightness-105",
+};
+
+export function SocialButtons({ disabled }: { disabled?: boolean }) {
+  const [providers, setProviders] = useState<SocialProvider[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    void fetchSocialProviders()
+      .then((body) => {
+        /*
+          形が違うものが返ることがある（前段のプロキシ、設定違いの
+          エンドポイント）。そのまま入れると `.length` で落ち、
+          登録の画面ごと真っ白になる。連携は「あると嬉しい」ものなので、
+          読めなければ黙って出さない。
+        */
+        if (alive) setProviders(Array.isArray(body?.providers) ? body.providers : []);
+      })
+      .catch(() => {
+        // 取れなければ出さない。メールでの登録は使えるので、行き止まりにならない
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  if (providers.length === 0) return null;
+
+  return (
+    <div data-testid="social-buttons">
+      <div className="my-5 flex items-center gap-3">
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-xs text-ink-muted">{SOCIAL_COPY.divider}</span>
+        <span className="h-px flex-1 bg-line" />
+      </div>
+
+      <div className="space-y-2">
+        {providers.map((provider) => (
+          <button
+            key={provider.name}
+            type="button"
+            disabled={disabled}
+            data-testid={`social-${provider.name}`}
+            onClick={() => {
+              // 画面ごと移動する。戻ってきたときは Cookie で入っている
+              window.location.href = `${apiBaseUrl()}${provider.start_url}`;
+            }}
+            className={`flex min-h-[3rem] w-full items-center justify-center gap-2
+                        rounded-full border px-6 py-3 text-sm font-bold transition
+                        disabled:cursor-not-allowed disabled:opacity-60
+                        ${LOOK[provider.name] ?? LOOK.google}`}
+          >
+            <IconGlobe className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {SOCIAL_COPY.continueWith(provider.label)}
+          </button>
+        ))}
+      </div>
+
+      <p className="mt-3 text-center text-xs leading-6 text-ink-muted">
+        {SOCIAL_COPY.consentNote}
+      </p>
+    </div>
+  );
+}

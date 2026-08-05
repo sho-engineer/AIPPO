@@ -14,10 +14,14 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote
 
+from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.contrib.auth.tokens import default_token_generator
 from django.db import transaction
+from django.http import HttpResponseRedirect
+from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_str
@@ -464,3 +468,125 @@ class DeleteAccountView(APIView):
 
         logger.info("accounts.deleted")
         return Response({"deleted": True})
+
+
+# ------------------------------------------------------------------ 外部連携
+
+
+class SocialProvidersView(APIView):
+    """使える連携先の一覧。
+
+    設定が入っている先だけを返す。画面はこれを見てボタンを出すので、
+    設定していない先のボタンは出ない。押すと落ちるボタンは、無いより悪い。
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request) -> Response:
+        from apps.accounts.social import configured_providers
+
+        return Response(
+            {
+                "providers": [
+                    {
+                        "name": provider.name,
+                        "label": provider.label,
+                        "start_url": f"/api/v1/accounts/social/{provider.name}/start/",
+                    }
+                    for provider in configured_providers().values()
+                ]
+            }
+        )
+
+
+class SocialStartView(APIView):
+    """向こうの画面へ送り出す。
+
+    GET で入って redirect で出る。画面は `window.location` を差し替える
+    だけでよく、合言葉に触らない。
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request, provider: str) -> HttpResponseRedirect:
+        from apps.accounts.social import SocialAuthError, start
+
+        try:
+            return redirect(start(request, provider))
+        except SocialAuthError as exc:
+            logger.warning("social.start.failed provider=%s reason=%s", provider, exc.reason)
+            return redirect(_front_with_error(exc.reason))
+
+
+class SocialCallbackView(APIView):
+    """向こうから戻ってきたところ。
+
+    ここで初めてサーバーがトークンを扱う。画面へは渡さない。
+    最後は画面へ戻す。API の応答を見せても、利用者には何も分からない。
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request: Request, provider: str) -> HttpResponseRedirect:
+        from apps.accounts.social import SocialAuthError, finish
+        from apps.accounts.social_signin import sign_in_with
+
+        # 向こうが断った（利用者が「許可しない」を押した、など）
+        if request.GET.get("error"):
+            logger.info("social.denied provider=%s", provider)
+            return redirect(_front_with_error("denied"))
+
+        try:
+            identity = finish(
+                request,
+                provider,
+                code=request.GET.get("code", ""),
+                state=request.GET.get("state", ""),
+            )
+            user, created = sign_in_with(
+                identity,
+                current_user=request.user if request.user.is_authenticated else None,
+            )
+        except SocialAuthError as exc:
+            logger.warning("social.failed provider=%s reason=%s", provider, exc.reason)
+            return redirect(_front_with_error(exc.reason))
+
+        login(request, user)
+
+        """
+        ゲストの記録を引き継ぐ。
+
+        メールで登録したときと同じ扱いにする。ここを忘れると、
+        「Google で入ったら進み具合が消えた」になる。
+        """
+        learner_key = getattr(request, "learner_key", None)
+        if learner_key is not None:
+            try:
+                claim_guest_data(user, learner_key)
+            except Exception as exc:  # noqa: BLE001
+                logger.error("social.migration.failed error=%s", type(exc).__name__)
+
+        if created:
+            emails.send_welcome(user)
+
+        return redirect(_front_with_success(provider, created))
+
+
+def _front(path: str = "/") -> str:
+    base = (getattr(settings, "FRONTEND_URL", "") or "http://localhost:5173").rstrip("/")
+    return f"{base}{path}"
+
+
+def _front_with_error(reason: str) -> str:
+    """画面へ戻す。理由は短い名前だけ渡す。
+
+    文言はサーバーが決めず、画面側の固定文から出す。ここで文を渡すと、
+    URL に載せた文字がそのまま画面に出る作りになり、
+    差し込みの入口になる。
+    """
+    return _front(f"/?social_error={quote(reason)}")
+
+
+def _front_with_success(provider: str, created: bool) -> str:
+    kind = "signup" if created else "signin"
+    return _front(f"/?social={quote(provider)}&social_result={kind}")

@@ -15,6 +15,9 @@ from apps.accounts.views import (
     SignInView,
     SignOutView,
     SignUpView,
+    SocialCallbackView,
+    SocialProvidersView,
+    SocialStartView,
 )
 
 urlpatterns = [
@@ -40,4 +43,12 @@ urlpatterns = [
         name="accounts-delete-learning-data",
     ),
     path("delete/", DeleteAccountView.as_view(), name="accounts-delete"),
+    # 外部サービスでのログイン。設定が入っている先だけが一覧に出る
+    path("social/providers/", SocialProvidersView.as_view(), name="social-providers"),
+    path("social/<str:provider>/start/", SocialStartView.as_view(), name="social-start"),
+    path(
+        "social/<str:provider>/callback/",
+        SocialCallbackView.as_view(),
+        name="social-callback",
+    ),
 ]

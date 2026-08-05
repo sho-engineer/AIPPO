@@ -24,6 +24,7 @@ import { TopPage } from "./pages/TopPage";
 import { lookupLesson, useCourse } from "./course/live";
 import { isStartable } from "./course/availability";
 import { loadPlace, savePlace } from "./app/session";
+import { useSocialResult } from "./auth/useSocialResult";
 import { nextScreen, type Screen } from "./app/screens";
 
 /** 下タブのどれが光っているか。 */
@@ -68,6 +69,14 @@ export function App() {
   };
 
   const tab = TAB_OF[screen];
+
+  /*
+    外部サービスから戻ってきたとき。
+
+    サーバーは短い名前だけを URL へ載せる。文はこちらで持つ。
+    読んだら URL から消すので、読み込み直しても二度は出ない。
+  */
+  const social = useSocialResult();
 
   const body = (() => {
     switch (screen) {
@@ -122,6 +131,21 @@ export function App() {
 
   return (
     <>
+      {social.result && (
+        <div className="mx-auto max-w-2xl px-5 pt-4">
+          <p
+            role="status"
+            data-testid="social-result"
+            className={`animate-fade-up rounded-card px-4 py-3 text-sm leading-6 ${
+              social.result.kind === "error"
+                ? "bg-caution-soft text-caution"
+                : "bg-brand-soft text-brand-dark"
+            }`}
+          >
+            {social.result.message}
+          </p>
+        </div>
+      )}
       {body}
       {tab && (
         <BottomTabBar

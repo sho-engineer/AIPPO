@@ -105,6 +105,16 @@ AIPPOは、プロンプトを暗記させるサービスではありません。
 | 設定 > アカウント設定 | 登録・ログイン・表示名・パスワード変更・ログアウト・退会 |
 | レッスン完了画面 | 「登録して残す」の誘い（ログイン済みなら出ません） |
 
+ログインは **メール＋パスワード / Google / LINE** の3通り。Google と LINE は
+鍵（`GOOGLE_CLIENT_ID` など）を入れた先だけボタンが出ます。入れていない先の
+ボタンは出しません（押すと落ちるボタンは、無いより悪いため）。
+
+合言葉は**画面を一度も通りません**。サーバーが向こうと直接やりとりし、
+以降はいつものセッション Cookie になります。結びつけの鍵は向こうが振る番号で、
+メールアドレスではありません（メールは変えられるうえ、LINE は返さないことが
+あります）。**確かめ済みのメール**が既存のアカウントと一致したときだけ、
+同じ人として繋ぎます（`backend/apps/accounts/social_signin.py`）。
+
 進み具合は **端末とサーバーの両方から取り、足し合わせて** 出します
 （`frontend/src/course/progress.ts`）。どちらか一方を選ぶと、返事を待つ
 あいだに「終わったはずのレッスンが未完了に戻った」ように見える瞬間が出ます。
@@ -182,6 +192,7 @@ docker compose exec backend python manage.py createsuperuser
 | `SECURE_SSL_REDIRECT=true` | 公開時は戻す |
 | `TRUST_FORWARDED_FOR=true` | ロードバランサ配下のときだけ。設定しないと、接続元単位の上限が全員まとめて数えられます |
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | 指定した `AI_PROVIDER` に対応するもの。無いと 503 で**はっきり失敗**します（黙って mock へ倒しません） |
+| `BACKEND_URL` | Google / LINE を使うとき。戻り先の組み立てに使います。ロードバランサ配下では、要求から組み立てた先が実際の公開先とずれます |
 
 画面と API を**別ドメイン**に置くときは、次も要ります。
 
@@ -291,7 +302,7 @@ npm run dev          # http://localhost:5173
 
 ```bash
 cd backend  && uv run pytest        # 321 tests
-cd frontend && npm run test         # 208 tests
+cd frontend && npm run test         # 218 tests
 cd frontend && npm run lint         # ESLint（型は tsc が見る）
 cd frontend && npm run check:a11y   # 19画面の WCAG 2.1 A/AA 検査
 ```
@@ -368,6 +379,7 @@ backend/           Django REST Framework
                    models.py … LearnerIdentity（learner_key → user）/ UserProfile
                    migration.py … claim_guest_data（冪等。記録は書き換えない）
                    throttle.py … 認証の連打を止める（接続元と宛先の両方で数える）
+                   social.py / social_signin.py … Google・LINE でのログイン
                    admin.py … 問い合わせの調べ先（結びつき・確認状態・試行回数）
   apps/ai/         教材からAIを呼ぶ唯一の入口。アクション定義・プロバイダ抽象
                    models_catalog.py … 選べるモデルの名簿（画面に名前を書かないため）

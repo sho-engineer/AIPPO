@@ -22,6 +22,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { AUTH_COPY } from "../../content/ui";
 import { PRIVACY, TERMS, findLegalDocument, type LegalDocument } from "../../content/legal";
 import { LegalView } from "../legal/LegalView";
+import { SocialButtons } from "./SocialButtons";
 import { IconCaution } from "../Icons";
 
 export type AuthMode = "signup" | "signin" | "reset";
@@ -302,6 +303,9 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
             </p>
           )}
         </form>
+
+        {/* 再設定の画面では出さない。ここでやることは1つだけにする */}
+        {view !== "reset" && <SocialButtons disabled={busy} />}
 
         <div className="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
           {view !== "signin" && (

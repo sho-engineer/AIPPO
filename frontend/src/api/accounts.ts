@@ -132,3 +132,22 @@ export function deleteLearningData(): Promise<{ deleted: boolean; rows: number }
 export function deleteAccount(): Promise<{ deleted: boolean }> {
   return sendJson(`${BASE}/delete/`, {});
 }
+
+export interface SocialProvider {
+  name: "google" | "line";
+  label: string;
+  /** ここへ画面ごと移動する。合言葉は画面を通らない。 */
+  start_url: string;
+}
+
+/**
+ * 使える連携先。
+ *
+ * 設定が入っている先だけが返る。返らなかった先のボタンは出さない。
+ * 押すと落ちるボタンは、無いより悪い。
+ */
+export function fetchSocialProviders(
+  signal?: AbortSignal,
+): Promise<{ providers: SocialProvider[] }> {
+  return getJson(`${BASE}/social/providers/`, signal);
+}

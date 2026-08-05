@@ -51,6 +51,12 @@ services:
       GUEST_DATA_RETENTION_DAYS: ${GUEST_DATA_RETENTION_DAYS:-180}
       # 二重送信の抑止に使う。指定しなければ DB の表を使う
       REDIS_URL: ${REDIS_URL:-}
+      # 外部サービスでのログイン。鍵を入れた先だけボタンが出る
+      BACKEND_URL: ${BACKEND_URL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      LINE_CLIENT_ID: ${LINE_CLIENT_ID:-}
+      LINE_CLIENT_SECRET: ${LINE_CLIENT_SECRET:-}
       # 空なら何も読み込まない
       SENTRY_DSN: ${SENTRY_DSN:-}
       MAX_ATTEMPTS_PER_SESSION: ${MAX_ATTEMPTS_PER_SESSION:-10}

@@ -165,3 +165,35 @@ export const AUTH_COPY = {
   signOutDone: "ログアウトしました。",
   guestNotice: "いまは登録なしで使っています。この端末にだけ記録が残ります。",
 } as const;
+
+/**
+ * 外部サービスでのログイン。
+ *
+ * 失敗の文言は**画面側で持つ**。サーバーからは短い名前だけを受け取る。
+ * サーバーが文を渡す形にすると、URL に載った文字がそのまま画面に出る
+ * 作りになり、差し込みの入口になる。
+ */
+export const SOCIAL_COPY = {
+  divider: "または",
+  continueWith: (label: string) => `${label} で続ける`,
+  /** ボタンの近くに置く。押した時点で同意したことになるため。 */
+  consentNote: "続けると、利用規約とプライバシーポリシーに同意したものとします。",
+
+  errors: {
+    denied: "許可されませんでした。もう一度お試しください。",
+    not_configured: "この方法でのログインは、いまご利用いただけません。",
+    state_mismatch: "確認できませんでした。お手数ですが、もう一度お試しください。",
+    provider_mismatch: "確認できませんでした。お手数ですが、もう一度お試しください。",
+    unreachable: "接続できませんでした。少し待ってからお試しください。",
+    rejected: "確認できませんでした。もう一度お試しください。",
+    already_linked: "このアカウントには、すでに別の連携が登録されています。",
+    no_subject: "確認できませんでした。もう一度お試しください。",
+  } as Record<string, string>,
+
+  fallbackError: "うまくいきませんでした。もう一度お試しください。",
+
+  results: {
+    signup: "ようこそ。ここまでの学習は、このアカウントへ引き継ぎました。",
+    signin: "ログインしました。続きから始められます。",
+  } as Record<string, string>,
+} as const;

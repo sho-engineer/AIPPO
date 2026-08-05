@@ -228,6 +228,27 @@ SESSION_SAVE_EVERY_REQUEST = True
 # 画面と API が別ホストのとき、POST の送り元として明示が要る。
 CSRF_TRUSTED_ORIGINS = _list("CSRF_TRUSTED_ORIGINS", ",".join(CORS_ALLOWED_ORIGINS))
 
+# --- 外部サービスでのログイン -------------------------------------------
+# 鍵が入っている先だけ、画面にボタンが出る。入っていなければ出ない。
+# 押すと落ちるボタンは、無いより悪い。
+#
+# 向こうの管理画面には、戻り先として次を登録する。
+#   <BACKEND_URL>/api/v1/accounts/social/google/callback/
+#   <BACKEND_URL>/api/v1/accounts/social/line/callback/
+#
+# BACKEND_URL が空のときは、要求から組み立てる（手元ではそれで足りる）。
+# ロードバランサ配下では、組み立てた先が実際の公開先とずれることが
+# あるので、本番では入れておく。
+BACKEND_URL = os.getenv("BACKEND_URL", "")
+
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+# LINE のメールは、申請が通っている場合だけ返る。
+# 通っていなくてもログインはできる（メールの無いアカウントになる）。
+LINE_CLIENT_ID = os.getenv("LINE_CLIENT_ID", "")
+LINE_CLIENT_SECRET = os.getenv("LINE_CLIENT_SECRET", "")
+
 # --- 認証の連打を止める ---------------------------------------------------
 # 接続元（SOURCE）と、狙われている宛先（TARGET）の両方で数える
 # （apps/accounts/throttle.py）。0以下にすると「上限なし」。

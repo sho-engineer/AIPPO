@@ -134,3 +134,56 @@ class AuthThrottle(models.Model):
 
     def __str__(self) -> str:
         return f"{self.window_start:%Y-%m-%d %H:%M} {self.scope[:24]} = {self.count}"
+
+
+class SocialAccount(models.Model):
+    """外部のサービスで確かめた身元と、この人の対応。
+
+    Google と LINE。どちらも「向こうで本人だと確かめてもらう」だけで、
+    パスワードはこちらに無い。
+
+    鍵にするのは向こうが振る番号（`subject`）で、メールアドレスではない。
+    メールは変えられるし、LINE はそもそもメールを返さないことがある。
+    メールを鍵にすると、変えた瞬間に別人の扱いになる。
+    """
+
+    class Provider(models.TextChoices):
+        GOOGLE = "google", "Google"
+        LINE = "line", "LINE"
+
+    provider = models.CharField(max_length=20, choices=Provider.choices)
+
+    #: 向こうが振る、その人の番号。変わらない。
+    subject = models.CharField(max_length=255)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="social_accounts",
+        on_delete=models.CASCADE,
+    )
+
+    #: 向こうから受け取ったメール。無いこともある（LINE は既定で返さない）。
+    #: 参考として持つだけで、これで人を引き当てない。
+    email = models.EmailField(blank=True)
+    #: 向こうが「確かめた」と言っているか。言っていないものは信じない。
+    email_verified = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "外部サービスの連携"
+        verbose_name_plural = "外部サービスの連携"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "subject"], name="uniq_social_provider_subject"
+            ),
+            # 同じサービスを1人が2つ繋ぐ意味が無い。繋ぐと、どちらで入ったかで
+            # 見えるものが変わる
+            models.UniqueConstraint(
+                fields=["provider", "user"], name="uniq_social_provider_user"
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.get_provider_display()} → {self.user.email or self.user.username}"

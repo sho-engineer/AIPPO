@@ -23,7 +23,12 @@ from __future__ import annotations
 from django.contrib import admin, messages
 from django.utils import timezone
 
-from apps.accounts.models import AuthThrottle, LearnerIdentity, UserProfile
+from apps.accounts.models import (
+    AuthThrottle,
+    LearnerIdentity,
+    SocialAccount,
+    UserProfile,
+)
 
 
 @admin.register(UserProfile)
@@ -90,6 +95,27 @@ class AuthThrottleAdmin(admin.ModelAdmin):
     @admin.display(description="用途")
     def kind(self, obj: AuthThrottle) -> str:
         return obj.scope.split(":", 1)[0]
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+
+@admin.register(SocialAccount)
+class SocialAccountAdmin(admin.ModelAdmin):
+    """外部サービスとの結びつき。
+
+    「Google で入れなくなった」の調べ先。向こうが振る番号で繋がって
+    いるので、番号が変わっていなければ同じ人として入れる。
+
+    手で作れないようにしてある。作れると、他人のアカウントへ
+    自分の連携を足して入れてしまう。
+    """
+
+    list_display = ("provider", "user", "email", "email_verified", "last_login_at")
+    list_filter = ("provider", "email_verified")
+    search_fields = ("user__email", "email", "subject")
+    readonly_fields = ("provider", "subject", "email", "email_verified", "created_at")
+    ordering = ("-created_at",)
 
     def has_add_permission(self, request) -> bool:
         return False

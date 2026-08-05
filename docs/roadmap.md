@@ -65,6 +65,8 @@ Live2D / 音声 / 口パク / 3D / 複数キャラクターは不要。
 - 教材を DB へ移し、Django Admin から編集できるようにした（`backend/apps/catalog`）
 - 公開する教材を絞る仕組み（`available` / `coming_soon`）
 - 登録・ログインと、ゲストの記録の引き継ぎ（`backend/apps/accounts`）
+- Google と LINE でのログイン（`accounts/social.py` / `social_signin.py`）。
+  鍵を入れた先だけボタンが出る
 - 端末をまたいだ進み具合（`GET /api/v1/progress/`）
 - 利用規約・プライバシーポリシー・AI利用上の注意（アプリ内で読ませる）
 - 認証の連打を止める仕組み、古い記録を消す仕組み
