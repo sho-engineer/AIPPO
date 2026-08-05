@@ -32,6 +32,13 @@ dev = [
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
+[tool.vercel]
+# Vercel の Django 自動検出用。config/wsgi.py が top-level ではないので明示する。
+entrypoint = "config.wsgi:application"
+
+[tool.vercel.scripts]
+build = "python build.py"
+
 [tool.setuptools]
 # これはライブラリではなくアプリなので、配る中身は無い。
 # `pip install -e .` は依存を入れるためだけに使う。
