@@ -1,0 +1,38 @@
+{
+    "services": {
+        "frontend": {
+            "root": "frontend",
+            "framework": "vite"
+        },
+        "backend": {
+            "root": "backend",
+            "functions": {
+                "config/wsgi.py": {
+                    "maxDuration": 30
+                }
+            }
+        }
+    },
+    "rewrites": [
+        {
+            "source": "/api(/.*)?",
+            "destination": { "type": "service", "service": "backend" }
+        },
+        {
+            "source": "/admin(/.*)?",
+            "destination": { "type": "service", "service": "backend" }
+        },
+        {
+            "source": "/health/(.*)",
+            "destination": { "type": "service", "service": "backend" }
+        },
+        {
+            "source": "/(healthz|readyz)",
+            "destination": { "type": "service", "service": "backend" }
+        },
+        {
+            "source": "/(.*)",
+            "destination": { "type": "service", "service": "frontend" }
+        }
+    ]
+}
