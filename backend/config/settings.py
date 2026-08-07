@@ -32,6 +32,15 @@ DEBUG = _bool("DJANGO_DEBUG", True)
 
 ALLOWED_HOSTS = _list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
+# Vercel は配置ごとに違うホスト名を割り当てる。プレビュー（PRごとの使い捨て）
+# の名前は事前に分からないので、DJANGO_ALLOWED_HOSTS には書けない。
+# VERCEL_URL は「いま自分が配られているホスト名」を Vercel 自身が入れる値
+# （利用者の要求から来る値ではない）なので、そのまま足してよい。
+# 無ければ何も起きないため、Vercel 以外の環境には影響しない。
+_vercel_host = os.getenv("VERCEL_URL", "").strip()
+if _vercel_host and _vercel_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_vercel_host)
+
 # メールの送り口。
 #
 # 開発ではコンソールへ出す。実際に送らないので、宛先を間違えても
