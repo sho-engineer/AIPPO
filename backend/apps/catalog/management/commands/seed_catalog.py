@@ -38,10 +38,17 @@ from apps.catalog.models import (
 
 SEED_PATH = Path(__file__).resolve().parents[2] / "seed_catalog.json"
 
-#: 第一リリース（Closed Beta）で始められる教材。
-#: これ以外は一覧に出すが「近日公開」で止める。
-#: 増やすときは管理画面で availability_status を変える（ここは初期値だけ）。
-RELEASE_AVAILABLE = ("diagnosis", "rewrite_text")
+#: 取り込んだ時点で「近日公開」にしておく教材。
+#:
+#: 以前はここが逆で、始められるものを列挙していた
+#: （第一リリースでは診断と文章改善の2本だけを開けていた）。
+#: 教材9本の中身が揃った今、閉じておく理由はもう無い。
+#:
+#: 空でも仕組みは残る。管理画面から availability_status を
+#: 「近日公開」へ戻せば、一覧に出したまま開始を止められる
+#: （止める本体は apps/catalog/access.py）。
+#: 未完成の教材を足すときは、ここに slug を並べる。
+RELEASE_COMING_SOON: tuple[str, ...] = ()
 
 #: 骨格で組み立てた教材かどうかの見分け方。
 #: 先頭とは限らない（最終課題は前置きを6つ置いてから骨格へ入る）ので、
@@ -214,9 +221,9 @@ class Command(BaseCommand):
                 "mode": entry.get("mode", ""),
                 "status": PublishStatus.PUBLISHED,
                 "availability_status": (
-                    AvailabilityStatus.AVAILABLE
-                    if entry["id"] in RELEASE_AVAILABLE
-                    else AvailabilityStatus.COMING_SOON
+                    AvailabilityStatus.COMING_SOON
+                    if entry["id"] in RELEASE_COMING_SOON
+                    else AvailabilityStatus.AVAILABLE
                 ),
                 "sort_order": order,
             }
