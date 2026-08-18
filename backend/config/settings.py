@@ -442,6 +442,35 @@ SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
 #: 末尾の / は付けても付けなくてもよい（apps/accounts/emails.py で落とす）。
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
+# --- パスキー（WebAuthn）------------------------------------------------
+# 合言葉を覚えなくてよくする仕組み。詳しくは apps/accounts/passkeys.py。
+#
+# 署名にはドメインが混ざる。だから偽サイトで作らせた署名は、本物の
+# ドメインでは通らない。ここを取り違えると、その守りが丸ごと外れる。
+#
+# 既定は FRONTEND_URL から取る。画面が置いてある場所と、パスキーを
+# 使う場所は同じなので、別々に書かせると必ずどちらかが古くなる。
+#
+#   PASSKEY_RP_ID   … ドメイン（ポートを含めない）。例 aippo.vercel.app
+#   PASSKEY_ORIGINS … 署名を受け付ける送り元。scheme とポートまで含む
+#
+# 手元では http://localhost:5173 のような値になる。パスキーは
+# localhost だけ HTTP でも使える（それ以外は HTTPS が要る）。
+def _origin_host(url: str) -> str:
+    from urllib.parse import urlparse
+
+    return (urlparse(url).hostname or "").strip()
+
+
+PASSKEY_RP_NAME = os.getenv("PASSKEY_RP_NAME", "AIPPO")
+PASSKEY_RP_ID = os.getenv("PASSKEY_RP_ID", "") or _origin_host(FRONTEND_URL)
+# 画面が複数のURLから開かれることがある（localhost と 127.0.0.1 など）。
+# 指定が無ければ、画面のURLと CORS で許した先をそのまま受け付ける。
+PASSKEY_ORIGINS = _list("PASSKEY_ORIGINS") or list(
+    # 重複は落とすが、並びは保つ（先頭が本来の画面のURL）
+    dict.fromkeys(origin for origin in [FRONTEND_URL, *CORS_ALLOWED_ORIGINS] if origin)
+)
+
 # --- 見張り -------------------------------------------------------------
 # Sentry は任意。DSN が無ければ何も読み込まない。
 # 入れていないだけで起動しない、という作りにはしない。

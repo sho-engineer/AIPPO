@@ -123,3 +123,39 @@ def describe_user(user) -> dict[str, object]:
         "terms_version": getattr(profile, "terms_version", "") or "",
         "joined_at": user.date_joined.isoformat(),
     }
+
+
+class PasskeySignUpSerializer(serializers.Serializer):
+    """パスキーで新規登録するときの、最初の一歩。
+
+    合言葉を受け取らない。覚えるものを無くすのが目的なので、
+    ここで作らせたら意味がない。
+
+    メールは受け取る。パスキーを全部失ったときの逃げ道
+    （メールでのパスワード再設定）と、こちらからの連絡に要る。
+
+    `SignUpSerializer` と違い、すでに使われているメールをここでは弾かない。
+    「鍵も合言葉も無いまま途中でやめたアカウント」は引き取って続きから
+    やり直せるようにしたいので、その判断は view 側で行う。
+    """
+
+    email = serializers.EmailField(max_length=254)
+    display_name = serializers.CharField(
+        max_length=60, required=False, allow_blank=True, default=""
+    )
+    accept_terms = serializers.BooleanField()
+    accept_privacy = serializers.BooleanField()
+
+    def validate_email(self, value: str) -> str:
+        return value.strip().lower()
+
+    def validate(self, attrs: dict) -> dict:
+        if not attrs.get("accept_terms") or not attrs.get("accept_privacy"):
+            raise serializers.ValidationError(
+                {
+                    "accept_terms": [
+                        "利用規約とプライバシーポリシーへの同意が必要です。"
+                    ]
+                }
+            )
+        return attrs

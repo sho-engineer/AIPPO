@@ -20,6 +20,7 @@ import { SettingsGroup } from "./Controls";
 import { changePassword, deleteAccount } from "../../api/accounts";
 import { ApiError } from "../../api/http";
 import { useAuth } from "../../auth/AuthContext";
+import { PasskeyGroup } from "./PasskeyGroup";
 import { AUTH_COPY } from "../../content/ui";
 
 const FIELD =
@@ -108,6 +109,10 @@ export function AccountPanel({ onOpenAuth, onNotice }: AccountPanelProps) {
             {AUTH_COPY.signOut}
           </button>
         </SettingsGroup>
+      </Card>
+
+      <Card className="mt-5" padded={false}>
+        <PasskeyGroup onNotice={onNotice} />
       </Card>
 
       <DeleteGroup onNotice={onNotice} />

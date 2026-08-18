@@ -187,3 +187,60 @@ class SocialAccount(models.Model):
 
     def __str__(self) -> str:
         return f"{self.get_provider_display()} → {self.user.email or self.user.username}"
+
+
+class Passkey(models.Model):
+    """パスキー（WebAuthn の資格情報）。
+
+    合言葉を覚えなくてよくする仕組み。端末の指紋や顔で本人を確かめ、
+    その端末が持つ秘密鍵で署名する。こちらが預かるのは**公開鍵だけ**。
+
+    パスワードとの違いが1つある。パスワードは「知っているもの」なので、
+    盗み見られれば誰でも使える。パスキーは「その端末にあるもの」なので、
+    公開鍵の一覧がまるごと漏れても、それだけでは誰も入れない。
+    偽サイトへ入力させる手も効かない（署名にドメインが混ざるため、
+    別のドメインで作った署名は通らない）。
+
+    1人が複数持てる。スマホと仕事のパソコンで別々に作るのが普通なので、
+    1つに制限すると、端末を変えるたびに入れなくなる。
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="passkeys",
+        on_delete=models.CASCADE,
+    )
+
+    #: 認証器が振る、この資格情報の番号。ログインのときの引き当てに使う。
+    #: 生のバイト列を base64url で持つ（URL にもJSONにも素直に載る形）。
+    credential_id = models.CharField(max_length=512, unique=True, db_index=True)
+
+    #: 公開鍵（COSE 形式）。これで署名を確かめる。秘密鍵は端末から出ない。
+    public_key = models.BinaryField()
+
+    #: 署名の通し番号。
+    #:
+    #: 認証器が署名のたびに増やす数。前より小さい値が来たら、
+    #: 資格情報が複製された疑いがある。0 を返し続ける認証器も多いので
+    #: （Apple の端末など）、0 のときは確かめない。
+    sign_count = models.PositiveBigIntegerField(default=0)
+
+    #: どうやって繋がる認証器か（internal / usb / nfc / ble / hybrid）。
+    #: 次に使うとき、ブラウザが出す案内を賢くするために渡す。
+    transports = models.JSONField(default=list, blank=True)
+
+    #: 画面に出す名前。「iPhone」「仕事のパソコン」など。
+    #: 複数持ったときに、どれを消せばよいか分かるようにする。
+    label = models.CharField(max_length=60, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "パスキー"
+        verbose_name_plural = "パスキー"
+        ordering = ("-created_at",)
+
+    def __str__(self) -> str:
+        who = self.user.email or self.user.username
+        return f"{self.label or 'パスキー'} → {who}"
