@@ -127,6 +127,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     # X_FRAME_OPTIONS はこのミドルウェアが無いと効かない
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # ログインから一定の期間が過ぎたら切る。
+    # AuthenticationMiddleware より**あと**に置くこと（request.user を見る）
+    "apps.accounts.session.AbsoluteSessionTimeoutMiddleware",
     "apps.lessons.middleware.LearnerKeyMiddleware",
 ]
 
@@ -262,9 +265,24 @@ CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", "Lax")
 # CSRF の合言葉は script から読めないと送り返せないので HttpOnly にしない。
 # 読めても、別サイトからは Cookie ごと送れないので目的は果たせる。
 CSRF_COOKIE_HTTPONLY = False
+# 期限は2つある。どちらか早いほうでログアウトになる。
+#
+#   1. 触らないまま何日でログアウトするか（SESSION_COOKIE_AGE）
+#   2. ログインした日から何日でログアウトするか（SESSION_ABSOLUTE_MAX_AGE）
+#
+# 1 だけだと、要求のたびに期限が先へ延びる（SESSION_SAVE_EVERY_REQUEST）ので、
+# 開き続けている人は**いつまでもログインしたまま**になる。
+# 端末を手放したあとや、こちらの都合で切りたい場面のために 2 を置く。
+#
 # 30日。毎日開くものではないので、短くするとログインし直しばかりになる。
 SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", str(60 * 60 * 24 * 30)))
 SESSION_SAVE_EVERY_REQUEST = True
+# 90日。学習は数か月かけて続くものなので、途中で切られると
+# やる気を削ぐ。かといって無期限にはしない。
+# 0 以下にすると上限そのものを外せる（勧めない）。
+SESSION_ABSOLUTE_MAX_AGE = int(
+    os.getenv("SESSION_ABSOLUTE_MAX_AGE", str(60 * 60 * 24 * 90))
+)
 # 画面と API が別ホストのとき、POST の送り元として明示が要る。
 CSRF_TRUSTED_ORIGINS = _list("CSRF_TRUSTED_ORIGINS", ",".join(CORS_ALLOWED_ORIGINS))
 

@@ -76,6 +76,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 | `AI_PROVIDER` を `openai` / `anthropic` に、`OPENAI_API_KEY` か `ANTHROPIC_API_KEY` | 本物のAIを使うとき |
 | `EMAIL_BACKEND` を smtp に、`EMAIL_HOST` `EMAIL_HOST_USER` `EMAIL_HOST_PASSWORD` `DEFAULT_FROM_EMAIL` | 実際に確認メールを送るとき |
 | `CSRF_TRUSTED_ORIGINS` | 独自ドメインを足したとき |
+| `SESSION_COOKIE_AGE` / `SESSION_ABSOLUTE_MAX_AGE` | ログインの期限を変えたいとき（既定は30日 / 90日） |
 | `SENTRY_DSN` | 例外を見張りたくなったとき |
 
 ---
