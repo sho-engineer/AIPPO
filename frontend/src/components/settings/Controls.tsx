@@ -9,7 +9,7 @@
 
 import { useId, type ReactNode } from "react";
 
-import { IconBadge } from "../AppShell";
+import { IconBadge, IconMark } from "../AppShell";
 import { IconCheck, IconChevronRight, type Icon } from "../Icons";
 
 // ------------------------------------------------------------------ 行
@@ -49,7 +49,18 @@ export function SettingsRow({
                    enabled:hover:bg-brand-soft/50 enabled:active:bg-brand-soft
                    disabled:cursor-not-allowed disabled:opacity-55"
       >
-        <IconBadge icon={icon} tone={tone} />
+        {/*
+          印は器に入れない。
+
+          設定は行が10ある。1行ずつ淡い色の角丸四角に絵を入れると、
+          同じ形の四角が縦に10個並び、そちらが項目名より強くなる。
+          見分けが付けばよいだけなので、線だけの印にする。
+        */}
+        <IconMark
+          icon={icon}
+          tone={tone === "plain" || tone === undefined ? "brand" : tone}
+          className="h-5 w-5"
+        />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-bold">{title}</span>
           <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
@@ -126,7 +137,7 @@ export function Toggle({
           checked={checked}
           onChange={(event) => onChange(event.target.checked)}
           className="peer h-7 w-12 cursor-pointer appearance-none rounded-full
-                     bg-line transition-colors checked:bg-brand-grad"
+                     bg-line transition-colors checked:bg-brand"
         />
         {/*
           つまみ。入力そのものは動かさず、上に重ねた丸を寄せる。
@@ -178,7 +189,7 @@ export function SegmentedChoice<T extends string>({
                           rounded-card px-4 py-2 text-sm transition
                           ${
                             active
-                              ? "bg-brand-grad font-bold text-white shadow-pop"
+                              ? "bg-brand font-bold text-white shadow-raised"
                               : "bg-surface shadow-card hover:bg-brand-soft/60"
                           }`}
             >
@@ -265,7 +276,7 @@ export function StepSlider<T extends string>({
                    [&::-webkit-slider-thumb]:appearance-none
                    [&::-webkit-slider-thumb]:rounded-full
                    [&::-webkit-slider-thumb]:bg-brand
-                   [&::-webkit-slider-thumb]:shadow-pop
+                   [&::-webkit-slider-thumb]:shadow-raised
                    [&::-webkit-slider-thumb]:transition-transform
                    [&::-webkit-slider-thumb]:active:scale-110"
       />

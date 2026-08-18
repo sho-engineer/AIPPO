@@ -41,7 +41,7 @@ export function PrivacyDialog({ findings, onEdit, onSend }: PrivacyDialogProps) 
       data-testid="privacy-dialog"
       className="fixed inset-0 z-30 flex items-end justify-center bg-ink/40 p-4 sm:items-center"
     >
-      <div className="w-full max-w-md rounded-card bg-surface p-5 shadow-pop">
+      <div className="w-full max-w-md rounded-card bg-surface p-5 shadow-raised">
         <h2
           id="privacy-title"
           className="flex items-center gap-2 text-lg font-bold text-caution"
@@ -77,8 +77,8 @@ export function PrivacyDialog({ findings, onEdit, onSend }: PrivacyDialogProps) 
             ref={editButton}
             type="button"
             onClick={onEdit}
-            className="min-h-[3rem] flex-1 rounded-full bg-brand-grad px-6 py-3 text-base
-                       font-bold text-white shadow-pop transition
+            className="min-h-[3rem] flex-1 rounded-cta bg-brand px-6 py-3 text-base
+                       font-bold text-white shadow-raised transition
                        hover:brightness-110 active:brightness-95"
           >
             {PRIVACY_COPY.edit}
@@ -88,7 +88,7 @@ export function PrivacyDialog({ findings, onEdit, onSend }: PrivacyDialogProps) 
             onClick={onSend}
             disabled={blocked}
             data-testid="privacy-send-anyway"
-            className="min-h-[3rem] flex-1 rounded-full border border-brand-line px-6 py-3
+            className="min-h-[3rem] flex-1 rounded-cta border border-brand-line px-6 py-3
                        text-sm text-brand-dark transition hover:bg-brand-soft
                        disabled:cursor-not-allowed disabled:border-line
                        disabled:text-ink-muted"

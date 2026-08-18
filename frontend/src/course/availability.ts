@@ -33,6 +33,20 @@ export function comingSoonNote(lesson: Lesson): string {
   return "近日公開です。もうしばらくお待ちください。";
 }
 
+/**
+ * 添える一言が、中身のある知らせかどうか。
+ *
+ * 公開日も個別の文も無いときの `comingSoonNote` は
+ * 「近日公開です。もうしばらくお待ちください。」という決まり文句になる。
+ * 近日公開の教材が7本並ぶと、同じ一文が7回続くことになり、
+ * 画面が「作り置き」に見える。中身があるときだけ出すために使う。
+ */
+export function hasComingSoonDetail(lesson: Lesson): boolean {
+  if (lesson.comingSoonMessage) return true;
+  if (!lesson.plannedReleaseDate) return false;
+  return !Number.isNaN(new Date(lesson.plannedReleaseDate).getTime());
+}
+
 /** 始められる教材だけ。進捗の分母や「次におすすめ」に使う。 */
 export function startableLessons(lessons: Lesson[]): Lesson[] {
   return lessons.filter(isStartable);

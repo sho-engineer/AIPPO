@@ -27,12 +27,12 @@ const FIELD =
   "transition focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30";
 
 const DANGER =
-  "min-h-[2.75rem] rounded-full border border-caution px-5 py-2 text-sm " +
+  "min-h-[2.75rem] rounded-cta border border-caution px-5 py-2 text-sm " +
   "text-caution transition hover:bg-caution-soft disabled:cursor-not-allowed " +
   "disabled:border-line disabled:text-ink-muted";
 
 const PLAIN =
-  "min-h-[2.75rem] rounded-full border border-brand-line px-5 py-2 text-sm " +
+  "min-h-[2.75rem] rounded-cta border border-brand-line px-5 py-2 text-sm " +
   "text-brand-dark transition hover:bg-brand-soft disabled:cursor-not-allowed " +
   "disabled:border-line disabled:text-ink-muted";
 
@@ -131,8 +131,8 @@ function GuestView({ onOpenAuth }: { onOpenAuth: () => void }) {
         type="button"
         data-testid="account-open-auth"
         onClick={onOpenAuth}
-        className="mt-5 min-h-[3rem] w-full rounded-full bg-brand-grad px-6 py-3
-                   text-base font-bold text-white shadow-pop transition
+        className="mt-5 min-h-[3rem] w-full rounded-cta bg-brand px-6 py-3
+                   text-base font-bold text-white shadow-raised transition
                    hover:brightness-110 active:brightness-95"
       >
         {AUTH_COPY.submitSignUp}

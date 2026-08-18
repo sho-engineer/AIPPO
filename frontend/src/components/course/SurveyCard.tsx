@@ -54,7 +54,7 @@ function Question({
                           rounded-card px-4 py-2 text-sm transition
                           ${
                             active
-                              ? "bg-brand-grad font-bold text-white shadow-pop"
+                              ? "bg-brand font-bold text-white shadow-raised"
                               : "bg-canvas shadow-card hover:bg-brand-soft/60"
                           }`}
             >
@@ -155,8 +155,8 @@ export function SurveyCard({ lessonId }: { lessonId: string }) {
           data-testid="survey-submit"
           disabled={!complete || sending}
           onClick={() => void submit()}
-          className="min-h-[3rem] flex-1 rounded-full bg-brand-grad px-6 py-3 text-base
-                     font-bold text-white shadow-pop transition
+          className="min-h-[3rem] flex-1 rounded-cta bg-brand px-6 py-3 text-base
+                     font-bold text-white shadow-raised transition
                      enabled:hover:brightness-110 enabled:active:brightness-95
                      disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -166,7 +166,7 @@ export function SurveyCard({ lessonId }: { lessonId: string }) {
           type="button"
           data-testid="survey-skip"
           onClick={skip}
-          className="min-h-[3rem] flex-1 rounded-full border border-line px-6 py-3
+          className="min-h-[3rem] flex-1 rounded-cta border border-line px-6 py-3
                      text-sm text-ink-muted transition hover:bg-canvas"
         >
           {SURVEY_COPY.skip}

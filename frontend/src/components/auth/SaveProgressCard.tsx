@@ -64,8 +64,8 @@ export function SaveProgressCard() {
             type="button"
             data-testid="save-progress-open"
             onClick={() => setOpen(true)}
-            className="min-h-[3rem] flex-1 rounded-full bg-brand-grad px-6 py-3 text-base
-                       font-bold text-white shadow-pop transition hover:brightness-110
+            className="min-h-[3rem] flex-1 rounded-cta bg-brand px-6 py-3 text-base
+                       font-bold text-white shadow-raised transition hover:brightness-110
                        active:brightness-95"
           >
             {AUTH_COPY.submitSignUp}
@@ -73,7 +73,7 @@ export function SaveProgressCard() {
           <button
             type="button"
             onClick={() => setDismissed(true)}
-            className="min-h-[3rem] flex-1 rounded-full border border-line px-6 py-3
+            className="min-h-[3rem] flex-1 rounded-cta border border-line px-6 py-3
                        text-sm text-ink-muted transition hover:bg-canvas"
           >
             {AUTH_COPY.cancel}

@@ -36,10 +36,22 @@ export type AppHeaderProps = {
   centered?: boolean;
 };
 
+/**
+ * 上の帯。
+ *
+ * 中身はロゴと、お知らせ・本人の欄だけ。それ以上のものは載らないので、
+ * 高さもそれに見合う分しか取らない。
+ *
+ * 以前は py-3 に 40px の丸ボタンを積んで 64px あった。スマホの
+ * 縦は限られていて、帯が厚いぶんそのまま教材の見える量が減る。
+ * 44px まで詰め、下端に線を1本引いて中身との境を示している
+ * （線を引けば、背景をぼかして浮かせる必要が無くなる）。
+ */
 export function AppHeader({ onBack, action, centered }: AppHeaderProps) {
   return (
     <header
-      className="sticky top-0 z-20 flex items-center gap-3 bg-canvas/85 px-5 py-3 backdrop-blur"
+      className="sticky top-0 z-20 flex h-11 items-center gap-2 border-b border-line
+                 bg-canvas px-4"
       data-testid="app-header"
     >
       {onBack && (
@@ -47,16 +59,15 @@ export function AppHeader({ onBack, action, centered }: AppHeaderProps) {
           type="button"
           onClick={onBack}
           aria-label="前の画面へ戻る"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full
-                     border border-line bg-surface text-ink-muted shadow-card
-                     transition hover:border-brand-line hover:text-brand"
+          className="-ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-badge
+                     text-ink-muted transition hover:bg-brand-soft hover:text-brand"
         >
           <IconChevronLeft className="h-5 w-5" />
         </button>
       )}
 
       <div className={centered ? "flex flex-1 justify-center" : "flex-1"}>
-        <BrandLogo className="h-8" />
+        <BrandLogo className="h-6" />
       </div>
 
       {action ? (
@@ -73,19 +84,12 @@ export function AppHeader({ onBack, action, centered }: AppHeaderProps) {
           置かない選択もあるが、そうすると後で足したときに
           右上の並びが動いて、覚えた位置が変わってしまう。
         */
-        <div className="flex shrink-0 items-center gap-2">
-          <span
-            aria-hidden="true"
-            className="flex h-10 w-10 items-center justify-center rounded-full text-ink-muted/45"
-          >
-            <IconBell className="h-5 w-5" />
+        <div className="flex shrink-0 items-center gap-1 text-ink-muted/40">
+          <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center">
+            <IconBell className="h-[1.125rem] w-[1.125rem]" />
           </span>
-          <span
-            aria-hidden="true"
-            className="flex h-9 w-9 items-center justify-center rounded-full
-                       bg-brand-soft text-brand/45"
-          >
-            <IconPerson className="h-5 w-5" />
+          <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center">
+            <IconPerson className="h-[1.125rem] w-[1.125rem]" />
           </span>
         </div>
       )}
@@ -123,22 +127,29 @@ export function BottomTabBar({
           const active = tab.key === current;
           return (
             <li key={tab.key} className="flex-1">
+              {/*
+                いまどこにいるかは、色と、上辺の短い線だけで示す。
+
+                以前は選択中のタブを淡い青の角丸で塗りつぶしていた。
+                4つ並ぶ帯の1つだけが面で光ると、そこが「押せる唯一の場所」
+                のように見え、他のタブが沈む。位置を示すのに面はいらない。
+              */}
               <button
                 type="button"
                 disabled={!tab.ready}
                 aria-current={active ? "page" : undefined}
                 onClick={() => onSelect(tab.key)}
-                className={`flex w-full flex-col items-center gap-1 rounded-card px-1 py-2
+                className={`relative flex w-full flex-col items-center gap-1 px-1 py-1.5
                             text-[0.6875rem] leading-4 transition
                             disabled:cursor-not-allowed disabled:text-ink-muted/40
-                            ${
-                              active
-                                ? // うすい青の上では一段濃い青にする。
-                                  // brand のままだと 4.42 で 4.5 に届かない
-                                  "bg-brand-soft font-bold text-brand-dark"
-                                : "text-ink-muted hover:text-ink"
-                            }`}
+                            ${active ? "font-bold text-brand-dark" : "text-ink-muted hover:text-ink"}`}
               >
+                {active && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-2 h-0.5 w-8 rounded-full bg-brand"
+                  />
+                )}
                 <tab.icon className="h-5 w-5" />
                 {tab.label}
                 {!tab.ready && <span className="sr-only">（準備中）</span>}
@@ -180,7 +191,7 @@ export function IconBadge({
   size?: "sm" | "md" | "lg";
 }) {
   const tones = {
-    brand: "bg-brand-grad text-white",
+    brand: "bg-brand text-white",
     sky: "bg-accent-sky-soft text-accent-sky",
     teal: "bg-accent-teal-soft text-accent-teal",
     amber: "bg-accent-amber-soft text-accent-amber",
@@ -208,7 +219,48 @@ export function IconBadge({
 }
 
 /**
- * 白い面。下地が白に近いので、輪郭は線ではなく影で出す。
+ * 器に入れない、線だけの印。
+ *
+ * 一覧や見出しの左に置く。`IconBadge` は淡い色の面を敷くので、
+ * 並べると「淡色の四角＋線画」が画面じゅうに反復し、
+ * どの機能も同じ重さに見えてしまう。
+ *
+ * 見分けが要るだけの場所——教材の種類、分類——はこちらを使う。
+ * 面が要るのは、本当にそこが操作の起点になっている場所だけ。
+ */
+export function IconMark({
+  icon: Glyph,
+  tone = "brand",
+  className = "h-5 w-5",
+}: {
+  icon: Icon;
+  tone?: "brand" | "sky" | "teal" | "amber" | "rose" | "violet" | "muted";
+  className?: string;
+}) {
+  const tones = {
+    brand: "text-brand",
+    sky: "text-accent-sky",
+    teal: "text-accent-teal",
+    amber: "text-accent-amber",
+    rose: "text-accent-rose",
+    violet: "text-accent-violet",
+    muted: "text-ink-muted",
+  } as const;
+
+  return <Glyph className={`${className} shrink-0 ${tones[tone]}`} aria-hidden="true" />;
+}
+
+/**
+ * 区切られた面。
+ *
+ * **一つの独立した操作単位のときだけ**使う。
+ * 情報を並べたいだけなら使わない——節の見出しと余白と線で足りる。
+ *
+ * 以前は画面じゅうがこれで、カードがカードを囲んでいた。
+ * 全部が同じ白い面で浮いていると、どれが本題か分からなくなる。
+ *
+ * 輪郭は影ではなく線で出す。影で浮かせた面が並ぶと、画面が
+ * 「貼り重ねた紙」に見えて、読む順番が伝わらない。
  *
  * 余白は `padded` で切る。className に p-0 を渡す形にはしない。
  * 同じ性質の指定を2つ書くと、どちらが勝つかが CSS の並び順まかせになり、
@@ -229,50 +281,61 @@ export function Card({
   return (
     <section
       data-testid={testId}
-      className={`overflow-hidden rounded-panel bg-surface shadow-card
-                  ${padded ? "p-5" : ""} ${className}`}
+      className={`overflow-hidden rounded-panel border border-line bg-surface
+                  ${padded ? "p-4" : ""} ${className}`}
     >
       {children}
     </section>
   );
 }
 
-/** 印＋見出し。カードの1行目に置く。 */
+/**
+ * 見出し。
+ *
+ * 印は付けない。見出しの左に淡色の四角を置くと、節が増えるほど
+ * 同じ形の印が縦に並び、見出しそのものより印のほうが目立つ。
+ * `icon` は受け取るが、線だけの印として控えめに出す。
+ */
 export function CardHeading({
   icon,
-  tone,
   children,
   action,
 }: {
-  icon: Icon;
+  icon?: Icon;
+  /** 使わない。以前の呼び出しと形を合わせるためだけに残している。 */
   tone?: Parameters<typeof IconBadge>[0]["tone"];
   children: ReactNode;
   action?: ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <IconBadge icon={icon} tone={tone} />
-      <h2 className="min-w-0 flex-1 text-base font-bold">{children}</h2>
+    <div className="flex items-center gap-2">
+      {icon && <IconMark icon={icon} className="h-[1.125rem] w-[1.125rem]" />}
+      <h2 className="min-w-0 flex-1 text-sm font-bold">{children}</h2>
       {action}
     </div>
   );
 }
 
-/** 小さな添え物。所要時間・むずかしさなど。 */
+/**
+ * 添え物。所要時間やむずかしさ。
+ *
+ * pill にはしない。ここは押せないし、タグでもない。ただの補足なので、
+ * 小さな文字で置けば足りる。囲うと「押せそうなもの」が増える。
+ */
 export function MetaPill({
   icon: Glyph,
   label,
   value,
 }: {
-  icon: Icon;
+  icon?: Icon;
   label?: string;
   value: ReactNode;
 }) {
   return (
-    <span className="flex items-center gap-2 text-sm">
-      <Glyph className="h-4 w-4 shrink-0 text-brand" />
-      {label && <span className="text-ink-muted">{label}</span>}
-      <span className="font-bold">{value}</span>
+    <span className="flex items-center gap-1.5 text-xs text-ink-muted">
+      {Glyph && <Glyph className="h-3.5 w-3.5 shrink-0" />}
+      {label && <span>{label}</span>}
+      <span>{value}</span>
     </span>
   );
 }

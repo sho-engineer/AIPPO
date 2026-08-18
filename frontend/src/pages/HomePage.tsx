@@ -1,41 +1,41 @@
 /**
- * ホーム（支給デザイン 1枚目）。
+ * ホーム。
  *
- * 以前ここは「見出し＋数字3つ＋レッスンの縦一列」だった。
- * 支給デザインは違う作りをしている。順に写している。
+ * ここは「ダッシュボード」ではない。開いた瞬間に
+ * **今日なにをすればいいか**が分かる画面にする。
  *
- *   1. ポーが迎える（吹き出し＋手を振る絵）
- *   2. 進み具合を輪で見せる。数字だけより、残りが直感で分かる
- *   3. おすすめを3枚、横に並べる
- *   4. コース全体への入り口を帯で置く
- *   5. 用途から探せるようにする
- *   6. 下タブでどこへでも戻れる
+ * 順番は上から:
+ *
+ *   1. 次にやるレッスン（名前・所要時間・始めるボタン）
+ *   2. 7日間のどこまで来たか
+ *   3. 進み具合（細い棒と「n / m」だけ）
+ *   4. ほかの教材への入り口
+ *
+ * 以前はこれが逆だった。円グラフ・継続日数・試した回数を先に見せ、
+ * 「次にやること」は横スクロールのカードの中に埋もれていた。
+ * 数字を眺めに来る人はいない。学びに来ている。
+ *
+ * やめたもの（すべて意図的）
+ * --------------------------
+ * - 円形の進捗グラフ … 50% を大きく出しても、次の一手は分からない
+ * - 「順調です。この調子で続けていきましょう。」 … 誰にでも当てはまる
+ *   文は、読んでも何も変わらない。代わりに次の教材の名前を出す
+ * - おすすめの横スクロール … 右端が切れたカードは「見落とし」を作る
+ * - 「無料」「初級」「近日公開」の pill … 押せないものを押せる形にしない
+ * - 大きな角丸カードの反復 … 節と余白と線で分ける
  *
  * 出すのは**自分のこと**だけ。順位も、他人との比較も出さない
  * （比べさせると、遅い人ほど続かなくなる）。
- *
- * 支給デザインには「学習時間 2時間15分」が載っているが、これは出さない。
- * 滞在時間を測っていないので、出すなら作り話になる。代わりに、実際に
- * 数えている「続けている日数」と「自分の課題で試した回数」を置く。
  */
 
 import { useEffect, useState } from "react";
 
-import { AppHeader, Card, CardHeading, IconBadge, MetaPill } from "../components/AppShell";
-import {
-  IconArrow,
-  IconBars,
-  IconChevronRight,
-  IconClock,
-  IconFolder,
-  IconLock,
-  IconSparkle,
-  IconStar,
-  IconTrend,
-} from "../components/Icons";
+import { AppHeader, IconMark } from "../components/AppShell";
+import { IconArrow, IconCheck, IconClock } from "../components/Icons";
 import { useCourse } from "../course/live";
 import {
   comingSoonNote,
+  hasComingSoonDetail,
   isComingSoon,
   startableLessons,
 } from "../course/availability";
@@ -51,73 +51,198 @@ export interface HomePageProps {
   onOpenCourse: () => void;
 }
 
-// ------------------------------------------------------------------ 進み具合
+// ---------------------------------------------------------------- 次にやること
 
 /**
- * 円い進み具合。
+ * 画面のいちばん上。ここだけは面で囲う。
  *
- * SVG の円を1本使い、破線の間隔で減らしている。
- * 割合は文字でも必ず出す。輪の長さだけで伝えると、
- * 色や形が見えにくい人に何も伝わらない。
+ * この画面で押す場所は基本ここ1つなので、
+ * 「独立した操作単位」として囲う条件を満たしている。
+ * 逆に言えば、囲ってよいのはここだけ。
  */
-function ProgressRing({ done, total }: { done: number; total: number }) {
-  const ratio = total === 0 ? 0 : done / total;
-  const percent = Math.round(ratio * 100);
-  const radius = 42;
-  const circumference = 2 * Math.PI * radius;
-
+function NextUp({
+  lesson,
+  started,
+  onStart,
+}: {
+  lesson: Lesson;
+  started: boolean;
+  onStart: () => void;
+}) {
   return (
-    <div
-      className="relative flex h-28 w-28 shrink-0 items-center justify-center"
-      /*
-        輪と割合は「何本中いくつ終わったか」を表している。
-        割合の文字だけでは、読み上げに何本中の何本かが届かない。
-        値そのものを持たせておくと、検査でも文字の書き方に依存せず読める。
-      */
-      role="progressbar"
-      aria-label="コース全体の進み具合"
-      aria-valuemin={0}
-      aria-valuemax={total}
-      aria-valuenow={done}
-      aria-valuetext={`${total}本のうち${done}本おわりました`}
+    <section
+      className="rounded-panel border border-brand-line bg-surface p-4"
+      aria-labelledby="next-heading"
+      data-testid="next-up"
     >
-      <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-hidden="true">
-        <circle
-          cx="50"
-          cy="50"
-          r={radius}
-          fill="none"
-          strokeWidth="9"
-          strokeLinecap="round"
-          className="stroke-brand-soft"
-        />
-        {/*
-          0件のときは描かない。端を丸めてあるので、長さ0でも点が1つ
-          残ってしまい、「少しだけ進んでいる」ように見える。
-        */}
-        {ratio > 0 && (
-          <circle
-            cx="50"
-            cy="50"
-            r={radius}
-            fill="none"
-            strokeWidth="9"
-            strokeLinecap="round"
-            className="stroke-brand transition-[stroke-dasharray] duration-700"
-            strokeDasharray={`${circumference * ratio} ${circumference}`}
-          />
-        )}
-      </svg>
-      <p className="absolute text-center">
-        <span className="text-2xl font-bold leading-none">{percent}</span>
-        <span className="text-sm font-bold">%</span>
-        <span className="block text-xs text-ink-muted">完了</span>
+      <p className="text-xs font-bold text-brand-dark">
+        {started ? "続きから" : "今日はここから"}
       </p>
-    </div>
+
+      <h2 id="next-heading" className="mt-1.5 text-lg font-bold leading-7">
+        {lesson.title}
+      </h2>
+      <p className="mt-1 text-sm leading-7 text-ink-muted">{lesson.goal}</p>
+
+      {/*
+        所要時間は、始める前にいちばん知りたいこと。
+        「8分なら今できる」と決められるように、ボタンのすぐ横に置く。
+      */}
+      <div className="mt-4 flex items-center gap-4">
+        <button
+          type="button"
+          data-testid="continue-lesson"
+          onClick={onStart}
+          className="flex items-center gap-2 rounded-cta bg-brand px-5 py-2.5 text-sm
+                     font-bold text-white transition hover:bg-brand-dark active:bg-brand-dark"
+        >
+          {started ? "学習を続ける" : "はじめる"}
+          <IconArrow className="h-4 w-4 shrink-0" />
+        </button>
+
+        {lesson.estimatedMinutes !== undefined && (
+          <span className="flex items-center gap-1.5 text-xs text-ink-muted">
+            <IconClock className="h-3.5 w-3.5 shrink-0" />
+            約{lesson.estimatedMinutes}分
+          </span>
+        )}
+      </div>
+    </section>
   );
 }
 
-function ProgressCard({
+// -------------------------------------------------------------- 7日間の道のり
+
+/**
+ * 7日間のどこまで来たか。
+ *
+ * 9本ぜんぶを常に大きく出す必要は無い。**いまいる場所の前後**が
+ * 見えれば足りる。終わったものは畳んで件数だけにし、
+ * これから来るものは2本だけ見せる。
+ *
+ * 以前はここが「0〜8 の丸を9個」だった。丸だけでは何の回か分からず、
+ * 押せない回まで押せる形で並んでいた。
+ */
+function Roadmap({
+  lessons,
+  completed,
+  currentId,
+  onSelectLesson,
+}: {
+  lessons: Lesson[];
+  completed: string[];
+  currentId: string | null;
+  onSelectLesson: (id: string) => void;
+}) {
+  const currentIndex = lessons.findIndex((lesson) => lesson.id === currentId);
+
+  /*
+    ひとつ前から見せる。どこから来たかが見えるほうが、
+    自分がどのあたりにいるか分かる。
+  */
+  const from = Math.max(0, currentIndex - 1);
+
+  // いまの回と、その前後。多すぎると「まだこんなにある」に見える
+  const visible = lessons.slice(from, from + 4);
+
+  /*
+    畳んだぶんの件数。
+
+    「一覧の何番目か」ではなく、**実際に終わった数**を数える。
+    位置で数えると、まだ1本も終えていない人に
+    「ここまで1回おわりました」と出る（実際に出した）。
+  */
+  const doneBefore = lessons
+    .slice(0, from)
+    .filter((lesson) => completed.includes(lesson.id)).length;
+
+  return (
+    <section aria-labelledby="roadmap-heading">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="roadmap-heading" className="section-title">
+          7日間の道のり
+        </h2>
+        <span className="text-xs text-ink-muted">全{lessons.length}回</span>
+      </div>
+
+      <ol className="mt-2" role="list">
+        {doneBefore > 0 && (
+          <li className="flex items-center gap-2 border-b border-line py-2.5 text-xs text-ink-muted">
+            <IconCheck className="h-3.5 w-3.5 shrink-0 text-brand" />
+            ここまで{doneBefore}回おわりました
+          </li>
+        )}
+
+        {visible.map((lesson) => {
+          const soon = isComingSoon(lesson);
+          const isCurrent = lesson.id === currentId;
+          const done = completed.includes(lesson.id);
+
+          return (
+            <li key={lesson.id}>
+              <button
+                type="button"
+                onClick={() => onSelectLesson(lesson.id)}
+                disabled={soon}
+                aria-disabled={soon}
+                data-testid={`roadmap-${lesson.id}`}
+                className={`row row-tap items-baseline disabled:cursor-not-allowed
+                            ${soon ? "opacity-55" : ""}`}
+              >
+                {/* 回の番号。丸で囲わない。数字そのもので順番は伝わる */}
+                <span
+                  className={`w-12 shrink-0 text-xs tabular-nums
+                              ${isCurrent ? "font-bold text-brand-dark" : "text-ink-muted"}`}
+                >
+                  Day {lesson.number}
+                </span>
+
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={`block text-sm leading-6 ${isCurrent ? "font-bold" : ""}`}
+                  >
+                    {lesson.title}
+                  </span>
+                  {soon && hasComingSoonDetail(lesson) && (
+                    <span className="mt-0.5 block text-xs text-ink-muted">
+                      {comingSoonNote(lesson)}
+                    </span>
+                  )}
+                </span>
+
+                {/*
+                  状態は右端に、文字で。色だけでは伝わらない人がいる。
+                  「近日公開」を青い錠前の pill にはしない——
+                  押せないものほど静かに置く。
+                */}
+                <span className="shrink-0 self-center text-xs">
+                  {done ? (
+                    <IconCheck className="h-4 w-4 text-brand" aria-label="おわった" />
+                  ) : isCurrent ? (
+                    <span className="font-bold text-brand-dark">今日</span>
+                  ) : soon ? (
+                    <span className="text-ink-muted">近日公開</span>
+                  ) : null}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
+  );
+}
+
+// ------------------------------------------------------------------ 進み具合
+
+/**
+ * 進み具合。
+ *
+ * 細い棒と「n / m」だけ。50% を大きく見せる意味は無い。
+ * 続けている日数と、自分の課題で試した回数は、実際に数えているので
+ * 小さく添える（滞在時間のような、測っていない数字は出さない）。
+ */
+function Progress({
   done,
   total,
   days,
@@ -130,135 +255,52 @@ function ProgressCard({
   realTaskCount: number;
   onOpenCourse: () => void;
 }) {
+  const ratio = total === 0 ? 0 : done / total;
+
   return (
-    <Card testId="progress-summary">
-      <CardHeading
-        icon={IconTrend}
-        action={
-          <button
-            type="button"
-            onClick={onOpenCourse}
-            /*
-              うすい青の上では brand をそのまま使わない。
-              #1268E8 と #E8F1FE の差は 4.42 で、4.5 にわずかに届かない
-              （検査で実際に落ちた）。一段濃い brand-dark なら 5.18。
-            */
-            className="flex shrink-0 items-center gap-1 rounded-full bg-brand-soft px-3 py-1.5
-                       text-xs font-bold text-brand-dark transition hover:bg-brand-line"
-          >
-            詳細を見る
-            <IconChevronRight className="h-3.5 w-3.5" />
-          </button>
-        }
-      >
-        学習の進み具合
-      </CardHeading>
-
-      {/*
-        輪と数字を横に並べる。数字は縦に積み、あいだを線で区切る。
-        3つを横一列にすると、狭い画面で「おわったレッスン」が
-        2行に折れて、輪と高さが合わなくなる。
-      */}
-      <div className="mt-5 flex items-center gap-4">
-        <ProgressRing done={done} total={total} />
-
-        <dl className="flex-1 divide-y divide-line">
-          <div className="flex items-baseline justify-between gap-2 pb-2.5">
-            <dt className="text-xs text-ink-muted">おわったレッスン</dt>
-            <dd className="shrink-0">
-              <span className="text-xl font-bold">{done}</span>
-              <span className="text-sm text-ink-muted">/{total}</span>
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-2 py-2.5">
-            <dt className="text-xs text-ink-muted">続けている日数</dt>
-            <dd className="shrink-0 text-xl font-bold">
-              {days}
-              <span className="text-sm">日</span>
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-2 pt-2.5">
-            <dt className="text-xs text-ink-muted">自分の課題で試した回数</dt>
-            <dd className="shrink-0 text-xl font-bold">
-              {realTaskCount}
-              <span className="text-sm">回</span>
-            </dd>
-          </div>
-        </dl>
+    <section aria-labelledby="progress-heading" data-testid="progress-summary">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="progress-heading" className="section-title">
+          学習の進み具合
+        </h2>
+        <button
+          type="button"
+          onClick={onOpenCourse}
+          className="shrink-0 text-xs font-bold text-brand transition hover:text-brand-dark"
+        >
+          教材をすべて見る
+        </button>
       </div>
 
-      <p className="mt-5 flex items-center gap-2 rounded-card bg-brand-soft px-4 py-3 text-sm text-brand-dark">
-        <IconStar className="h-4 w-4 shrink-0" />
-        {done === 0
-          ? "まずは1つ。10分あれば終わります。"
-          : "順調です。この調子で続けていきましょう。"}
+      <p className="mt-2 text-sm">
+        <span className="font-bold tabular-nums">
+          {done}/{total}
+        </span>
+        <span className="text-ink-muted"> レッスン完了</span>
       </p>
-    </Card>
-  );
-}
 
-// ------------------------------------------------------------ おすすめカード
-
-/**
- * おすすめ1枚。
- *
- * 支給デザインでは絵の部分にポーが描かれているが、用途ごとの絵は
- * 手元に無い。勝手に描き起こすことはしないので、うすい地に用途の印を
- * 置いて代わりにしている（絵が用意できれば、ここだけ差し替えられる）。
- */
-function RecommendCard({
-  lesson,
-  done,
-  onSelect,
-}: {
-  lesson: Lesson;
-  done: boolean;
-  onSelect: () => void;
-}) {
-  const look = lookOf(lesson.id);
-  const soon = isComingSoon(lesson);
-
-  return (
-    <li className="w-64 shrink-0 sm:w-auto">
-      <button
-        type="button"
-        onClick={onSelect}
-        disabled={soon}
-        aria-disabled={soon}
-        data-testid={`recommend-${lesson.id}`}
-        data-availability={soon ? "coming_soon" : "available"}
-        className="flex h-full w-full flex-col overflow-hidden rounded-panel bg-surface
-                   text-left shadow-card transition
-                   enabled:hover:-translate-y-0.5 enabled:hover:shadow-panel
-                   enabled:active:translate-y-0 enabled:active:scale-[0.99]
-                   disabled:cursor-not-allowed"
+      <div
+        className="mt-2 h-1.5 overflow-hidden rounded-full bg-line"
+        role="progressbar"
+        aria-label="コース全体の進み具合"
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={done}
+        aria-valuetext={`${total}本のうち${done}本おわりました`}
       >
-        <div className={`relative flex h-28 items-center justify-center ${look.wash}`}>
-          <IconBadge icon={look.icon} tone={look.tone} size="lg" />
-          <span
-            className="absolute left-3 top-3 flex items-center gap-1 rounded-full
-                       bg-surface/90 px-2.5 py-1 text-[0.6875rem] font-bold text-brand-dark"
-          >
-            {soon && <IconLock className="h-3 w-3" />}
-            {soon ? "近日公開" : done ? "おわった" : "初級"}
-          </span>
-        </div>
+        <div
+          className="h-full rounded-full bg-brand transition-[width] duration-500"
+          style={{ width: `${ratio * 100}%` }}
+        />
+      </div>
 
-        <div className="flex flex-1 flex-col p-4">
-          <h3 className="text-sm font-bold leading-6">{lesson.title}</h3>
-          <p className="mt-1.5 flex-1 text-xs leading-6 text-ink-muted">
-            {soon ? comingSoonNote(lesson) : lesson.goal}
-          </p>
-
-          <div className="mt-3 flex items-center gap-4 border-t border-line pt-3">
-            {lesson.estimatedMinutes !== undefined && (
-              <MetaPill icon={IconClock} value={`${lesson.estimatedMinutes}分`} />
-            )}
-            <MetaPill icon={IconBars} value="初級" />
-          </div>
-        </div>
-      </button>
-    </li>
+      {(days > 0 || realTaskCount > 0) && (
+        <p className="mt-2 text-xs text-ink-muted">
+          続けて{days}日
+          {realTaskCount > 0 && `・自分の課題で${realTaskCount}回ためしました`}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -290,47 +332,71 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
   */
   const startable = startableLessons(course.lessons);
 
-  const cards = recommended
-    .map((id) => course.lessons.find((lesson) => lesson.id === id))
-    .filter((lesson): lesson is Lesson => lesson !== undefined);
-
   const nextLesson =
     startable.find(
       (lesson) => recommended.includes(lesson.id) && !completed.includes(lesson.id),
     ) ?? startable.find((lesson) => !completed.includes(lesson.id));
 
+  /*
+    「次」以外の、始められる教材。ここに横スクロールは使わない。
+    右端で切れたカードは、そこに何かがあること自体を見落とさせる。
+  */
+  const others = startable.filter((lesson) => lesson.id !== nextLesson?.id).slice(0, 3);
+
   return (
     <>
       <AppHeader />
 
-      <main className="mx-auto max-w-2xl px-5 pb-28">
-        {/* ── ポーが迎える ── */}
+      <main className="mx-auto max-w-2xl px-4 pb-24 pt-4">
+        {/* ── ポーのひとこと ── */}
         {/*
-          上から順に現れる。遅れは 40ms 刻みで、4段目より下は増やさない。
-          待ち時間が伸びるほど「遅いアプリ」に感じられる。動きは
-          「順番がある」ことだけを伝えれば足りる。
+          ポーは学習ガイドであって、チャットボットではない。
+          画面の主役に据えず、次にやることへ添える1行だけにする。
+          以前は画面上端に吹き出しの面を置き、そこに
+          「今日も一緒に、AIの一歩を進めていきましょう。」と
+          誰にでも当てはまる文を出していた。
         */}
         <section
-          className="flex animate-fade-up items-end gap-2 pt-2"
+          className="flex items-center gap-2.5"
           aria-label="ポーからのあいさつ"
           data-testid="po-greeting"
         >
-          <div className="flex-1 rounded-panel rounded-br-md bg-surface px-4 py-3 shadow-card">
-            <p className="text-sm font-bold">こんにちは、ポーです。</p>
-            <p className="mt-1 text-xs leading-6 text-ink-muted">
-              今日も一緒に、AIの一歩を進めていきましょう。
-            </p>
-          </div>
           <img
             src="/brand/poe-wave.webp"
             alt=""
             aria-hidden="true"
-            className="h-24 w-24 shrink-0 animate-float object-contain sm:h-28 sm:w-28"
+            className="h-10 w-10 shrink-0 object-contain"
           />
+          <p className="text-sm leading-6 text-ink-muted">
+            {completed.length === 0
+              ? "はじめまして、ポーです。1本目は10分で終わります。"
+              : nextLesson
+                ? `おかえりなさい。次は「${nextLesson.title}」です。`
+                : "ここまでの教材はすべて終わりました。"}
+          </p>
         </section>
 
-        <div className="mt-4 animate-fade-up [animation-delay:0.04s]">
-          <ProgressCard
+        {nextLesson && (
+          <div className="mt-4">
+            <NextUp
+              lesson={nextLesson}
+              started={completed.length > 0}
+              onStart={() => onSelectLesson(nextLesson.id)}
+            />
+          </div>
+        )}
+
+        <div className="mt-7">
+          <Roadmap
+            lessons={course.lessons}
+            completed={completed}
+            currentId={nextLesson?.id ?? null}
+            onSelectLesson={onSelectLesson}
+          />
+        </div>
+
+        <div className="mt-7">
+          <Progress
             done={completed.length}
             total={startable.length}
             days={streak.days}
@@ -339,132 +405,55 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
           />
         </div>
 
-        {/* ── おすすめ ── */}
-        {cards.length > 0 && (
-          <section
-            className="mt-8 animate-fade-up [animation-delay:0.08s]"
-            aria-labelledby="recommend-heading"
-          >
-            <div className="flex items-center gap-3">
-              <IconBadge icon={IconSparkle} tone="plain" size="sm" />
-              <h2 id="recommend-heading" className="flex-1 text-base font-bold">
-                おすすめコース
-              </h2>
-              <button
-                type="button"
-                onClick={onOpenCourse}
-                className="flex items-center gap-1 text-xs font-bold text-brand
-                           transition hover:text-brand-dark"
-              >
-                すべて見る
-                <IconChevronRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
+        {/* ── ほかの教材 ── */}
+        {others.length > 0 && (
+          <section className="mt-7" aria-labelledby="others-heading">
+            <h2 id="others-heading" className="section-title">
+              ほかの教材
+            </h2>
 
-            {/*
-              狭い画面では横に流す。縦に積むと、他の節が下へ押し出されて
-              「まだ先がある」ことが分からなくなる。
-            */}
-            <ul
-              className="mt-4 flex snap-x gap-4 overflow-x-auto pb-2
-                         sm:grid sm:grid-cols-3 sm:overflow-visible"
-              role="list"
-            >
-              {cards.map((lesson) => (
-                <RecommendCard
-                  key={lesson.id}
-                  lesson={lesson}
-                  done={completed.includes(lesson.id)}
-                  onSelect={() => onSelectLesson(lesson.id)}
-                />
+            <ul className="mt-2" role="list">
+              {others.map((lesson) => (
+                <li key={lesson.id}>
+                  <button
+                    type="button"
+                    onClick={() => onSelectLesson(lesson.id)}
+                    data-testid={`recommend-${lesson.id}`}
+                    data-availability="available"
+                    className="row row-tap items-baseline"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold leading-6">
+                        {lesson.title}
+                      </span>
+                      <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
+                        {lesson.goal}
+                      </span>
+                    </span>
+                    {lesson.estimatedMinutes !== undefined && (
+                      <span className="shrink-0 self-center text-xs tabular-nums text-ink-muted">
+                        {lesson.estimatedMinutes}分
+                      </span>
+                    )}
+                  </button>
+                </li>
               ))}
             </ul>
           </section>
         )}
 
-        {/* ── コース全体への入り口 ── */}
-        {nextLesson && (
-          <section
-            className="relative mt-8 animate-fade-up overflow-hidden rounded-panel
-                       bg-brand-soft p-5 [animation-delay:0.12s]"
-            aria-labelledby="course-banner-heading"
-          >
-            <div className="flex items-start gap-2">
-              <span className="rounded-full bg-brand px-3 py-1 text-xs font-bold text-white">
-                無料
-              </span>
-              <h2 id="course-banner-heading" className="text-lg font-bold leading-7">
-                {course.title}
-              </h2>
-            </div>
-            <p className="mt-2 text-sm leading-6 text-ink-muted">
-              1日10分で、AIの使い方をやさしく学べます。
-            </p>
-
-            {/* 全体の中でどこまで来たか。番号は押せる */}
-            <ol className="mt-4 flex gap-1.5 sm:gap-2" role="list">
-              {course.lessons.map((lesson) => {
-                const isDone = completed.includes(lesson.id);
-                const isNext = lesson.id === nextLesson.id;
-                const soon = isComingSoon(lesson);
-                return (
-                  <li key={lesson.id} className="flex-1">
-                    <button
-                      type="button"
-                      onClick={() => onSelectLesson(lesson.id)}
-                      disabled={soon}
-                      aria-label={
-                        `${lesson.title}` +
-                        (soon ? "（近日公開）" : isDone ? "（おわった）" : "")
-                      }
-                      className={`flex aspect-square w-full items-center justify-center rounded-full
-                                  text-xs font-bold transition
-                                  disabled:cursor-not-allowed disabled:opacity-45
-                                  ${
-                                    isDone
-                                      ? "bg-brand text-white"
-                                      : isNext
-                                        ? "bg-surface text-brand ring-2 ring-brand"
-                                        : "bg-surface text-ink-muted enabled:hover:text-brand"
-                                  }`}
-                    >
-                      {lesson.number}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-
-            <button
-              type="button"
-              data-testid="continue-lesson"
-              onClick={() => onSelectLesson(nextLesson.id)}
-              className="mt-5 flex w-full items-center justify-center gap-3 rounded-full
-                         bg-brand-grad py-3.5 pl-6 pr-4 text-base font-bold text-white shadow-pop
-                         transition hover:brightness-110 active:brightness-95
-                         sm:w-auto sm:px-8"
-            >
-              <span className="flex-1">
-                {completed.length === 0 ? "はじめる" : "続きから"}
-              </span>
-              <IconArrow className="h-5 w-5 shrink-0" />
-            </button>
-          </section>
-        )}
-
         {/* ── 用途から探す ── */}
-        <section
-          className="mt-8 animate-fade-up [animation-delay:0.12s]"
-          aria-labelledby="category-heading"
-        >
-          <div className="flex items-center gap-3">
-            <IconBadge icon={IconFolder} tone="plain" size="sm" />
-            <h2 id="category-heading" className="text-base font-bold">
-              カテゴリから探す
-            </h2>
-          </div>
+        {/*
+          丸いチップを6個並べるのをやめ、2列の一覧にした。
+          チップの列は「タグの群れ」に見えて、押せる入り口だと分かりにくい。
+          印は器に入れず、線だけにしている。
+        */}
+        <section className="mt-7" aria-labelledby="category-heading">
+          <h2 id="category-heading" className="section-title">
+            用途から探す
+          </h2>
 
-          <ul className="mt-4 flex flex-wrap gap-2.5" role="list">
+          <ul className="mt-2 grid grid-cols-2 gap-x-4" role="list">
             {CATEGORIES.map((category) => {
               const look = lookOf(category.lessonId);
               return (
@@ -472,12 +461,14 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
                   <button
                     type="button"
                     onClick={() => onSelectLesson(category.lessonId)}
-                    className="flex items-center gap-2 rounded-full bg-surface py-2 pl-2 pr-4
-                               text-sm shadow-card transition hover:-translate-y-0.5
-                               hover:shadow-panel"
+                    className="row row-tap items-center gap-2.5 py-3"
                   >
-                    <IconBadge icon={look.icon} tone={look.tone} size="sm" />
-                    {category.label}
+                    <IconMark
+                      icon={look.icon}
+                      tone={look.tone === "plain" ? "brand" : look.tone}
+                      className="h-[1.125rem] w-[1.125rem]"
+                    />
+                    <span className="text-sm">{category.label}</span>
                   </button>
                 </li>
               );

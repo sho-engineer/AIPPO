@@ -149,7 +149,7 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
       data-testid="auth-dialog"
       className="fixed inset-0 z-40 flex items-end justify-center bg-ink/40 p-4 sm:items-center"
     >
-      <div className="max-h-full w-full max-w-md overflow-y-auto rounded-card bg-surface p-5 shadow-pop">
+      <div className="max-h-full w-full max-w-md overflow-y-auto rounded-card bg-surface p-5 shadow-raised">
         {reading !== null ? (
           <ReadingView id={reading} onBack={() => setReading(null)} titleId={`${ids}-title`} />
         ) : (
@@ -288,8 +288,8 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
             type="submit"
             disabled={busy || (view === "signup" && !consent)}
             data-testid="auth-submit"
-            className="min-h-[3rem] w-full rounded-full bg-brand-grad px-6 py-3 text-base
-                       font-bold text-white shadow-pop transition hover:brightness-110
+            className="min-h-[3rem] w-full rounded-cta bg-brand px-6 py-3 text-base
+                       font-bold text-white shadow-raised transition hover:brightness-110
                        active:brightness-95 disabled:cursor-not-allowed
                        disabled:bg-none disabled:bg-line disabled:text-ink-muted
                        disabled:shadow-none"
@@ -340,7 +340,7 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
         <button
           type="button"
           onClick={onClose}
-          className="mt-4 w-full rounded-full border border-line px-6 py-3 text-sm
+          className="mt-4 w-full rounded-cta border border-line px-6 py-3 text-sm
                      text-ink-muted transition hover:bg-canvas"
         >
           {AUTH_COPY.cancel}
@@ -379,7 +379,7 @@ function ReadingView({
         type="button"
         data-testid="auth-read-back"
         onClick={onBack}
-        className="mt-4 w-full rounded-full border border-brand-line px-6 py-3
+        className="mt-4 w-full rounded-cta border border-brand-line px-6 py-3
                    text-sm text-brand-dark transition hover:bg-brand-soft"
       >
         登録の画面へもどる

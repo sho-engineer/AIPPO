@@ -548,14 +548,15 @@ export function OutcomePreview({
           <CardHeading icon={IconTarget} tone="plain">
             今日できるようになること
           </CardHeading>
-          <ul className="mt-4 flex flex-wrap gap-2" role="list">
+          {/*
+            できるようになることは押せない。だから pill にはしない。
+            淡い青の丸で囲うと「選べる候補」に見え、押してみて何も
+            起きない、という無反応を作る。印と文字だけで足りる。
+          */}
+          <ul className="mt-3 space-y-1.5" role="list">
             {skills.map((skill) => (
-              <li
-                key={skill}
-                className="flex items-center gap-1.5 rounded-full bg-brand-soft px-3 py-2
-                           text-xs leading-5 text-brand-dark"
-              >
-                <IconCheckCircle className="h-4 w-4 shrink-0" />
+              <li key={skill} className="flex items-start gap-2 text-sm leading-6">
+                <IconCheckCircle className="mt-1 h-4 w-4 shrink-0 text-brand" />
                 {skill}
               </li>
             ))}
@@ -859,7 +860,7 @@ export function ChangePoints({
         {points.map((point) => (
           <li
             key={point}
-            className="rounded-full bg-brand-soft px-3 py-1 text-xs text-brand-dark"
+            className="rounded-badge bg-brand-soft px-3 py-1 text-xs text-brand-dark"
           >
             {point}
           </li>
@@ -987,7 +988,7 @@ export function ChoiceTiles({
                             ${
                               active
                                 ? "bg-brand-soft font-bold text-brand-dark ring-2 ring-brand"
-                                : "bg-surface hover:-translate-y-0.5 hover:shadow-panel"
+                                : "bg-surface hover:-translate-y-0.5 hover:shadow-raised"
                             }`}
               >
                 <IconBadge
@@ -1238,11 +1239,11 @@ export function CompletionView({
                   data-testid={`next-${lesson.id}`}
                   className="flex w-full items-center gap-3 rounded-panel bg-surface p-4
                              text-left shadow-card transition
-                             enabled:hover:-translate-y-0.5 enabled:hover:shadow-panel
+                             enabled:hover:-translate-y-0.5 enabled:hover:shadow-raised
                              disabled:cursor-not-allowed"
                 >
                   <div className="min-w-0 flex-1">
-                    <span className="inline-block rounded-full bg-brand-soft px-2.5 py-1 text-[0.6875rem] font-bold text-brand-dark">
+                    <span className="inline-block rounded-badge bg-brand-soft px-2.5 py-1 text-[0.6875rem] font-bold text-brand-dark">
                       Lesson {lesson.number}
                     </span>
                     <h3 className="mt-2 text-sm font-bold leading-6">{lesson.title}</h3>
@@ -1250,8 +1251,7 @@ export function CompletionView({
                   </div>
                   <span
                     aria-hidden="true"
-                    className="flex h-8 w-8 shrink-0 items-center justify-center
-                               rounded-full bg-brand-soft text-brand-dark"
+                    className="flex shrink-0 items-center justify-center text-ink-muted"
                   >
                     <IconChevronRight className="h-4 w-4" />
                   </span>
@@ -1292,7 +1292,7 @@ export function CopyButton({ text }: { text: string }) {
           setState("failed");
         }
       }}
-      className="flex items-center gap-2 rounded-full bg-brand-soft px-4 py-2
+      className="flex items-center gap-2 rounded-badge bg-brand-soft px-4 py-2
                  text-xs font-bold text-brand-dark transition hover:bg-brand-line"
     >
       <IconCopy className="h-4 w-4 shrink-0" />

@@ -20,14 +20,35 @@
   */
   body {
     @apply bg-canvas text-ink;
-    background-image:
-      radial-gradient(
-        58rem 30rem at 50% -8rem,
-        rgba(18, 104, 232, 0.07),
-        rgba(18, 104, 232, 0) 70%
-      );
-    background-attachment: fixed;
-    background-repeat: no-repeat;
+
+    /*
+      日本語の折り返し。
+
+      日本語には単語の切れ目が無いので、放っておくとブラウザは
+      どこでも折る。実際に「説明し／てもらう」のように語の途中で
+      折れていた。読む速さが落ちるだけでなく、作りの粗さが出る。
+
+      line-break: strict … 小さい仮名（っ ゃ ー など）を行頭に置かない
+      word-break: auto-phrase … 対応する環境では文節で折る
+        （Chrome 119+。Safari は未対応だが、指定しても害は無い）
+      overflow-wrap は指定しない。指定すると語中で折る許可を与えてしまう。
+    */
+    line-break: strict;
+    word-break: auto-phrase;
+  }
+
+  /*
+    見出しと短い文は、行の長さをそろえて折る。
+    最後の行に1〜2文字だけ残る「取り残し」を防ぐ。
+  */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
   }
 
   /*
@@ -60,14 +81,45 @@
 }
 
 @layer components {
-  /* 選択肢のチップ。押されているかが一目で分かるようにする */
+  /*
+    選択肢。
+
+    以前は rounded-full の「pill」だった。押せる選択肢と、
+    ただのタグと、状態表示が、画面じゅうで同じ形をしていたので、
+    どれが押せるのか形からは分からなかった。
+    角丸を弱めて、押せるものは押せる面の形にしている。
+  */
   .chip {
-    @apply rounded-full border px-3.5 py-2 text-xs transition;
+    @apply rounded-badge border px-3.5 py-2 text-xs transition;
   }
   .chip-off {
-    @apply border-brand-line bg-surface text-ink hover:border-brand hover:bg-brand-soft;
+    @apply border-line bg-surface text-ink hover:border-brand hover:bg-brand-soft;
   }
   .chip-on {
-    @apply border-brand bg-brand text-white shadow-pop;
+    @apply border-brand bg-brand text-white;
+  }
+
+  /*
+    節の見出し。
+
+    情報の階層を、カードで囲うのではなく文字の強さで作る。
+    見出しそのものは小さく抑え、下に細い線を引いて切れ目を示す。
+  */
+  .section-title {
+    @apply text-sm font-bold tracking-wide text-ink;
+  }
+
+  /*
+    一覧の1行。
+
+    教材や設定の並びは、1件ずつ白いカードにしない。
+    線で区切った行にすると、件数が増えても画面が「カードの山」に
+    ならず、視線がまっすぐ下へ流れる。
+  */
+  .row {
+    @apply flex w-full gap-4 border-b border-line px-1 py-4 text-left transition;
+  }
+  .row-tap {
+    @apply enabled:hover:bg-brand-soft/40 enabled:active:bg-brand-soft/70;
   }
 }
