@@ -87,6 +87,20 @@ def _authenticated(client) -> bool:
     return client.get(ME_URL).json()["authenticated"]
 
 
+def _add_passkey(client, device, label: str = ""):
+    """ログイン中の人に、もう1本足す。
+
+    「2台目の端末で登録した」状況を作るための道具。
+    """
+    options = _json(client, REGISTER_OPTIONS_URL)
+    assert options.status_code == 200, options.json()
+
+    payload = {"credential": device.register(options.json()["challenge"])}
+    if label:
+        payload["label"] = label
+    return _json(client, REGISTER_VERIFY_URL, payload)
+
+
 @pytest.mark.django_db
 class TestSignUpWithAPasskey:
     def test_a_passkey_alone_creates_the_account(self, client, device):
@@ -293,14 +307,8 @@ class TestManagingPasskeys:
         self._signed_in(client, device)
 
         laptop = FakeAuthenticator(rp_id=RP_ID, origin=ORIGIN)
-        options = _json(client, REGISTER_OPTIONS_URL)
-        assert options.status_code == 200
 
-        response = _json(
-            client,
-            REGISTER_VERIFY_URL,
-            {"credential": laptop.register(options.json()["challenge"]), "label": "仕事のPC"},
-        )
+        response = _add_passkey(client, laptop, label="仕事のPC")
 
         assert response.status_code == 201, response.json()
         assert Passkey.objects.count() == 2
@@ -309,8 +317,7 @@ class TestManagingPasskeys:
     def test_either_passkey_can_sign_in(self, client, device):
         self._signed_in(client, device)
         laptop = FakeAuthenticator(rp_id=RP_ID, origin=ORIGIN)
-        options = _json(client, REGISTER_OPTIONS_URL)
-        _json(client, REGISTER_VERIFY_URL, {"credential": laptop.register(options.json()["challenge"])})
+        _add_passkey(client, laptop)
         _json(client, SIGNOUT_URL)
 
         assert _sign_in(client, laptop).status_code == 200
@@ -339,8 +346,7 @@ class TestManagingPasskeys:
     def test_a_passkey_can_be_removed_when_another_one_remains(self, client, device):
         self._signed_in(client, device)
         laptop = FakeAuthenticator(rp_id=RP_ID, origin=ORIGIN)
-        options = _json(client, REGISTER_OPTIONS_URL)
-        _json(client, REGISTER_VERIFY_URL, {"credential": laptop.register(options.json()["challenge"])})
+        _add_passkey(client, laptop)
 
         first = Passkey.objects.order_by("created_at").first()
         response = client.delete(f"{LIST_URL}{first.pk}/")
