@@ -10,10 +10,15 @@
  *
  * 支給デザインにあって、ここに無いもの
  * ------------------------------------
- * 外部連携とサブスクリプションは、押せる形で置いたうえで「準備中」と
- * 書いて止めてある。課金はまだこのアプリに無いため。それらしい画面だけ
- * 作ると、触った人は「申し込んだのに反映されない」と受け取る。
- * 無いものは無いと書く。
+ * 外部連携・サブスクリプション・ヘルプ・言語設定は、押せる形で置いたうえで
+ * 「準備中」と書いて止めてある。課金も翻訳もまだこのアプリに無いため。
+ * それらしい画面だけ作ると、触った人は「申し込んだのに反映されない」
+ * 「英語にしたのに日本語のまま」と受け取る。無いものは無いと書く。
+ *
+ * 止め方は4つとも同じにする（行を disabled にして、説明の代わりに
+ * 「準備中です」を出す）。同じ「まだ無い」を、ある行は開けて中で断り、
+ * ある行は開けない、と分けると、開けた人は「こっちは動くのかもしれない」
+ * と読む。1画面の中で扱いを揃えるほうが、言葉を尽くすより早く伝わる。
  *
  * アカウント設定は動く。登録なしでも最後まで使えるので、ここは
  * 「登録しないと始まらない入口」ではなく「残したくなったときの置き場」。
@@ -57,7 +62,6 @@ import { updateReminders } from "../api/accounts";
 import { useAuth } from "../auth/AuthContext";
 import {
   DAILY_GOALS,
-  LANGUAGES,
   TONES,
   clearLearningData,
   exportLearningData,
@@ -75,7 +79,6 @@ type Panel =
   | "study"
   | "notification"
   | "privacy"
-  | "language"
   | "legal"
   | null;
 
@@ -144,7 +147,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     study: "学習設定",
     notification: "通知設定",
     privacy: "学習データ・プライバシー",
-    language: "言語設定",
     legal: "規約とポリシー",
   };
 
@@ -202,9 +204,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
             )}
             {panel === "notification" && (
               <NotificationPanel settings={settings} onChange={update} />
-            )}
-            {panel === "language" && (
-              <LanguagePanel settings={settings} onChange={update} />
             )}
             {panel === "privacy" && (
               <PrivacyPanel
@@ -276,12 +275,22 @@ function MainMenu({
             description="受け取る知らせを選びます"
             onClick={() => onOpen("notification")}
           />
+          {/*
+            言語は選ばせない。
+
+            訳文を1語も用意していないので、English を選べる形にすると
+            「選んだのに変わらない」だけが起きる。以前はここを開けたうえで
+            画面の中に「まだ切り替わりません」と書いていたが、それは
+            **選ばせてから断る**形で、いちばん心証が悪い。
+            用意できたら onClick を戻して、下位画面をここへ足す。
+          */}
           <SettingsRow
             icon={IconGlobe}
-            tone="violet"
+            tone="plain"
             title="言語設定"
             description="画面に出る言葉を選びます"
-            onClick={() => onOpen("language")}
+            disabled
+            note="準備中です。いまは日本語のみです"
           />
           <SettingsRow
             icon={IconShield}
@@ -550,47 +559,6 @@ function NotificationPanel({
           {auth.user
             ? "いま実際に届くのは「学習リマインダー」だけです。残りは送る仕組みを用意しているところで、選んだ内容は残しておきます。"
             : "お知らせを受け取るには登録が必要です。ここで選んだ内容は、登録したときにそのまま使います。"}
-        </p>
-      </div>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------- 言語設定
-
-function LanguagePanel({
-  settings,
-  onChange,
-}: {
-  settings: Settings;
-  onChange: (patch: Partial<Settings>) => void;
-}) {
-  return (
-    <Card className="mt-5" padded={false}>
-      <SettingsGroup
-        title="表示する言語"
-        description="画面に出る言葉を選びます。"
-      >
-        <SegmentedChoice
-          legend="表示する言語"
-          value={settings.language}
-          options={LANGUAGES.map((language) => ({
-            value: language.value,
-            label: language.label,
-          }))}
-          onChange={(language) => onChange({ language })}
-        />
-      </SettingsGroup>
-
-      {/*
-        訳文をまだ1語も用意していない。「英語にできます」と見せてしまうと、
-        選んだ人は壊れていると受け取る。効かないことを先に書く。
-      */}
-      <div className="px-4 pb-5">
-        <p className="rounded-card bg-caution-soft px-4 py-3 text-xs leading-6 text-caution">
-          いまは選んだ内容を覚えるだけで、画面はまだ切り替わりません。
-          English を用意できたときに、ここでの選択がそのまま効くようになります。
-          レッスンの本文とAIの答えは、今後も日本語のままです。
         </p>
       </div>
     </Card>
