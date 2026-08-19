@@ -57,6 +57,8 @@ from apps.accounts.throttle import TooManyAttempts
 from apps.accounts.throttle import clear as clear_attempts
 from apps.accounts.throttle import consume as consume_attempt
 from apps.lessons.models import LearningEventType, LearningSession
+from apps.lessons.services.quota import client_ip
+from apps.ops import audit
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -457,6 +459,17 @@ class DeleteLearningDataView(APIView):
         LearnerProfile.objects.filter(learner_key__in=keys).delete()
         SkillProgress.objects.filter(learner_key__in=keys).delete()
 
+        # 「本当に消えたのか」とあとから聞かれたときに、答えられるようにする。
+        # 消した本人の記憶しか残らないのは、答えとして弱い
+        audit.record(
+            audit.AuditAction.SELF_DATA_DELETE,
+            actor="self",
+            target_model="lessons.LearningSession",
+            target_id=str(request.user.pk),
+            ip=client_ip(request),
+            rows=deleted,
+        )
+
         logger.info("accounts.learning_data.deleted user=%s", request.user.pk)
         return Response({"deleted": True, "rows": deleted})
 
@@ -476,6 +489,16 @@ class DeleteAccountView(APIView):
         LearningSession.objects.filter(learner_key__in=keys).delete()
         LearnerProfile.objects.filter(learner_key__in=keys).delete()
         SkillProgress.objects.filter(learner_key__in=keys).delete()
+
+        # 消す**前**に残す。消したあとでは user.pk が無くなり、
+        # 「誰のアカウントが消えたか」を書けなくなる
+        audit.record(
+            audit.AuditAction.SELF_ACCOUNT_DELETE,
+            actor="self",
+            target_model="accounts.User",
+            target_id=str(user.pk),
+            ip=client_ip(request),
+        )
 
         logout(request)
         user.delete()

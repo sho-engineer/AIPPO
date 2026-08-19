@@ -35,6 +35,7 @@ from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
 from apps.lessons.management.commands.prune_data import prune
+from apps.ops import audit
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,16 @@ def prune_expired_data(request: HttpRequest) -> JsonResponse:
     # 何をいつ消したかはログに残す。あとから「本当に動いていたか」を
     # 確かめられるのは、ここだけになる
     logger.info("cron.prune.done days=%d deleted=%s", days, deleted)
+
+    # 「一定期間が過ぎたら削除します」と書いてあることを、あとから
+    # 示せるようにする。動いていた証拠がログの流れ去る行だけ、では弱い
+    audit.record(
+        audit.AuditAction.RETENTION_PRUNE,
+        actor="system",
+        target_model="lessons.LearningSession",
+        days=days,
+        deleted_total=sum(deleted.values()),
+    )
 
     return JsonResponse(
         {

@@ -111,6 +111,8 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.catalog",
     "apps.lessons",
+    # 運用まわり（管理画面の締め出しと、触った記録）
+    "apps.ops",
     "apps.profiles",
     "apps.tutor",
 ]
@@ -134,6 +136,12 @@ MIDDLEWARE = [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # 管理画面で学習者の記録に触れたことを残す。
+    #
+    # AuthenticationMiddleware より**後ろ**。誰が見たかを取るため。
+    # AdminIpAllowlistMiddleware より後ろでもある——先に置くと、
+    # 締め出した相手の 404 まで「見た」として残ってしまう。
+    "apps.ops.middleware.AdminAuditMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     # X_FRAME_OPTIONS はこのミドルウェアが無いと効かない
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -461,6 +469,16 @@ LEARNER_KEY_MAX_AGE = 60 * 60 * 24 * 90  # 90日
 # Cookie の寿命は90日。それを過ぎた時点で本人からも取り出せなくなるので、
 # さらに余裕を見た180日で消す。消すのは `manage.py prune_data`。
 GUEST_DATA_RETENTION_DAYS = int(os.getenv("GUEST_DATA_RETENTION_DAYS", "180"))
+
+# 操作記録（誰が誰の記録に触れたか）を何日残すか。
+#
+# 学習データより**長く**取る。触られたことに気づくのは、たいてい
+# ずっとあとになる。学習データと同じ180日で消すと、問い合わせが来た
+# 時点で、調べるための記録がもう無い、ということが起きる。
+#
+# ただし永久には持たない。中身は入れていないが、接続元は個人に
+# 結びつきうるし、管理画面を開くたびに1行増える。1年で切る。
+AUDIT_LOG_RETENTION_DAYS = int(os.getenv("AUDIT_LOG_RETENTION_DAYS", "365"))
 
 # 定期実行（Vercel Cron）から `prune_data` を叩くための合言葉。
 #

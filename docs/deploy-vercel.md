@@ -79,6 +79,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 | `SESSION_COOKIE_AGE` / `SESSION_ABSOLUTE_MAX_AGE` | ログインの期限を変えたいとき（既定は30日 / 90日） |
 | `PASSKEY_RP_ID` / `PASSKEY_ORIGINS` | パスキーのドメインを明示したいとき（未設定なら `FRONTEND_URL` から決まる） |
 | `CRON_SECRET` | 定期実行（古いデータの削除・学習リマインダー）を動かすとき。**入れるまで両方とも止まったまま** |
+| `AUDIT_LOG_RETENTION_DAYS` | 操作記録を何日残すか（既定365。学習データの180日より長く取る） |
 | `SENTRY_DSN` | 例外を見張りたくなったとき |
 
 ### 一般に公開する前に入れるもの
@@ -176,6 +177,11 @@ DATABASE_URL="<Neonの接続文字列>" python manage.py createsuperuser
   と書かれている）。仕様が変わる可能性がある。うまくいかない場合の
   逃げ道として、Oracle Cloud に載せる手順を `docs/deploy-oracle.md` に
   残してある。
-- **`prune_data` の定期実行**: 登録していない人の記録を消す処理
-  （`manage.py prune_data`）を1日1回動かす仕組みは、まだ入れていない。
-  Vercel Cron で叩けるようにするか、手で回す。
+- **定期実行には `CRON_SECRET` が要る**: 古いデータの削除（`prune_data`）と
+  学習リマインダーは Vercel Cron から叩く形で入っているが、
+  **`CRON_SECRET` を入れるまで入り口は 404 のまま**動かない。
+  合言葉が空のときに素通りさせると、入れ忘れた配置で
+  「誰でも全データを消せる URL」が開くため、安全な側へ倒してある。
+- **管理画面の操作記録**: 誰がどの学習者の記録を開いたかを残している
+  （`apps/ops/models.py` の `AuditLog`、管理画面からは読むだけ）。
+  既定で365日保持。`ADMIN_ALLOWED_IPS` と併せて使うこと。

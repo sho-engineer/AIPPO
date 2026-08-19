@@ -73,3 +73,111 @@ def _is_admin_path(path: str) -> bool:
     """
     prefix = "/" + getattr(settings, "ADMIN_PATH", "admin/")
     return path == prefix.rstrip("/") or path.startswith(prefix)
+
+
+class AdminAuditMiddleware:
+    """管理画面で、学習者の記録に触れたことを残す。
+
+    Django の `LogEntry` は追加・変更・削除しか残さない。
+    **見ただけ**が抜けている。このアプリで一番起きてほしくないのは
+    書き換えではなく、運用する人が学習者の記録を意味もなく
+    読んでいくことなので、そこが抜けていては見張る意味が薄い。
+
+    置く場所
+    --------
+    `AdminIpAllowlistMiddleware` より**後ろ**。先に置くと、
+    締め出した相手の 404 まで「見た」として残る。
+
+    認証より後ろでもある必要がある（誰が見たかを取るため）。
+
+    残さないもの
+    ------------
+    中身は残さない。誰の記録を開いたかまでにする。
+    監査のための記録が、それ自体2つ目の個人情報の山になっては
+    本末転倒になる。
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+
+        try:
+            self._record(request, response)
+        except Exception:  # noqa: BLE001 - 記録の失敗で画面を落とさない
+            logger.exception("audit.admin.failed path=%s", request.path)
+
+        return response
+
+    def _record(self, request: HttpRequest, response: HttpResponse) -> None:
+        if not _is_admin_path(request.path):
+            return
+
+        # 失敗した要求は残さない。見えていないものを「見た」にしない
+        if response.status_code >= 400:
+            return
+
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated:
+            # ログイン画面など。誰が来たかは分からないので残さない
+            return
+
+        parsed = _parse_admin_path(request.path)
+        if parsed is None:
+            return
+
+        app_label, model_name, object_id, verb = parsed
+        label = f"{app_label}.{model_name}"
+
+        from apps.ops import audit
+
+        if not audit.is_watched(label):
+            # 教材の編集などは対象外。全部残すと肝心の1件が埋もれる
+            return
+
+        if request.method == "POST":
+            action = (
+                audit.AuditAction.ADMIN_DELETE
+                if verb == "delete"
+                else audit.AuditAction.ADMIN_CHANGE
+            )
+        elif request.method == "GET":
+            action = audit.AuditAction.ADMIN_VIEW
+        else:
+            return
+
+        audit.record(
+            action,
+            actor=user.get_username(),
+            target_model=label,
+            target_id=object_id or "",
+            ip=client_ip(request),
+            # 一覧か1件か。一覧を開いたのと、特定の人を開いたのとでは重みが違う
+            scope="object" if object_id else "list",
+        )
+
+
+def _parse_admin_path(path: str) -> tuple[str, str, str, str] | None:
+    """`/admin/lessons/attempt/3/change/` を分解する。
+
+    管理画面の場所は変えられる（`ADMIN_PATH`）ので、前置きを
+    取り除いてから見る。形が合わないものは対象外として捨てる。
+    """
+    prefix = "/" + getattr(settings, "ADMIN_PATH", "admin/")
+    rest = path[len(prefix) :] if path.startswith(prefix) else path.lstrip("/")
+
+    parts = [part for part in rest.split("/") if part]
+    if len(parts) < 2:
+        # トップページなど。表を指していないので残さない
+        return None
+
+    app_label, model_name = parts[0], parts[1]
+    object_id = ""
+    verb = ""
+
+    if len(parts) >= 3 and parts[2] not in {"add"}:
+        object_id = parts[2]
+        verb = parts[3] if len(parts) >= 4 else ""
+
+    return app_label, model_name, object_id, verb
