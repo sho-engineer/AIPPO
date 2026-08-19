@@ -210,3 +210,28 @@ class TestThingsThatOnlyWarn:
         settings.ADMIN_ALLOWED_IPS = []
         text, _ = run()
         assert "注意 管理画面の接続元が絞られていない" in text
+
+
+@pytest.mark.django_db
+class TestTheCacheTable:
+    def test_a_missing_cache_table_stops_the_release(self, sound, settings):
+        """キャッシュ表が無いことは、動かしても気づけない。
+
+        無くてもAI実行は 200 を返す（`tests/test_cache_table_missing.py`
+        で確かめた）。静かに二重送信の防止だけが外れ、本物のAIでは
+        そのまま二重の費用になる。気づける機会がここしか無いので NG にする。
+        """
+        settings.CACHES = {
+            "default": {
+                "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+                "LOCATION": "table_that_does_not_exist",
+            }
+        }
+
+        text, _ = run()
+
+        assert any("キャッシュ表" in line for line in ng_lines(text))
+
+    def test_a_working_cache_table_passes(self, sound):
+        text, _ = run()
+        assert "OK   キャッシュ表" in text

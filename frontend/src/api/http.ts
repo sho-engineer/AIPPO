@@ -132,8 +132,36 @@ async function request<T>(
 
   if (response.status === 204) return undefined as T;
 
-  const payload = await response.json().catch(() => null);
+  let parsed = true;
+  const payload = await response.json().catch(() => {
+    parsed = false;
+    return null;
+  });
+
   if (!response.ok) throw new ApiError(toFailure(response.status, payload));
+
+  /*
+    200 なのに JSON でない、を成功として扱わない。
+
+    通信は成立しているので黙って通したくなるが、実際に返ってきているのは
+    別物。**経路の設定が狂うと必ずこの形になる**——Vercel の rewrite が
+    ずれて `/api/...` が画面側（index.html）へ流れる、間の proxy が
+    エラーページを返す、配置の途中で古い静的ファイルだけが応答する。
+    どれも 200 で返る。
+
+    ここで null を返すと、呼んだ側は成功したつもりで `data.items` を
+    触り、そこで初めて落ちる。落ちる場所が原因から遠いので、
+    調べても経路の設定には辿り着けない。近いところで止める。
+  */
+  if (!parsed) {
+    throw new ApiError({
+      status: response.status,
+      code: "NOT_JSON",
+      detail: "サーバーからの応答を読めませんでした。時間をおいてお試しください。",
+      fieldErrors: {},
+    });
+  }
+
   return payload as T;
 }
 

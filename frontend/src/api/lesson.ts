@@ -83,7 +83,20 @@ async function request<T>(
   }
 
   if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+
+  try {
+    return (await response.json()) as T;
+  } catch {
+    /*
+      200 なのに JSON でない。経路の設定が狂うとこうなる
+      （`/api/...` が画面側の index.html へ流れる、など。どれも 200）。
+
+      生の SyntaxError のまま投げると、画面の「もう一度おくってみましょう」
+      に繋がらない。名前の付いた例外にして、扱いを1本にする。
+    */
+    console.error(`JSON ではない応答: ${url}`);
+    throw new LessonApiError(GENERIC_ERROR, response.status);
+  }
 }
 
 export async function rewriteText(

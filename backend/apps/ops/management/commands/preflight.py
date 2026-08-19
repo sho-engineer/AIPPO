@@ -164,6 +164,25 @@ class Command(BaseCommand):
         except Exception as exc:  # noqa: BLE001
             out.append(Result("warn", "マイグレーションを確認できません", type(exc).__name__))
 
+        # キャッシュ表は、無くても**落ちない**。二重送信の防止だけが
+        # 静かに効かなくなる（apps/ai/views.py は読み書きの失敗を素通りする）。
+        # 動かして気づける類ではないので、ここで見るしかない。
+        # 本物のAIでは、これがそのまま二重の費用になる。
+        from django.core.cache import cache
+
+        try:
+            cache.get("preflight:probe")
+            out.append(Result("ok", "キャッシュ表（二重送信の防止）"))
+        except Exception:  # noqa: BLE001 - 表が無い / 権限が無い
+            out.append(
+                Result(
+                    "ng",
+                    "キャッシュ表が無い",
+                    "二重送信の防止が効きません（落ちないので気づけません）。"
+                    "migrate を流してください",
+                )
+            )
+
         User = get_user_model()
         if not User.objects.filter(is_superuser=True).exists():
             out.append(

@@ -129,8 +129,10 @@ DATABASE_URL="<Neonの接続文字列>" python manage.py seed_catalog
 ```
 
 `migrate` は二重送信の抑止に使うキャッシュ表（`aippo_cache`）も作る
-（`apps/lessons/migrations/0006_cache_table.py`）。忘れると
-AI実行のたびに落ちるので、必ず流すこと。
+（`apps/lessons/migrations/0006_cache_table.py`）。
+
+**忘れても落ちない**——AI実行は通り、二重送信の防止だけが静かに外れる。
+本物のAIでは二重の費用になるので、`manage.py preflight` で確かめること。
 
 管理画面に入りたいときは、続けて:
 
