@@ -16,6 +16,7 @@ import { Card, CardHeading, IconBadge, MetaPill } from "../AppShell";
 import { SaveProgressCard } from "../auth/SaveProgressCard";
 import { SurveyCard } from "./SurveyCard";
 import { LessonCelebration } from "./LessonCelebration";
+import { RevealText } from "./RevealText";
 import {
   IconArrowDown,
   IconBars,
@@ -353,15 +354,35 @@ export function ResultCompare({
   const parts = diffSentences(before, after);
   const showDiff = before.trim().length > 0 && !isMostlyUnchanged(parts);
 
-  const panel = (title: string, body: string, testId: string) => (
+  /*
+    AIが書いたほうだけ、少しずつ現れるようにする。
+
+    全文がいきなり出ると、返ってきたことに気づかないまま読み始める。
+    書かれていく様子が見えると「自分が頼んだ結果だ」という繋がりが残り、
+    待った時間にも意味が付く。
+
+    元の文章は自分が入れたものなので、現れる意味が無い。そのまま出す。
+    文字は最初から DOM にある（変えるのは見え方だけ）ので、
+    読み上げもコピーも途中の状態にはならない。
+  */
+  const panel = (title: string, body: string, testId: string, reveal = false) => (
     <section className="rounded-card border border-line bg-surface p-4">
       <h3 className="text-xs font-bold text-ink-muted">{title}</h3>
-      <p
-        data-testid={testId}
-        className="mt-2 whitespace-pre-wrap break-words text-sm leading-7"
-      >
-        {body}
-      </p>
+      {reveal ? (
+        <RevealText
+          text={body}
+          trigger={body}
+          testId={testId}
+          className="mt-2 whitespace-pre-wrap break-words text-sm leading-7"
+        />
+      ) : (
+        <p
+          data-testid={testId}
+          className="mt-2 whitespace-pre-wrap break-words text-sm leading-7"
+        >
+          {body}
+        </p>
+      )}
     </section>
   );
 
@@ -388,14 +409,14 @@ export function ResultCompare({
         <div className="mt-3">
           {tab === "before"
             ? panel("元の文章", before || "（入力なし）", "result-before-mobile")
-            : panel("AIの結果", after, "result-after-mobile")}
+            : panel("AIの結果", after, "result-after-mobile", true)}
         </div>
       </div>
 
       {/* 広い画面：並べる */}
       <div className="hidden gap-4 sm:grid sm:grid-cols-2">
         {panel("元の文章", before || "（入力なし）", "result-before")}
-        {panel("AIの結果", after, "result-after")}
+        {panel("AIの結果", after, "result-after", true)}
       </div>
 
       {showDiff && (

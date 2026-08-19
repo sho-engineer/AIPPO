@@ -17,6 +17,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { prefersReducedMotion } from "../course/motion";
 import type { PoEmotion, PoMessage } from "../course/types";
 import { PO_ALT, PO_FALLBACK, PO_PLACEHOLDER, poAssets } from "./assets";
 
@@ -24,6 +25,17 @@ import { PO_ALT, PO_FALLBACK, PO_PLACEHOLDER, poAssets } from "./assets";
 const BLINK_MIN_MS = 5000;
 const BLINK_MAX_MS = 8000;
 const BLINK_DURATION_MS = 140;
+
+/** 口の開け閉め。速すぎると点滅に見え、遅いと呼吸のように見える。 */
+const MOUTH_MS = 160;
+
+/**
+ * しゃべって見せる時間。
+ *
+ * 話し続けさせない。吹き出しの文は数秒で読み終わるのに、口だけ
+ * 動き続けると、まだ何か言っているのかと待たせることになる。
+ */
+const TALKING_MS = 1600;
 
 export type PoAvatarProps = {
   po: PoMessage;
@@ -66,6 +78,56 @@ function useBlink(emotion: PoEmotion): boolean {
   }, [emotion]);
 
   return blinking;
+}
+
+/**
+ * しゃべっている口の動き。
+ *
+ * 「話している」用の絵は1枚しか無いので、ふだんの絵と交互に出して
+ * 口が動いているように見せる。2枚の違いはほぼ口だけなので、
+ * 速く入れ替えると開け閉めに見える。
+ *
+ * 動きを減らす設定のときは入れ替えない。文字は吹き出しに出ているので、
+ * 口が動かなくても伝わるものは何も減らない。
+ */
+function useTalking(emotion: PoEmotion, message: string): boolean {
+  /*
+    返すのは「口を閉じているか」。**開いているか**ではない。
+
+    開いているかを返すと、初期状態が false（＝閉じ）になり、
+    最初の1枚が「話している」用の絵ではなくなる。絵の探し直し
+    （PO_FALLBACK）はその1枚目を起点にするので、起点がずれると
+    別の絵へ寄ってしまう。話し始めは口が開いている、が自然でもある。
+  */
+  const [closed, setClosed] = useState(false);
+
+  useEffect(() => {
+    if (emotion !== "talking" || prefersReducedMotion()) {
+      setClosed(false);
+      return;
+    }
+
+    let shut = false;
+    const timer = window.setInterval(() => {
+      shut = !shut;
+      setClosed(shut);
+    }, MOUTH_MS);
+
+    // 話し終わったら開いた絵に戻す。閉じたまま止めない
+    const stop = window.setTimeout(() => {
+      window.clearInterval(timer);
+      setClosed(false);
+    }, TALKING_MS);
+
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(stop);
+      setClosed(false);
+    };
+    // 文が変わるたびに、もう一度しゃべる
+  }, [emotion, message]);
+
+  return closed;
 }
 
 function PoImage({ emotion, className }: { emotion: PoEmotion; className: string }) {
@@ -117,9 +179,18 @@ function PoImage({ emotion, className }: { emotion: PoEmotion; className: string
 
 export function PoAvatar({ po, compact = false, isVisible = true }: PoAvatarProps) {
   const blinking = useBlink(po.emotion);
+  const mouthClosed = useTalking(po.emotion, po.message);
   if (!isVisible) return null;
 
-  const shown: PoEmotion = blinking ? "blink" : po.emotion;
+  /*
+    出す絵の決め方。まばたきが最優先（一瞬だけ）、次に口の動き。
+    しゃべっている間は、ふだんの絵と交互に出して口を動かして見せる。
+  */
+  const shown: PoEmotion = blinking
+    ? "blink"
+    : po.emotion === "talking" && mouthClosed
+      ? "neutral"
+      : po.emotion;
   const size = compact ? "h-12 w-12" : "h-16 w-16 sm:h-20 sm:w-20";
 
   return (
