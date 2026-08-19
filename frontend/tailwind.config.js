@@ -176,6 +176,18 @@ export default {
        * prefers-reduced-motion のときは全部止めている。
        */
       keyframes: {
+        /*
+          レッスンを終えたときの紙。ごく短く、ごく少なく。
+          散る向きは 1片ずつ --confetti-x で渡す。
+        */
+        confetti: {
+          "0%": { transform: "translate(0, 0) rotate(0deg)", opacity: "1" },
+          "100%": {
+            transform:
+              "translate(var(--confetti-x, 0), 96px) rotate(220deg)",
+            opacity: "0",
+          },
+        },
         // ふわりと浮く。上下だけだと機械的なので、わずかに傾ける
         float: {
           "0%, 100%": { transform: "translateY(0) rotate(-1.2deg)" },

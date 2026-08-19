@@ -18,6 +18,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LessonProgress } from "../src/components/course/LessonProgress";
 import { StepTransition } from "../src/components/course/StepTransition";
 import { StepDone } from "../src/components/course/StepDone";
+import { LessonCelebration } from "../src/components/course/LessonCelebration";
 
 describe("進み具合", () => {
   it("何歩目かが読み上げに届く", () => {
@@ -109,5 +110,53 @@ describe("「できた」の印", () => {
     rerender(<StepDone label="できました" trigger={2} />);
 
     expect(screen.getByTestId("step-done")).toBeInTheDocument();
+  });
+});
+
+describe("完了の祝い", () => {
+  /*
+    紙吹雪は飾りで、意味は一切載せていない（終えたことは見出しと項目が
+    伝える）。だから動きを減らす設定の人には**出さない**。
+
+    CSS で秒数を0にする手は使えない。紙が散らばったまま画面に残る。
+  */
+  function setReducedMotion(reduce: boolean) {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: reduce && query.includes("reduce"),
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      onchange: null,
+      dispatchEvent: () => false,
+    }));
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("ふだんは出る", () => {
+    setReducedMotion(false);
+    render(<LessonCelebration />);
+
+    expect(screen.getByTestId("lesson-celebration")).toBeInTheDocument();
+  });
+
+  it("動きを減らす設定なら、出さない", () => {
+    setReducedMotion(true);
+    render(<LessonCelebration />);
+
+    expect(screen.queryByTestId("lesson-celebration")).not.toBeInTheDocument();
+  });
+
+  it("読み上げには出さない", () => {
+    // 飾りなので、聞いている人には何も足さない
+    setReducedMotion(false);
+    render(<LessonCelebration />);
+
+    expect(screen.getByTestId("lesson-celebration")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
   });
 });

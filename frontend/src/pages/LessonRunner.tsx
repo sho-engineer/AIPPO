@@ -333,9 +333,24 @@ export function LessonRunner({
 
       case "prompt_preview": {
         const input = buildAiInput(step, values);
+        /*
+          自分で選んだ条件に印を付ける。
+
+          値が `values` に入っていれば、この人が選んだもの。教材が
+          最初から持っている値と、自分で足した値を見分けるのはここだけ。
+          印が無いと、AIへ渡す一覧を眺めるだけになり、**さっきの操作が
+          効いている**という繋がりが切れる。
+        */
+        const chosen = new Set(
+          Object.values(values).filter((value) => typeof value === "string" && value),
+        );
         const cards = Object.entries(input)
           .filter(([key, value]) => value && key !== "original_text")
-          .map(([key, value]) => ({ label: LABELS[key] ?? key, value }));
+          .map(([key, value]) => ({
+            label: LABELS[key] ?? key,
+            value,
+            added: chosen.has(value),
+          }));
         return (
           <PromptPreview
             cards={[

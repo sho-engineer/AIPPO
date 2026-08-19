@@ -15,6 +15,7 @@ import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { Card, CardHeading, IconBadge, MetaPill } from "../AppShell";
 import { SaveProgressCard } from "../auth/SaveProgressCard";
 import { SurveyCard } from "./SurveyCard";
+import { LessonCelebration } from "./LessonCelebration";
 import {
   IconArrowDown,
   IconBars,
@@ -236,7 +237,12 @@ export function TextStep({
 
 interface PreviewProps {
   /** かんたん表示に出すカード。 */
-  cards: { label: string; value: string }[];
+  cards: {
+    label: string;
+    value: string;
+    /** 利用者が自分で選んだ条件か。ここだけ薄く塗って繋がりを見せる。 */
+    added?: boolean;
+  }[];
   /** 詳細表示に出す、実際に送る文章。 */
   detail: string;
   onOpenDetail?: () => void;
@@ -269,11 +275,37 @@ export function PromptPreview({ cards, detail, onOpenDetail }: PreviewProps) {
             <div key={card.label} className="flex gap-4 py-3">
               <dt className="w-20 shrink-0 text-xs text-ink-muted">{card.label}</dt>
               <dd className="min-w-0 flex-1 break-words text-sm font-bold">
-                {card.value}
+                {/*
+                  自分が足した分だけ、薄く塗る。
+
+                  項目を並べるだけだと「AIへ渡す一覧」にしか見えず、
+                  **さっき自分が選んだことが効いている**という繋がりが
+                  切れる。ここが繋がらないと、条件を足す意味が体で分からない。
+
+                  色だけにしない。塗りが見えない人にも分かるよう、
+                  読み上げ用の言葉を添える。
+                */}
+                {card.added ? (
+                  <mark
+                    data-testid="prompt-added"
+                    className="rounded-badge bg-brand-soft px-1.5 py-0.5 text-brand-dark"
+                  >
+                    <span className="sr-only">あなたが足した条件: </span>
+                    {card.value}
+                  </mark>
+                ) : (
+                  card.value
+                )}
               </dd>
             </div>
           ))}
         </dl>
+
+        {cards.some((card) => card.added) && (
+          <p className="mt-3 text-xs leading-6 text-ink-muted">
+            色が付いているところが、さっき選んだ条件です。
+          </p>
+        )}
       </Card>
 
       <details
@@ -1083,6 +1115,32 @@ export function GeneratingCard({
           style={{ width: busy ? "40%" : "100%" }}
         />
       </div>
+
+      {/*
+        返ってくるものの形を、先に置いておく。
+
+        真ん中でぐるぐる回すだけだと、あとどれくらいなのかも、
+        何が返ってくるのかも分からない。文章が入る枠を薄く出しておくと、
+        待っている間に「文章が返ってくる」ことが分かり、
+        届いたときの入れ替わりも急に見えない。
+
+        飾りなので読み上げには出さない（上の文が状態を伝えている）。
+      */}
+      {busy && (
+        <div
+          aria-hidden="true"
+          data-testid="result-skeleton"
+          className="mt-6 space-y-2.5"
+        >
+          {[100, 92, 74].map((width) => (
+            <div
+              key={width}
+              className="h-3 animate-pulse rounded-full bg-brand-soft"
+              style={{ width: `${width}%` }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1176,7 +1234,12 @@ export function CompletionView({
   onSelectLesson?: (lessonId: string) => void;
 }) {
   return (
-    <div data-testid="completion-view" className="space-y-4">
+    /*
+      `relative` は紙吹雪の親。紙はこの枠の中だけで散り、
+      画面全体を覆わない（覆うと、次に押す場所が読めなくなる）。
+    */
+    <div data-testid="completion-view" className="relative space-y-4">
+      <LessonCelebration />
       <Card>
         <CardHeading icon={IconStar} tone="plain">
           スキルを身につけました
