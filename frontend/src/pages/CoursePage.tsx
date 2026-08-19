@@ -27,7 +27,7 @@
 import { useEffect, useState } from "react";
 
 import { AppHeader } from "../components/AppShell";
-import { IconCheck } from "../components/Icons";
+import { IconBookmark, IconCheck } from "../components/Icons";
 import { PoAvatar } from "../po/PoAvatar";
 import { lookupLesson, useCourse } from "../course/live";
 import {
@@ -38,6 +38,8 @@ import {
 } from "../course/availability";
 import { loadRecommendations } from "../course/recommend";
 import { useCompletedLessons } from "../course/progress";
+import { useBookmarks } from "../course/bookmarks";
+import { searchLessons } from "../course/search";
 import type { Lesson } from "../course/types";
 
 export interface CoursePageProps {
@@ -55,15 +57,30 @@ function LessonRow({
   lesson,
   done,
   firstUp,
+  bookmarked,
+  onToggleBookmark,
+  testIdPrefix,
   onSelect,
 }: {
   lesson: Lesson;
   done: boolean;
   /** 最初にやる1本。先頭に置いたうえで、ここだけ短く添える。 */
   firstUp: boolean;
+  bookmarked: boolean;
+  /** 近日公開の教材では渡さない。始められないものは取っておけない。 */
+  onToggleBookmark?: () => void;
+  /**
+   * 目印の一覧に出すときの前置き。
+   *
+   * 同じ教材が「あとで見る」と下の一覧の両方に出る。`data-testid` が
+   * 二重になると、テストもE2Eも「どちらの行か」を指せなくなる。
+   * 既存の id（`lesson-…`）は下の一覧のまま変えない。
+   */
+  testIdPrefix?: string;
   onSelect: () => void;
 }) {
   const soon = isComingSoon(lesson);
+  const prefix = testIdPrefix ?? "";
 
   const meta = [
     lesson.estimatedMinutes !== undefined ? `${lesson.estimatedMinutes}分` : null,
@@ -71,7 +88,11 @@ function LessonRow({
   ].filter((part): part is string => part !== null);
 
   return (
-    <li>
+    /*
+      目印のボタンは、行のボタンの**中**には置けない（button の入れ子は
+      不正で、読み上げも押下も壊れる）。並べて置き、行のほうを伸ばす。
+    */
+    <li className="flex items-stretch">
       {/*
         近日公開の教材も一覧には出す。何が来るのか分かるほうが、
         いま1本しか無いことの説明にもなる。ただし押せなくする。
@@ -82,7 +103,7 @@ function LessonRow({
         onClick={onSelect}
         disabled={soon}
         aria-disabled={soon}
-        data-testid={`lesson-${lesson.id}`}
+        data-testid={`${prefix}lesson-${lesson.id}`}
         data-availability={soon ? "coming_soon" : "available"}
         className={`row row-tap items-baseline disabled:cursor-not-allowed
                     ${soon ? "opacity-55" : ""}`}
@@ -130,11 +151,36 @@ function LessonRow({
                     {meta.length > 0 && "・"}まずはここから
                   </span>
                 )}
+                {/*
+                  色だけで「付いている」を表さない。印の色が見えない人にも、
+                  ここの文字で分かるようにする
+                */}
+                {bookmarked && <>{(meta.length > 0 || firstUp) && "・"}あとで見る</>}
               </>
             )}
           </span>
         </span>
       </button>
+
+      {/*
+        取っておく。始められる教材にだけ出す——近日公開のものを
+        取っておけても、開ける日まで何も起きない。
+      */}
+      {onToggleBookmark && (
+        <button
+          type="button"
+          onClick={onToggleBookmark}
+          aria-pressed={bookmarked}
+          aria-label={
+            bookmarked ? `${lesson.title}をあとで見るから外す` : `${lesson.title}をあとで見る`
+          }
+          data-testid={`${prefix}bookmark-${lesson.id}`}
+          className="row-tap flex shrink-0 items-center border-b border-line px-2
+                     text-ink-muted aria-pressed:text-brand"
+        >
+          <IconBookmark className="h-4 w-4" />
+        </button>
+      )}
     </li>
   );
 }
@@ -142,7 +188,9 @@ function LessonRow({
 export function CoursePage({ onSelectLesson }: CoursePageProps) {
   const course = useCourse();
   const completed = useCompletedLessons();
+  const bookmarks = useBookmarks();
   const [recommended, setRecommended] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     setRecommended(loadRecommendations());
@@ -163,6 +211,14 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
     startable.find(
       (lesson) => recommended.includes(lesson.id) && !completed.includes(lesson.id),
     )?.id ?? startable.find((lesson) => !completed.includes(lesson.id))?.id;
+
+  // 探している最中は、絞り込んだものだけを並べる。
+  // 空のときは全件（＝いつもの目次）に戻る
+  const found = searchLessons(course.lessons, query);
+
+  // 目印の付いた教材。id の並び順ではなく、一覧と同じ順に出す——
+  // 上下2か所で順番が違うと、同じものを探し直すことになる
+  const savedLessons = course.lessons.filter((lesson) => bookmarks.has(lesson.id));
 
   const skills = completed
     .map((id) => lookupLesson(id))
@@ -195,6 +251,38 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
           </section>
         )}
 
+        {/*
+          あとで見るに入れたもの。
+
+          付けられるだけで、まとめて見る場所が無いと目印の意味が無い
+          （一覧を上から探し直すことになる）。1件も無いときは
+          見出しごと出さない——空の枠は、機能が壊れているように見える。
+
+          探している最中は隠す。絞り込んだ結果の下に別の一覧が続くと、
+          どちらが検索結果なのか分からなくなる。
+        */}
+        {query.trim() === "" && savedLessons.length > 0 && (
+          <section className="mt-7" aria-labelledby="saved-heading">
+            <h2 id="saved-heading" className="section-title">
+              あとで見る
+            </h2>
+            <ul className="mt-2" role="list">
+              {savedLessons.map((lesson) => (
+                <LessonRow
+                  key={lesson.id}
+                  lesson={lesson}
+                  done={completed.includes(lesson.id)}
+                  firstUp={false}
+                  bookmarked
+                  onToggleBookmark={() => bookmarks.toggle(lesson.id)}
+                  testIdPrefix="saved-"
+                  onSelect={() => onSelectLesson(lesson.id)}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
+
         <section className="mt-7" aria-labelledby="lessons-heading">
           <div className="flex items-baseline justify-between gap-3">
             <h2 id="lessons-heading" className="section-title">
@@ -205,21 +293,66 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
             </span>
           </div>
 
-          <ul className="mt-2" role="list">
-            {course.lessons.map((lesson) => (
-              <LessonRow
-                key={lesson.id}
-                lesson={lesson}
-                done={completed.includes(lesson.id)}
-                firstUp={lesson.id === firstUpId}
-                onSelect={() => onSelectLesson(lesson.id)}
-              />
-            ))}
-          </ul>
+          {/*
+            探す口。
 
-          <p className="mt-3 text-xs leading-6 text-ink-muted">
-            残りは順次公開します。
-          </p>
+            9件しか無いので目次でも足りるが、「請求書」「議事録」のように
+            **やりたいことの言葉**で来る人は、題（「文章を書き直す」）と
+            自分の言葉が一致せず、合う1本にたどり着けない。
+            タグまで含めて当てる（search.ts）。
+
+            虫めがねのアイコンは付けない。入力欄そのものが探す場所だと
+            分かるので、絵を足しても意味が増えない。
+          */}
+          <div className="mt-2">
+            <label htmlFor="lesson-search" className="sr-only">
+              レッスンを探す
+            </label>
+            <input
+              id="lesson-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="やりたいことで探す（例: メール、要約）"
+              data-testid="lesson-search"
+              className="w-full border-b border-line bg-transparent px-1 py-2 text-sm
+                         placeholder:text-ink-muted focus:border-brand focus:outline-none"
+            />
+          </div>
+
+          {/*
+            見つからなかったときに、黙って空にしない。
+            打ち間違いなのか、そもそも無いのかが分からなくなる。
+          */}
+          {found.length === 0 ? (
+            <p className="mt-4 text-sm leading-7 text-ink-muted" role="status">
+              「{query}」に当てはまる教材はありませんでした。
+              <br />
+              別の言い方で探すか、下の一覧から選んでください。
+            </p>
+          ) : (
+            <ul className="mt-2" role="list">
+              {found.map((lesson) => (
+                <LessonRow
+                  key={lesson.id}
+                  lesson={lesson}
+                  done={completed.includes(lesson.id)}
+                  firstUp={lesson.id === firstUpId}
+                  bookmarked={bookmarks.has(lesson.id)}
+                  onToggleBookmark={
+                    isComingSoon(lesson) ? undefined : () => bookmarks.toggle(lesson.id)
+                  }
+                  onSelect={() => onSelectLesson(lesson.id)}
+                />
+              ))}
+            </ul>
+          )}
+
+          {query.trim() === "" && (
+            <p className="mt-3 text-xs leading-6 text-ink-muted">
+              残りは順次公開します。
+            </p>
+          )}
         </section>
 
         <div className="mt-8">

@@ -295,3 +295,51 @@ class Survey(models.Model):
     )
     answers = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Bookmark(models.Model):
+    """あとで見返したい教材の目印。
+
+    このアプリの教材は1本10分で、途中で抜けることが前提になっている。
+    だが「気になったが、いまは時間が無い」を残す場所がどこにも無く、
+    見つけた教材は次に開いたときには忘れられていた。
+
+    復習（views_review）とは別のもの
+    --------------------------------
+    復習は**終えたもの**を、忘れる前に呼び戻す。
+    こちらは**まだ始めていないもの**を、自分の意思で取っておく。
+    片方だけだと「気になったが始めていない」教材が抜け落ちる。
+
+    進捗と混ぜない
+    --------------
+    目印を付けただけで「始めた」ことにはしない。混ぜると、
+    見た数だけ進んだように見えて、進捗の数字が信用できなくなる。
+
+    消えてよい
+    ----------
+    ゲストの記録は 180日 で消える（prune_data）。目印もその一部として
+    消える。取っておいたものが消えるのは惜しいが、
+    「消しますと書いたものを消さない」ほうが問題になる。
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    learner_key = models.UUIDField(db_index=True)
+    lesson_id = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            # 二重に付けられると、一覧に同じものが並ぶ。
+            # 付け外しは「ある／ない」の2状態しか無いので、
+            # 数える必要はない
+            models.UniqueConstraint(
+                fields=["learner_key", "lesson_id"], name="uniq_bookmark_learner_lesson"
+            )
+        ]
+        indexes = [models.Index(fields=["learner_key", "created_at"])]
+        # 新しいものから見せる。取っておいた順より、
+        # 最後に気になったものを上に置くほうが探しやすい
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"{self.lesson_id} ({self.learner_key})"
