@@ -49,7 +49,6 @@ export interface StepShellProps {
    * 「押したのに何も起きない」ように見える（実際に起きた）。
    */
   error?: string | null;
-  onBack?: () => void;
   /** 「今回はスキップ」など、主導線以外の逃げ道。 */
   secondary?: { label: string; onClick: () => void };
   busy?: boolean;
@@ -72,7 +71,6 @@ export function StepShell({
   primaryDisabled = false,
   hintNearButton,
   error,
-  onBack,
   secondary,
   busy = false,
   showPo = true,
@@ -198,18 +196,17 @@ export function StepShell({
               {hintNearButton}
             </p>
           )}
+          {/*
+            戻る道はヘッダーの「←」1本にした。
+
+            前はここにも「もどる」があり、上の「レッスン一覧へ」と合わせて
+            戻る手段が上下に散っていた。行き先が違うもの（1歩戻る／出る）が
+            離れて置かれていると、どちらがどこへ行くのか押すまで分からない。
+
+            ここは「次にやること」だけにする。画面の下に1つだけ置くから、
+            迷わず押せる（憲章 原則 I）。
+          */}
           <div className="flex items-center gap-3">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="shrink-0 rounded-cta border border-line px-4 py-2.5
-                           text-sm text-ink-muted transition hover:bg-brand-soft
-                           hover:text-brand-dark"
-              >
-                もどる
-              </button>
-            )}
             <button
               type="button"
               data-testid="primary-action"

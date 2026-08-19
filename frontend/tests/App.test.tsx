@@ -122,7 +122,11 @@ describe("画面の行き来", () => {
 
     await start(user);
     await user.click(await screen.findByTestId("continue-lesson"));
-    await user.click(await screen.findByRole("button", { name: "レッスン一覧へ" }));
+    /*
+      出口はヘッダーの「×」。前は右上の「レッスン一覧へ」という文字だった。
+      1歩戻る（←）と、レッスンから出る（×）で行き先が違うので分けてある。
+    */
+    await user.click(await screen.findByTestId("lesson-exit"));
 
     expect(
       await screen.findByRole("heading", { name: COURSE.title }),

@@ -12,9 +12,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { AppHeader } from "../components/AppShell";
 import { IconBook } from "../components/Icons";
 import { PrivacyDialog } from "../components/course/PrivacyDialog";
+import { LessonHeader } from "../components/course/LessonHeader";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
 import { useCourse } from "../course/live";
@@ -178,12 +178,26 @@ export function LessonRunner({
   const blockingIssue = api.issue?.blocking ? api.issue : null;
 
   return (
-    <main className="min-h-screen">
+    <>
       {/*
-        抜け道は1つでよい。「＜」と「レッスン一覧へ」を両方置いていたが、
-        行き先が同じものを2つ並べると、違う場所へ行くのだと思わせる。
+        レッスン中は、ロゴではなく**いま何をしているか**を上に出す。
+        ロゴは開いた瞬間に一度見れば足り、19歩のあいだ出しておく価値は無い。
+
+        左の「←」は1歩戻る、右の「×」は出る。行き先が違うので分けてある。
+        前は右上の「レッスン一覧へ」と画面下の「もどる」に散っていて、
+        どちらがどこへ行くのか押すまで分からなかった。
+
+        `<main>` の**外**に置くこと。中に入れると「本文の中のボタン」に
+        なり、教材の選択肢を探す仕組み（E2E も含む）が拾ってしまう。
+        実際それでレッスンから勝手に出ていた。帯は本文ではない。
       */}
-      <AppHeader centered action={{ label: "レッスン一覧へ", onClick: onExit }} />
+      <LessonHeader
+        title={lesson.title}
+        onBack={api.canBack ? api.goBack : undefined}
+        onExit={onExit}
+      />
+
+      <main className="min-h-screen">
 
       <StepShell
         {...(step.type === "outcome_preview"
@@ -208,7 +222,6 @@ export function LessonRunner({
         primaryDisabled={Boolean(blockingIssue)}
         hintNearButton={api.issue?.reason ?? null}
         error={api.error}
-        onBack={api.canBack ? api.goBack : undefined}
         secondary={
           step.type === "real_task"
             ? { label: "今回はスキップする", onClick: api.skipRealTask }
@@ -244,6 +257,7 @@ export function LessonRunner({
           }
         />
       )}
-    </main>
+      </main>
+    </>
   );
 }

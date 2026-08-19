@@ -1,0 +1,93 @@
+/**
+ * レッスン中の上の帯。
+ *
+ *     ←        文章を分かりやすくする        ×
+ *
+ * ふだんの帯（AppHeader）はロゴを中央に置くが、レッスン中はそこに
+ * **いま何をしているか**を出す。ロゴは開いた瞬間に一度見れば足り、
+ * 19歩のあいだずっと出しておく価値は無い。代わりに、どのレッスンの
+ * 途中なのかが常に読める。
+ *
+ * 左右を分ける理由
+ * ----------------
+ * 左の「←」は1歩戻る、右の「×」はレッスンから出る。行き先が違うので
+ * 見た目も置き場所も分ける。前は右上に「レッスン一覧へ」という文字だけが
+ * あり、1歩戻るのは画面下のボタンだった。戻る手段が上下に散っていて、
+ * どちらがどこへ行くのか押すまで分からない。
+ *
+ * 高さは 44px のまま。スマホの縦は限られていて、帯が厚いぶん
+ * そのまま教材の見える量が減る。
+ */
+
+import { IconChevronLeft } from "../Icons";
+
+export interface LessonHeaderProps {
+  /** いま開いているレッスンの名前。 */
+  title: string;
+  /** 1歩戻る。最初の画面では渡さない（戻り先が無い）。 */
+  onBack?: () => void;
+  /** レッスンから出る。 */
+  onExit: () => void;
+}
+
+export function LessonHeader({ title, onBack, onExit }: LessonHeaderProps) {
+  return (
+    <header
+      className="sticky top-0 z-20 flex h-11 items-center gap-2 border-b border-line
+                 bg-canvas px-2"
+      data-testid="lesson-header"
+    >
+      {/*
+        左右の枠は、中身の有無にかかわらず同じ幅で確保する。
+        戻れない画面で幅が変わると、題名の位置がずれて落ち着かない。
+      */}
+      <div className="flex w-9 shrink-0 justify-start">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="前のステップへ戻る"
+            data-testid="lesson-back"
+            className="flex h-9 w-9 items-center justify-center rounded-badge
+                       text-ink-muted transition hover:bg-brand-soft hover:text-brand"
+          >
+            <IconChevronLeft className="h-5 w-5" />
+          </button>
+        )}
+      </div>
+
+      {/*
+        題名。長いレッスン名でも帯を2段にしない——高さが変わると、
+        その下の中身が毎回ずれる。入りきらない分は省略する。
+      */}
+      <h1 className="min-w-0 flex-1 truncate text-center text-sm font-bold">
+        {title}
+      </h1>
+
+      <div className="flex w-9 shrink-0 justify-end">
+        <button
+          type="button"
+          onClick={onExit}
+          aria-label="レッスンを閉じる"
+          data-testid="lesson-exit"
+          className="flex h-9 w-9 items-center justify-center rounded-badge
+                     text-ink-muted transition hover:bg-brand-soft hover:text-brand"
+        >
+          {/* ×。線2本だけなので、アイコン一覧には足さずここで描く */}
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            focusable="false"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+          >
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+    </header>
+  );
+}
