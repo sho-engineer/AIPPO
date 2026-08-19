@@ -82,8 +82,12 @@ Live2D / 音声 / 口パク / 3D / 複数キャラクターは不要。
 人が用意しないと進まないもの。
 
 - AIプロバイダの鍵、SMTPの接続情報、置き場所とドメイン
-- 規約の運営者情報（`frontend/src/content/legal.ts` の `OPERATOR`）
-- 管理画面の露出方針、DBのバックアップ、`prune_data` の定期実行
+- 規約の運営者情報（`VITE_OPERATOR_NAME` / `_ADDRESS` / `_CONTACT`。
+  入れるまで画面に「（公開前に記入）」と出る。事実を勝手に決められないので
+  ここだけは人が要る）
+- 管理画面の露出方針（`ADMIN_ALLOWED_IPS` / `ADMIN_PATH`）、DBのバックアップ
+- 定期実行の合言葉（`CRON_SECRET`。入れるまで `prune_data` も
+  学習リマインダーも動かない）
 
 ---
 

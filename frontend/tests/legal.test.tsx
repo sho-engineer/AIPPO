@@ -18,6 +18,7 @@ import {
   OPERATOR,
   PRIVACY,
   TERMS,
+  isOperatorFilled,
 } from "../src/content/legal";
 
 beforeEach(() => {
@@ -64,8 +65,31 @@ describe("文面そのもの", () => {
     /*
       勝手に社名や住所を決めない。事実でないことを書くと、
       それ自体が問題になる。埋め忘れは画面にそのまま出るので気づける。
+
+      ここは「まだ埋まっていない」ことではなく、**埋まっていない項目が
+      画面に出る形で残る**ことを見ている。空文字にして黙って消す作りに
+      変わったら落ちる。空欄は「書く欄が無い」と見分けが付かない。
     */
-    expect(OPERATOR.name).toBe("（公開前に記入）");
+    for (const value of Object.values(OPERATOR)) {
+      expect(value.trim()).not.toBe("");
+    }
+    if (!isOperatorFilled()) {
+      expect(OPERATOR.name).toBe("（公開前に記入）");
+    }
+  });
+
+  it("埋めたかどうかを、機械が見分けられる", () => {
+    /*
+      規約は普段だれも開かない。人の目に頼ると「（公開前に記入）」の
+      まま何ヶ月も出ていることが起こる。
+
+      値そのものは配置ごとに変わる（VITE_OPERATOR_* で外から入れる）ので、
+      ここで見るのは判定が働くことだけ。実際に埋まっているかは、
+      公開前の確認で isOperatorFilled() を使って止める。
+    */
+    expect(isOperatorFilled()).toBe(
+      Object.values(OPERATOR).every((value) => value !== "（公開前に記入）"),
+    );
   });
 });
 

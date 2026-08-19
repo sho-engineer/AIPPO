@@ -78,7 +78,26 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 | `CSRF_TRUSTED_ORIGINS` | 独自ドメインを足したとき |
 | `SESSION_COOKIE_AGE` / `SESSION_ABSOLUTE_MAX_AGE` | ログインの期限を変えたいとき（既定は30日 / 90日） |
 | `PASSKEY_RP_ID` / `PASSKEY_ORIGINS` | パスキーのドメインを明示したいとき（未設定なら `FRONTEND_URL` から決まる） |
+| `CRON_SECRET` | 定期実行（古いデータの削除・学習リマインダー）を動かすとき。**入れるまで両方とも止まったまま** |
 | `SENTRY_DSN` | 例外を見張りたくなったとき |
+
+### 一般に公開する前に入れるもの
+
+| キー | 例 |
+|---|---|
+| `VITE_OPERATOR_NAME` | `〇〇株式会社` / 個人なら氏名 |
+| `VITE_OPERATOR_ADDRESS` | `東京都〇〇区…` |
+| `VITE_OPERATOR_CONTACT` | `support@example.com` |
+
+規約とプライバシーポリシーに出る運営者の情報。**入れないと画面に
+「（公開前に記入）」と出たまま公開される。**
+
+コードに直接書かず環境変数にしてあるのは、事実でない社名や住所が
+うっかりリポジトリに入るのを防ぐため（それ自体が景品表示法や
+特定商取引法の問題になる）。住所や窓口は、コードを直さずに変わる
+ものでもある。
+
+身内だけのクローズドベータのうちは空でよい。一般公開の直前に入れる。
 
 ---
 

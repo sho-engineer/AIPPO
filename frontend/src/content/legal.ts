@@ -27,13 +27,38 @@ const TBD = "（公開前に記入）";
  * 運営者の情報。
  *
  * 勝手に決めない。事実でない社名や住所を書くと、
- * それ自体が景品表示や特定商取引法の問題になる。
+ * それ自体が景品表示や特定商取引法の問題になる。だからここには
+ * 既定値を置かず、**配置するときに外から入れる**。
+ *
+ * なぜコードに直接書かないか
+ * --------------------------
+ * 住所と連絡先は、コードを直さずに変わる（引っ越し、窓口の変更）。
+ * ソースに埋めると、そのたびに変更・レビュー・再配置が要る。
+ * 配置ごとの設定にしておけば、本番だけ実名で、検証環境は
+ * 空のまま、という置き方もできる。
+ *
+ * 入れ忘れたときに何が起きるか
+ * ----------------------------
+ * 画面に「（公開前に記入）」と出る。消して空欄にはしない——
+ * 空欄は「書く欄が無い」と見分けが付かず、抜けたまま気づけない。
+ * さらに `isOperatorFilled()` で機械にも見分けさせ、
+ * 公開前の確認（tests/legal.test.tsx）で落とす。
  */
 export const OPERATOR = {
-  name: TBD,
-  address: TBD,
-  contact: TBD,
+  name: import.meta.env.VITE_OPERATOR_NAME || TBD,
+  address: import.meta.env.VITE_OPERATOR_ADDRESS || TBD,
+  contact: import.meta.env.VITE_OPERATOR_CONTACT || TBD,
 } as const;
+
+/**
+ * 運営者の情報が埋まっているか。
+ *
+ * 人が目で見つける前提にしない。規約は普段だれも開かないので、
+ * 「（公開前に記入）」のまま何ヶ月も出ていることが起こりうる。
+ */
+export function isOperatorFilled(): boolean {
+  return Object.values(OPERATOR).every((value) => value !== TBD && value.trim() !== "");
+}
 
 export interface LegalDocument {
   id: "terms" | "privacy" | "ai-notes";
