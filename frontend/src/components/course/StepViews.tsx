@@ -577,14 +577,31 @@ export function OutcomePreview({
  * 型のほうで長さを縛ってある（types.ts）。
  * 図は5種類だけ。凝ったものは作らない。
  */
-export function ConceptCardView({ card }: { card: ConceptCard }) {
+export function ConceptCardView({
+  card,
+  headingShown = false,
+}: {
+  card: ConceptCard;
+  /**
+   * 見出しが画面の上にもう出ているか。
+   *
+   * 解説の見出しはステップの見出しと同じ文字なので、囲いの中でもう一度
+   * 書くと、1画面に同じ言葉が2回並ぶ。実際そうなっていた。
+   */
+  headingShown?: boolean;
+}) {
   return (
-    <div
-      data-testid="concept-card"
-      className="rounded-card border border-brand-line bg-surface p-5"
-    >
-      <h2 className="text-base font-bold text-brand-dark">{card.title}</h2>
-      <p className="mt-2 text-sm leading-7">{card.body}</p>
+    /*
+      囲いを外して、左の罫だけにする。
+
+      角丸の箱に入れると、それだけで画面の主役になる。ここは教科書の
+      「POINT」くらいの重さでよく、主役は直前に見たAIの結果のほう。
+    */
+    <div data-testid="concept-card" className="border-l-2 border-brand pl-4">
+      {!headingShown && (
+        <h2 className="text-base font-bold text-brand-dark">{card.title}</h2>
+      )}
+      <p className={`text-sm leading-7 ${headingShown ? "" : "mt-2"}`}>{card.body}</p>
 
       {card.visual === "before_after" && card.before && card.after && (
         <div className="mt-4 space-y-2">
@@ -1036,9 +1053,12 @@ export function ChoiceTiles({
 export function GeneratingCard({
   message,
   busy,
+  failed = false,
 }: {
   message: string;
   busy: boolean;
+  /** 失敗して止まっているか。理由の文はここには出さない（下のボタンのそば） */
+  failed?: boolean;
 }) {
   return (
     <div
@@ -1048,9 +1068,18 @@ export function GeneratingCard({
       <p className="text-sm font-bold leading-7" role="status">
         {message}
       </p>
+      {/*
+        待っていることを、動きでも伝える。
+
+        止まっているときは動かさない。動いたままだと、まだ続いているのか
+        終わったのかが読めない。棒は残す——「ここまで進んで止まった」が
+        分かるほうが、消えるより落ち着く。
+      */}
       <div className="mx-auto mt-5 h-2 w-48 overflow-hidden rounded-full bg-brand-soft">
         <div
-          className={`h-full rounded-full bg-brand ${busy ? "animate-drift-x" : ""}`}
+          className={`h-full rounded-full ${failed ? "bg-line" : "bg-brand"} ${
+            busy ? "animate-drift-x" : ""
+          }`}
           style={{ width: busy ? "40%" : "100%" }}
         />
       </div>

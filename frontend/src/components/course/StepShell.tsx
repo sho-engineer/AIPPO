@@ -12,9 +12,11 @@
 
 import type { ReactNode } from "react";
 
-import { IconCaution, IconCheck, type Icon } from "../Icons";
+import { IconCaution, type Icon } from "../Icons";
 import { PoAvatar } from "../../po/PoAvatar";
-import { LESSON_PHASES, type LessonPhase, type PoMessage } from "../../course/types";
+import { LessonProgress } from "./LessonProgress";
+import { StepTransition } from "./StepTransition";
+import type { LessonPhase, PoMessage } from "../../course/types";
 
 export interface StepShellProps {
   title: string;
@@ -51,75 +53,9 @@ export interface StepShellProps {
   /** 「今回はスキップ」など、主導線以外の逃げ道。 */
   secondary?: { label: string; onClick: () => void };
   busy?: boolean;
+  /** ポーを出すか。本文が同じことを言う画面では下げる。 */
+  showPo?: boolean;
   children: ReactNode;
-}
-
-/**
- * 名前の付いた4段の帯。
- *
- * 済んだところはチェックで塗り、いまいるところだけ文字を濃くする。
- * 色だけで現在地を示さない（丸の大きさと文字の太さでも変える）。
- */
-function PhaseStepper({ phase }: { phase: LessonPhase }) {
-  const current = LESSON_PHASES.findIndex((entry) => entry.key === phase);
-
-  return (
-    <ol
-      className="flex items-start"
-      role="list"
-      aria-label="レッスンの流れ"
-      data-testid="phase-stepper"
-    >
-      {LESSON_PHASES.map((entry, index) => {
-        const done = index < current;
-        const here = index === current;
-        return (
-          <li key={entry.key} className="flex flex-1 flex-col items-center">
-            <div className="flex w-full items-center">
-              {/* 手前へつながる線。先頭だけ描かない */}
-              <span
-                aria-hidden="true"
-                className={`h-0.5 flex-1 ${
-                  index === 0 ? "bg-transparent" : done || here ? "bg-brand" : "bg-line"
-                }`}
-              />
-              <span
-                aria-hidden="true"
-                className={`flex shrink-0 items-center justify-center rounded-full transition-all
-                            ${
-                              done
-                                ? "h-5 w-5 bg-brand text-white"
-                                : here
-                                  ? "h-5 w-5 bg-brand ring-4 ring-brand-soft"
-                                  : "h-3.5 w-3.5 bg-line"
-                            }`}
-              >
-                {done && <IconCheck className="h-3 w-3" />}
-              </span>
-              <span
-                aria-hidden="true"
-                className={`h-0.5 flex-1 ${
-                  index === LESSON_PHASES.length - 1
-                    ? "bg-transparent"
-                    : done
-                      ? "bg-brand"
-                      : "bg-line"
-                }`}
-              />
-            </div>
-            <span
-              className={`mt-1.5 text-center text-[0.6875rem] leading-4 ${
-                here ? "font-bold text-brand" : "text-ink-muted"
-              }`}
-            >
-              {entry.label}
-              {here && <span className="sr-only">（いまここ）</span>}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
-  );
 }
 
 export function StepShell({
@@ -139,86 +75,24 @@ export function StepShell({
   onBack,
   secondary,
   busy = false,
+  showPo = true,
   children,
 }: StepShellProps) {
-  /**
-   * 出す点は最大7つ。
-   * 20ステップぶん並べると1つ1つが潰れて、かえって進み具合が読めない。
-   */
-  const MAX_DOTS = 7;
-  const half = Math.floor(MAX_DOTS / 2);
-  const start = Math.max(
-    0,
-    Math.min(progress.current - 1 - half, progress.total - MAX_DOTS),
-  );
-  const shown = Math.min(MAX_DOTS, progress.total);
-  const dots = Array.from({ length: shown }, (_, offset) => {
-    const index = start + offset;
-    return {
-      index,
-      last: offset === shown - 1,
-      state:
-        index < progress.current - 1
-          ? ("done" as const)
-          : index === progress.current - 1
-            ? ("current" as const)
-            : ("todo" as const),
-    };
-  });
-
   return (
     <div className="mx-auto max-w-2xl px-5 pb-40 pt-2 sm:pb-32">
       {/*
-        区切りの名前が分かるなら、そちらを先に出す。
-        点だけだと「あと何歩か」しか読めず、何をしている最中かは伝わらない。
-      */}
-      {phase && (
-        <div className="mb-4">
-          <PhaseStepper phase={phase} />
-        </div>
-      )}
+        進み具合は細い帯ひとつ。
 
-      {/*
-        進み具合は点でつないで見せる。
-        棒グラフだと「あと何回か」が読めないが、点なら数えられる。
-        数が多いレッスンでは点が潰れるので、現在地の前後だけ出す。
+        前は「区切りの帯（4段）」「丸の列（最大7つ）」「数字」の3つで
+        同じことを言っていた。3段あると、どれを見れば「あと何回か」が
+        分かるのか決められず、結局どれも読まれない。上が説明で埋まって
+        本文が下へ押し出される問題もあった。
 
-        区切りの帯を出しているときは、点の列は畳んで数字だけ残す。
-        同じことを2段で言うと、どちらを見ればよいのか分からなくなる
-        （それでも「あと何歩か」は数字で分かる）。
+        phase は受け取るが、ここでは描かない。区切りの名前は
+        見出しと本文で伝わる（読み上げ向けに data 属性で残す）。
       */}
-      <div
-        role="progressbar"
-        aria-label="レッスンの進み具合"
-        aria-valuenow={progress.current}
-        aria-valuemin={1}
-        aria-valuemax={progress.total}
-        aria-valuetext={`${progress.total}歩のうち${progress.current}歩目`}
-        className={`flex items-center gap-1.5 ${
-          phase ? "justify-end" : "justify-center"
-        }`}
-      >
-        {!phase &&
-          dots.map((dot) => (
-          <span key={dot.index} className="flex items-center gap-1.5">
-            <span
-              aria-hidden="true"
-              className={`block rounded-full transition-all ${
-                dot.state === "done"
-                  ? "h-2.5 w-2.5 bg-brand"
-                  : dot.state === "current"
-                    ? "h-3 w-3 bg-brand ring-4 ring-brand-soft"
-                    : "h-2.5 w-2.5 bg-brand-line"
-              }`}
-            />
-            {!dot.last && (
-              <span aria-hidden="true" className="h-px w-4 bg-brand-line sm:w-6" />
-            )}
-            </span>
-          ))}
-        <span className="shrink-0 text-xs text-ink-muted">
-          {progress.current} / {progress.total}
-        </span>
+      <div className="pt-1" data-phase={phase ?? undefined}>
+        <LessonProgress current={progress.current} total={progress.total} />
       </div>
 
       {/* 入力済みの内容。折りたたんでおく（要件 §6.4） */}
@@ -269,17 +143,32 @@ export function StepShell({
       )}
 
       {/*
-        ステップが変わったことを、ごく短い動きで伝える。
-        key にステップの見出しを渡し、変わるたびにやり直す。
-        0.22 秒。これ以上長くすると、進むたびに待たされる。
+        ステップが入れ替わったことを、短い動きで伝える。
+
+        向きに意味を持たせてある（進むと左から、戻ると右から）。
+        紙をめくる向きと同じで、「いま戻った」ことが文字を読まなくても
+        分かる。秒数と加減速は course/motion.ts にまとめてある。
       */}
-      <div key={title} className="mt-6 animate-slide-in">
-        {children}
+      <div className="mt-6">
+        <StepTransition stepKey={title}>{children}</StepTransition>
       </div>
 
-      <div className="mt-8 sm:mt-10">
-        <PoAvatar po={po} compact />
-      </div>
+      {/*
+        ポーは毎ステップ出さない。
+
+        本文がポーと同じことを言っている画面では、吹き出しは
+        情報を増やさずに縦を伸ばすだけになる（解説の回で実際に、
+        カード本文とポーの台詞が一字一句同じになっていた）。
+
+        出す・出さないの判断は、中身を知っている呼び出し側に持たせる。
+        ここで文字を比べて自動で消すと、少し言い換えただけで
+        二重に戻り、なぜ消えたのかも読めなくなる。
+      */}
+      {showPo && (
+        <div className="mt-8 sm:mt-10">
+          <PoAvatar po={po} compact />
+        </div>
+      )}
 
       {/*
         次にやること。画面の下に固定する。

@@ -216,8 +216,14 @@ describe("画面での見え方", () => {
       // 押せないボタンなので、クリックが弾かれてもよい
     });
 
-    // レッスン画面へは移っていないこと
-    expect(screen.queryByTestId("phase-stepper")).not.toBeInTheDocument();
+    /*
+      レッスン画面へは移っていないこと。
+
+      目印は進み具合の帯。以前は区切りの帯（phase-stepper）で見ていたが、
+      進み具合を1本にまとめた際に消えた。消えた目印で「無いこと」を
+      確かめると、**画面が開いていても通ってしまう**。
+    */
+    expect(screen.queryByTestId("lesson-progress")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: COURSE.title })).toBeInTheDocument();
   });
 

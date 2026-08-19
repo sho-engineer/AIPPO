@@ -16,6 +16,7 @@ import { AppHeader, Card, CardHeading } from "../components/AppShell";
 import { IconBook, IconCaution, IconSparkle } from "../components/Icons";
 import { PrivacyDialog } from "../components/course/PrivacyDialog";
 import { SafetyNote } from "../components/SafetyNote";
+import { StepDone } from "../components/course/StepDone";
 import { StepShell } from "../components/course/StepShell";
 import {
   ChoiceStep,
@@ -205,7 +206,16 @@ export function LessonRunner({
         );
 
       case "concept_card":
-        return step.card ? <ConceptCardView card={step.card} /> : null;
+        /*
+          見出しはステップ側で既に出ている。カードの中でもう一度書くと、
+          1画面に同じ言葉が2回並ぶ（実際そうなっていた）。
+        */
+        return step.card ? (
+          <ConceptCardView
+            card={step.card}
+            headingShown={step.card.title === step.title}
+          />
+        ) : null;
 
       case "quick_try":
         return (
@@ -338,14 +348,26 @@ export function LessonRunner({
       }
 
       case "ai_generate":
+        /*
+          失敗の文はここに書かない。
+
+          前は同じ文が3か所へ同時に出ていた——この生成カード、ポーの
+          吹き出し、そして下のボタンのそば。同じことを3回言われると、
+          3つ別のことが起きたのかと読んでしまう。
+
+          失敗は下のボタンのそばに1度だけ出す（StepShell の error）。
+          押し直す場所のいちばん近くに置くのが、いちばん短い動線になる。
+          ここは「いま何をしている最中か」だけを持つ。
+        */
         return (
           <GeneratingCard
             busy={api.isSubmitting}
+            failed={Boolean(api.error)}
             message={
               api.isSubmitting
                 ? (step.instruction ?? "AIが考えています…")
                 : api.error
-                  ? "もう一度おくってみましょう。"
+                  ? "止まっています"
                   : "送っています。"
             }
           />
@@ -354,9 +376,15 @@ export function LessonRunner({
       case "result_review":
       case "result_compare":
       case "improvement_choice":
+        /*
+          AIから結果が返ったところは、このレッスンで一番手応えのある瞬間。
+          ここで一度だけ短く返す。最後の完了画面まで何も返さないと、
+          途中の18歩が手応えの無いまま過ぎる。
+        */
         if (meta.threeWay && runs.length >= 2) {
           return (
             <div>
+              <StepDone label="AIが書き直しました" trigger={runs.length} />
               <ThreeWayCompare
                 original={runs[0].inputText}
                 first={runs[0].outputText}
@@ -370,6 +398,9 @@ export function LessonRunner({
         }
         return (
           <div>
+            {lastRun && (
+              <StepDone label="AIが書き直しました" trigger={runs.length} />
+            )}
             {lastRun && (
               <ResultCompare
                 before={lastRun.inputText}
@@ -562,6 +593,12 @@ export function LessonRunner({
                 : undefined
         }
         busy={api.isSubmitting}
+        /*
+          解説の回は、カード本文とポーの台詞が同じ文になる（教材データが
+          同じ文字を持っている）。同じことを2回言うと、2つ別のことが
+          書いてあるのかと読んでしまう。ここだけ吹き出しを下げる。
+        */
+        showPo={step.type !== "concept_card"}
       >
         {body}
       </StepShell>
