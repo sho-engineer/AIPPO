@@ -1,0 +1,227 @@
+/**
+ * レッスンを終えた画面。
+ *
+ * StepViews から切り出した。1つのファイルに全ステップの見た目を
+ * 積むと、完了画面を1行直すために1400行を開くことになる。
+ *
+ * ここだけ演出が強い（紙吹雪・チェック）。19歩かけて終えたことが
+ * 何も起きずに終わると、終えた実感が残らないため。ただし大人が
+ * 仕事の合間に使う画面なので、花火も光も置かない。
+ */
+
+import { useEffect, useState } from "react";
+
+import { Card, CardHeading, IconBadge } from "../../AppShell";
+import { SaveProgressCard } from "../../auth/SaveProgressCard";
+import { SurveyCard } from "../SurveyCard";
+import { LessonCelebration } from "../LessonCelebration";
+import {
+  IconCheckCircle,
+  IconChevronRight,
+  IconCopy,
+  IconDocument,
+  IconMedal,
+  IconSparkle,
+  IconStar,
+} from "../../Icons";
+
+// ------------------------------------------------------------- 完了画面
+
+/**
+ * レッスンを終えた画面（支給デザイン）。
+ *
+ * ここは行き止まりにしない（憲章 原則 I）。
+ * 「おめでとう」だけで終わらせると、次に何をすればよいか分からず、
+ * その場でアプリを閉じることになる。出すものを4つに決めている。
+ *
+ *   1. 何ができるようになったか（身についたこと）
+ *   2. 持ち帰れるもの（今回の成果物。押せば手元に写せる）
+ *   3. 全体のどこまで来たか
+ *   4. 次の行き先
+ *
+ * 2 が肝心で、これが無いと「練習しただけ」で終わる。
+ * せっかく作った文章を、その場で仕事に持っていけるようにする。
+ */
+export function CompletionView({
+  skills,
+  outcomeText,
+  outcomeLabel,
+  lessonId,
+  lessonNumber,
+  done,
+  total,
+  next,
+  onSelectLesson,
+}: {
+  skills: string[];
+  outcomeText?: string;
+  outcomeLabel: string;
+  lessonId: string;
+  lessonNumber: number;
+  done: number;
+  total: number;
+  next: { id: string; number: number; title: string; goal: string }[];
+  onSelectLesson?: (lessonId: string) => void;
+}) {
+  return (
+    /*
+      `relative` は紙吹雪の親。紙はこの枠の中だけで散り、
+      画面全体を覆わない（覆うと、次に押す場所が読めなくなる）。
+    */
+    <div data-testid="completion-view" className="relative space-y-4">
+      <LessonCelebration />
+      <Card>
+        <CardHeading icon={IconStar} tone="plain">
+          スキルを身につけました
+        </CardHeading>
+        <ul className="mt-4 space-y-2.5" role="list">
+          {skills.map((skill) => (
+            <li key={skill} className="flex items-start gap-2.5 text-sm leading-7">
+              <IconCheckCircle className="mt-1.5 h-4 w-4 shrink-0 text-brand" />
+              {skill}
+            </li>
+          ))}
+        </ul>
+
+        {outcomeText && (
+          <div className="mt-5 border-t border-line pt-5">
+            <CardHeading icon={IconDocument} tone="plain">
+              今回の成果物
+            </CardHeading>
+            <div className="mt-3 rounded-card bg-canvas p-4">
+              <p className="text-xs font-bold text-ink-muted">{outcomeLabel}</p>
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7">
+                {outcomeText}
+              </p>
+              <div className="mt-3 flex justify-end">
+                <CopyButton text={outcomeText} />
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      {/* 全体のどこまで来たか */}
+      <Card>
+        <p className="flex items-center justify-center gap-2 text-lg font-bold text-brand">
+          <IconMedal className="h-6 w-6 shrink-0" />
+          Lesson {lessonNumber} 完了
+        </p>
+        <div className="mt-4 flex items-center gap-3">
+          <span className="shrink-0 text-xs text-ink-muted">コース進捗</span>
+          <span
+            className="h-2.5 flex-1 overflow-hidden rounded-full bg-brand-soft"
+            role="progressbar"
+            aria-label="コース全体の進み具合"
+            aria-valuenow={done}
+            aria-valuemin={0}
+            aria-valuemax={total}
+            aria-valuetext={`${total}本のうち${done}本おわりました`}
+          >
+            <span
+              className="block h-full rounded-full bg-brand transition-[width] duration-700"
+              style={{ width: `${total === 0 ? 0 : (done / total) * 100}%` }}
+            />
+          </span>
+          <span className="shrink-0 text-sm font-bold">
+            {done} / {total}
+          </span>
+        </div>
+      </Card>
+
+      {/*
+        登録の誘いは、ここ以外に置かない。
+        作ったものが目の前にある、この1回だけ聞く。
+        ログイン済みの人には何も出ない。
+      */}
+      <SaveProgressCard />
+
+      {/*
+        アンケートは登録の誘いのあと、次の教材より前に出す。
+        いちばん下だと、次を選んで離れた人には見えない。
+      */}
+      <SurveyCard lessonId={lessonId} />
+
+      {next.length > 0 && (
+        <section aria-labelledby="next-heading">
+          <div className="flex items-center gap-3">
+            <IconBadge icon={IconSparkle} tone="plain" size="sm" />
+            <h2 id="next-heading" className="text-base font-bold">
+              次におすすめ
+            </h2>
+          </div>
+
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2" role="list">
+            {next.map((lesson) => (
+              <li key={lesson.id}>
+                <button
+                  type="button"
+                  disabled={!onSelectLesson}
+                  onClick={() => onSelectLesson?.(lesson.id)}
+                  data-testid={`next-${lesson.id}`}
+                  className="flex w-full items-center gap-3 rounded-panel bg-surface p-4
+                             text-left shadow-card transition
+                             enabled:hover:-translate-y-0.5 enabled:hover:shadow-raised
+                             disabled:cursor-not-allowed"
+                >
+                  <div className="min-w-0 flex-1">
+                    <span className="inline-block rounded-badge bg-brand-soft px-2.5 py-1 text-[0.6875rem] font-bold text-brand-dark">
+                      Lesson {lesson.number}
+                    </span>
+                    <h3 className="mt-2 text-sm font-bold leading-6">{lesson.title}</h3>
+                    <p className="mt-1 text-xs leading-6 text-ink-muted">{lesson.goal}</p>
+                  </div>
+                  <span
+                    aria-hidden="true"
+                    className="flex shrink-0 items-center justify-center text-ink-muted"
+                  >
+                    <IconChevronRight className="h-4 w-4" />
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 手元へ写すボタン。
+ *
+ * 押したことが分からないと、もう一度押される。
+ * 文字を変えて2秒だけ残す。失敗したときは黙らず、その場で伝える
+ * （権限が無い端末や、安全でない接続では使えない）。
+ */
+export function CopyButton({ text }: { text: string }) {
+  const [state, setState] = useState<"idle" | "done" | "failed">("idle");
+
+  useEffect(() => {
+    if (state === "idle") return;
+    const timer = window.setTimeout(() => setState("idle"), 2000);
+    return () => window.clearTimeout(timer);
+  }, [state]);
+
+  return (
+    <button
+      type="button"
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(text);
+          setState("done");
+        } catch {
+          setState("failed");
+        }
+      }}
+      className="flex items-center gap-2 rounded-badge bg-brand-soft px-4 py-2
+                 text-xs font-bold text-brand-dark transition hover:bg-brand-line"
+    >
+      <IconCopy className="h-4 w-4 shrink-0" />
+      {/* 結果は読み上げにも届ける */}
+      <span role="status">
+        {state === "done" ? "写しました" : state === "failed" ? "写せません" : "コピー"}
+      </span>
+    </button>
+  );
+}
