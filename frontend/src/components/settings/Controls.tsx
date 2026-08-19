@@ -110,21 +110,39 @@ export function Toggle({
   onChange,
   label,
   description,
+  disabled,
+  note,
 }: {
   checked: boolean;
   onChange: (next: boolean) => void;
   label: string;
   description?: string;
+  /**
+   * まだ中身が無いつまみ。
+   *
+   * 触れるのに何も起きないつまみは、無いより印象が悪い。
+   * 消さずに残すのは、来る予定があると伝えるため（`SettingsRow` と同じ扱い）。
+   */
+  disabled?: boolean;
+  /** 押せない理由。黙って無反応にしない。 */
+  note?: string;
 }) {
   const id = useId();
 
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-line py-3.5 last:border-b-0">
-      <label htmlFor={id} className="min-w-0 flex-1 cursor-pointer">
+    <div
+      className={`flex items-center justify-between gap-4 border-b border-line py-3.5
+                  last:border-b-0 ${disabled ? "opacity-55" : ""}`}
+    >
+      <label
+        htmlFor={id}
+        className={`min-w-0 flex-1 ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+      >
         <span className="block text-sm font-bold">{label}</span>
-        {description && (
+        {/* 止めているときは、説明の代わりに理由を出す */}
+        {(disabled ? note : description) && (
           <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
-            {description}
+            {disabled ? note : description}
           </span>
         )}
       </label>
@@ -135,9 +153,11 @@ export function Toggle({
           type="checkbox"
           role="switch"
           checked={checked}
+          disabled={disabled}
           onChange={(event) => onChange(event.target.checked)}
           className="peer h-7 w-12 cursor-pointer appearance-none rounded-full
-                     bg-line transition-colors checked:bg-brand"
+                     bg-line transition-colors checked:bg-brand
+                     disabled:cursor-not-allowed"
         />
         {/*
           つまみ。入力そのものは動かさず、上に重ねた丸を寄せる。

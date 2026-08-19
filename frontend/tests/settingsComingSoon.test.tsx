@@ -23,13 +23,18 @@ import { AuthProvider } from "../src/auth/AuthContext";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings } from "../src/lib/settings";
 
 /** 準備中として止めてある項目。増えたらここへ足す。 */
-const COMING_SOON = ["外部連携", "サブスクリプション", "言語設定", "ヘルプ・サポート"];
+const COMING_SOON = [
+  "AI設定",
+  "学習設定",
+  "外部連携",
+  "サブスクリプション",
+  "言語設定",
+  "ヘルプ・サポート",
+];
 
 /** 押して下位画面へ入れる項目。 */
 const OPEN = [
   "アカウント設定",
-  "AI設定",
-  "学習設定",
   "通知設定",
   "学習データ・プライバシー",
   "規約とポリシー",
@@ -138,5 +143,41 @@ describe("設定の一覧", () => {
         within(list).getByRole("button", { name: new RegExp(name) }),
       ).toBeInTheDocument();
     }
+  });
+});
+
+describe("通知のつまみ", () => {
+  /*
+    通知設定だけは中を開ける。4つのうち1つ（学習リマインダー）は
+    実際にメールが届くため。残り3つは配信の仕組みがまだ無い。
+
+    入れられるままにしておくと「受け取る設定にしたのに来ない」になり、
+    届かないことを利用者の設定ミスに見せてしまう。
+  */
+  const DEAD = ["おすすめ教材の通知", "新機能・アップデート情報", "メール通知"];
+
+  it("学習リマインダーは触れる", async () => {
+    const user = userEvent.setup();
+    await open();
+    await user.click(row("通知設定"));
+
+    expect(screen.getByRole("switch", { name: /学習リマインダー/ })).toBeEnabled();
+  });
+
+  it.each(DEAD)("%s は触れない", async (name) => {
+    const user = userEvent.setup();
+    await open();
+    await user.click(row("通知設定"));
+
+    expect(screen.getByRole("switch", { name: new RegExp(name) })).toBeDisabled();
+  });
+
+  it.each(DEAD)("%s には、押せない理由が書いてある", async (name) => {
+    const user = userEvent.setup();
+    await open();
+    await user.click(row("通知設定"));
+
+    const box = screen.getByRole("switch", { name: new RegExp(name) }).closest("div");
+    expect(box).toHaveTextContent("準備中です");
   });
 });

@@ -50,19 +50,13 @@ import {
   IconSparkle,
 } from "../components/Icons";
 import {
-  SegmentedChoice,
-  SelectField,
   SettingsGroup,
   SettingsRow,
-  StepSlider,
   Toggle,
 } from "../components/settings/Controls";
-import { fetchModels, type AiModelChoice } from "../api/models";
 import { updateReminders } from "../api/accounts";
 import { useAuth } from "../auth/AuthContext";
 import {
-  DAILY_GOALS,
-  TONES,
   clearLearningData,
   exportLearningData,
   loadSettings,
@@ -75,18 +69,10 @@ import { APP_VERSION } from "../content/ui";
 /** 下位画面の名前。一覧は null。 */
 type Panel =
   | "account"
-  | "ai"
-  | "study"
   | "notification"
   | "privacy"
   | "legal"
   | null;
-
-const LENGTH_OPTIONS = [
-  { value: "short" as const, label: "短め" },
-  { value: "standard" as const, label: "標準" },
-  { value: "long" as const, label: "長め" },
-];
 
 export interface SettingsPageProps {
   onBack: () => void;
@@ -95,7 +81,6 @@ export interface SettingsPageProps {
 export function SettingsPage({ onBack }: SettingsPageProps) {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [panel, setPanel] = useState<Panel>(null);
-  const [models, setModels] = useState<AiModelChoice[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   // 規約の下位画面。null なら3つの一覧
@@ -114,18 +99,12 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   };
 
   /*
-    選べるモデルはサーバーに聞く。画面にモデル名を書かない。
-    取れなくても設定画面は開く（そのときは「サーバーにまかせる」だけになる）。
+    モデル一覧はもう聞かない。
+
+    AI設定を止めたので、聞いても出す先が無い。設定画面を開くたびに
+    サーバーへ1往復するだけになる。繋ぎ戻すときは
+    `api/models.ts` の fetchModels をここで呼ぶ（消していない）。
   */
-  useEffect(() => {
-    let alive = true;
-    void fetchModels().then((list) => {
-      if (alive) setModels(list);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // 知らせは数秒で消す。出しっぱなしにすると次の操作の邪魔になる
   useEffect(() => {
@@ -143,8 +122,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
   const title = {
     account: "アカウント設定",
-    ai: "AI設定",
-    study: "学習設定",
     notification: "通知設定",
     privacy: "学習データ・プライバシー",
     legal: "規約とポリシー",
@@ -196,12 +173,6 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               ) : (
                 <LegalView document={findLegalDocument(legalId)!} />
               ))}
-            {panel === "ai" && (
-              <AiPanel settings={settings} models={models} onChange={update} />
-            )}
-            {panel === "study" && (
-              <StudyPanel settings={settings} onChange={update} />
-            )}
             {panel === "notification" && (
               <NotificationPanel settings={settings} onChange={update} />
             )}
@@ -254,19 +225,34 @@ function MainMenu({
             description="登録・ログイン・パスワード・退会"
             onClick={() => onOpen("account")}
           />
+          {/*
+            AI設定は選ばせない。
+
+            モデル・口調・回答の長さ・出典表示のどれも、選んでも
+            **AIへの依頼には一切乗っていなかった**（実際に使うモデルは
+            教材データ側の指定で決まる）。とくにモデル選択は、サーバーから
+            一覧を取ってきて表示していたので、本物らしく見えるぶん質が悪い。
+            繋いだら onClick を戻して、下位画面をここへ足す。
+          */}
           <SettingsRow
             icon={IconSparkle}
-            tone="sky"
+            tone="plain"
             title="AI設定"
             description="AIの答え方や、参考にした情報の見せ方"
-            onClick={() => onOpen("ai")}
+            disabled
+            note="準備中です。いまはレッスンごとの決まりで動きます"
           />
+          {/*
+            学習設定も同じ。1日の目標時間も解説の自動展開も、
+            決めた値をどの画面も読んでいなかった。
+          */}
           <SettingsRow
             icon={IconBook}
-            tone="rose"
+            tone="plain"
             title="学習設定"
             description="1日の目標や、解説の出し方"
-            onClick={() => onOpen("study")}
+            disabled
+            note="準備中です"
           />
           <SettingsRow
             icon={IconBell}
@@ -359,117 +345,6 @@ function MainMenu({
   );
 }
 
-// ------------------------------------------------------------------ AI設定
-
-function AiPanel({
-  settings,
-  models,
-  onChange,
-}: {
-  settings: Settings;
-  models: AiModelChoice[];
-  onChange: (patch: Partial<Settings>) => void;
-}) {
-  /*
-    「サーバーにまかせる」を必ず先頭に置く。
-    モデルを知らない人がほとんどで、選ばずに済む道が要る。
-  */
-  const modelOptions = [
-    { value: "", label: "おまかせ（推奨）", note: "いちばん向いているものを自動で選びます" },
-    ...models.map((model) => ({
-      value: model.id,
-      label: model.recommended ? `${model.label}（いまの既定）` : model.label,
-      note: model.note,
-    })),
-  ];
-
-  return (
-    <Card className="mt-5" padded={false}>
-      <SettingsGroup
-        title="AIモデル"
-        description="迷ったら、おまかせのままで大丈夫です。"
-      >
-        <SelectField
-          label="使うAIモデル"
-          labelHidden
-          value={settings.aiModel}
-          options={modelOptions}
-          onChange={(aiModel) => onChange({ aiModel })}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup title="答え方" description="AIの言葉づかいを選びます。">
-        <SegmentedChoice
-          legend="答え方"
-          value={settings.tone}
-          options={TONES}
-          onChange={(tone) => onChange({ tone })}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup
-        title="回答の長さ"
-        description="レッスンの中で長さを指定したときは、そちらが優先されます。"
-      >
-        <StepSlider
-          label="回答の長さ"
-          labelHidden
-          value={settings.answerLength}
-          options={LENGTH_OPTIONS}
-          onChange={(answerLength) => onChange({ answerLength })}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup title="結果の見せ方">
-        <Toggle
-          checked={settings.showSources}
-          onChange={(showSources) => onChange({ showSources })}
-          label="確かめるところを結果のそばに出す"
-          description="数字・日付・固有名詞など、自分で確認したほうがよい点を添えます"
-        />
-      </SettingsGroup>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------- 学習設定
-
-function StudyPanel({
-  settings,
-  onChange,
-}: {
-  settings: Settings;
-  onChange: (patch: Partial<Settings>) => void;
-}) {
-  return (
-    <Card className="mt-5" padded={false}>
-      <SettingsGroup
-        title="1日の目標"
-        description="決めた時間に届かなくても、記録に×は付きません。"
-      >
-        <SegmentedChoice
-          legend="1日の目標"
-          value={String(settings.dailyGoalMinutes)}
-          options={DAILY_GOALS.map((minutes) => ({
-            value: String(minutes),
-            label: minutes === 0 ? "決めない" : `${minutes}分`,
-          }))}
-          onChange={(value) => onChange({ dailyGoalMinutes: Number(value) })}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup title="解説の出し方">
-        <Toggle
-          checked={settings.autoOpenConcepts}
-          onChange={(autoOpenConcepts) => onChange({ autoOpenConcepts })}
-          label="短い解説をレッスンの中に挟む"
-          description="切ると、操作だけで進みます（あとから読み直せます）"
-        />
-      </SettingsGroup>
-    </Card>
-  );
-}
-
 // ---------------------------------------------------------------- 通知設定
 
 function NotificationPanel({
@@ -529,23 +404,36 @@ function NotificationPanel({
               : "登録すると、続きのお知らせをメールで受け取れます"
           }
         />
+        {/*
+          残り3つは、配信の仕組みがまだ無い。
+
+          入れられるままにしておくと「受け取る設定にしたのに来ない」に
+          なる。届かないことを利用者の設定ミスに見せてしまうのが、
+          いちばんよくない。届く見込みが立つまでは触らせない。
+        */}
         <Toggle
           checked={settings.notifyRecommendations}
           onChange={(notifyRecommendations) => onChange({ notifyRecommendations })}
           label="おすすめ教材の通知"
           description="あなたに合った教材の提案を受け取る"
+          disabled
+          note="準備中です"
         />
         <Toggle
           checked={settings.notifyUpdates}
           onChange={(notifyUpdates) => onChange({ notifyUpdates })}
           label="新機能・アップデート情報"
           description="新機能やお知らせを受け取る"
+          disabled
+          note="準備中です"
         />
         <Toggle
           checked={settings.notifyByEmail}
           onChange={(notifyByEmail) => onChange({ notifyByEmail })}
           label="メール通知"
           description="重要なお知らせをメールで受け取る"
+          disabled
+          note="準備中です"
         />
       </SettingsGroup>
 
