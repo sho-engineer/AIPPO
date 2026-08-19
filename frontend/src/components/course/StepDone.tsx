@@ -7,9 +7,12 @@
  *
  * 大きくしない
  * ------------
- * 大人が仕事の合間に使う画面なので、跳ねる・光る・音が鳴るは合わない。
+ * 大人が仕事の合間に使う画面なので、跳ねる・光るは合わない。
  * チェックが一度だけ弾んで、短い文が付くくらいで足りる。
  * 出したまま残さないのも大事——次の操作の邪魔になる。
+ *
+ * 音も同じ考えで、**既定では鳴らさない**。設定（設定 → 音）で入れた人にだけ、
+ * ここで短い音を出す。鳴らない人にも、できたことは下の文で届く。
  *
  * 読み上げには出す。色と動きだけで伝えると、見えない人には
  * 何も起きていないのと同じになる。
@@ -19,6 +22,7 @@ import { useEffect, useState } from "react";
 
 import { IconCheck } from "../Icons";
 import { EASING, MOTION } from "../../course/motion";
+import { playSuccessSound } from "../../course/sound";
 
 export interface StepDoneProps {
   /** 出す文。「できた！」など短く。 */
@@ -42,6 +46,8 @@ export function StepDone({ label, trigger }: StepDoneProps) {
   useEffect(() => {
     setShown(true);
     setPopped(false);
+    // 設定で入れていなければ、この呼び出しは何もしない
+    playSuccessSound();
     const raf = window.requestAnimationFrame(() => setPopped(true));
     const timer = window.setTimeout(() => setShown(false), VISIBLE_MS);
     return () => {

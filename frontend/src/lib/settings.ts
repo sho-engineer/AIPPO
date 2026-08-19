@@ -80,6 +80,14 @@ export interface Settings {
 
   // --- 表示 -------------------------------------------------------------
   language: Language;
+
+  // --- 音 ---------------------------------------------------------------
+  /**
+   * できたときに短い音を鳴らすか。
+   *
+   * 既定は切。音は画面の外へ勝手に出ていくので、断りなく鳴らさない。
+   */
+  successSound: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -98,6 +106,9 @@ export const DEFAULT_SETTINGS: Settings = {
   notifyByEmail: false,
 
   language: "ja",
+
+  // 既定で切っておく。周りに人がいる場所で開いた人に、黙って鳴らさない
+  successSound: false,
 };
 
 const STORAGE_KEY = "aippo:settings";

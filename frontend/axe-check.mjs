@@ -78,7 +78,7 @@ await p.waitForTimeout(700);
 await scan("設定");
 // 準備中として止めてあるものは入れない（押しても下位画面が開かない）。
 // AI設定・学習設定・言語設定は、決めた値をどこも読んでいなかったので止めた
-for (const name of ["アカウント設定", "通知設定", "学習データ・プライバシー", "規約とポリシー"]) {
+for (const name of ["アカウント設定", "通知設定", "音", "学習データ・プライバシー", "規約とポリシー"]) {
   await p.getByRole("button", { name: new RegExp(name) }).click();
   await p.waitForTimeout(500);
   await scan(`設定 ${name}`);

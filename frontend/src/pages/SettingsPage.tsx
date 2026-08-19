@@ -47,6 +47,7 @@ import {
   IconQuestion,
   IconRefresh,
   IconShield,
+  IconSound,
   IconSparkle,
 } from "../components/Icons";
 import {
@@ -55,6 +56,7 @@ import {
   Toggle,
 } from "../components/settings/Controls";
 import { updateReminders } from "../api/accounts";
+import { previewSuccessSound } from "../course/sound";
 import { useAuth } from "../auth/AuthContext";
 import {
   clearLearningData,
@@ -70,6 +72,7 @@ import { APP_VERSION } from "../content/ui";
 type Panel =
   | "account"
   | "notification"
+  | "sound"
   | "privacy"
   | "legal"
   | null;
@@ -123,6 +126,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   const title = {
     account: "アカウント設定",
     notification: "通知設定",
+    sound: "音",
     privacy: "学習データ・プライバシー",
     legal: "規約とポリシー",
   };
@@ -175,6 +179,9 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               ))}
             {panel === "notification" && (
               <NotificationPanel settings={settings} onChange={update} />
+            )}
+            {panel === "sound" && (
+              <SoundPanel settings={settings} onChange={update} />
             )}
             {panel === "privacy" && (
               <PrivacyPanel
@@ -260,6 +267,17 @@ function MainMenu({
             title="通知設定"
             description="受け取る知らせを選びます"
             onClick={() => onOpen("notification")}
+          />
+          {/*
+            音は動く。既定は切で、入れた人にだけ鳴る。
+            「準備中」の行に挟まれるので、動くことが分かる説明を書く。
+          */}
+          <SettingsRow
+            icon={IconSound}
+            tone="rose"
+            title="音"
+            description="できたときの短い音の入り切り"
+            onClick={() => onOpen("sound")}
           />
           {/*
             言語は選ばせない。
@@ -456,6 +474,71 @@ function NotificationPanel({
           {auth.user
             ? "いま実際に届くのは「学習リマインダー」だけです。残りは送る仕組みを用意しているところで、選んだ内容は残しておきます。"
             : "お知らせを受け取るには登録が必要です。ここで選んだ内容は、登録したときにそのまま使います。"}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+// -------------------------------------------------------------------- 音
+
+/**
+ * 音の設定。
+ *
+ * 項目はひとつだけだが、通知の中には置かない。通知は「アプリの外から
+ * 届くもの」で、これは「画面の中で鳴るもの」。同じ場所に並べると、
+ * 音を切ったつもりでメールが止まったように読める。
+ *
+ * 試せるようにする
+ * ----------------
+ * 入れたあと、どんな音なのかは鳴らしてみないと分からない。設定を出て
+ * レッスンを1歩進めるまで分からない作りにはしない。それに、ブラウザは
+ * 「利用者が触るまで音を止める」ので、ここで一度鳴らしておくと、
+ * 学習中の1回目から確実に鳴る。
+ */
+function SoundPanel({
+  settings,
+  onChange,
+}: {
+  settings: Settings;
+  onChange: (patch: Partial<Settings>) => void;
+}) {
+  return (
+    <Card className="mt-5" padded={false}>
+      <SettingsGroup
+        title="画面の中で鳴る音"
+        description="端末ごとの設定です。音量は端末側で調整してください。"
+      >
+        <Toggle
+          checked={settings.successSound}
+          onChange={(successSound) => {
+            onChange({ successSound });
+            // 入れた瞬間に鳴らす。何が鳴るのか、その場で分かるようにする
+            if (successSound) previewSuccessSound();
+          }}
+          label="できたときの音"
+          description="1歩進むたびに、短い音を鳴らします"
+        />
+      </SettingsGroup>
+
+      <div className="px-4 pb-5">
+        {/*
+          切っているときも押せる。
+          どんな音かを聞いてから決められるようにする——入れないと試せない
+          作りだと、「よく分からないが一度入れてみる」しか道が無くなる。
+        */}
+        <button
+          type="button"
+          data-testid="sound-preview"
+          onClick={() => previewSuccessSound()}
+          className="min-h-[2.75rem] rounded-cta bg-surface px-5 py-2 text-sm
+                     font-bold text-brand-dark shadow-card transition
+                     hover:bg-brand-soft"
+        >
+          音を試す
+        </button>
+        <p className="mt-3 text-xs leading-6 text-ink-muted">
+          音が鳴らなくても、できたことは画面の文字で必ず分かります。
         </p>
       </div>
     </Card>
