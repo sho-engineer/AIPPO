@@ -8,6 +8,7 @@ from apps.lessons.views import (
     SurveyView,
 )
 from apps.lessons.views_bookmarks import BookmarkView
+from apps.lessons.views_certificate import CertificateView
 from apps.lessons.views_history import HistoryView
 from apps.lessons.views_review import ReviewView
 from apps.lessons.views_stream import RewriteTextStreamView
@@ -32,6 +33,8 @@ urlpatterns = [
     path("review/", ReviewView.as_view(), name="lesson-review"),
     # あとで見返したい教材の目印。こちらも <str:lesson_id> より前
     path("bookmarks/", BookmarkView.as_view(), name="lesson-bookmarks"),
+    # コースを終えた印。history / review と同じ「教材1本によらない」経路
+    path("certificate/", CertificateView.as_view(), name="lesson-certificate"),
     path("<str:lesson_id>/session/", SessionStateView.as_view(), name="lesson-session"),
     path("<str:lesson_id>/survey/", SurveyView.as_view(), name="lesson-survey"),
 ]

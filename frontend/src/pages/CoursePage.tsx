@@ -27,8 +27,11 @@
 import { useEffect, useState } from "react";
 
 import { AppHeader } from "../components/AppShell";
+import { CertificateEntry } from "../components/course/CertificateEntry";
 import { IconBookmark, IconCheck } from "../components/Icons";
+import { CertificatePage } from "./CertificatePage";
 import { PoAvatar } from "../po/PoAvatar";
+import { useCertificates } from "../course/certificate";
 import { lookupLesson, useCourse } from "../course/live";
 import {
   comingSoonNote,
@@ -189,12 +192,24 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
   const course = useCourse();
   const completed = useCompletedLessons();
   const bookmarks = useBookmarks();
+  const certificates = useCertificates();
   const [recommended, setRecommended] = useState<string[]>([]);
   const [query, setQuery] = useState("");
+  // 修了証は下位画面として開く。設定と同じで、1画面には1つの目的だけ置く
+  const [showingCertificates, setShowingCertificates] = useState(false);
 
   useEffect(() => {
     setRecommended(loadRecommendations());
   }, []);
+
+  if (showingCertificates) {
+    return (
+      <CertificatePage
+        certificates={certificates}
+        onBack={() => setShowingCertificates(false)}
+      />
+    );
+  }
 
   // 進捗の分母は「始められる教材」だけ。近日公開を混ぜると
   // 始めようのないもので割ることになり、いつまでも終わらない
@@ -282,6 +297,12 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
             </ul>
           </section>
         )}
+
+        {/* 1枚も無ければ、この行ごと出ない */}
+        <CertificateEntry
+          count={certificates.length}
+          onOpen={() => setShowingCertificates(true)}
+        />
 
         <section className="mt-7" aria-labelledby="lessons-heading">
           <div className="flex items-baseline justify-between gap-3">

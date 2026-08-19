@@ -253,3 +253,36 @@ describe("あとで見る", () => {
     expect(screen.getByTestId("bookmark-rewrite_text")).toBeInTheDocument();
   });
 });
+
+describe("応答が壊れていても、画面は開く", () => {
+  it("修了証の応答に鍵が無くても、教材一覧は出る", async () => {
+    /*
+      経路の設定違い、間に挟まる proxy のエラーページ、配置の途中——
+      どれも 200 で別物を返す。`{}` をそのまま入れると undefined が
+      読む側へ渡り、`.length` で教材一覧ごと真っ白になった。
+
+      修了証はあれば嬉しいもので、これが無いと教材一覧が開けない、
+      という作りにはしない。
+    */
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(typeof input === "string" ? input : (input as Request).url);
+      if (url.includes("/certificate/")) return reply({});
+      if (url.includes("/catalog/")) return reply(CATALOG);
+      if (url.includes("/bookmarks/")) return reply({ items: [] });
+      if (url.includes("/progress/")) {
+        return reply({
+          lessons: [],
+          completed_count: 0,
+          in_progress_count: 0,
+          skills: [],
+          signed_in: false,
+        });
+      }
+      return reply({});
+    });
+
+    render(<CoursePage onSelectLesson={() => {}} />);
+
+    expect(await screen.findByTestId("lesson-rewrite_text")).toBeInTheDocument();
+  });
+});
