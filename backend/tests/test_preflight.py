@@ -39,7 +39,10 @@ SOUND_ENV = {
     "FRONTEND_URL": "https://aippo.example.com",
     "EMAIL_HOST": "smtp.example.com",
     "DEFAULT_FROM_EMAIL": "noreply@example.com",
-    "SENTRY_DSN": "https://x@y.ingest.sentry.io/1",
+    # 本物の形（https://<key>@<org>.ingest.sentry.io/<id>）にしない。
+    # 秘密情報の走査に引っかかり、テストの都合でCIが赤くなる。
+    # preflight は「空でないこと」しか見ないので、これで足りる
+    "SENTRY_DSN": "dummy-not-a-real-dsn",
     "VITE_OPERATOR_NAME": "テスト運営者",
     "VITE_OPERATOR_ADDRESS": "東京都",
     "VITE_OPERATOR_CONTACT": "support@example.com",

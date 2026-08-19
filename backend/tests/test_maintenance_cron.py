@@ -22,7 +22,8 @@ from django.utils import timezone
 
 from apps.lessons.models import LearningSession
 
-SECRET = "test-cron-secret-abcdef0123456789"
+# 16進の並びにしない（高エントロピーの秘密情報として走査に拾われる）
+SECRET = "dummy-cron-secret-for-tests"
 
 URL = "/api/v1/maintenance/prune/"
 
