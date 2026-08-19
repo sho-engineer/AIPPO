@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
 
@@ -26,6 +27,14 @@ urlpatterns = [
     # 旧名。監視の設定を一度に書き換えられないので、しばらく残す
     path("healthz", healthz, name="healthz"),
     path("readyz", readyz, name="readyz"),
-    # 実証実験で集めたデータを見るための管理画面
-    path("admin/", admin.site.urls),
+    # 定期実行（Vercel Cron）から叩く運用の入り口。
+    # CRON_SECRET が空のあいだは 404（apps/ops/views.py）
+    path("api/v1/maintenance/", include("apps.ops.urls")),
+    # 実証実験で集めたデータを見るための管理画面。
+    #
+    # 場所は変えられる（DJANGO_ADMIN_PATH、既定は admin/）。
+    # 総当たりは `/admin/` を狙うので、変えるだけで届かなくなる。
+    # ただしこれは鍵ではないので、DJANGO_ADMIN_ALLOWED_IPS と
+    # 併せて使うこと（apps/ops/middleware.py）
+    path(settings.ADMIN_PATH, admin.site.urls),
 ]

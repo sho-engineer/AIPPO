@@ -119,6 +119,16 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    # 管理画面を、決めた接続元からしか開けなくする。
+    #
+    # CommonMiddleware より**前**に置くこと。あとに置くと、
+    # `/admin`（末尾の / 無し）を弾いたときに CommonMiddleware が
+    # その 404 を拾って `/admin/` への 301 に変えてしまう。
+    # 「そこに何かある」と教えることになり、隠した意味が消える。
+    #
+    # セッションを読むより前でもある。締め出す相手のために
+    # DB からセッションを引く理由は無い。
+    "apps.ops.middleware.AdminIpAllowlistMiddleware",
     "django.middleware.common.CommonMiddleware",
     # 以下3つは管理画面に必要（学習者向けAPIでは使わない）
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -243,6 +253,38 @@ SECURE_HSTS_PRELOAD = not DEBUG
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
+
+
+# --- 管理画面の守り -------------------------------------------------------
+# 管理画面に入られると、実証実験で集めた**全学習者の記録**が見える。
+# 合言葉ひとつしか間に無い状態で `/admin/` に置いておくのは危うい。
+# 守りは2枚。どちらも環境変数で入れる（手元の開発は今までどおり動く）。
+#
+#   1. 場所を変える（DJANGO_ADMIN_PATH）
+#      総当たりは `/admin/` を狙う。場所が違えば、そもそも見つからない。
+#      これは鍵ではなく「人目に付かない所へ置く」だけなので、2と併せて使う。
+#   2. 入れる接続元を絞る（DJANGO_ADMIN_ALLOWED_IPS）
+#      管理画面を開くのは運用する数人だけ。合言葉が漏れても、
+#      そこからでなければ入り口に届かない。
+def _admin_path(raw: str) -> str:
+    """`path()` に渡せる形へ整える。
+
+    先頭の / を付けて書く人も、末尾の / を忘れる人もいる。
+    どちらで書かれても同じ場所になるように、ここで揃えてしまう。
+    揃えないと「設定したのに 404」という、原因の見えない失敗になる。
+    空なら既定へ戻す（消し忘れの空行で管理画面が消えないように）。
+    """
+    cleaned = raw.strip().strip("/")
+    return f"{cleaned}/" if cleaned else "admin/"
+
+
+#: 既定は `admin/` のまま。変えなければ今までと同じ場所に出る。
+ADMIN_PATH = _admin_path(os.getenv("DJANGO_ADMIN_PATH", "admin/"))
+
+#: 管理画面に入れる接続元。**空なら制限しない**。
+#: 既定を「制限あり」にすると、設定を知らない人の手元で管理画面が
+#: いきなり消える。締め出すのは、締め出すと決めたときだけにする。
+ADMIN_ALLOWED_IPS = _list("DJANGO_ADMIN_ALLOWED_IPS")
 
 # 本文の長さは Serializer 側でも見ているが、
 # 巨大な本文でメモリを食い潰されないよう入口でも止める。
@@ -419,6 +461,17 @@ LEARNER_KEY_MAX_AGE = 60 * 60 * 24 * 90  # 90日
 # Cookie の寿命は90日。それを過ぎた時点で本人からも取り出せなくなるので、
 # さらに余裕を見た180日で消す。消すのは `manage.py prune_data`。
 GUEST_DATA_RETENTION_DAYS = int(os.getenv("GUEST_DATA_RETENTION_DAYS", "180"))
+
+# 定期実行（Vercel Cron）から `prune_data` を叩くための合言葉。
+#
+# **空のあいだ、その入り口は 404 のまま存在しない**（apps/ops/views.py）。
+# 逆にすると、合言葉を入れ忘れた配置で「誰でも消せる入り口」が開く。
+# 消す操作は取り消せないので、開いていないほうへ倒す。
+#
+# Vercel は CRON_SECRET を入れておくと、Cron からの要求に
+# `Authorization: Bearer <CRON_SECRET>` を自分で付けてくれる。
+# 名前を合わせてあるのはそのため。
+CRON_SECRET = os.getenv("CRON_SECRET", "")
 
 # --- メール -------------------------------------------------------------
 # 送るのは3通だけ（apps/accounts/emails.py）。

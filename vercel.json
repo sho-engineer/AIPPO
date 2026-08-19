@@ -24,5 +24,8 @@
     { "source": "/healthz", "destination": { "service": "backend" } },
     { "source": "/readyz", "destination": { "service": "backend" } },
     { "source": "/(.*)", "destination": { "service": "frontend" } }
+  ],
+  "crons": [
+    { "path": "/api/v1/maintenance/prune/", "schedule": "0 18 * * *" }
   ]
 }
