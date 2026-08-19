@@ -1056,25 +1056,30 @@ const FINAL: Lesson = {
 };
 
 /**
- * 第一リリース（Closed Beta）で始められる教材。
+ * 同梱データの時点で「近日公開」にしておく教材。
  *
- * ここは**同梱データの初期値**。本来の持ち主はサーバーで、
+ * 以前はここが逆で、始められるものを列挙していた
+ * （第一リリースでは診断と文章改善の2本だけ）。教材9本の中身が
+ * 揃った今、閉じておく理由はもう無いので空にしてある。
+ *
+ * ここは**同梱データの初期値**でしかない。本来の持ち主はサーバーで、
  * 管理画面から `availability_status` を変えれば画面もそれに従う
  * （api/catalog.ts で受け取ったものが、こちらより優先される）。
  *
- * それでもここに持たせるのは、サーバーへ届かないときに
- * 全教材が始められる状態に戻ってしまうのを防ぐため。
- * 「届かなければ止める」を既定にしておく。
+ * 仕組みそのものは残す。未完成の教材を足すときは、ここに id を並べれば
+ * 一覧には出したまま開始だけを止められる。
+ * 最後の砦はサーバー（apps/catalog/access.py）で、ここは
+ * 「押させない・見せ方を変える」ためのもの。
  */
-const RELEASE_AVAILABLE = new Set(["diagnosis", "rewrite_text"]);
+const RELEASE_COMING_SOON = new Set<string>([]);
 
-/** 同梱データへ、第一リリースの利用可否を当てる。 */
+/** 同梱データへ、利用可否の初期値を当てる。 */
 function withReleaseAvailability(lessons: Lesson[]): Lesson[] {
   return lessons.map((lesson) => ({
     ...lesson,
-    availability: RELEASE_AVAILABLE.has(lesson.id)
-      ? ("available" as const)
-      : ("coming_soon" as const),
+    availability: RELEASE_COMING_SOON.has(lesson.id)
+      ? ("coming_soon" as const)
+      : ("available" as const),
   }));
 }
 

@@ -78,7 +78,7 @@ export function SocialButtons({ disabled }: { disabled?: boolean }) {
               window.location.href = `${apiBaseUrl()}${provider.start_url}`;
             }}
             className={`flex min-h-[3rem] w-full items-center justify-center gap-2
-                        rounded-full border px-6 py-3 text-sm font-bold transition
+                        rounded-cta border px-6 py-3 text-sm font-bold transition
                         disabled:cursor-not-allowed disabled:opacity-60
                         ${LOOK[provider.name] ?? LOOK.google}`}
           >

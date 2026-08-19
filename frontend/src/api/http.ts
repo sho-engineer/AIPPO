@@ -144,7 +144,7 @@ export function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
 export async function sendJson<T>(
   path: string,
   body: unknown,
-  method: "POST" | "PATCH" = "POST",
+  method: "POST" | "PATCH" | "DELETE" = "POST",
   signal?: AbortSignal,
 ): Promise<T> {
   return request<T>(path, {

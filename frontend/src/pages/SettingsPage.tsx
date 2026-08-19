@@ -21,7 +21,7 @@
 
 import { useEffect, useState } from "react";
 
-import { AppHeader, Card, IconBadge } from "../components/AppShell";
+import { AppHeader, Card, IconMark } from "../components/AppShell";
 import { AuthDialog } from "../components/auth/AuthDialog";
 import { AccountPanel } from "../components/settings/AccountPanel";
 import { LegalMenu, LegalView } from "../components/legal/LegalView";
@@ -599,7 +599,7 @@ function PrivacyPanel({
           <button
             type="button"
             onClick={download}
-            className="min-h-[2.75rem] rounded-full bg-surface px-5 py-2 text-sm
+            className="min-h-[2.75rem] rounded-cta bg-surface px-5 py-2 text-sm
                        font-bold text-brand-dark shadow-card transition
                        hover:bg-brand-soft"
           >
@@ -631,8 +631,8 @@ function PrivacyPanel({
                   type="button"
                   autoFocus
                   onClick={() => setConfirming(false)}
-                  className="min-h-[2.75rem] flex-1 rounded-full bg-brand-grad px-5 py-2
-                             text-sm font-bold text-white shadow-pop transition
+                  className="min-h-[2.75rem] flex-1 rounded-cta bg-brand px-5 py-2
+                             text-sm font-bold text-white shadow-raised transition
                              hover:brightness-110"
                 >
                   やめる
@@ -649,7 +649,7 @@ function PrivacyPanel({
                         : "学習データを消しました。",
                     );
                   }}
-                  className="min-h-[2.75rem] flex-1 rounded-full bg-surface px-5 py-2
+                  className="min-h-[2.75rem] flex-1 rounded-cta bg-surface px-5 py-2
                              text-sm font-bold text-caution shadow-card transition
                              hover:bg-caution-soft"
                 >
@@ -662,7 +662,7 @@ function PrivacyPanel({
               type="button"
               data-testid="delete-data"
               onClick={() => setConfirming(true)}
-              className="min-h-[2.75rem] rounded-full bg-surface px-5 py-2 text-sm
+              className="min-h-[2.75rem] rounded-cta bg-surface px-5 py-2 text-sm
                          font-bold text-caution shadow-card transition
                          hover:bg-caution-soft"
             >
@@ -683,7 +683,7 @@ function PrivacyPanel({
               onResetSettings();
               onNotice("設定を初期状態に戻しました。");
             }}
-            className="flex min-h-[2.75rem] items-center gap-2 rounded-full bg-surface
+            className="flex min-h-[2.75rem] items-center gap-2 rounded-cta bg-surface
                        px-5 py-2 text-sm font-bold text-brand-dark shadow-card
                        transition hover:bg-brand-soft"
           >
@@ -696,7 +696,7 @@ function PrivacyPanel({
       {/* 相談先。困ったときの行き先を必ず1つ置く */}
       <Card>
         <div className="flex items-center gap-3">
-          <IconBadge icon={IconChat} tone="plain" />
+          <IconMark icon={IconChat} className="h-5 w-5" />
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-bold">データの扱いについて聞きたい</h2>
             <p className="mt-0.5 text-xs leading-6 text-ink-muted">

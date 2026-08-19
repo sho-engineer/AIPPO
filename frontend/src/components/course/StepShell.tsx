@@ -244,7 +244,7 @@ export function StepShell({
                 <button
                   type="button"
                   onClick={() => onEditSummary(entry.stepId)}
-                  className="shrink-0 rounded-full border border-brand-line px-3 py-1
+                  className="shrink-0 rounded-badge border border-line px-3 py-1
                              text-xs text-brand-dark transition hover:bg-brand-soft"
                 >
                   なおす
@@ -314,8 +314,9 @@ export function StepShell({
               <button
                 type="button"
                 onClick={onBack}
-                className="shrink-0 rounded-full border border-brand-line px-4 py-3
-                           text-sm text-brand-dark transition hover:bg-brand-soft"
+                className="shrink-0 rounded-cta border border-line px-4 py-2.5
+                           text-sm text-ink-muted transition hover:bg-brand-soft
+                           hover:text-brand-dark"
               >
                 もどる
               </button>
@@ -325,11 +326,18 @@ export function StepShell({
               data-testid="primary-action"
               onClick={onPrimary}
               disabled={primaryDisabled || busy}
-              className="min-h-[3rem] flex-1 rounded-full bg-brand-grad px-6 py-3 text-base
-                         font-bold text-white shadow-pop transition
-                         hover:brightness-110 active:brightness-95
-                         disabled:cursor-not-allowed disabled:bg-brand-line
-                         disabled:bg-none disabled:text-ink-muted disabled:shadow-none"
+              /*
+                進むボタン。
+
+                以前は画面幅いっぱいの rounded-full を min-h-12 で置いていた。
+                下端を横切る大きな丸い帯は、それだけで広告のように見え、
+                すぐ上にある教材の中身より強くなる。
+                高さを詰め、角を弱め、幅は必要な分だけにしている。
+              */
+              className="flex-1 rounded-cta bg-brand px-6 py-2.5 text-sm font-bold
+                         text-white transition hover:bg-brand-dark active:bg-brand-dark
+                         disabled:cursor-not-allowed disabled:bg-line
+                         disabled:text-ink-muted"
             >
               {busy ? "送っています…" : primaryLabel}
             </button>

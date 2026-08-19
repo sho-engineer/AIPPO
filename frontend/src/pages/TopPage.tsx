@@ -20,7 +20,6 @@
  * 動きはすべて CSS。prefers-reduced-motion のときは index.css で一括して止める。
  */
 
-import { IconBadge } from "../components/AppShell";
 import { BrandLogo } from "../components/BrandLogo";
 import { IconChat, IconChecklist, IconWrite } from "../components/Icons";
 import { PoeAvatar } from "../components/PoeAvatar";
@@ -62,35 +61,29 @@ export type TopPageProps = {
 /**
  * 開始ボタン。
  *
- * 周りから輪が広がる。タイトル画面で押す場所は1つしかないので、
- * それがどこかを、文字を読む前に分かるようにする。
+ * タイトル画面で押す場所はここ1つ。だからといって、画面幅いっぱいの
+ * 丸ボタンに輪を広げて光らせる必要は無い。
+ *
+ * 以前は w-64・py-4・rounded-full に、白い丸へ入れた「›」を添え、
+ * さらに周りから輪（animate-halo）を広げていた。押す場所が1つしかない
+ * 画面では、そこまでしなくても迷わない。光らせるほど、
+ * 中身より広告に見える。
  */
 function StartButton({ onClick }: { onClick: () => void }) {
   return (
-    <div className="relative mt-6 animate-pop-in [animation-delay:0.7s]">
-      <span
-        aria-hidden="true"
-        className="absolute inset-0 animate-halo rounded-full bg-brand/40"
-      />
-      <button
-        type="button"
-        onClick={onClick}
-        className="relative flex w-64 items-center justify-center gap-3 rounded-full
-                   bg-brand-grad py-4 pl-10 pr-4 text-lg font-bold text-white shadow-pop
-                   transition hover:-translate-y-0.5 hover:brightness-110
-                   active:translate-y-0 active:brightness-95"
-      >
-        <span className="flex-1">{BUTTONS.start}</span>
-        {/* 進む向きを形でも示す。文字だけより速く伝わる */}
-        <span
-          aria-hidden="true"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
-                     bg-white text-base text-brand"
-        >
-          ›
-        </span>
-      </button>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      className="mt-6 flex animate-pop-in items-center gap-2 rounded-cta bg-brand
+                 px-8 py-3 text-base font-bold text-white transition
+                 [animation-delay:0.7s] hover:bg-brand-dark active:bg-brand-dark"
+    >
+      {BUTTONS.start}
+      {/* 進む向きだけ添える。器には入れない */}
+      <span aria-hidden="true" className="text-lg leading-none">
+        →
+      </span>
+    </button>
   );
 }
 
@@ -175,7 +168,7 @@ export function TopPage({ onStart }: TopPageProps) {
           下地がほぼ白になったので、面を重ねて段差を作る手は使えない
           （白の上に白を置いても境目が出ない）。輪郭は影だけで出す。
         */}
-        <div className="mx-auto max-w-4xl rounded-panel bg-surface px-6 py-10 shadow-panel sm:px-10">
+        <div className="mx-auto max-w-4xl rounded-panel bg-surface px-6 py-10 shadow-raised sm:px-10">
           {/* 見出しの左右に点線を添えて、章の切れ目だと分かるようにする */}
           <div className="flex items-center justify-center gap-3">
             <span
@@ -196,57 +189,30 @@ export function TopPage({ onStart }: TopPageProps) {
           </p>
 
           {/*
-            3つを横に並べ、あいだを点線でつなぐ。
-            番号はカードの上辺にまたがせて、順番が先に目に入るようにする。
-          */}
-          <ol
-            className="mt-10 grid gap-8 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-start sm:gap-0"
-            role="list"
-          >
-            {STEPS.map((step, index) => (
-              <li
-                key={step.number}
-                className={`contents sm:contents`}
-                style={{ display: "contents" }}
-              >
-                <div className="relative rounded-card bg-brand-soft/50 px-5 pb-6 pt-9 text-center">
-                  <span
-                    aria-hidden="true"
-                    className="absolute left-1/2 top-0 flex h-10 w-10 -translate-x-1/2
-                               -translate-y-1/2 items-center justify-center rounded-full
-                               bg-brand text-sm font-bold text-white shadow-card
-                               ring-4 ring-surface"
-                  >
-                    {step.number}
-                  </span>
-                  {/*
-                    絵は角丸の四角に載せる（components/AppShell.tsx の IconBadge
-                    と同じ形）。丸にすると四角い絵が縮んで弱く見える。
-                  */}
-                  <span className="mx-auto flex w-fit">
-                    <IconBadge icon={step.Icon} tone="plain" size="lg" />
-                  </span>
-                  <h3 className="mt-3 text-base font-bold">{step.title}</h3>
-                  <p className="mt-1.5 text-sm leading-7 text-ink-muted">
-                    {step.body}
-                  </p>
-                </div>
+            順番のある3つなので、番号を振った縦の一覧にする。
 
-                {index < STEPS.length - 1 && (
-                  <span
-                    aria-hidden="true"
-                    className="hidden items-center gap-1 self-center px-2 sm:flex"
-                  >
-                    <span className="h-px w-4 border-t-2 border-dotted border-brand-line" />
-                    <span
-                      className="flex h-6 w-6 items-center justify-center rounded-full
-                                 border border-brand-line text-xs text-brand"
-                    >
-                      ›
-                    </span>
-                    <span className="h-px w-4 border-t-2 border-dotted border-brand-line" />
-                  </span>
-                )}
+            以前は淡い青の角丸カードを3枚並べ、それぞれの中に
+            「淡色の角丸四角＋線画アイコン」を置いていた。同じ形が
+            3回くり返されるだけで、中身の違いは伝わらない。
+            番号を左に立てて線でつなげば、順番であることが形で分かる。
+          */}
+          <ol className="mt-8 sm:mt-10" role="list">
+            {STEPS.map((step) => (
+              <li key={step.number} className="flex gap-4 border-b border-line py-5">
+                <span
+                  aria-hidden="true"
+                  className="w-5 shrink-0 text-sm font-bold tabular-nums text-brand"
+                >
+                  {step.number}
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <h3 className="flex items-center gap-2 text-base font-bold">
+                    <step.Icon className="h-[1.125rem] w-[1.125rem] shrink-0 text-brand" />
+                    {step.title}
+                  </h3>
+                  <p className="mt-1 text-sm leading-7 text-ink-muted">{step.body}</p>
+                </div>
               </li>
             ))}
           </ol>
@@ -278,18 +244,12 @@ export function TopPage({ onStart }: TopPageProps) {
             <button
               type="button"
               onClick={onStart}
-              className="mt-6 flex w-full items-center justify-center gap-3 rounded-full
-                         bg-white py-4 pl-8 pr-4 text-lg font-bold text-brand shadow-pop
-                         transition hover:-translate-y-0.5 hover:bg-brand-soft
-                         active:translate-y-0 sm:w-72"
+              className="mt-5 inline-flex items-center gap-2 rounded-cta bg-white px-8 py-3
+                         text-base font-bold text-brand transition hover:bg-brand-soft"
             >
-              <span className="flex-1">{BUTTONS.start}</span>
-              <span
-                aria-hidden="true"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
-                           bg-brand text-base text-white"
-              >
-                ›
+              {BUTTONS.start}
+              <span aria-hidden="true" className="text-lg leading-none">
+                →
               </span>
             </button>
           </div>

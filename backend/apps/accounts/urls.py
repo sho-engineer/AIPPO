@@ -2,6 +2,17 @@
 
 from django.urls import path
 
+from apps.accounts.passkey_views import (
+    PasskeyDeleteView,
+    PasskeyListView,
+    PasskeyRegisterOptionsView,
+    PasskeyRegisterVerifyView,
+    PasskeySignInOptionsView,
+    PasskeySignInVerifyView,
+    PasskeySignUpOptionsView,
+    PasskeySignUpVerifyView,
+    PasskeySupportView,
+)
 from apps.accounts.views import (
     CsrfTokenView,
     DeleteAccountView,
@@ -43,6 +54,40 @@ urlpatterns = [
         name="accounts-delete-learning-data",
     ),
     path("delete/", DeleteAccountView.as_view(), name="accounts-delete"),
+    # パスキー。合言葉を覚えなくてよくする仕組み
+    path("passkey/support/", PasskeySupportView.as_view(), name="passkey-support"),
+    path("passkey/", PasskeyListView.as_view(), name="passkey-list"),
+    path("passkey/<int:passkey_id>/", PasskeyDeleteView.as_view(), name="passkey-delete"),
+    path(
+        "passkey/register/options/",
+        PasskeyRegisterOptionsView.as_view(),
+        name="passkey-register-options",
+    ),
+    path(
+        "passkey/register/verify/",
+        PasskeyRegisterVerifyView.as_view(),
+        name="passkey-register-verify",
+    ),
+    path(
+        "passkey/signin/options/",
+        PasskeySignInOptionsView.as_view(),
+        name="passkey-signin-options",
+    ),
+    path(
+        "passkey/signin/verify/",
+        PasskeySignInVerifyView.as_view(),
+        name="passkey-signin-verify",
+    ),
+    path(
+        "passkey/signup/options/",
+        PasskeySignUpOptionsView.as_view(),
+        name="passkey-signup-options",
+    ),
+    path(
+        "passkey/signup/verify/",
+        PasskeySignUpVerifyView.as_view(),
+        name="passkey-signup-verify",
+    ),
     # 外部サービスでのログイン。設定が入っている先だけが一覧に出る
     path("social/providers/", SocialProvidersView.as_view(), name="social-providers"),
     path("social/<str:provider>/start/", SocialStartView.as_view(), name="social-start"),

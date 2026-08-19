@@ -53,6 +53,26 @@ def _tight_limits(settings):
     settings.AUTH_THROTTLE_SIGNUP_WINDOW = 3600
 
 
+@pytest.fixture(autouse=True)
+def _steady_clock(monkeypatch):
+    """数え上げの窓を、テストの途中で切り替わらせない。
+
+    数えるときは現在時刻を窓の長さで切り捨てて「いまの窓」を決める
+    （apps/accounts/throttle.py の _window_start）。実時計のまま動かすと、
+    ちょうど窓の境目をまたいだときに数えが0へ戻り、
+    「4回目で断られる」はずのテストが通ってしまう。
+
+    めったに起きないが、起きたときに落ちるのは**そのとき動かした人**で、
+    原因も分かりにくい。時刻を止めて、境目そのものを無くしておく。
+    """
+    from django.utils import timezone as django_timezone
+
+    frozen = django_timezone.now()
+    monkeypatch.setattr(
+        "apps.accounts.throttle.timezone.now", lambda: frozen
+    )
+
+
 def _post(client, url, body):
     return client.post(url, body, content_type="application/json")
 

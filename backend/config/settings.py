@@ -127,6 +127,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     # X_FRAME_OPTIONS はこのミドルウェアが無いと効かない
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # ログインから一定の期間が過ぎたら切る。
+    # AuthenticationMiddleware より**あと**に置くこと（request.user を見る）
+    "apps.accounts.session.AbsoluteSessionTimeoutMiddleware",
     "apps.lessons.middleware.LearnerKeyMiddleware",
 ]
 
@@ -262,9 +265,24 @@ CSRF_COOKIE_SAMESITE = os.getenv("CSRF_COOKIE_SAMESITE", "Lax")
 # CSRF の合言葉は script から読めないと送り返せないので HttpOnly にしない。
 # 読めても、別サイトからは Cookie ごと送れないので目的は果たせる。
 CSRF_COOKIE_HTTPONLY = False
+# 期限は2つある。どちらか早いほうでログアウトになる。
+#
+#   1. 触らないまま何日でログアウトするか（SESSION_COOKIE_AGE）
+#   2. ログインした日から何日でログアウトするか（SESSION_ABSOLUTE_MAX_AGE）
+#
+# 1 だけだと、要求のたびに期限が先へ延びる（SESSION_SAVE_EVERY_REQUEST）ので、
+# 開き続けている人は**いつまでもログインしたまま**になる。
+# 端末を手放したあとや、こちらの都合で切りたい場面のために 2 を置く。
+#
 # 30日。毎日開くものではないので、短くするとログインし直しばかりになる。
 SESSION_COOKIE_AGE = int(os.getenv("SESSION_COOKIE_AGE", str(60 * 60 * 24 * 30)))
 SESSION_SAVE_EVERY_REQUEST = True
+# 90日。学習は数か月かけて続くものなので、途中で切られると
+# やる気を削ぐ。かといって無期限にはしない。
+# 0 以下にすると上限そのものを外せる（勧めない）。
+SESSION_ABSOLUTE_MAX_AGE = int(
+    os.getenv("SESSION_ABSOLUTE_MAX_AGE", str(60 * 60 * 24 * 90))
+)
 # 画面と API が別ホストのとき、POST の送り元として明示が要る。
 CSRF_TRUSTED_ORIGINS = _list("CSRF_TRUSTED_ORIGINS", ",".join(CORS_ALLOWED_ORIGINS))
 
@@ -423,6 +441,35 @@ SERVER_EMAIL = os.getenv("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
 #: 画面の場所。メールのリンクはここへ向く。
 #: 末尾の / は付けても付けなくてもよい（apps/accounts/emails.py で落とす）。
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+# --- パスキー（WebAuthn）------------------------------------------------
+# 合言葉を覚えなくてよくする仕組み。詳しくは apps/accounts/passkeys.py。
+#
+# 署名にはドメインが混ざる。だから偽サイトで作らせた署名は、本物の
+# ドメインでは通らない。ここを取り違えると、その守りが丸ごと外れる。
+#
+# 既定は FRONTEND_URL から取る。画面が置いてある場所と、パスキーを
+# 使う場所は同じなので、別々に書かせると必ずどちらかが古くなる。
+#
+#   PASSKEY_RP_ID   … ドメイン（ポートを含めない）。例 aippo.vercel.app
+#   PASSKEY_ORIGINS … 署名を受け付ける送り元。scheme とポートまで含む
+#
+# 手元では http://localhost:5173 のような値になる。パスキーは
+# localhost だけ HTTP でも使える（それ以外は HTTPS が要る）。
+def _origin_host(url: str) -> str:
+    from urllib.parse import urlparse
+
+    return (urlparse(url).hostname or "").strip()
+
+
+PASSKEY_RP_NAME = os.getenv("PASSKEY_RP_NAME", "AIPPO")
+PASSKEY_RP_ID = os.getenv("PASSKEY_RP_ID", "") or _origin_host(FRONTEND_URL)
+# 画面が複数のURLから開かれることがある（localhost と 127.0.0.1 など）。
+# 指定が無ければ、画面のURLと CORS で許した先をそのまま受け付ける。
+PASSKEY_ORIGINS = _list("PASSKEY_ORIGINS") or list(
+    # 重複は落とすが、並びは保つ（先頭が本来の画面のURL）
+    dict.fromkeys(origin for origin in [FRONTEND_URL, *CORS_ALLOWED_ORIGINS] if origin)
+)
 
 # --- 見張り -------------------------------------------------------------
 # Sentry は任意。DSN が無ければ何も読み込まない。

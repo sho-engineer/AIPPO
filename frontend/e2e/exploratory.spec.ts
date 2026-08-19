@@ -138,23 +138,32 @@ test.describe("本物のバックエンドに当てる", () => {
     expect(body.courses[0].lessons.length).toBeGreaterThan(0);
   });
 
-  test("近日公開の教材は、直接頼んでも断られる", async ({ page }) => {
+  test("教材が決めていない操作は、直接頼んでも断られる", async ({ page }) => {
     /*
-      画面側でも押せなくしてあるが、最後の砦はサーバー。
-      画面を書き換えれば押せてしまうので、ここで止まる必要がある。
+      画面は教材データが決めた action しか送らないが、最後の砦はサーバー。
+      画面を書き換えれば何でも送れてしまうので、ここで止まる必要がある。
+
+      以前ここでは「近日公開の教材を直接叩く」を確かめていた。
+      教材9本を全部開けたので、その状態はもう作れない
+      （作るには管理画面から閉じる必要があり、E2E からは手が届かない）。
+      近日公開の締め出しそのものは backend/tests/test_coming_soon.py が、
+      1本を閉じたうえで 409 LESSON_COMING_SOON を確かめている。
+
+      ここでは、同じ「サーバーが最後に止める」を、教材と操作の
+      組み合わせで確かめる。plan は make_plan のもので、rewrite_text には無い。
     */
     const response = await page.request.post(`${API}/api/v1/ai/generate/`, {
       data: {
-        lesson_id: "summarize_text",
+        lesson_id: "rewrite_text",
         step_id: "quick_try",
-        action: "summarize",
-        input: { original_text: SAMPLE, purpose: "要点", format: "箇条書き", length: "短め" },
+        action: "plan",
+        input: { goal: "資料を作りきる", deadline: "今週中", available_time: "1日30分" },
       },
       failOnStatusCode: false,
     });
 
-    expect(response.status()).toBe(409);
-    expect((await response.json()).code).toBe("LESSON_COMING_SOON");
+    expect(response.status()).toBe(400);
+    expect(JSON.stringify(await response.json())).toContain("このレッスンでは使えない操作です");
   });
 
   test("捌ける状態かを、サーバー自身が答える", async ({ page }) => {

@@ -6,9 +6,27 @@
  * 写しを端末に貯めると、ログアウト済みなのにログイン中に見える、
  * 別端末で退会したのに残る、といったずれが必ず出る。
  *
- * 起動時に1回だけ `me` を聞く。それまでは `loading`。
+ * 起動時に1回 `me` を聞く。それまでは `loading`。
  * `loading` のあいだにログイン前提の画面を出すと、一瞬だけ
  * 「ログインしてください」が見えてから中身が出る。それを避ける。
+ *
+ * 聞き直すとき
+ * ------------
+ * 起動時の1回だけでは足りない。ログインには期限があり
+ * （`backend/config/settings.py` の SESSION_COOKIE_AGE と
+ * SESSION_ABSOLUTE_MAX_AGE）、開いたままの画面ではその瞬間が来ても
+ * 誰も気づかない。結果、**サーバーから見ればログアウトしているのに、
+ * 画面だけログイン中のまま**という状態が続く。
+ * その画面で登録した気になって進めても、記録はどこにも残らない。
+ *
+ * そこで、次のときに聞き直す。
+ *
+ *   - 画面が表に戻ったとき（別のタブやアプリから帰ってきた）
+ *   - 窓に焦点が戻ったとき
+ *   - 表に出ているあいだ、一定の間隔で
+ *
+ * 聞き直しは短い GET が1本。ただし戻ってくるたびに投げると、
+ * タブを行き来するだけで何度も鳴るので、最短の間隔を空ける。
  */
 
 import {
@@ -17,12 +35,29 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import * as api from "../api/accounts";
 import type { AccountUser, MigrationResult, Progress } from "../api/accounts";
+
+/**
+ * 表に出ているあいだ、これだけ経ったら聞き直す。
+ *
+ * 5分。切れた瞬間に気づく必要は無いが、
+ * 何時間も開いたままの画面が「ログイン中」を主張し続けるのは避けたい。
+ */
+const RECHECK_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
+ * 聞き直しの最短の間隔。
+ *
+ * タブを行き来するたびに投げると、切り替えの回数だけ鳴る。
+ * 30秒あれば、期限切れに気づくのは十分に速い。
+ */
+const RECHECK_THROTTLE_MS = 30 * 1000;
 
 export interface AuthState {
   loading: boolean;
@@ -91,6 +126,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       alive = false;
     };
   }, [apply]);
+
+  /*
+    ログインが切れていないか、ときどき聞き直す。
+
+    聞くのはサーバーだけ。ここで自前に期限を数えて切ると、
+    端末の時計がずれているだけでログアウトさせてしまうし、
+    サーバー側が先に切った場合には気づけない。
+    期限を決めるのも数えるのもサーバーの仕事で、
+    画面はその答えに従うだけにする。
+  */
+  const lastCheckedAt = useRef(0);
+
+  useEffect(() => {
+    // ログインしていない人には聞かない。聞いても答えは変わらないので、
+    // ゲストのまま学んでいる人に無駄な通信をさせないため
+    if (!state.user) return;
+
+    let alive = true;
+
+    const recheck = (force = false) => {
+      const now = Date.now();
+      if (!force && now - lastCheckedAt.current < RECHECK_THROTTLE_MS) return;
+      lastCheckedAt.current = now;
+      if (alive) void refresh();
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") recheck();
+    };
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
+    const timer = window.setInterval(() => {
+      // 裏に回っているあいだは鳴らさない。戻ってきたときに聞けば足りる
+      if (document.visibilityState === "visible") recheck(true);
+    }, RECHECK_INTERVAL_MS);
+
+    return () => {
+      alive = false;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
+      window.clearInterval(timer);
+    };
+  }, [state.user, refresh]);
 
   const actions = useMemo<AuthActions>(
     () => ({

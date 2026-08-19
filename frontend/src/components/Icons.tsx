@@ -182,6 +182,23 @@ export function IconCheck({ className }: IconProps) {
   );
 }
 
+/**
+ * 鍵。パスキーの入口に添える。
+ *
+ * 錠前（IconLock）と分ける。錠前は「閉まっている・押せない」を表しており、
+ * 同じ絵を使うと「使えない」に見える。ここは押せる入口なので、
+ * 開ける側の絵にする。
+ */
+export function IconKey({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <circle cx="8.2" cy="8.2" r="4.4" />
+      <path d="M11.4 11.4L20 20" />
+      <path d="M17.2 17.2l2.2-2.2" />
+    </Svg>
+  );
+}
+
 /** 三角の注意。気をつけて。 */
 export function IconCaution({ className }: IconProps) {
   return (

@@ -1,8 +1,15 @@
 """近日公開の教材は、どこからも始められないこと。
 
-第一リリースで始められるのは診断と文章改善だけ。残りは一覧に出すが
-止める。画面から開始ボタンを消すだけでは足りず、URL を直接叩く・
-古いタブが残っている・開発者ツールから呼ぶ、のどれでも通ってしまう。
+教材9本の中身が揃ったので、取り込みの既定は**全部が始められる**に変えた
+（seed_catalog.py の RELEASE_COMING_SOON は空）。
+それでも仕組みは消さない。未完成の教材を足すときや、問題が見つかって
+一時的に止めるときに要る。
+
+そこでこのテストは「どの教材が開いているか」ではなく、
+**近日公開にしたら本当に止まるか**を見る。
+以前は `assert available == {"diagnosis", "rewrite_text"}` のように
+その時々の公開範囲を書いていたが、それは教材が1本増えるたびに
+落ちるだけで、止める仕組みが壊れても気づけない。
 
 止める場所は3つあり、そのすべてを見る。
 """
@@ -23,10 +30,27 @@ from apps.catalog.models import AvailabilityStatus, Lesson, PublishStatus
 CATALOG_URL = "/api/v1/catalog/"
 GENERATE_URL = "/api/v1/ai/generate/"
 
+#: 止まることを確かめる相手。どれか1本を近日公開にして試す。
+#: rewrite_text は「開いている側」の対照に使うので選ばない。
+GATED = "improve_answer"
+
 
 @pytest.fixture
 def seeded(db):
     call_command("seed_catalog")
+
+
+@pytest.fixture
+def gated(seeded):
+    """1本だけ近日公開にする。
+
+    取り込みの既定は全部が始められるので、止まることを確かめるには
+    こちらで閉じる。管理画面から閉じたのと同じ状態になる。
+    """
+    Lesson.objects.filter(slug=GATED).update(
+        availability_status=AvailabilityStatus.COMING_SOON
+    )
+    return GATED
 
 
 @pytest.fixture(autouse=True)
@@ -36,27 +60,27 @@ def _use_mock(settings):
 
 @pytest.mark.django_db
 class TestReleaseScope:
-    """第一リリースで始められる教材。"""
+    """取り込んだ直後の状態。"""
 
-    def test_only_the_release_lessons_are_available(self, seeded):
-        available = set(
-            Lesson.objects.filter(
-                availability_status=AvailabilityStatus.AVAILABLE
-            ).values_list("slug", flat=True)
-        )
+    def test_every_lesson_is_startable_by_default(self, seeded):
+        """既定では全部が始められる。
 
-        assert available == {"diagnosis", "rewrite_text"}
+        教材の中身は9本とも揃っている。閉じておくと、
+        画面には出ているのに押せない教材が並ぶだけになる。
+        """
+        stuck = Lesson.objects.exclude(
+            availability_status=AvailabilityStatus.AVAILABLE
+        ).values_list("slug", flat=True)
 
-    def test_the_rest_are_coming_soon_but_still_listed(self, seeded):
-        coming = Lesson.objects.filter(
-            availability_status=AvailabilityStatus.COMING_SOON
-        )
+        assert list(stuck) == []
+        assert Lesson.objects.count() == 9
 
-        assert coming.count() == 7
-        # 一覧から消えてはいけない。出したうえで止めるのが「近日公開」
-        for lesson in coming:
-            assert lesson.is_public
-            assert not lesson.is_startable
+    def test_a_gated_lesson_is_still_listed(self, gated):
+        """一覧から消してはいけない。出したうえで止めるのが「近日公開」。"""
+        lesson = Lesson.objects.get(slug=gated)
+
+        assert lesson.is_public
+        assert not lesson.is_startable
 
 
 @pytest.mark.django_db
@@ -67,12 +91,12 @@ class TestGate:
         assert require_startable("rewrite_text").slug == "rewrite_text"
         assert is_startable("rewrite_text")
 
-    def test_coming_soon_lesson_is_refused_with_its_own_code(self, seeded):
+    def test_coming_soon_lesson_is_refused_with_its_own_code(self, gated):
         with pytest.raises(LessonNotStartable) as caught:
-            require_startable("summarize_text")
+            require_startable(gated)
 
         assert caught.value.code == LESSON_COMING_SOON
-        assert not is_startable("summarize_text")
+        assert not is_startable(gated)
 
     def test_unpublished_lesson_is_not_found(self, seeded):
         lesson = Lesson.objects.get(slug="rewrite_text")
@@ -103,7 +127,22 @@ class TestCatalogApi:
         lessons = response.data["courses"][0]["lessons"]
         assert len(lessons) == 9
 
-    def test_coming_soon_lessons_are_listed_without_steps(self, api_client, seeded):
+    def test_every_lesson_ships_its_steps(self, api_client, seeded):
+        """始められる教材は、中身まで配られること。
+
+        全部を開けたのに中身が空のままだと、押せるのに何も起きない。
+        """
+        lessons = {
+            entry["id"]: entry
+            for entry in api_client.get(CATALOG_URL).data["courses"][0]["lessons"]
+        }
+
+        assert len(lessons) == 9
+        for slug, entry in lessons.items():
+            assert entry["availability"] == "available", slug
+            assert entry.get("steps"), f"{slug} の中身が空"
+
+    def test_coming_soon_lessons_are_listed_without_steps(self, api_client, gated):
         """一覧には出すが、中身は配らない。
 
         中身まで返すと、画面側で「取れているのだから始められる」
@@ -114,7 +153,7 @@ class TestCatalogApi:
             for entry in api_client.get(CATALOG_URL).data["courses"][0]["lessons"]
         }
 
-        coming = lessons["summarize_text"]
+        coming = lessons[gated]
         assert coming["availability"] == "coming_soon"
         assert coming.get("steps") == []
         # 一覧に必要なものは出ていること
@@ -165,13 +204,13 @@ class TestAiApiRefusesComingSoon:
     def test_available_lesson_can_call_ai(self, api_client, seeded):
         assert self._post(api_client, "rewrite_text").status_code == 200
 
-    def test_coming_soon_lesson_cannot_call_ai(self, api_client, seeded):
-        response = self._post(api_client, "improve_answer")
+    def test_coming_soon_lesson_cannot_call_ai(self, api_client, gated):
+        response = self._post(api_client, gated)
 
         assert response.status_code == 409
         assert response.data["code"] == LESSON_COMING_SOON
 
-    def test_refusal_happens_before_spending_quota(self, api_client, seeded):
+    def test_refusal_happens_before_spending_quota(self, api_client, gated):
         """止めるのは実行回数を消費する**前**であること。
 
         あとで止めると、始められない教材を叩くだけで
@@ -180,7 +219,7 @@ class TestAiApiRefusesComingSoon:
         from apps.lessons.models import AiUsageCounter
 
         before = AiUsageCounter.objects.count()
-        self._post(api_client, "improve_answer")
+        self._post(api_client, gated)
 
         assert AiUsageCounter.objects.count() == before
 
