@@ -31,6 +31,7 @@
 import { useEffect, useState } from "react";
 
 import { AppHeader, IconMark } from "../components/AppShell";
+import { ReviewPrompt } from "../components/ReviewPrompt";
 import { IconArrow, IconCheck, IconClock } from "../components/Icons";
 import { useCourse } from "../course/live";
 import {
@@ -394,6 +395,17 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
             onSelectLesson={onSelectLesson}
           />
         </div>
+
+        {/*
+          そろそろ見返しどきのもの。無ければ何も出ない。
+          「次にやること」のすぐ下に置く——新しく進むのと、
+          忘れかけを戻すのは、どちらも「今日やること」だから。
+        */}
+        {/*
+          余白は ReviewPrompt 自身が持つ。ここで囲うと、
+          出すものが無い日にも空の余白だけが残る。
+        */}
+        <ReviewPrompt onSelectLesson={onSelectLesson} />
 
         <div className="mt-7">
           <Progress

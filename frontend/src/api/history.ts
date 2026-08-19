@@ -49,3 +49,32 @@ export interface History {
 export function fetchHistory(signal?: AbortSignal): Promise<History> {
   return getJson("/api/lessons/history/", signal);
 }
+
+// ------------------------------------------------------------------ 復習
+
+export interface ReviewItem {
+  lesson_id: string;
+  /** その教材を何回終えたか。回を重ねるほど次は先になる。 */
+  times_done: number;
+  last_done_at: string;
+  due_at: string;
+  /** いま見返しどきか。 */
+  due: boolean;
+  /** あと何日待つか。過ぎているものは 0。 */
+  days_until_due: number;
+}
+
+export interface Review {
+  items: ReviewItem[];
+  due_count: number;
+}
+
+/**
+ * 見返しどきの教材。
+ *
+ * 点数は返ってこない。相手はAIに不安がある初心者なので、
+ * 測って点を付けるより、もう一度手を動かしてもらうほうが定着する。
+ */
+export function fetchReview(signal?: AbortSignal): Promise<Review> {
+  return getJson("/api/lessons/review/", signal);
+}
