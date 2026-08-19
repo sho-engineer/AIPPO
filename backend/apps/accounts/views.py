@@ -294,8 +294,22 @@ class ProfileView(APIView):
             return _invalid(serializer.errors)
 
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
-        profile.display_name = serializer.validated_data["display_name"]
-        profile.save(update_fields=["display_name", "updated_at"])
+
+        """送られてきた項目だけを直す。
+
+        表示名と知らせの設定は別の画面から届く。片方だけ送られたときに
+        もう片方を既定値で上書きすると、触っていない設定が黙って戻る。
+        """
+        changed = ["updated_at"]
+        data = serializer.validated_data
+        if "display_name" in data:
+            profile.display_name = data["display_name"]
+            changed.append("display_name")
+        if "remind_study" in data:
+            profile.remind_study = data["remind_study"]
+            changed.append("remind_study")
+
+        profile.save(update_fields=changed)
 
         return Response({"user": describe_user(request.user)})
 

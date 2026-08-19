@@ -74,6 +74,17 @@ class UserProfile(models.Model):
     terms_version = models.CharField(max_length=20, blank=True)
     terms_agreed_at = models.DateTimeField(null=True, blank=True)
 
+    #: 学習リマインダーのメールを受け取るか。
+    #:
+    #: 端末（localStorage）ではなくここに持つ。送るのはサーバーなので、
+    #: 端末側にだけ持っていると「切ったのに届く」ことになる。
+    #: 既定は True。7日間で学ぶ設計なのに戻ってくる仕掛けが無いと、
+    #: 1本やって終わる人を止められない。切りたい人は設定から切れる。
+    remind_study = models.BooleanField(default=True)
+
+    #: 最後にリマインダーを送った日時。送りすぎを防ぐために見る。
+    reminded_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

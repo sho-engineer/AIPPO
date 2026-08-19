@@ -98,3 +98,40 @@ def prune_expired_data(request: HttpRequest) -> JsonResponse:
             "deleted_total": sum(deleted.values()),
         }
     )
+
+
+@csrf_exempt
+def send_study_reminders(request: HttpRequest) -> JsonResponse:
+    """しばらく開いていない人へ、続きの知らせを送る。
+
+    守り方は `prune_expired_data` と同じ（合言葉が無ければ 404、
+    違えば 401）。理由もそちらに書いた。
+
+    こちらは消す操作ではないが、勝手に叩けると**利用者へメールを
+    送りつける入り口**になる。取り消せない点は同じなので、同じ守りにする。
+
+    送った件数を返す。0件が続いていれば、条件が厳しすぎるか、
+    そもそも動いていないかのどちらか——外から見分けられるようにする。
+    """
+    secret = getattr(settings, "CRON_SECRET", "")
+    if not secret:
+        raise Http404
+
+    if request.method not in ALLOWED_METHODS:
+        return JsonResponse({"error": "method_not_allowed"}, status=405)
+
+    if not _is_authorized(request, secret):
+        logger.warning("cron.reminders.unauthorized method=%s", request.method)
+        return JsonResponse({"error": "unauthorized"}, status=401)
+
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    out = StringIO()
+    call_command("send_reminders", stdout=out)
+    summary = out.getvalue().strip()
+
+    logger.info("cron.reminders.done %s", summary)
+
+    return JsonResponse({"status": "ok", "summary": summary})

@@ -73,7 +73,19 @@ class SignInSerializer(serializers.Serializer):
 
 
 class ProfileUpdateSerializer(serializers.Serializer):
-    display_name = serializers.CharField(max_length=60, allow_blank=True)
+    display_name = serializers.CharField(
+        max_length=60, allow_blank=True, required=False
+    )
+    #: 学習リマインダーを受け取るか。
+    #: 送るのはサーバーなので、端末側にだけ持たせると「切ったのに届く」。
+    remind_study = serializers.BooleanField(required=False)
+
+    def validate(self, attrs: dict) -> dict:
+        if not attrs:
+            raise serializers.ValidationError(
+                {"detail": ["変更する項目がありません。"]}
+            )
+        return attrs
 
 
 class PasswordChangeSerializer(serializers.Serializer):
@@ -122,6 +134,8 @@ def describe_user(user) -> dict[str, object]:
         "email_verified": bool(profile and profile.is_email_verified),
         "terms_version": getattr(profile, "terms_version", "") or "",
         "joined_at": user.date_joined.isoformat(),
+        # 知らせを受け取る設定。画面のつまみは、これを見て state を決める
+        "remind_study": bool(getattr(profile, "remind_study", True)),
     }
 
 

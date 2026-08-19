@@ -53,6 +53,8 @@ import {
   Toggle,
 } from "../components/settings/Controls";
 import { fetchModels, type AiModelChoice } from "../api/models";
+import { updateReminders } from "../api/accounts";
+import { useAuth } from "../auth/AuthContext";
 import {
   DAILY_GOALS,
   LANGUAGES,
@@ -468,17 +470,55 @@ function NotificationPanel({
   settings: Settings;
   onChange: (patch: Partial<Settings>) => void;
 }) {
+  const auth = useAuth();
+
+  /*
+    ログイン中は、サーバーが持っている値を正とする。
+    端末の値だけを見ていると、別の端末で切ったのに入ったままに見える。
+  */
+  const [remindStudy, setRemindStudy] = useState(
+    auth.user?.remind_study ?? settings.remindStudy,
+  );
+
+  useEffect(() => {
+    if (auth.user) setRemindStudy(auth.user.remind_study);
+  }, [auth.user]);
+
+  async function saveRemindStudy(next: boolean) {
+    // 押した瞬間に見た目を変える。往復を待たせると、効いていないように見える
+    setRemindStudy(next);
+    try {
+      await updateReminders(next);
+      await auth.refresh();
+    } catch {
+      // 保存できなかったら戻す。切ったつもりのまま届くのが一番よくない
+      setRemindStudy(!next);
+    }
+  }
+
   return (
     <Card className="mt-5" padded={false}>
       <SettingsGroup
         title="受け取る知らせ"
         description="いつでも切り替えられます。"
       >
+        {/*
+          学習リマインダーだけは、実際にメールが届く。
+          送るのはサーバーなので、切り替えもサーバーへ伝える
+          （端末にだけ持たせると「切ったのに届く」ことになる）。
+        */}
         <Toggle
-          checked={settings.remindStudy}
-          onChange={(remindStudy) => onChange({ remindStudy })}
+          checked={auth.user ? remindStudy : settings.remindStudy}
+          onChange={(next) => {
+            onChange({ remindStudy: next });
+            if (auth.user) void saveRemindStudy(next);
+          }}
           label="学習リマインダー"
-          description="学習の継続をサポートする通知を受け取る"
+          description={
+            auth.user
+              ? "しばらく開いていないとき、続きのお知らせをメールで受け取る"
+              : "登録すると、続きのお知らせをメールで受け取れます"
+          }
         />
         <Toggle
           checked={settings.notifyRecommendations}
@@ -501,13 +541,15 @@ function NotificationPanel({
       </SettingsGroup>
 
       {/*
-        いまは配信の仕組みが無い。設定だけ先に置いて、届くかのように
-        見せない。あとで仕組みができたとき、この注記だけ外せばよい。
+        届くのは「学習リマインダー」だけ。残り3つはまだ配信の仕組みが無い。
+        全部が届くように見せない——1つでも届かないものがあるなら、
+        どれが届くのかを書くほうが正直になる。
       */}
       <div className="px-4 pb-5">
         <p className="rounded-card bg-brand-soft px-4 py-3 text-xs leading-6 text-brand-dark">
-          いまは通知を送る仕組みがまだありません。ここで選んだ内容は端末に
-          残しておき、送れるようになったときにそのまま使います。
+          {auth.user
+            ? "いま実際に届くのは「学習リマインダー」だけです。残りは送る仕組みを用意しているところで、選んだ内容は残しておきます。"
+            : "お知らせを受け取るには登録が必要です。ここで選んだ内容は、登録したときにそのまま使います。"}
         </p>
       </div>
     </Card>
