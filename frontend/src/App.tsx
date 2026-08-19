@@ -26,18 +26,21 @@ import { isStartable } from "./course/availability";
 import { loadPlace, savePlace } from "./app/session";
 import { useSocialResult } from "./auth/useSocialResult";
 import { nextScreen, type Screen } from "./app/screens";
+import { RecordPage } from "./pages/RecordPage";
 
 /** 下タブのどれが光っているか。 */
 const TAB_OF: Partial<Record<Screen, TabKey>> = {
   HOME: "home",
   COURSE: "course",
+  RECORD: "record",
   SETTINGS: "settings",
 };
 
-/** 下タブの行き先。実装のある3つだけを持つ。 */
+/** 下タブの行き先。 */
 const SCREEN_OF_TAB: Partial<Record<TabKey, Screen>> = {
   home: "HOME",
   course: "COURSE",
+  record: "RECORD",
   settings: "SETTINGS",
 };
 
@@ -93,6 +96,9 @@ export function App() {
 
       case "COURSE":
         return <CoursePage onSelectLesson={(id) => openLesson(id, "COURSE")} />;
+
+      case "RECORD":
+        return <RecordPage onSelectLesson={(id) => openLesson(id, "RECORD")} />;
 
       case "SETTINGS":
         return <SettingsPage onBack={() => setScreen("HOME")} />;

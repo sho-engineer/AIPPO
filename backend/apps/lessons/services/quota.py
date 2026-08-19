@@ -199,3 +199,44 @@ def limit_message(exc: QuotaExceeded) -> str:
     if exc.scope == QuotaScope.LEARNER:
         return LEARNER_LIMIT_MESSAGE
     return IP_LIMIT_MESSAGE
+
+
+def remaining_today(request) -> dict[str, object]:
+    """今日あと何回AIを使えるか。
+
+    上限そのものは前からあったが、**本人には見えていなかった**。
+    見えないと、上限に当たってはじめて存在を知ることになる。
+    レッスンの途中で急に止まるので、壊れたのか自分のせいなのかも
+    分からない。先に見せておけば、残りを見ながら使える。
+
+    出すのは「その人ぶんの残り」だけ。全体の安全弁や接続元ごとの
+    上限は出さない——本人には動かしようがないし、
+    残量を見せることが、上限を回避する手掛かりにもなる。
+
+    上限を外している（0以下）ときは `limit` を None にする。
+    「残り0回」と紛らわしいので、数を出さない。
+    """
+    learner_key = getattr(request, "learner_key", None)
+    if learner_key is None:
+        return {"limit": None, "used": 0, "remaining": None}
+
+    user = getattr(request, "user", None)
+    signed_in = bool(user is not None and user.is_authenticated)
+    limit = (
+        settings.AI_DAILY_REQUEST_LIMIT_USER
+        if signed_in
+        else settings.AI_DAILY_REQUEST_LIMIT_GUEST
+    )
+    if limit <= 0:
+        return {"limit": None, "used": 0, "remaining": None}
+
+    row = AiUsageCounter.objects.filter(
+        scope=learner_scope(learner_key), date=timezone.localdate()
+    ).first()
+    used = row.count if row else 0
+
+    return {
+        "limit": limit,
+        "used": min(used, limit),
+        "remaining": max(0, limit - used),
+    }

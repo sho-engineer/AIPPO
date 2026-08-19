@@ -104,7 +104,7 @@ export type TabKey = "home" | "course" | "record" | "settings";
 const TABS: { key: TabKey; label: string; icon: Icon; ready: boolean }[] = [
   { key: "home", label: "ホーム", icon: IconHome, ready: true },
   { key: "course", label: "教材一覧", icon: IconBook, ready: true },
-  { key: "record", label: "学習履歴", icon: IconClock, ready: false },
+  { key: "record", label: "学習履歴", icon: IconClock, ready: true },
   { key: "settings", label: "設定", icon: IconSliders, ready: true },
 ];
 

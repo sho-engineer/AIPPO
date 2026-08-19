@@ -3,8 +3,32 @@ import { describe, expect, it } from "vitest";
 import { SCREENS, canTransition, nextScreen } from "../src/app/screens";
 
 describe("画面遷移", () => {
-  it("5画面（タイトル・ホーム・教材一覧・レッスン・設定）", () => {
-    expect(SCREENS).toEqual(["TOP", "HOME", "COURSE", "LESSON", "SETTINGS"]);
+  it("6画面（タイトル・ホーム・教材一覧・レッスン・学習履歴・設定）", () => {
+    expect(SCREENS).toEqual([
+      "TOP",
+      "HOME",
+      "COURSE",
+      "LESSON",
+      "RECORD",
+      "SETTINGS",
+    ]);
+  });
+
+  it("学習履歴へは、下タブのどこからでも行ける", () => {
+    // 作ったものを取りに来る場所なので、どこからでも1手で開けること
+    expect(nextScreen("HOME", "OPEN_RECORD")).toBe("RECORD");
+    expect(nextScreen("COURSE", "OPEN_RECORD")).toBe("RECORD");
+    expect(nextScreen("SETTINGS", "OPEN_RECORD")).toBe("RECORD");
+  });
+
+  it("学習履歴から、同じ教材をやり直せる", () => {
+    // 見返して「もう一度」と思ったときに、探し直させない
+    expect(nextScreen("RECORD", "SELECT_LESSON")).toBe("LESSON");
+  });
+
+  it("学習履歴が行き止まりにならない", () => {
+    expect(nextScreen("RECORD", "BACK_TO_HOME")).toBe("HOME");
+    expect(nextScreen("RECORD", "OPEN_COURSE")).toBe("COURSE");
   });
 
   it("タイトル → ホーム → レッスン と進める", () => {

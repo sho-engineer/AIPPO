@@ -34,3 +34,6 @@ test-results/
 /.env
 backend/staticfiles/
 test_db.sqlite3
+
+# サブエージェントの作業場所。リポジトリには入れない
+.claude/worktrees/

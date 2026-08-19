@@ -142,12 +142,20 @@ describe("画面の行き来", () => {
     expect(await screen.findByTestId("po-avatar")).toBeInTheDocument();
   });
 
-  it("下タブの未実装の行き先は押せない（黙って無反応にしない）", async () => {
+  it("下タブから学習履歴へ入り、ホームへ戻れる", async () => {
     const user = userEvent.setup();
     render(<App />);
     await start(user);
 
-    expect(await screen.findByRole("button", { name: /学習履歴/ })).toBeDisabled();
+    await user.click(await screen.findByRole("button", { name: /学習履歴/ }));
+    expect(
+      await screen.findByRole("heading", { name: "学習履歴" }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "ホーム" }));
+    expect(
+      await screen.findByRole("heading", { name: "学習の進み具合" }),
+    ).toBeInTheDocument();
   });
 
   it("下タブから設定へ入り、ホームへ戻れる", async () => {
