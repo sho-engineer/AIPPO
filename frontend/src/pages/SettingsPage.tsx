@@ -333,7 +333,16 @@ function MainMenu({
               <button
                 type="button"
                 onClick={() => onOpenLegal(document.id)}
-                className="text-xs text-brand-dark underline transition hover:text-brand"
+                /*
+                  当たり判定を広げる。py で伸ばし、同じだけ -my で戻すので
+                  見た目の位置は変わらない。
+
+                  文字の高さそのままだと 22px しかなく、WCAG 2.2 の
+                  最小（24×24）を下回る。指で押す前提の画面で、
+                  親指の腹より小さい的を並べない。
+                */
+                className="-my-2 inline-block py-2 text-xs text-brand-dark underline
+                           transition hover:text-brand"
               >
                 {document.title}
               </button>

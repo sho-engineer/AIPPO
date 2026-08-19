@@ -346,11 +346,31 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
             打ち間違いなのか、そもそも無いのかが分からなくなる。
           */}
           {found.length === 0 ? (
-            <p className="mt-4 text-sm leading-7 text-ink-muted" role="status">
-              「{query}」に当てはまる教材はありませんでした。
-              <br />
-              別の言い方で探すか、下の一覧から選んでください。
-            </p>
+            /*
+              0件のときは、下に一覧が無い。
+
+              以前ここに「下の一覧から選んでください」と書いていたが、
+              絞り込みで消えているので**下には何も無い**。できないことを
+              指示していた。行き止まりで指示だけ残るのが、いちばんよくない。
+
+              代わりに、その場で戻せる口を置く。
+            */
+            <div className="mt-4" role="status">
+              <p className="text-sm leading-7 text-ink-muted">
+                「{query}」に当てはまる教材はありませんでした。
+                <br />
+                別の言い方でも探せます。
+              </p>
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                data-testid="lesson-search-clear"
+                className="-my-2 mt-1 py-2 text-sm font-bold text-brand
+                           transition hover:text-brand-dark"
+              >
+                すべての教材を見る
+              </button>
+            </div>
           ) : (
             <ul className="mt-2" role="list">
               {found.map((lesson) => (

@@ -267,7 +267,9 @@ function Progress({
         <button
           type="button"
           onClick={onOpenCourse}
-          className="shrink-0 text-xs font-bold text-brand transition hover:text-brand-dark"
+          /* 当たり判定を広げる（py と -my を同じだけ。見た目は変わらない） */
+          className="-my-2 shrink-0 py-2 text-xs font-bold text-brand
+                     transition hover:text-brand-dark"
         >
           教材をすべて見る
         </button>

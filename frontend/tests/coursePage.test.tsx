@@ -286,3 +286,32 @@ describe("応答が壊れていても、画面は開く", () => {
     expect(await screen.findByTestId("lesson-rewrite_text")).toBeInTheDocument();
   });
 });
+
+describe("見つからなかったとき", () => {
+  it("できないことを指示しない", async () => {
+    /*
+      0件のときは絞り込みで一覧が消えている。以前ここに
+      「下の一覧から選んでください」と書いていたが、下には何も無い。
+      行き止まりで指示だけ残るのが、いちばんよくない。
+    */
+    serve();
+    const user = userEvent.setup();
+    await open();
+
+    await user.type(screen.getByTestId("lesson-search"), "そんな教材はない");
+
+    expect(screen.getByRole("status")).not.toHaveTextContent("下の一覧");
+  });
+
+  it("その場で全部に戻せる", async () => {
+    serve();
+    const user = userEvent.setup();
+    await open();
+
+    await user.type(screen.getByTestId("lesson-search"), "そんな教材はない");
+    await user.click(screen.getByTestId("lesson-search-clear"));
+
+    expect(screen.getByTestId("lesson-rewrite_text")).toBeInTheDocument();
+    expect(screen.getByTestId("lesson-summarize_text")).toBeInTheDocument();
+  });
+});
