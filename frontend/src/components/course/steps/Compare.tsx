@@ -12,8 +12,9 @@
 import { Fragment } from "react";
 
 import {
+  IconArrowDown,
   IconCheckCircle,
-  IconChevronRight,
+  IconDocument,
   IconPlay,
   IconSparkle,
 } from "../../Icons";
@@ -48,6 +49,20 @@ export function ThreeWayCompare({
     (part) => part.kind !== "removed",
   );
 
+  /*
+    ほとんど全部が「変わった」ときは、印を付けない。
+
+    条件を足すと文が丸ごと書き直されることがあり、そのときは
+    段落まるごとが太字の青になる。全部が目立つのは、何も目立たないのと
+    同じで、しかも読みにくいだけになる。
+    7割を超えたら「全体が変わった」と見なして、素のまま出す。
+  */
+  const addedLength = improvedParts
+    .filter((part) => part.kind === "added")
+    .reduce((total, part) => total + part.text.length, 0);
+  const markWorthwhile =
+    improved.length > 0 && addedLength / improved.length <= 0.7;
+
   const marked = (parts: { kind: string; text: string }[]) => (
     <>
       {parts.map((part, index) =>
@@ -68,104 +83,69 @@ export function ThreeWayCompare({
   return (
     <div data-testid="result-compare">
       {/*
-        最初の結果と、条件を足したあと。**横に並べる**。
+        最初の結果と、条件を足したあと。**縦に積む**。
 
-        前は札で切り替える形にしていた。切り替えだと、片方を見ている間
-        もう片方は消えているので、結局どこが変わったのかは記憶で比べる
-        ことになる。狭い画面でも、並べたほうが分かる。
+        横に2列で並べると、390px では1列が9文字ほどになり、
+        どちらも「細長い柱」になって読めない。縦に積めば1行の長さは
+        変わらず、あいだに矢印と条件の札を置けるので、
+        **何を足したからこうなったか**まで1枚で読める。
       */}
       <section className="rounded-panel border border-line bg-surface p-4 shadow-card">
-        <div className="flex items-stretch gap-2">
-          <div className="min-w-0 flex-1" data-testid="result-first">
-            <h3 className="flex items-center gap-1.5 text-xs font-bold text-brand">
-              <IconSparkle className="h-4 w-4 shrink-0" />
-              最初のAI結果
-            </h3>
-            <p className="mt-2 whitespace-pre-wrap break-words border-t border-line pt-2
-                          text-xs leading-6">
-              {first || "（まだありません）"}
-            </p>
-          </div>
-
-          {/* 左から右へ変わったこと。向きを1つ置くだけで伝わる */}
-          <span
-            aria-hidden="true"
-            className="flex shrink-0 items-center text-brand"
-          >
-            <IconChevronRight className="h-5 w-5" />
-          </span>
-
-          <div className="min-w-0 flex-1" data-testid="result-improved">
-            <h3 className="flex items-center gap-1.5 text-xs font-bold text-brand-dark">
-              <IconCheckCircle className="h-4 w-4 shrink-0 text-brand" />
-              {condition ? `改善後（${condition}）` : "改善後"}
-            </h3>
-            <p className="mt-2 whitespace-pre-wrap break-words border-t border-line pt-2
-                          text-xs leading-6">
-              {improved ? marked(improvedParts) : "（まだありません）"}
-            </p>
-          </div>
-        </div>
+        <h3
+          className="flex items-center gap-1.5 text-sm font-bold text-brand"
+          data-testid="result-first-heading"
+        >
+          <IconSparkle className="h-4 w-4 shrink-0" />
+          最初のAI結果
+        </h3>
+        <p
+          data-testid="result-first"
+          className="mt-2 whitespace-pre-wrap break-words rounded-card bg-canvas p-3.5
+                     text-sm leading-7"
+        >
+          {first || "（まだありません）"}
+        </p>
 
         {/*
-          何が変わったか。比べている面の中に入れる。
-          離して置くと、何と何を比べた結果なのかが結び付かない。
+          あいだに「何を足したか」を置く。
+          矢印だけだと、勝手に変わったように見える。
         */}
-        <div className="mt-3 border-t border-line pt-3">
-          <ChangePoints before={first} after={improved} condition={condition} />
+        <div className="my-3 flex flex-col items-center gap-2">
+          <IconArrowDown aria-hidden="true" className="h-5 w-5 text-brand" />
+          {condition && (
+            <p
+              className="rounded-badge bg-brand-soft px-3 py-1 text-xs font-bold text-brand-dark"
+              data-testid="added-condition"
+            >
+              追加した条件：{condition}
+            </p>
+          )}
         </div>
+
+        <h3 className="flex items-center gap-1.5 text-sm font-bold text-brand-dark">
+          <IconCheckCircle className="h-4 w-4 shrink-0 text-brand" />
+          {condition ? `改善後（${condition}）` : "改善後"}
+        </h3>
+        <p
+          data-testid="result-improved"
+          className="mt-2 whitespace-pre-wrap break-words rounded-card border border-brand-line
+                     bg-brand-soft/40 p-3.5 text-sm leading-7"
+        >
+          {!improved
+            ? "（まだありません）"
+            : markWorthwhile
+              ? marked(improvedParts)
+              : improved}
+        </p>
       </section>
 
-      {/*
-        元の文章から、ここまでの道のり。
-
-        2つ並べただけだと「AIが何かした」で終わる。
-        自分が書いた文から2手かかっていることは、3つ並べて初めて分かる。
-      */}
-      <ol className="mt-3 flex items-stretch gap-1" role="list">
-        {[
-          { id: "original" as const, label: "元の文章", body: original },
-          { id: "first" as const, label: "1回目", body: first },
-          { id: "improved" as const, label: "改善後", body: improved },
-        ].map((panel, index) => (
-          <Fragment key={panel.id}>
-            {index > 0 && (
-              <span
-                aria-hidden="true"
-                className="flex shrink-0 items-center text-brand-line"
-              >
-                <IconPlay className="h-4 w-4" />
-              </span>
-            )}
-            <li
-              data-testid={`compare-${panel.id}`}
-              className={`min-w-0 flex-1 rounded-card border p-2.5 ${
-                panel.id === "improved"
-                  ? "border-brand bg-brand-soft/60"
-                  : "border-line bg-surface"
-              }`}
-            >
-              <p
-                className={`text-[0.6875rem] font-bold ${
-                  panel.id === "improved" ? "text-brand-dark" : "text-ink-muted"
-                }`}
-              >
-                {panel.label}
-              </p>
-              {/*
-                ここは道のりの目印なので、全文は出さない。
-                3列に全文を入れると、1列が細長い柱になって読めない。
-              */}
-              <p className="mt-1 line-clamp-3 break-words text-[0.6875rem] leading-5 text-ink-muted">
-                {panel.body || "（入力なし）"}
-              </p>
-            </li>
-          </Fragment>
-        ))}
-      </ol>
+      {/* 何が変わったか。測って分かることだけを出す */}
+      <div className="mt-3">
+        <ChangePoints before={first} after={improved} condition={condition} />
+      </div>
 
       {/* 何が変わったかは、1回目と改善後の差で見せる */}
-      <details className="mt-4 rounded-card border border-line bg-surface px-4 py-3">
+      <details className="mt-3 rounded-card border border-line bg-surface px-4 py-3 shadow-card">
         <summary className="cursor-pointer text-xs font-bold text-ink-muted">
           変わったところを見る
         </summary>
@@ -189,37 +169,88 @@ export function ThreeWayCompare({
           )}
         </p>
       </details>
+
+      {/*
+        元の文章から、ここまでの道のり。
+
+        2つ並べただけだと「AIが何かした」で終わる。
+        自分が書いた文から2手かかっていることは、3つ並べて初めて分かる。
+      */}
+      <ol className="mt-3 flex items-stretch gap-1" role="list">
+        {[
+          { id: "original" as const, label: "元の文章", body: original, icon: IconDocument },
+          { id: "first" as const, label: "1回目", body: first, icon: IconSparkle },
+          { id: "improved" as const, label: "改善後", body: improved, icon: IconCheckCircle },
+        ].map((panel, index) => (
+          <Fragment key={panel.id}>
+            {index > 0 && (
+              <span
+                aria-hidden="true"
+                className="flex shrink-0 items-center text-brand-line"
+              >
+                <IconPlay className="h-4 w-4" />
+              </span>
+            )}
+            <li
+              data-testid={`compare-${panel.id}`}
+              className={`min-w-0 flex-1 rounded-card border p-2.5 ${
+                panel.id === "improved"
+                  ? "border-brand bg-brand-soft/60"
+                  : "border-line bg-surface"
+              }`}
+            >
+              <p
+                className={`flex items-center gap-1 text-[0.6875rem] font-bold ${
+                  panel.id === "improved" ? "text-brand-dark" : "text-ink-muted"
+                }`}
+              >
+                <panel.icon className="h-3.5 w-3.5 shrink-0" />
+                {panel.label}
+              </p>
+              {/*
+                ここは道のりの目印なので、全文は出さない。
+                3列に全文を入れると、1列が細長い柱になって読めない。
+              */}
+              <p className="mt-1 line-clamp-3 break-words text-[0.6875rem] leading-5 text-ink-muted">
+                {panel.body || "（入力なし）"}
+              </p>
+            </li>
+          </Fragment>
+        ))}
+      </ol>
     </div>
   );
 }
 
-// --------------------------------------------------------- 変わったポイント
+// --------------------------------------------------------- 変わったところ
 
 /**
- * 何が変わったかを短い札で示す。
+ * 何が変わったかを、確かめられたことだけ並べる。
  *
  * ここに出すのは**測って分かることだけ**にしている。
- * 支給デザインには「丁寧」「要点が先に来た」といった札が並んでいるが、
- * それは文章を読んで下す判断で、こちらでは確かめられない。
- * 確かめられないことを断定して出すと、外れたときに
- * 「このアプリの言うことは当てにならない」に変わる。
+ * 支給デザインには「要点が先に来るようになりました」「全体の表現が
+ * わかりやすくなりました」といった行が並んでいるが、それは文章を読んで
+ * 下す判断で、こちらでは確かめられない。確かめられないことを断定して
+ * 出すと、外れたときに「このアプリの言うことは当てにならない」に変わる。
  *
- * 代わりに、本人が選んだ条件（事実）と、数えれば分かること
- * （文字数・行の分かれ方）を出す。「どう変わったと感じたか」は
- * observation のステップで本人に選んでもらっている。
+ * 代わりに、数えれば分かること（文字数・行の分かれ方・箇条書きか）を、
+ * 同じ形の文にして出す。「どう変わったと感じたか」は observation の
+ * ステップで本人に選んでもらっている。
+ *
+ * 選んだ条件はここに入れない。条件は矢印の下の札
+ * （「追加した条件：もっと短く」）で、原因の側として先に出している。
+ * 同じことを原因と結果の両方に置くと、2つ起きたように読める。
  */
 export function ChangePoints({
   before,
   after,
-  condition,
 }: {
   before: string;
   after: string;
-  condition: string;
+  /** 受け取るが出さない。呼び出し側の形を変えないために残している。 */
+  condition?: string;
 }) {
   const points: string[] = [];
-
-  if (condition) points.push(condition);
 
   const diff = after.length - before.length;
   const rate = before.length === 0 ? 0 : Math.abs(diff) / before.length;
@@ -227,8 +258,8 @@ export function ChangePoints({
   if (rate >= 0.1) {
     points.push(
       diff < 0
-        ? `${Math.round(rate * 100)}% 短くなった`
-        : `${Math.round(rate * 100)}% 長くなった`,
+        ? `${Math.round(rate * 100)}% 短くなりました`
+        : `${Math.round(rate * 100)}% 長くなりました`,
     );
   }
 
@@ -236,31 +267,32 @@ export function ChangePoints({
   const isBulleted = (text: string) =>
     text.split("\n").filter((line) => /^\s*[・\-*•]|^\s*\d+[.)]/.test(line)).length >= 2;
 
-  if (!isBulleted(before) && isBulleted(after)) points.push("箇条書きになった");
-  else if (lines(after) > lines(before)) points.push("行が分かれた");
+  if (!isBulleted(before) && isBulleted(after)) points.push("箇条書きになりました");
+  else if (lines(after) > lines(before)) points.push("行が分かれました");
 
   if (points.length === 0) return null;
 
   return (
-    <div
-      className="flex flex-wrap items-center gap-2"
+    <section
+      className="rounded-panel border border-line bg-surface p-4 shadow-card"
       data-testid="change-points"
     >
-      <span className="flex items-center gap-2 text-xs font-bold">
+      <h3 className="flex items-center gap-1.5 text-sm font-bold">
         <IconSparkle className="h-4 w-4 shrink-0 text-brand" />
-        変わったポイント
-      </span>
-      <ul className="flex flex-wrap gap-2" role="list">
+        変わったところ
+      </h3>
+      <ul className="mt-2.5 space-y-2" role="list">
         {points.map((point) => (
-          <li
-            key={point}
-            className="rounded-badge bg-brand-soft px-3 py-1 text-xs text-brand-dark"
-          >
+          <li key={point} className="flex items-start gap-2 text-sm leading-6">
+            {/*
+              印は緑にする。青はこの画面じゅうで使っているので、
+              「確かめた事実」だけ色を変えると、拾い読みできる。
+            */}
+            <IconCheckCircle className="mt-1 h-4 w-4 shrink-0 text-accent-teal" />
             {point}
           </li>
         ))}
       </ul>
-    </div>
+    </section>
   );
 }
-

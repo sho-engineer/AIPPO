@@ -28,9 +28,22 @@ export interface LessonHeaderProps {
   onBack?: () => void;
   /** レッスンから出る。 */
   onExit: () => void;
+  /**
+   * 出るときの言い方。
+   *
+   * ふだんは「×」だけでよい。ただし診断のように**やらなくてもよい**
+   * ものは、出ることが「スキップ」と同じ意味になる。そこだけは
+   * 言葉で出す——×は「閉じる」であって「飛ばしてよい」とは読めない。
+   */
+  exitLabel?: string;
 }
 
-export function LessonHeader({ title, onBack, onExit }: LessonHeaderProps) {
+export function LessonHeader({
+  title,
+  onBack,
+  onExit,
+  exitLabel,
+}: LessonHeaderProps) {
   return (
     <header
       className="sticky top-0 z-20 flex h-11 items-center gap-2 border-b border-line
@@ -67,7 +80,20 @@ export function LessonHeader({ title, onBack, onExit }: LessonHeaderProps) {
       */}
       <p className="min-w-0 flex-1 truncate text-center text-sm font-bold">{title}</p>
 
-      <div className="flex w-9 shrink-0 justify-end">
+      <div
+        className={`flex shrink-0 justify-end ${exitLabel ? "min-w-[3.5rem]" : "w-9"}`}
+      >
+        {exitLabel ? (
+          <button
+            type="button"
+            onClick={onExit}
+            data-testid="lesson-exit"
+            className="rounded-badge px-2 py-2 text-sm font-bold text-brand
+                       transition hover:text-brand-dark"
+          >
+            {exitLabel}
+          </button>
+        ) : (
         <button
           type="button"
           onClick={onExit}
@@ -90,6 +116,7 @@ export function LessonHeader({ title, onBack, onExit }: LessonHeaderProps) {
             <path d="M6 6l12 12M18 6L6 18" />
           </svg>
         </button>
+        )}
       </div>
     </header>
   );

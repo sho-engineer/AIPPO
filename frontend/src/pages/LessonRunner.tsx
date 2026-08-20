@@ -195,6 +195,11 @@ export function LessonRunner({
         title={lesson.title}
         onBack={api.canBack ? api.goBack : undefined}
         onExit={onExit}
+        /*
+          診断は受けなくても先へ進める。出ることが「スキップ」と同じ
+          意味になるので、そこだけ言葉で出す。
+        */
+        exitLabel={lesson.id === "diagnosis" ? "スキップ" : undefined}
       />
 
       <main className="min-h-screen">
