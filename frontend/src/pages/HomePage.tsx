@@ -34,6 +34,7 @@ import { AppHeader, IconMark } from "../components/AppShell";
 import { PoHero } from "../components/aippo/PoHero";
 import { PrimaryButton } from "../components/aippo/PrimaryButton";
 import { ReviewPrompt } from "../components/ReviewPrompt";
+import { ReviewCards } from "../components/course/ReviewCards";
 import {
   IconArrow,
   IconBars,
@@ -444,6 +445,15 @@ export function HomePage({
             onOpenRecord={onOpenRecord}
           />
         </div>
+
+        {/*
+          飛ばした解説。無い日は何も出ない。
+
+          道のりの前に置く。「次へ進む」より前に「戻れる場所」を出すのは、
+          穴が空いたまま先へ進んでほしくないため。ただし押し付けない——
+          出すのは節ひとつで、開かなければそのまま下へ流れる。
+        */}
+        <ReviewCards course={course} />
 
         {/* ── 7日間の道のり ── */}
         <div className="mt-7">
