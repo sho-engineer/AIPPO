@@ -10,7 +10,7 @@
  * - ポーは入力の邪魔をしない。狭いときは小さくする
  */
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import {
   IconBulb,
@@ -50,6 +50,16 @@ export interface StepShellProps {
   /** ボタンの近くに出す理由。禁止ではなく案内（要件 §6.6）。 */
   hintNearButton?: string | null;
   /**
+   * 答えを受け取ったことを返す短い文。
+   *
+   * 選んだ直後は、押した札が青くなるだけで「登録されたのか」は分からない。
+   * 選んだ中身をそのまま返せば、押し間違いにもその場で気づける
+   * （Learning UX §2: 何ができたかが具体的に分かる feedback）。
+   *
+   * 作文はしない。**選んだ答えそのもの**を出す。
+   */
+  doneLabel?: string | null;
+  /**
    * 失敗したことを伝える文。
    *
    * ステップの種類に関係なく、**必ずここに出す**。
@@ -81,6 +91,15 @@ export interface StepShellProps {
   children: ReactNode;
 }
 
+/**
+ * 押せない理由の出し方。
+ *
+ *   まだ押していない … ふだんの文字色。電球を添えるだけ
+ *   押したのに進めなかった … 注意の色。何をすれば進めるかを言う
+ *
+ * 開いた瞬間からオレンジの警告が出ていると、まだ選んでいないだけの人が
+ * 「何か間違えた」と読む。押して初めて、断りとして色を使う。
+ */
 export function StepShell({
   title,
   eyebrow,
@@ -94,6 +113,7 @@ export function StepShell({
   onPrimary,
   primaryDisabled = false,
   hintNearButton,
+  doneLabel,
   error,
   secondary,
   secondaryProminent = false,
@@ -102,6 +122,14 @@ export function StepShell({
   showPo = true,
   children,
 }: StepShellProps) {
+  /*
+    「押したのに進めなかった」を覚えておく。
+    回が変わったら忘れる——前の回で断られたことを、次の回まで
+    引きずって赤いままにしない。
+  */
+  const [refused, setRefused] = useState(false);
+  useEffect(() => setRefused(false), [title]);
+
   return (
     <div className="mx-auto max-w-2xl px-5 pb-40 pt-2 sm:pb-32">
       {/*
@@ -208,21 +236,45 @@ export function StepShell({
               <span>{error}</span>
             </p>
           )}
-          {hintNearButton && (
-            /*
-              押せない理由。**注意の色で常時出さない。**
-
-              まだ選んでいないだけの人に、開いた瞬間からオレンジの警告が
-              出ていると、何か間違えたのかと読む。ここは禁止ではなく
-              案内なので、ふだんの文字色で電球を添えるだけにする。
-              色を使うのは、本当に失敗したとき（error）だけ。
-            */
+          {/*
+            受け取った合図。押した札が青くなるだけでは、登録されたのか
+            分からない。選んだ中身を返して、押し間違いにその場で気づけるようにする。
+          */}
+          {doneLabel && (
             <p
-              className="mb-2 flex items-start gap-1.5 text-xs leading-5 text-ink-muted"
+              data-testid="step-done-inline"
+              role="status"
+              className="mb-2 flex items-center gap-1.5 text-xs font-bold text-brand"
+            >
+              <span
+                aria-hidden="true"
+                className="flex h-4 w-4 shrink-0 items-center justify-center
+                           rounded-full bg-brand text-white"
+              >
+                <IconCheck className="h-2.5 w-2.5" />
+              </span>
+              {doneLabel}
+            </p>
+          )}
+
+          {hintNearButton && !doneLabel && (
+            <p
+              data-testid="step-hint"
+              data-tone={refused ? "warning" : "neutral"}
+              className={`mb-2 flex items-start gap-1.5 text-xs leading-5 ${
+                refused ? "font-bold text-caution" : "text-ink-muted"
+              }`}
               // 押せない理由は、押す前に読み上げへ届ける
               role="status"
             >
-              <IconBulb className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+              {refused ? (
+                <IconCaution className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              ) : (
+                <IconBulb
+                  className="mt-0.5 h-4 w-4 shrink-0 text-brand"
+                  aria-hidden="true"
+                />
+              )}
               <span>{hintNearButton}</span>
             </p>
           )}
@@ -244,7 +296,15 @@ export function StepShell({
             <PrimaryButton
               testId="primary-action"
               onClick={onPrimary}
-              disabled={primaryDisabled || busy}
+              /*
+                送信中は本当に受け付けない（二度押しで費用が倍になる）。
+                答えが足りないだけのときは押せるようにして、押されたら
+                理由を出す。押しても何も起きないボタンは、理由が
+                分からないまま二度三度と押される。
+              */
+              disabled={busy}
+              blocked={primaryDisabled && !busy}
+              onBlockedClick={() => setRefused(true)}
               icon={
                 busy ? undefined : autoAdvancing ? (
                   <IconCheck className="h-5 w-5 shrink-0" />

@@ -31,6 +31,20 @@ export interface PrimaryButtonProps {
   icon?: ReactNode;
   /** 文字の右に置く印。「次へ」の矢印など、行き先を表すもの。 */
   trailing?: ReactNode;
+  /**
+   * まだ押せる状態ではないが、**押せる**ボタン。
+   *
+   * `disabled` との違いは、押したときに反応を返せること。
+   * 本物の `disabled` は押下そのものを受け取れないので、
+   * 「なぜ進めないのか」をその場で言えない。押しても何も起きない
+   * ボタンは、理由が分からないまま二度三度と押される。
+   *
+   * 見た目は押せないときと同じにする。「押せそう」に見せると、
+   * 進めると思わせてから断ることになる。
+   */
+  blocked?: boolean;
+  /** 押せない状態で押されたとき。理由を出すのに使う。 */
+  onBlockedClick?: () => void;
   /** 白地に青い文字。主役の隣に置く2番目の行き先で使う。 */
   secondary?: boolean;
   /** 幅いっぱいに広げない。 */
@@ -45,6 +59,8 @@ export function PrimaryButton({
   onClick,
   type = "button",
   disabled,
+  blocked,
+  onBlockedClick,
   icon,
   trailing,
   secondary,
@@ -58,17 +74,29 @@ export function PrimaryButton({
        enabled:hover:bg-brand-soft`
     : `bg-brand text-white shadow-cta enabled:hover:brightness-110`;
 
+
+  /*
+    「押せない」を2通りで表す。
+
+      disabled … 本当に受け付けない（送信中など、押されても困るとき）
+      blocked  … 見た目は同じだが押せる。押したら理由を出す
+
+    読み上げにはどちらも「押せない」と伝わる（aria-disabled）。
+    見た目も同じにする。押した人にだけ、理由が返る。
+  */
+  const dim = disabled || blocked;
+
   return (
     <button
-      type={type}
-      onClick={onClick}
+      type={blocked ? "button" : type}
+      onClick={blocked ? onBlockedClick : onClick}
       disabled={disabled}
+      aria-disabled={dim || undefined}
       aria-label={ariaLabel}
       data-testid={testId}
       className={`flex min-h-[3.5rem] items-center justify-center gap-2 rounded-cta
                   px-6 py-3 text-base font-bold transition
-                  enabled:active:scale-[0.98]
-                  disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none
+                  ${dim ? "cursor-not-allowed opacity-50 shadow-none" : "active:scale-[0.98]"}
                   ${inline ? "" : "w-full"} ${look} ${className}`}
     >
       {icon}

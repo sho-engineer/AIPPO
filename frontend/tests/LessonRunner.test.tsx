@@ -62,7 +62,14 @@ describe("自分の課題のステップ", () => {
       <LessonRunner lesson={lessonFromRealTask} onFinish={() => {}} onExit={() => {}} />,
     );
 
-    expect(await screen.findByTestId("primary-action")).toBeDisabled();
+    /*
+      押せる形のまま「まだ進めない」を表す（aria-disabled）。
+      本物の disabled にすると押下を受け取れず、理由をその場で言えない。
+    */
+    expect(await screen.findByTestId("primary-action")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
     /*
       押せない理由を黙って隠さない。
 

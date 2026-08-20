@@ -134,7 +134,11 @@ for (let i = 0; i < 30; i++) {
   if (text.includes("スキルを身につけました")) { await scan("レッスン 完了"); break; }
 
   try { await primary.waitFor({ state: "visible", timeout: 8000 }); } catch { break; }
-  if (await primary.isDisabled()) {
+  const blocked = async () =>
+    (await primary.isDisabled()) ||
+    (await primary.getAttribute("aria-disabled")) === "true";
+
+  if (await blocked()) {
     const ta = p.locator("textarea:visible").first();
     if (await ta.count()) await ta.fill("来週の打ち合わせの件、資料の確認をお願いします。");
     else {
@@ -144,7 +148,7 @@ for (let i = 0; i < 30; i++) {
     }
     await p.waitForTimeout(300);
   }
-  if (await primary.isDisabled()) break;
+  if (await blocked()) break;
   await primary.click();
   await p.waitForTimeout(800);
 }

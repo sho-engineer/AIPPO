@@ -124,6 +124,17 @@ export function LessonRunner({
   */
   const autoAdvancing = canAutoAdvance(lesson, step) && isAnswered(step, values);
 
+  /*
+    受け取ったことを返す文。
+
+    作文はせず、**選んだ答えそのもの**を出す。教材が選択肢の言葉を
+    持っているので、値ではなく人が読める側を探して使う。
+  */
+  const chosen = step.key ? (values[step.key] ?? "").trim() : "";
+  const chosenLabel =
+    step.options?.find((option) => option.value === chosen)?.label || chosen;
+  const doneLabel = autoAdvancing && chosenLabel ? `「${chosenLabel}」で進みます` : null;
+
   useEffect(() => {
     if (!autoAdvancing) return;
     const timer = window.setTimeout(() => {
@@ -272,6 +283,7 @@ export function LessonRunner({
           進む合図を出す。押さなくてよいことが、押す前に分かる。
         */
         autoAdvancing={autoAdvancing}
+        doneLabel={doneLabel}
         busy={api.isSubmitting}
         /*
           解説の回は、カード本文とポーの台詞が同じ文になる（教材データが

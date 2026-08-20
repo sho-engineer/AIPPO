@@ -22,7 +22,19 @@
  * アプリが壊れたように見える。上限そのものは backend のテストが見ている。
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Locator } from "@playwright/test";
+
+/**
+ * 進めない状態か。
+ *
+ * `disabled` だけを見ない。答えが足りないときのボタンは、押せる形のまま
+ * `aria-disabled` で「まだ進めない」を表している（押した人に理由を返すため）。
+ * 属性だけで見分けると、押しても進まないボタンを押し続けることになる。
+ */
+async function blocked(primary: Locator): Promise<boolean> {
+  if (await primary.isDisabled()) return true;
+  return (await primary.getAttribute("aria-disabled")) === "true";
+}
 
 const API = "http://127.0.0.1:8000";
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
@@ -62,7 +74,7 @@ async function advance(page: Page): Promise<boolean> {
   const primary = page.getByTestId("primary-action").first();
   if (!(await primary.isVisible().catch(() => false))) return false;
 
-  if (await primary.isDisabled()) {
+  if (await blocked(primary)) {
     const box = page.locator("textarea:visible").first();
     if (await box.count()) await box.fill(SAMPLE);
     else {
@@ -76,7 +88,7 @@ async function advance(page: Page): Promise<boolean> {
     }
     await page.waitForTimeout(120);
   }
-  if (await primary.isDisabled()) return false;
+  if (await blocked(primary)) return false;
 
   await primary.click();
   return true;
