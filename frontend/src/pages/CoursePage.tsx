@@ -38,6 +38,7 @@ import { isComingSoon, startableLessons } from "../course/availability";
 import { loadRecommendations } from "../course/recommend";
 import { useCompletedLessons } from "../course/progress";
 import { useBookmarks } from "../course/bookmarks";
+import { useKeeping } from "../course/keeping";
 import { searchLessons } from "../course/search";
 import type { Lesson } from "../course/types";
 
@@ -56,6 +57,12 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
   const upcoming = useCourses().filter((entry) => entry.id !== course.id);
   const completed = useCompletedLessons();
   const bookmarks = useBookmarks();
+  /*
+    目印は登録した人のもの（course/keeping.ts）。
+    ゲストには印そのものを出さない。押せる形で置いておいて、
+    押した先で断るのは、押させてから取り上げるのと同じ。
+  */
+  const { canKeep } = useKeeping();
   const certificates = useCertificates();
   const [recommended, setRecommended] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -245,7 +252,9 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
                   firstUp={lesson.id === firstUpId}
                   bookmarked={bookmarks.has(lesson.id)}
                   onToggleBookmark={
-                    isComingSoon(lesson) ? undefined : () => bookmarks.toggle(lesson.id)
+                    isComingSoon(lesson) || !canKeep
+                      ? undefined
+                      : () => bookmarks.toggle(lesson.id)
                   }
                   onSelect={() => onSelectLesson(lesson.id)}
                 />

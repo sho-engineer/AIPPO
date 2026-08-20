@@ -19,6 +19,7 @@ import { act, cleanup, render, screen, waitFor, within } from "@testing-library/
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AuthProvider } from "../src/auth/AuthContext";
 import { CoursePage } from "../src/pages/CoursePage";
 import { resetCatalog } from "../src/course/live";
 
@@ -94,6 +95,20 @@ function serve({ bookmarks = [] as string[], writeOk = true } = {}) {
       if (!writeOk) return reply({ errors: { detail: ["だめでした"] } }, 500);
       return reply({ bookmarked: method === "POST" });
     }
+    if (url.includes("/accounts/me")) {
+      // 目印を付けられるのは登録した人だけ（src/course/keeping.ts）
+      return reply({
+        authenticated: true,
+        user: {
+          email: "learner@example.com",
+          display_name: "",
+          email_verified: true,
+          terms_version: "1",
+          joined_at: "2026-08-01T00:00:00Z",
+          remind_study: false,
+        },
+      });
+    }
     if (url.includes("/catalog/")) return reply(CATALOG);
     if (url.includes("/progress/")) {
       return reply({
@@ -101,7 +116,7 @@ function serve({ bookmarks = [] as string[], writeOk = true } = {}) {
         completed_count: 0,
         in_progress_count: 0,
         skills: [],
-        signed_in: false,
+        signed_in: true,
       });
     }
     if (url.includes("/csrf/")) return reply({ ok: true });
@@ -113,7 +128,11 @@ function serve({ bookmarks = [] as string[], writeOk = true } = {}) {
 
 /** 開いて、教材が届くまで待つ。 */
 async function open() {
-  render(<CoursePage onSelectLesson={() => {}} />);
+  render(
+    <AuthProvider>
+      <CoursePage onSelectLesson={() => {}} />
+    </AuthProvider>,
+  );
   await screen.findByTestId("lesson-summarize_text");
 }
 
@@ -267,7 +286,21 @@ describe("応答が壊れていても、画面は開く", () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(typeof input === "string" ? input : (input as Request).url);
       if (url.includes("/certificate/")) return reply({});
-      if (url.includes("/catalog/")) return reply(CATALOG);
+      if (url.includes("/accounts/me")) {
+      // 目印を付けられるのは登録した人だけ（src/course/keeping.ts）
+      return reply({
+        authenticated: true,
+        user: {
+          email: "learner@example.com",
+          display_name: "",
+          email_verified: true,
+          terms_version: "1",
+          joined_at: "2026-08-01T00:00:00Z",
+          remind_study: false,
+        },
+      });
+    }
+    if (url.includes("/catalog/")) return reply(CATALOG);
       if (url.includes("/bookmarks/")) return reply({ items: [] });
       if (url.includes("/progress/")) {
         return reply({
@@ -275,13 +308,17 @@ describe("応答が壊れていても、画面は開く", () => {
           completed_count: 0,
           in_progress_count: 0,
           skills: [],
-          signed_in: false,
+          signed_in: true,
         });
       }
       return reply({});
     });
 
-    render(<CoursePage onSelectLesson={() => {}} />);
+    render(
+    <AuthProvider>
+      <CoursePage onSelectLesson={() => {}} />
+    </AuthProvider>,
+  );
 
     expect(await screen.findByTestId("lesson-rewrite_text")).toBeInTheDocument();
   });

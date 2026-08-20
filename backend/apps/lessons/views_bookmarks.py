@@ -24,6 +24,16 @@
 繋いでいない）。素通しにすると、打ち間違いや古いブックマークが
 一覧に残り続け、押すと何も無い画面へ飛ぶ。**付けるときだけ**確かめる。
 外すときは確かめない——消せなくなるほうが困る。
+
+登録した人だけが付けられる
+--------------------------
+目印は「あとで戻ってくる」ための道具で、あとが来るまで残っていて
+初めて意味がある。ゲストの鍵は7日で切れるので、残っていない。
+残らないものを付けさせて黙って消すより、**付けるには登録が要る**と
+その場で言うほうがよい（`errors.requires_account`）。
+
+学ぶこと自体は止めない。ゲストのままでも教材は最後まで通るし、
+続きからも始まる。止めるのは取っておくところだけ。
 """
 
 from __future__ import annotations
@@ -35,7 +45,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.scope import device_key, readable_keys
+from apps.accounts.scope import can_keep, device_key, readable_keys
 from apps.lessons.models import Bookmark, LearningSession
 
 #: 1人が付けられる上限。
@@ -73,6 +83,14 @@ class BookmarkView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request: Request) -> Response:
+        # ゲストには一覧そのものを出さない。
+        #
+        # 付けられないのに前の分だけ並ぶと、外し方の分からない行が残る。
+        # `requires_account` を添えて、画面が「登録すると使えます」と
+        # 言えるようにしておく（空と、使えないは別のこと）。
+        if not can_keep(request):
+            return Response({"items": [], "requires_account": True})
+
         keys = readable_keys(request)
         if not keys:
             return Response({"items": []})
@@ -117,6 +135,18 @@ class BookmarkView(APIView):
             return Response(
                 {"errors": {"lesson_id": ["教材が指定されていません"]}},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not can_keep(request):
+            # 403。「認証が要る」の意味であって、間違いではない。
+            # 画面はこの鍵を見て、登録のお誘いに切り替える
+            return Response(
+                {
+                    "errors": {
+                        "requires_account": ["あとで見る印は、登録すると使えます"],
+                    }
+                },
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         key = device_key(request)

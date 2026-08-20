@@ -79,7 +79,8 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 | `SESSION_COOKIE_AGE` / `SESSION_ABSOLUTE_MAX_AGE` | ログインの期限を変えたいとき（既定は30日 / 90日） |
 | `PASSKEY_RP_ID` / `PASSKEY_ORIGINS` | パスキーのドメインを明示したいとき（未設定なら `FRONTEND_URL` から決まる） |
 | `CRON_SECRET` | 定期実行（古いデータの削除・学習リマインダー）を動かすとき。**入れるまで両方とも止まったまま** |
-| `AUDIT_LOG_RETENTION_DAYS` | 操作記録を何日残すか（既定365。学習データの180日より長く取る） |
+| `AUDIT_LOG_RETENTION_DAYS` | 操作記録を何日残すか（既定365。ゲストの学習データの30日より長く取る） |
+| `GUEST_DATA_RETENTION_DAYS` | 登録なしの記録を何日残すか（既定30。ゲストのCookieは7日で切れる） |
 | `SENTRY_DSN` | 例外を見張りたくなったとき |
 
 ### 一般に公開する前に入れるもの

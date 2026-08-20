@@ -21,6 +21,7 @@ import { useCourse } from "../course/live";
 import { buildAiInput } from "../course/engine";
 import { promptEntryFor } from "../course/promptSummary";
 import { savePrompt } from "../course/promptLibrary";
+import { useKeeping } from "../course/keeping";
 import {
   AUTO_ADVANCE_MS,
   canAutoAdvance,
@@ -79,6 +80,8 @@ export function LessonRunner({
   */
   const course = useCourse();
   const completedIds = useCompletedLessons();
+  /* 帳面にしまえるのは登録した人だけ（course/keeping.ts）。 */
+  const { canKeep } = useKeeping();
   const send = async (label?: string) => {
     const outcome = await api.run({ label });
     if (outcome === "sent") api.goNext();
@@ -179,7 +182,8 @@ export function LessonRunner({
           本文は入れない（promptSummary が外している）。指示は次も使えるが、
           そのときの文章は一度きり。
         */
-        savePrompt(promptEntryFor(lesson, buildAiInput(step, values)));
+        // ゲストには溜めない。7日で鍵が切れるので、帳面ごと消える
+        if (canKeep) savePrompt(promptEntryFor(lesson, buildAiInput(step, values)));
         // 送るのは次のステップ。ここは「この内容でよい」の意思表示だけ
         api.goNext();
         return;

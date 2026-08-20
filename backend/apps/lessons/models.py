@@ -317,9 +317,14 @@ class Bookmark(models.Model):
 
     消えてよい
     ----------
-    ゲストの記録は 180日 で消える（prune_data）。目印もその一部として
+    ゲストの記録は 30日 で消える（prune_data）。目印もその一部として
     消える。取っておいたものが消えるのは惜しいが、
     「消しますと書いたものを消さない」ほうが問題になる。
+
+    そもそも、目印を付けられるのは登録した人だけにした
+    （views_bookmarks の `can_keep`）。ゲストの鍵は7日で切れるので、
+    付けられても数日で本人から取り出せなくなるため。この表に
+    ゲストの行が増えるのは、この作りより前の分だけ。
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

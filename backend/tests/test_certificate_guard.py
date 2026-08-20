@@ -6,20 +6,28 @@
 修了証は「全部終えた」という主張そのもの。1本でも残っている人に
 出れば、それは嘘になる。ここが崩れると、残り全部が意味を失う。
 
-見るのは4つ。
+見るのは5つ。
 
   1. 1本残っていたら出ない
   2. 途中まで（completed_at が無い）は「終えた」に数えない
   3. 他人の記録で条件が満たされない
   4. 教材が1本も無いコースで、空の修了証が出ない
      （空の条件は「全部満たした」になる。実際に踏みやすい罠）
+  5. 登録していない人には出ない（ゲストの鍵は7日で切れる。
+     数日で本人から取り出せなくなる紙は、証しにならない）
+
+5 が入ったので、「出るはず」の側は登録した人で組む（`_member_key`）。
+ゲストのまま組むと、**どの検査も常に空で通る**。渡してはいけない
+場面を見る検査が、渡される側に立てていないという状態になる。
 """
 
 from __future__ import annotations
 
 import uuid
+from itertools import count
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from apps.accounts.models import LearnerIdentity
@@ -45,8 +53,29 @@ def _course(slug: str = "c", *, lessons: int = 2) -> Course:
 
 
 def _learner_key(client) -> uuid.UUID:
+    """ゲストのまま、この端末の鍵を取る。"""
     client.get(ME_URL)
     return uuid.UUID(client.cookies["learner_key"].value)
+
+
+#: 登録した人のメールアドレスを1件ずつ変えるための番号。
+_accounts = count(1)
+
+
+def _member_key(client) -> uuid.UUID:
+    """登録した人として、この端末の鍵を取る。
+
+    修了証が出うるのはこの側だけ。渡してはいけない場面を確かめる前に、
+    まず渡される側に立っておく。
+    """
+    key = _learner_key(client)
+    email = f"guard{next(_accounts)}@example.com"
+    user = get_user_model().objects.create_user(
+        username=email, email=email, password="aippo-strong-pass-9"
+    )
+    LearnerIdentity.objects.create(user=user, learner_key=key)
+    client.force_login(user)
+    return key
 
 
 def _finish(key: uuid.UUID, lesson_id: str, *, done: bool = True) -> None:
@@ -66,7 +95,7 @@ class TestItIsNotHandedOutEarly:
     def test_one_lesson_left_means_no_certificate(self, client):
         """1本でも残っていたら出ない。"""
         _course(lessons=2)
-        key = _learner_key(client)
+        key = _member_key(client)
         _finish(key, "c_lesson_1")
 
         assert _certificates(client) == []
@@ -74,7 +103,7 @@ class TestItIsNotHandedOutEarly:
     def test_finishing_everything_hands_it_out(self, client):
         """逆に、全部終えたら出ること（上のテストが常に空で通らないように）。"""
         _course(lessons=2)
-        key = _learner_key(client)
+        key = _member_key(client)
         _finish(key, "c_lesson_1")
         _finish(key, "c_lesson_2")
 
@@ -90,7 +119,7 @@ class TestItIsNotHandedOutEarly:
         数えると、全部開くだけで修了証が出る。
         """
         _course(lessons=2)
-        key = _learner_key(client)
+        key = _member_key(client)
         _finish(key, "c_lesson_1")
         _finish(key, "c_lesson_2", done=False)
 
@@ -99,7 +128,7 @@ class TestItIsNotHandedOutEarly:
     def test_someone_elses_progress_does_not_count(self, client):
         """他人が終えた分で、自分の条件が埋まらないこと。"""
         _course(lessons=2)
-        key = _learner_key(client)
+        key = _member_key(client)
         _finish(key, "c_lesson_1")
         _finish(uuid.uuid4(), "c_lesson_2")
 
@@ -112,13 +141,26 @@ class TestItIsNotHandedOutEarly:
         0本のとき真になる。踏みやすい罠なので、ここだけは必ず見る。
         """
         Course.objects.create(slug="empty", title="から", status=PublishStatus.PUBLISHED)
-        _learner_key(client)
+        _member_key(client)
 
         assert _certificates(client) == []
 
     def test_a_guest_with_no_history_gets_nothing(self, client):
         _course(lessons=1)
         _learner_key(client)
+
+        assert _certificates(client) == []
+
+    def test_a_guest_who_finished_everything_gets_nothing(self, client):
+        """終えていても、登録していなければ出ない。
+
+        ゲストの鍵は7日で切れる。渡した紙が数日で本人から取り出せなく
+        なるので、渡す前に置き場所（アカウント）を作ってもらう。
+        記録のほうは消していないので、登録すればそのまま出る。
+        """
+        _course(lessons=1)
+        key = _learner_key(client)
+        _finish(key, "c_lesson_1")
 
         assert _certificates(client) == []
 
@@ -169,7 +211,7 @@ class TestTheSerial:
         連番だと、他人の番号を打ち込めるようになる。
         """
         _course(lessons=1)
-        key = _learner_key(client)
+        key = _member_key(client)
         _finish(key, "c_lesson_1")
 
         serial = _certificates(client)[0]["serial"]
@@ -183,7 +225,7 @@ class TestTheSerial:
         変わると、前に見せた番号が通じなくなる。
         """
         _course(lessons=1)
-        key = _learner_key(client)
+        key = _member_key(client)
         _finish(key, "c_lesson_1")
         before = _certificates(client)[0]["serial"]
 
@@ -193,14 +235,14 @@ class TestTheSerial:
 
     def test_two_people_get_different_serials(self, client, django_user_model):
         _course(lessons=1)
-        key = _learner_key(client)
+        key = _member_key(client)
         _finish(key, "c_lesson_1")
         mine = _certificates(client)[0]["serial"]
 
         from django.test import Client
 
         other = Client()
-        other_key = _learner_key(other)
+        other_key = _member_key(other)
         _finish(other_key, "c_lesson_1")
 
         assert _certificates(other)[0]["serial"] != mine

@@ -14,11 +14,14 @@ from __future__ import annotations
 
 import uuid
 from datetime import timedelta
+from itertools import count
 
 import pytest
+from django.contrib.auth import get_user_model
 from django.test import Client
 from django.utils import timezone
 
+from apps.accounts.models import LearnerIdentity
 from apps.catalog.models import (
     AvailabilityStatus,
     Course,
@@ -41,14 +44,39 @@ ACCOUNT = {
 }
 
 
-def _device(key: uuid.UUID | None = None) -> tuple[Client, uuid.UUID]:
-    """端末を1台用意する。Cookie が別なら別の端末。"""
+#: 登録した人のメールアドレスを1件ずつ変えるための番号。
+_serial = count(1)
+
+
+def _register(client: Client, key: uuid.UUID) -> None:
+    """この端末の鍵を、登録した人のものにする。
+
+    修了証は登録した人にだけ出す（views_certificate）。ゲストの鍵は
+    7日で切れるので、渡した紙が数日で本人から取り出せなくなるため。
+    ここを通さないと、何本終えても空が返る。
+    """
+    email = f"learner{next(_serial)}@example.com"
+    user = get_user_model().objects.create_user(
+        username=email, email=email, password="aippo-strong-pass-9"
+    )
+    LearnerIdentity.objects.create(user=user, learner_key=key)
+    client.force_login(user)
+
+
+def _device(key: uuid.UUID | None = None, *, guest: bool = False) -> tuple[Client, uuid.UUID]:
+    """端末を1台用意する。Cookie が別なら別の端末。
+
+    既定では登録した人にする。`guest=True` は、登録していない人の
+    ふるまいそのものを見るときだけ。
+    """
     client = Client()
     if key is None:
         client.get(PROGRESS)
         key = uuid.UUID(client.cookies["learner_key"].value)
     else:
         client.cookies["learner_key"] = str(key)
+    if not guest:
+        _register(client, key)
     return client, key
 
 
@@ -298,11 +326,11 @@ class TestAcrossDevices:
         _lesson(course, "rewrite_text", number=1)
         _lesson(course, "summarize", number=2)
 
-        phone, phone_key = _device()
+        phone, phone_key = _device(guest=True)
         _finish(phone_key, "rewrite_text")
         phone.post(SIGNUP, ACCOUNT, content_type="application/json")
 
-        laptop, laptop_key = _device()
+        laptop, laptop_key = _device(guest=True)
         laptop.post(
             SIGNIN,
             {"email": ACCOUNT["email"], "password": ACCOUNT["password"]},
@@ -316,15 +344,17 @@ class TestAcrossDevices:
         """ログアウトしたら、この端末の分だけに戻る。
 
         共用の端末で、次に使う人に前の人の修了証が見えては困る。
+        いまは登録した人にしか出さないので二重に守られているが、
+        その線を動かしても、ここは動かさない。
         """
         course = _course()
         _lesson(course, "rewrite_text", number=1)
 
-        phone, phone_key = _device()
+        phone, phone_key = _device(guest=True)
         _finish(phone_key, "rewrite_text")
         phone.post(SIGNUP, ACCOUNT, content_type="application/json")
 
-        laptop, _ = _device()
+        laptop, _ = _device(guest=True)
         laptop.post(
             SIGNIN,
             {"email": ACCOUNT["email"], "password": ACCOUNT["password"]},
@@ -373,3 +403,46 @@ class TestSerial:
         second = client.get(CERTIFICATE).json()["certificates"][0]["serial"]
 
         assert first == second
+
+
+@pytest.mark.django_db
+class TestGuests:
+    """登録していない人には渡さない。
+
+    修了証は、あとで見返せて初めて証しになる。ゲストの鍵は7日で切れる
+    （LEARNER_KEY_MAX_AGE）ので、渡しても数日で本人から取り出せなくなる。
+    紙だけ渡して置き場所を用意しない、ということはしない。
+    """
+
+    def test_a_guest_who_finished_everything_gets_nothing(self):
+        client, key = _device(guest=True)
+        course = _course()
+        _lesson(course, "rewrite_text", number=1)
+        _finish(key, "rewrite_text")
+
+        body = client.get(CERTIFICATE).json()
+
+        assert body["certificates"] == []
+
+    def test_it_says_why(self):
+        """空と、使えないは別のこと。画面が言い分けられるようにする。"""
+        client, _ = _device(guest=True)
+
+        assert client.get(CERTIFICATE).json()["requires_account"] is True
+
+    def test_registering_hands_it_over(self):
+        """終えた記録は消していない。登録した瞬間にそのまま出る。
+
+        ここが通らないと、「登録すると受け取れます」が嘘になる。
+        """
+        client, key = _device(guest=True)
+        course = _course()
+        _lesson(course, "rewrite_text", number=1)
+        _finish(key, "rewrite_text")
+
+        client.post(SIGNUP, ACCOUNT, content_type="application/json")
+
+        certificates = client.get(CERTIFICATE).json()["certificates"]
+
+        assert len(certificates) == 1
+        assert certificates[0]["course_slug"] == "beginner"

@@ -12,6 +12,16 @@
 読む範囲は他の学習APIと同じ `readable_keys()`（apps/accounts/scope.py）。
 ログイン中の人は端末をまたいで数える。1本目をスマホ、残りをパソコンで
 終えた人に修了証が出ないのでは、登録した意味がない。
+
+登録した人にだけ出す
+--------------------
+修了証は、あとで見返せて初めて証しになる。ゲストの鍵は7日で切れるので、
+渡しても数日で本人から取り出せなくなる。**紙だけ渡して、置き場所を
+用意しない**ことになるので、渡す前に登録してもらう。
+
+学ぶこと自体は止めない。ゲストのままでも最後まで通るし、
+終えた記録は残る。登録すれば、そのときの修了証がそのまま出る
+（記録の引き継ぎで、いまの端末の鍵が本人のものになる）。
 """
 
 from __future__ import annotations
@@ -28,7 +38,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.scope import readable_keys
+from apps.accounts.scope import can_keep, readable_keys
 from apps.catalog.models import Course, Lesson, PublishStatus
 from apps.lessons.models import LearningSession
 
@@ -94,6 +104,11 @@ class CertificateView(APIView):
     """
 
     def get(self, request: Request) -> Response:
+        # ゲストには出さない。終えた記録のほうは消していないので、
+        # 登録した瞬間に、そのときの修了証が出る
+        if not can_keep(request):
+            return Response({"certificates": [], "requires_account": True})
+
         first = _first_completions(readable_keys(request))
 
         certificates: list[dict[str, Any]] = []

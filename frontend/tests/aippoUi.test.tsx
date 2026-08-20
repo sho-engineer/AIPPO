@@ -18,6 +18,7 @@ import { ChoiceButton } from "../src/components/aippo/ChoiceButton";
 import { PoHero } from "../src/components/aippo/PoHero";
 import { PrimaryButton } from "../src/components/aippo/PrimaryButton";
 import { SavedPage } from "../src/pages/SavedPage";
+import { AuthProvider } from "../src/auth/AuthContext";
 
 describe("主導線のボタン", () => {
   it("押すと呼ばれる", async () => {
@@ -127,21 +128,36 @@ describe("保存したもの", () => {
   /**
    * 目印はサーバーが持っている（端末ではない）。
    * 登録した人が別の端末で開いても、同じものが並ぶようにするため。
+   *
+   * ここは**登録した人**の画面。取っておけるのはその人だけなので
+   * （tests/guestKeeping.test.tsx）、ログイン済みで組む。
    */
   function serverHas(lessonIds: string[]) {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
-      const json = url.includes("/bookmarks")
-        ? { items: lessonIds.map((id) => ({ lesson_id: id })) }
-        : url.includes("/progress")
-          ? {
-              lessons: [],
-              completed_count: 0,
-              in_progress_count: 0,
-              skills: [],
-              signed_in: false,
-            }
-          : {};
+      const json = url.includes("/accounts/me")
+        ? {
+            authenticated: true,
+            user: {
+              email: "learner@example.com",
+              display_name: "",
+              email_verified: true,
+              terms_version: "1",
+              joined_at: "2026-08-01T00:00:00Z",
+              remind_study: false,
+            },
+          }
+        : url.includes("/bookmarks")
+          ? { items: lessonIds.map((id) => ({ lesson_id: id })) }
+          : url.includes("/progress")
+            ? {
+                lessons: [],
+                completed_count: 0,
+                in_progress_count: 0,
+                skills: [],
+                signed_in: true,
+              }
+            : {};
       return { ok: true, status: 200, json: async () => json } as Response;
     });
   }
@@ -153,11 +169,13 @@ describe("保存したもの", () => {
 
   const open = () =>
     render(
-      <SavedPage
-        onSelectLesson={() => {}}
-        onOpenCourse={() => {}}
-        onOpenAccount={() => {}}
-      />,
+      <AuthProvider>
+        <SavedPage
+          onSelectLesson={() => {}}
+          onOpenCourse={() => {}}
+          onOpenAccount={() => {}}
+        />
+      </AuthProvider>,
     );
 
   it("何も無いときも、行き止まりにしない", async () => {
