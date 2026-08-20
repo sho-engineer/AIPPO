@@ -1,314 +1,127 @@
 /**
- * 教材一覧（下タブの「教材一覧」）。
+ * コース一覧（下タブの「コース」）。
  *
- * ホームが「今日どこから始めるか」を見せる場所なのに対し、
- * ここは全体を並べて見渡す場所。
+ * ここは**コースを選ぶ**場所。1つのコースの中身は出さない。
  *
- * 並べ方は**縦一列の目次**にする。1件ずつを白い角丸カードで囲わない。
- * 9件を同じ形のカードで積むと、内容ではなく「カードの列」が目に入り、
- * どれも同じ重さに見える。番号・題・ねらい・時間を桁でそろえた行に
- * すれば、視線がまっすぐ下へ流れ、比べるのも探すのも速い。
+ * 前はこの画面が、いきなり9本のレッスンを並べていた。名前は
+ * 「コース一覧」でも、見せていたのは1つのコースの中身で、
+ * コースが7つに増えた時点で名前と中身が食い違っていた。
+ * 「どのコースにするか」を決めたい人には、決めるための材料が
+ * どこにも無かった。
  *
- * やめたもの
- * ----------
- * - 淡色の角丸四角＋線画アイコン（IconBadge lg） … 全件に付くと、
- *   絵のほうが題より強くなる
- * - 「おすすめ」pill … 最初にやる1本は、一覧の先頭に置いて
- *   「まずはここから」と書けば伝わる
- * - 「近日公開」の青い pill ＋ 錠前 … 押せないものほど静かに置く。
- *   薄い文字と opacity と cursor で伝える
- * - 「初級」pill … 全件が初級なので、1件ずつに書く意味が無い
+ * 3階層にする
+ * -----------
+ *     コース一覧（ここ） → コースの中身 → レッスン
  *
- * ここに出すのは**自分のこと**だけ。
- * 順位も、他の人との比較も出さない。
- * 比べさせると、遅い人ほど続かなくなる。
+ * 1段目で選び、2段目で道のり（Day 0 / Day 1 …）を見て、
+ * 3段目で学ぶ。段を飛ばすと、どこにいるのか分からなくなる。
+ *
+ * 先頭は「学習中」
+ * ----------------
+ * この画面を開く人がいちばん多く求めているのは、探すことではなく
+ * **続きに戻る**こと。7つを同じ形で並べると、続きに戻るのに毎回
+ * 自分の1本を探し直すことになる。続きの1本だけは形を変えて上に置く。
+ *
+ * 下は同じ形でそろえる
+ * --------------------
+ * 「すべてのコース」は、高さも中身の順番も同じカードで積む。
+ * 揃っていないと、比べているのが中身ではなくカードの形になる。
+ * 出すのは 絵 → 題 → ひとこと → 本数 → 進み具合か近日公開、の順。
  */
 
-import { useEffect, useState } from "react";
-
 import { AppHeader } from "../components/AppShell";
-import { CertificateEntry } from "../components/course/CertificateEntry";
 import { CourseCard } from "../components/course/CourseCard";
-import { LessonRow } from "../components/lessons/LessonRow";
-import { CertificatePage } from "./CertificatePage";
+import { CurrentCourseCard } from "../components/course/CurrentCourseCard";
 import { PoAvatar } from "../po/PoAvatar";
-import { useCertificates } from "../course/certificate";
-import { lookupLesson, useCourse, useCourses } from "../course/live";
-import { isComingSoon, startableLessons } from "../course/availability";
-import { loadRecommendations } from "../course/recommend";
+import { useCourse, useCourses } from "../course/live";
+import { isCourseComingSoon } from "../course/availability";
 import { useCompletedLessons } from "../course/progress";
-import { useBookmarks } from "../course/bookmarks";
-import { useKeeping } from "../course/keeping";
-import { searchLessons } from "../course/search";
-import type { Lesson } from "../course/types";
 
 export interface CoursePageProps {
+  /** コースの中身へ入る。 */
+  onOpenCourse: (courseId: string) => void;
+  /** 続きの1本を直接ひらく。 */
   onSelectLesson: (lessonId: string) => void;
 }
 
-
-export function CoursePage({ onSelectLesson }: CoursePageProps) {
-  const course = useCourse();
-  /*
-    いま学ぶコース以外。中身のあるものも近日公開のものも入りうるが、
-    いまは近日公開しか無い（開けるコースは1つ）。
-    開けるものが増えたら、押して入れるように onOpen を渡す。
-  */
-  const upcoming = useCourses().filter((entry) => entry.id !== course.id);
+export function CoursePage({ onOpenCourse, onSelectLesson }: CoursePageProps) {
+  const current = useCourse();
+  const courses = useCourses();
   const completed = useCompletedLessons();
-  const bookmarks = useBookmarks();
-  /*
-    目印は登録した人のもの（course/keeping.ts）。
-    ゲストには印そのものを出さない。押せる形で置いておいて、
-    押した先で断るのは、押させてから取り上げるのと同じ。
-  */
-  const { canKeep } = useKeeping();
-  const certificates = useCertificates();
-  const [recommended, setRecommended] = useState<string[]>([]);
-  const [query, setQuery] = useState("");
-  // 修了証は下位画面として開く。設定と同じで、1画面には1つの目的だけ置く
-  const [showingCertificates, setShowingCertificates] = useState(false);
-
-  useEffect(() => {
-    setRecommended(loadRecommendations());
-  }, []);
-
-  if (showingCertificates) {
-    return (
-      <CertificatePage
-        certificates={certificates}
-        onBack={() => setShowingCertificates(false)}
-      />
-    );
-  }
-
-  // 進捗の分母は「始められる教材」だけ。近日公開を混ぜると
-  // 始めようのないもので割ることになり、いつまでも終わらない
-  const startable = startableLessons(course.lessons);
 
   /*
-    「まずはここから」を付ける1本。
+    下の一覧からは、学習中のコースを外す。
 
-    診断のおすすめのうち、まだ終わっていないもの。無ければ
-    始められる教材の最初。付けるのは1本だけ——複数に付けると、
-    どれから始めればよいかが結局分からない。
+    同じ題が1画面に2回出ると、上と下が別のものに見える
+    （実際、並べてみるとそう見えた）。上に出ているものは
+    上で完結させて、下は「まだ手を付けていないもの」にする。
   */
-  const firstUpId =
-    startable.find(
-      (lesson) => recommended.includes(lesson.id) && !completed.includes(lesson.id),
-    )?.id ?? startable.find((lesson) => !completed.includes(lesson.id))?.id;
-
-  // 探している最中は、絞り込んだものだけを並べる。
-  // 空のときは全件（＝いつもの目次）に戻る
-  const found = searchLessons(course.lessons, query);
-
-  // 目印の付いた教材。id の並び順ではなく、一覧と同じ順に出す——
-  // 上下2か所で順番が違うと、同じものを探し直すことになる
-  const savedLessons = course.lessons.filter((lesson) => bookmarks.has(lesson.id));
-
-  const skills = completed
-    .map((id) => lookupLesson(id))
-    .filter((lesson): lesson is Lesson => lesson !== null)
-    .flatMap((lesson) => lesson.outcomes);
+  const others = courses.filter((entry) => entry.id !== current.id);
 
   return (
     <>
       <AppHeader />
 
       <main className="mx-auto max-w-2xl px-4 pb-24 pt-4">
-        <h1 className="text-xl font-bold">{course.title}</h1>
-        <p className="mt-1.5 text-sm leading-7 text-ink-muted">{course.description}</p>
+        <h1 className="text-xl font-bold">コース</h1>
 
-        {/*
-          できるようになったこと。
-
-          以前は白いカードの中に丸いチップを並べていた。ここは
-          押せないので、チップにする理由が無い。中黒でつないだ
-          1本の文にすれば、読むだけで済む。
-        */}
-        {skills.length > 0 && (
-          <section className="mt-5 border-l-2 border-brand pl-3" aria-labelledby="skills-heading">
-            <h2 id="skills-heading" className="section-title">
-              できるようになったこと
-            </h2>
-            <p className="mt-1 text-sm leading-7 text-ink-muted">
-              {[...new Set(skills)].join("・")}
-            </p>
-          </section>
-        )}
-
-        {/*
-          あとで見るに入れたもの。
-
-          付けられるだけで、まとめて見る場所が無いと目印の意味が無い
-          （一覧を上から探し直すことになる）。1件も無いときは
-          見出しごと出さない——空の枠は、機能が壊れているように見える。
-
-          探している最中は隠す。絞り込んだ結果の下に別の一覧が続くと、
-          どちらが検索結果なのか分からなくなる。
-        */}
-        {query.trim() === "" && savedLessons.length > 0 && (
-          <section className="mt-7" aria-labelledby="saved-heading">
-            <h2 id="saved-heading" className="section-title">
-              あとで見る
-            </h2>
-            <ul className="mt-2" role="list">
-              {savedLessons.map((lesson) => (
-                <LessonRow
-                  key={lesson.id}
-                  lesson={lesson}
-                  done={completed.includes(lesson.id)}
-                  firstUp={false}
-                  bookmarked
-                  onToggleBookmark={() => bookmarks.toggle(lesson.id)}
-                  testIdPrefix="saved-"
-                  onSelect={() => onSelectLesson(lesson.id)}
-                />
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {/* 1枚も無ければ、この行ごと出ない */}
-        <CertificateEntry
-          count={certificates.length}
-          onOpen={() => setShowingCertificates(true)}
-        />
-
-        <section className="mt-7" aria-labelledby="lessons-heading">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 id="lessons-heading" className="section-title">
-              レッスン
-            </h2>
-            <span className="text-xs text-ink-muted">
-              いま {startable.length} / {course.lessons.length} 本
-            </span>
-          </div>
-
-          {/*
-            探す口。
-
-            9件しか無いので目次でも足りるが、「請求書」「議事録」のように
-            **やりたいことの言葉**で来る人は、題（「文章を書き直す」）と
-            自分の言葉が一致せず、合う1本にたどり着けない。
-            タグまで含めて当てる（search.ts）。
-
-            虫めがねのアイコンは付けない。入力欄そのものが探す場所だと
-            分かるので、絵を足しても意味が増えない。
-          */}
-          <div className="mt-2">
-            <label htmlFor="lesson-search" className="sr-only">
-              レッスンを探す
-            </label>
-            <input
-              id="lesson-search"
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="やりたいことで探す（例: メール、要約）"
-              data-testid="lesson-search"
-              className="w-full border-b border-line bg-transparent px-1 py-2 text-sm
-                         placeholder:text-ink-muted focus:border-brand focus:outline-none"
-            />
-          </div>
-
-          {/*
-            見つからなかったときに、黙って空にしない。
-            打ち間違いなのか、そもそも無いのかが分からなくなる。
-          */}
-          {found.length === 0 ? (
-            /*
-              0件のときは、下に一覧が無い。
-
-              以前ここに「下の一覧から選んでください」と書いていたが、
-              絞り込みで消えているので**下には何も無い**。できないことを
-              指示していた。行き止まりで指示だけ残るのが、いちばんよくない。
-
-              代わりに、その場で戻せる口を置く。
-            */
-            <div className="mt-4" role="status">
-              <p className="text-sm leading-7 text-ink-muted">
-                「{query}」に当てはまる教材はありませんでした。
-                <br />
-                別の言い方でも探せます。
-              </p>
-              <button
-                type="button"
-                onClick={() => setQuery("")}
-                data-testid="lesson-search-clear"
-                className="-my-2 mt-1 py-2 text-sm font-bold text-brand
-                           transition hover:text-brand-dark"
-              >
-                すべての教材を見る
-              </button>
-            </div>
-          ) : (
-            <ul className="mt-2" role="list">
-              {found.map((lesson) => (
-                <LessonRow
-                  key={lesson.id}
-                  lesson={lesson}
-                  done={completed.includes(lesson.id)}
-                  firstUp={lesson.id === firstUpId}
-                  bookmarked={bookmarks.has(lesson.id)}
-                  onToggleBookmark={
-                    isComingSoon(lesson) || !canKeep
-                      ? undefined
-                      : () => bookmarks.toggle(lesson.id)
-                  }
-                  onSelect={() => onSelectLesson(lesson.id)}
-                />
-              ))}
-            </ul>
-          )}
-
-        </section>
-
-        {/*
-          これから増えるコース。
-
-          「残りは順次公開します」という一文の代わりに置いた。
-          その一文は、何がどれだけ増えるのかを何も言っていない。
-          題と本数まで見えていれば、いま開けるものを選ぶときの
-          手がかりになる（憲章 原則 I: 行き止まりを作らない）。
-
-          中身が届いていないとき（同梱データで動いているとき）は
-          何も出ない。無いものを作って見せない。
-        */}
-        {upcoming.length > 0 && (
-          <section className="mt-8" aria-labelledby="upcoming-heading">
-            <h2 id="upcoming-heading" className="section-title">
-              これから増えるコース
-            </h2>
-            <p className="mt-1 text-xs leading-6 text-ink-muted">
-              いま作っています。できたものから開いていきます。
-            </p>
-
-            <ul className="mt-3 space-y-3" role="list" data-testid="upcoming-courses">
-              {upcoming.map((entry) => (
-                <CourseCard
-                  key={entry.id}
-                  course={entry}
-                  completedIds={completed}
-                />
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <div className="mt-8">
+        {/* 案内役として小さく。ここの主役はコースのほう */}
+        <div className="mt-3">
           <PoAvatar
             po={{
-              message:
-                completed.length === 0
-                  ? "まずは診断から。3つ答えるだけで、合いそうなものが分かります。"
-                  : "続けていますね。1日ひとつで十分です。",
-              emotion: completed.length === 0 ? "question" : "celebrate",
+              message: "できることを、ひとつずつ増やそう。",
+              emotion: "talking",
               action: "wait",
             }}
             compact
           />
         </div>
+
+        <section className="mt-6" aria-labelledby="current-heading">
+          <h2 id="current-heading" className="section-title">
+            学習中
+          </h2>
+          <div className="mt-2">
+            <CurrentCourseCard
+              course={current}
+              completedIds={completed}
+              onOpen={() => onOpenCourse(current.id)}
+              onContinue={onSelectLesson}
+            />
+          </div>
+        </section>
+
+        {/* 学習中の1本しか無い日は、この節ごと出さない */}
+        {others.length > 0 && (
+          <section className="mt-7" aria-labelledby="all-heading">
+            <h2 id="all-heading" className="section-title">
+              すべてのコース
+            </h2>
+
+            <ul className="mt-2 space-y-3" role="list" data-testid="all-courses">
+              {others.map((course) => (
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  completedIds={completed}
+                  /*
+                    近日公開のコースには渡さない。押せるのに何も
+                    起きないものを作らない（CourseCard が自分で薄くする）。
+                  */
+                  onOpen={
+                    isCourseComingSoon(course)
+                      ? undefined
+                      : () => onOpenCourse(course.id)
+                  }
+                />
+              ))}
+            </ul>
+
+            <p className="mt-3 text-xs leading-6 text-ink-muted">
+              近日公開のものは、いま作っています。できたものから開いていきます。
+            </p>
+          </section>
+        )}
       </main>
     </>
   );

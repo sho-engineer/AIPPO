@@ -24,6 +24,17 @@ describe("画面の行き来", () => {
     await user.click(await screen.findByRole("button", { name: "コース" }));
   };
 
+  /**
+   * コース一覧から、学習中のコースの中身をひらく。
+   *
+   * コースは3段になっている（一覧 → 中身 → レッスン）。レッスンが
+   * 並ぶのは2段目なので、そこまで進んでから見る。
+   */
+  const openCourseDetail = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openCourseTab(user);
+    await user.click(await screen.findByTestId("current-course-open"));
+  };
+
   it("タイトルから始まる", () => {
     render(<App />);
     expect(
@@ -80,12 +91,27 @@ describe("画面の行き来", () => {
     expect(await screen.findByTestId("recommend-diagnosis")).toBeEnabled();
   });
 
-  it("下タブのコースへ移ると、全レッスンとFinal Challengeが並ぶ", async () => {
+  it("下タブのコースへ移ると、コースが並ぶ（レッスンは出さない）", async () => {
+    /*
+      ここは「どのコースにするか」を決める場所。開いた瞬間に
+      9本のレッスンが出ると、決めるための材料が画面から消える。
+    */
     const user = userEvent.setup();
     render(<App />);
 
     await start(user);
     await openCourseTab(user);
+
+    expect(await screen.findByTestId("all-courses")).toBeInTheDocument();
+    expect(screen.queryByTestId("lesson-rewrite_text")).not.toBeInTheDocument();
+  });
+
+  it("コースの中へ入ると、全レッスンとFinal Challengeが並ぶ", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await start(user);
+    await openCourseDetail(user);
 
     expect(
       await screen.findByRole("heading", { name: COURSE.title }),
@@ -99,12 +125,12 @@ describe("画面の行き来", () => {
     }
   });
 
-  it("コース一覧からレッスンを選べる", async () => {
+  it("コースの中からレッスンを選べる", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await start(user);
-    await openCourseTab(user);
+    await openCourseDetail(user);
     await user.click(await screen.findByTestId("lesson-rewrite_text"));
 
     // レッスンの最初の画面は、レッスンそのものの名前を見出しにする

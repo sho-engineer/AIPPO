@@ -82,10 +82,15 @@ export function LessonRow({
         */}
         <span
           aria-hidden="true"
-          className="flex w-8 shrink-0 items-center gap-1.5 self-center"
+          className="flex w-14 shrink-0 items-center gap-1.5 self-center"
         >
-          <span className="text-[0.6875rem] tabular-nums text-ink-muted">
-            {String(lesson.number).padStart(2, "0")}
+          {/*
+            「Day 1」と書く。数字だけだと、通し番号なのか日数なのかが
+            この行だけでは決められない。ホームの道のりが Day で
+            数えているので、同じ言い方にそろえる。
+          */}
+          <span className="whitespace-nowrap text-[0.6875rem] tabular-nums text-ink-muted">
+            Day {lesson.number}
           </span>
           <IconMark
             icon={look.icon}

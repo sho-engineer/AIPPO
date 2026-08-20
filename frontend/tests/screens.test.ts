@@ -3,16 +3,36 @@ import { describe, expect, it } from "vitest";
 import { SCREENS, canTransition, nextScreen } from "../src/app/screens";
 
 describe("画面遷移", () => {
-  it("7画面（タイトル・ホーム・コース・レッスン・学習記録・保存したもの・設定）", () => {
+  it("8画面（コースは一覧と中身の2段）", () => {
     expect(SCREENS).toEqual([
       "TOP",
       "HOME",
       "COURSE",
+      "COURSE_DETAIL",
       "LESSON",
       "RECORD",
       "SAVED",
       "SETTINGS",
     ]);
+  });
+
+  it("コースは、一覧 → 中身 → レッスンの3段で進む", () => {
+    /*
+      前は一覧から直接レッスンへ行っていた。コースが1つのあいだは
+      それで足りたが、7つに増えると「どのコースの何本目か」が
+      画面から消える。
+    */
+    expect(nextScreen("COURSE", "OPEN_COURSE_DETAIL")).toBe("COURSE_DETAIL");
+    expect(nextScreen("COURSE_DETAIL", "SELECT_LESSON")).toBe("LESSON");
+  });
+
+  it("コースの中身から戻る先は、コース一覧", () => {
+    expect(nextScreen("COURSE_DETAIL", "OPEN_COURSE")).toBe("COURSE");
+  });
+
+  it("レッスンから1つ戻る先は、そのコースの中身", () => {
+    // 一覧まで戻すと、同じコースの次の1本へ行くのに2回押すことになる
+    expect(nextScreen("LESSON", "OPEN_COURSE_DETAIL")).toBe("COURSE_DETAIL");
   });
 
   it("保存したものへは、下タブのどこからでも行ける", () => {
