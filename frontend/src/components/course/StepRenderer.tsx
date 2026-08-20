@@ -39,6 +39,7 @@ import { buildAiInput } from "../../course/engine";
 import { lookupLesson } from "../../course/live";
 import { recommendLessons } from "../../course/recommend";
 import { startableLessons } from "../../course/availability";
+import { promptCards, promptText } from "../../course/promptSummary";
 import type { Course, Lesson } from "../../course/types";
 import type { useCourseLesson } from "../../course/useCourseLesson";
 
@@ -283,20 +284,17 @@ export function StepRenderer({
       const chosen = new Set(
         Object.values(values).filter((value) => typeof value === "string" && value),
       );
-      const cards = Object.entries(input)
-        .filter(([key, value]) => value && key !== "original_text")
-        .map(([key, value]) => ({
-          label: LABELS[key] ?? key,
-          value,
-          added: chosen.has(value),
-        }));
+      const cards = promptCards(input).map((card) => ({
+        ...card,
+        added: chosen.has(card.value),
+      }));
       return (
         <PromptPreview
           cards={[
             { label: "やること", value: lesson.title },
             ...cards,
           ]}
-          detail={buildDetail(lesson.title, input)}
+          detail={promptText(lesson.title, input, { withSource: true })}
         />
       );
     }
@@ -456,36 +454,6 @@ export function StepRenderer({
   }
 }
 
-/** 依頼内容のカードに出す見出し。専門用語を使わない。 */
-const LABELS: Record<string, string> = {
-  audience: "読む相手",
-  tone: "表現",
-  length: "長さ",
-  purpose: "まとめる目的",
-  format: "出力の形",
-  style: "説明のしかた",
-  example: "具体例",
-  criteria: "比べる基準",
-  priority: "いちばん大事にしたいこと",
-  as_table: "表にするか",
-  deadline: "期限",
-  available_time: "使える時間",
-  avoid: "避けたいこと",
-  improvement: "直したい方向",
-  topic: "知りたいこと",
-  goal: "達成したいこと",
-  options_text: "比べたいもの",
-};
+// 依頼内容の組み立ては course/promptSummary.ts へ移した。
+// 送る前の確認と、あとで取っておく帳面で、同じ組み立てを使うため。
 
-/** 詳細表示に出す文面。サーバーが組み立てるものと同じ形にそろえる。 */
-function buildDetail(title: string, input: Record<string, string>): string {
-  const lines = [`やること: ${title}`, ""];
-  for (const [key, value] of Object.entries(input)) {
-    if (!value || key === "original_text") continue;
-    lines.push(`- ${LABELS[key] ?? key}: ${value}`);
-  }
-  if (input.original_text) {
-    lines.push("", "--- 対象 ---", input.original_text);
-  }
-  return lines.join("\n");
-}

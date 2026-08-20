@@ -18,6 +18,9 @@ import { LessonHeader } from "../components/course/LessonHeader";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
 import { useCourse } from "../course/live";
+import { buildAiInput } from "../course/engine";
+import { promptEntryFor } from "../course/promptSummary";
+import { savePrompt } from "../course/promptLibrary";
 import {
   AUTO_ADVANCE_MS,
   canAutoAdvance,
@@ -166,6 +169,17 @@ export function LessonRunner({
   const onPrimary = () => {
     switch (step.type) {
       case "prompt_preview":
+        /*
+          自分で組み立てた依頼を、帳面へしまう。
+
+          しまうのはここ。「この内容でよい」と押した瞬間が、条件の
+          決まった唯一の時点になる。完了画面のコピーボタンに任せると、
+          押さずに閉じた人には何も残らない。
+
+          本文は入れない（promptSummary が外している）。指示は次も使えるが、
+          そのときの文章は一度きり。
+        */
+        savePrompt(promptEntryFor(lesson, buildAiInput(step, values)));
         // 送るのは次のステップ。ここは「この内容でよい」の意思表示だけ
         api.goNext();
         return;

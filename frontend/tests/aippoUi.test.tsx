@@ -168,7 +168,7 @@ describe("保存したもの", () => {
     open();
 
     const empty = await screen.findByTestId("saved-empty");
-    expect(empty).toHaveTextContent("まだ何も入っていません");
+    expect(empty).toHaveTextContent("目印を付けた教材はまだありません");
     expect(
       within(empty).getByRole("button", { name: "教材を見る" }),
     ).toBeInTheDocument();

@@ -16,6 +16,7 @@
 
 import { AppHeader } from "../components/AppShell";
 import { LessonRow } from "../components/lessons/LessonRow";
+import { PromptLibrary } from "../components/course/PromptLibrary";
 import { IconBookmark } from "../components/Icons";
 import { useBookmarks } from "../course/bookmarks";
 import { useCourse } from "../course/live";
@@ -63,7 +64,12 @@ export function SavedPage({
             >
               <IconBookmark className="h-6 w-6" />
             </span>
-            <p className="mt-3 text-sm font-bold">まだ何も入っていません</p>
+            {/*
+              「何も入っていません」とは書かない。この下に自分のプロンプトが
+              並んでいることがあり、その場合は嘘になる。
+              空だと言えるのは、教材の目印についてだけ。
+            */}
+            <p className="mt-3 text-sm font-bold">目印を付けた教材はまだありません</p>
             <p className="mt-1 text-xs leading-6 text-ink-muted">
               教材の一覧で、右端の
               <IconBookmark className="mx-1 inline h-3.5 w-3.5 align-text-bottom" />
@@ -97,6 +103,11 @@ export function SavedPage({
             ))}
           </ul>
         )}
+        {/*
+          自分のプロンプト帳。レッスンで組み立てた伝え方を、ここから写して使う。
+          1件も無い日は出ない。
+        */}
+        <PromptLibrary />
       </main>
     </>
   );
