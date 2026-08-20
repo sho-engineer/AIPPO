@@ -19,7 +19,13 @@ import { useEffect, useRef, useState } from "react";
 
 import { prefersReducedMotion } from "../course/motion";
 import type { PoEmotion, PoMessage } from "../course/types";
-import { PO_ALT, PO_FALLBACK, PO_PLACEHOLDER, poAssets } from "./assets";
+import {
+  PO_ALT,
+  PO_FALLBACK,
+  PO_PLACEHOLDER,
+  poAssets,
+  poTransform,
+} from "./assets";
 
 /** まばたきの間隔。5〜8秒でばらつかせる（等間隔だと機械に見える）。 */
 const BLINK_MIN_MS = 5000;
@@ -164,16 +170,42 @@ function PoImage({ emotion, className }: { emotion: PoEmotion; className: string
     );
   }
 
+  const shown = chain[attempt];
+
   return (
-    <img
-      // key を変えて、次の候補へ移ったときに必ず読み直させる
-      key={chain[attempt]}
-      src={poAssets[chain[attempt]]}
-      alt={PO_ALT}
-      data-testid="po-image"
-      onError={() => setAttempt((current) => current + 1)}
-      className={`shrink-0 object-contain ${className}`}
-    />
+    /*
+      枠を1枚かませる。
+
+      8枚は台紙（512×512）こそ同じだが、**中の絵の大きさと位置が違う**。
+      そのまま出すと、しゃべるたび・まばたきのたびにポーが縮んで跳ねる
+      （talking は neutral の4分の3、warning は右へ寄っている）。
+
+      絵は描き直さない。ここで neutral の位置と大きさへ合わせる。
+      枠の大きさは呼び出し側が決め、中の絵はいつも同じ場所に立つ。
+    */
+    /*
+      枠は必ず正方形にする。
+
+      中の絵を absolute で敷くので、枠自身に高さの手がかりが無くなる。
+      呼び出し側が `w-full` のように幅だけ渡すと、高さが 0 になって
+      ポーが消える（実際に消えた）。台紙が 512×512 の正方形なので、
+      枠も正方形と決めておけば、幅だけ渡せば形が決まる。
+    */
+    <span
+      className={`relative block aspect-square shrink-0 overflow-hidden ${className}`}
+      data-po-frame={shown}
+    >
+      <img
+        // key を変えて、次の候補へ移ったときに必ず読み直させる
+        key={shown}
+        src={poAssets[shown]}
+        alt={PO_ALT}
+        data-testid="po-image"
+        onError={() => setAttempt((current) => current + 1)}
+        className="absolute inset-0 h-full w-full object-contain"
+        style={{ transform: poTransform(shown), transformOrigin: "center" }}
+      />
+    </span>
   );
 }
 
