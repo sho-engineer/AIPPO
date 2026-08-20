@@ -19,6 +19,7 @@ import {
   IconSparkle,
 } from "../../Icons";
 import { diffSentences } from "../../../lib/diff";
+import { fitsSideBySide } from "../../../course/compareLayout";
 
 // --------------------------------------------------------- 3段階の比較
 
@@ -63,6 +64,14 @@ export function ThreeWayCompare({
   const markWorthwhile =
     improved.length > 0 && addedLength / improved.length <= 0.7;
 
+  /*
+    横に並べるか、縦に積むか。決め方は compareLayout.ts に書いてある
+    （1行に何文字入るかで決める）。ここでは結果だけ使う。
+
+    広い画面（sm 以上）はいつでも横。狭い画面では、両方が短いときだけ横。
+  */
+  const bothShort = fitsSideBySide(first, improved);
+
   const marked = (parts: { kind: string; text: string }[]) => (
     <>
       {parts.map((part, index) =>
@@ -82,61 +91,88 @@ export function ThreeWayCompare({
 
   return (
     <div data-testid="result-compare">
-      {/*
-        最初の結果と、条件を足したあと。**縦に積む**。
-
-        横に2列で並べると、390px では1列が9文字ほどになり、
-        どちらも「細長い柱」になって読めない。縦に積めば1行の長さは
-        変わらず、あいだに矢印と条件の札を置けるので、
-        **何を足したからこうなったか**まで1枚で読める。
-      */}
-      <section className="rounded-panel border border-line bg-surface p-4 shadow-card">
-        <h3
-          className="flex items-center gap-1.5 text-sm font-bold text-brand"
-          data-testid="result-first-heading"
+      <section
+        className="rounded-panel border border-line bg-surface p-4 shadow-card"
+        data-layout={bothShort ? "side-or-stack" : "stack"}
+      >
+        <div
+          className={
+            bothShort
+              ? // 短いので、狭い画面でも横に並べる
+                "flex flex-row items-start gap-3"
+              : // 長いので、広い画面（sm 以上）になってから横に並べる
+                "sm:flex sm:flex-row sm:items-start sm:gap-3"
+          }
         >
-          <IconSparkle className="h-4 w-4 shrink-0" />
-          最初のAI結果
-        </h3>
-        <p
-          data-testid="result-first"
-          className="mt-2 whitespace-pre-wrap break-words rounded-card bg-canvas p-3.5
-                     text-sm leading-7"
-        >
-          {first || "（まだありません）"}
-        </p>
+          <div className="min-w-0 flex-1">
+            <h3
+              className="flex items-center gap-1.5 text-sm font-bold text-brand"
+              data-testid="result-first-heading"
+            >
+              <IconSparkle className="h-4 w-4 shrink-0" />
+              最初のAI結果
+            </h3>
+            <p
+              data-testid="result-first"
+              className="mt-2 whitespace-pre-wrap break-words rounded-card bg-canvas
+                         p-3.5 text-sm leading-7"
+            >
+              {first || "（まだありません）"}
+            </p>
+          </div>
 
         {/*
           あいだに「何を足したか」を置く。
           矢印だけだと、勝手に変わったように見える。
-        */}
-        <div className="my-3 flex flex-col items-center gap-2">
-          <IconArrowDown aria-hidden="true" className="h-5 w-5 text-brand" />
-          {condition && (
-            <p
-              className="rounded-badge bg-brand-soft px-3 py-1 text-xs font-bold text-brand-dark"
-              data-testid="added-condition"
-            >
-              追加した条件：{condition}
-            </p>
-          )}
-        </div>
 
-        <h3 className="flex items-center gap-1.5 text-sm font-bold text-brand-dark">
-          <IconCheckCircle className="h-4 w-4 shrink-0 text-brand" />
-          {condition ? `改善後（${condition}）` : "改善後"}
-        </h3>
-        <p
-          data-testid="result-improved"
-          className="mt-2 whitespace-pre-wrap break-words rounded-card border border-brand-line
-                     bg-brand-soft/40 p-3.5 text-sm leading-7"
-        >
-          {!improved
-            ? "（まだありません）"
-            : markWorthwhile
-              ? marked(improvedParts)
-              : improved}
-        </p>
+          横に並んだときは、矢印も横を向く（下向きのまま横に置くと、
+          どちらからどちらへ変わったのか読めない）。
+        */}
+          {/*
+            矢印は、並びに合わせて向きを変える。
+            横に並んでいるのに下向きだと、どちらからどちらへ変わったのか
+            読めない。縦のときは下向き、横のときは右向き。
+          */}
+          <div
+            className={`flex shrink-0 flex-col items-center gap-2 ${
+              bothShort ? "my-0 self-center" : "my-3 sm:my-0 sm:self-center"
+            }`}
+          >
+            <IconArrowDown
+              aria-hidden="true"
+              className={`h-5 w-5 text-brand ${
+                bothShort ? "-rotate-90" : "sm:-rotate-90"
+              }`}
+            />
+            {condition && (
+              <p
+                className="rounded-badge bg-brand-soft px-3 py-1 text-xs font-bold
+                           text-brand-dark"
+                data-testid="added-condition"
+              >
+                追加した条件：{condition}
+              </p>
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <h3 className="flex items-center gap-1.5 text-sm font-bold text-brand-dark">
+              <IconCheckCircle className="h-4 w-4 shrink-0 text-brand" />
+              {condition ? `改善後（${condition}）` : "改善後"}
+            </h3>
+            <p
+              data-testid="result-improved"
+              className="mt-2 whitespace-pre-wrap break-words rounded-card border
+                         border-brand-line bg-brand-soft/40 p-3.5 text-sm leading-7"
+            >
+              {!improved
+                ? "（まだありません）"
+                : markWorthwhile
+                  ? marked(improvedParts)
+                  : improved}
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* 何が変わったか。測って分かることだけを出す */}
