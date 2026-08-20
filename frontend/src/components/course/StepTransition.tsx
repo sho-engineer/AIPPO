@@ -16,9 +16,27 @@
  * 位置は動かさず、透明度だけにする（index.css が秒数をほぼ0にするので、
  * 実質は即時の差し替えになる）。動かないと意味が消える作りにはしていない
  * ——どのステップかは見出しと進み具合が示す。
+ *
+ * なぜ useLayoutEffect なのか
+ * ---------------------------
+ * ここは `useEffect` で書いてあって、**1コマも動いていなかった**。
+ *
+ * `useEffect` はブラウザが描いた**あと**に走る。だから
+ *
+ *     1. 新しいステップが、いきなり完成形（透明度1・ずれ0）で描かれる
+ *     2. そのあと effect が走って「隠れた状態」に戻そうとする
+ *     3. 次のコマで requestAnimationFrame が「出た状態」に戻す
+ *
+ * となり、隠れた状態が画面に出ないまま行って帰る。transition は
+ * 動く先が無いので、何も起きない。属性（data-direction）だけは
+ * 正しく変わるので、**検査は通り、目には何も映らない**という
+ * いちばん見つけにくい形になっていた。
+ *
+ * `useLayoutEffect` は描く**前**に走るので、隠れた状態がちゃんと
+ * 1コマ描かれる。そこから transition が始まる。
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { EASING, MOTION } from "../../course/motion";
 
@@ -40,7 +58,7 @@ export function StepTransition({ stepKey, children }: StepTransitionProps) {
   const seen = useRef<string[]>([]);
   const [back, setBack] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const index = seen.current.indexOf(stepKey);
     if (index >= 0) {
       setBack(true);
