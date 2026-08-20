@@ -17,6 +17,7 @@ import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
 import {
   IconCheckCircle,
+  IconClock,
   IconChevronRight,
   IconCopy,
   IconDocument,
@@ -60,7 +61,14 @@ export function CompletionView({
   lessonNumber: number;
   done: number;
   total: number;
-  next: { id: string; number: number; title: string; goal: string }[];
+  next: {
+    id: string;
+    number: number;
+    title: string;
+    goal: string;
+    /** 所要時間。「あと7分なら」と決められるように出す。 */
+    estimatedMinutes?: number;
+  }[];
   onSelectLesson?: (lessonId: string) => void;
 }) {
   return (
@@ -170,6 +178,17 @@ export function CompletionView({
                     </span>
                     <h3 className="mt-2 text-sm font-bold leading-6">{lesson.title}</h3>
                     <p className="mt-1 text-xs leading-6 text-ink-muted">{lesson.goal}</p>
+                    {/*
+                      所要時間を出す。「次におすすめ」だけでは、
+                      いま始めてよいものか決められない。
+                      「あと7分なら」と判断できる材料をここに置く。
+                    */}
+                    {lesson.estimatedMinutes !== undefined && (
+                      <p className="mt-1.5 flex items-center gap-1 text-xs font-bold text-brand-dark">
+                        <IconClock className="h-3.5 w-3.5 shrink-0" />
+                        約{lesson.estimatedMinutes}分
+                      </p>
+                    )}
                   </div>
                   <span
                     aria-hidden="true"

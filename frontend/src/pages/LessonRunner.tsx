@@ -18,6 +18,11 @@ import { LessonHeader } from "../components/course/LessonHeader";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
 import { useCourse } from "../course/live";
+import {
+  AUTO_ADVANCE_MS,
+  canAutoAdvance,
+  isAnswered,
+} from "../course/autoAdvance";
 import { recommendLessons, saveRecommendations } from "../course/recommend";
 import { saveProfile } from "../api/diagnosis";
 import { useCompletedLessons } from "../course/progress";
@@ -106,6 +111,29 @@ export function LessonRunner({
     // send は毎回作り直されるので、依存に入れると送り続ける
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id, step.type, api.isSubmitting, api.error, api.findings.length]);
+
+  /*
+    選ぶだけの回は、選んだら自動で次へ送る（Learning UX §3）。
+
+    どの回を送ってよいかは autoAdvance.ts が決める。とくに
+    「次がAIを呼ぶ回」では送らない——札を1つ触っただけでお金のかかる
+    要求が飛ぶことになり、迷って押し直すたびに課金される。
+
+    片付けで時計を止めるのが要。手で「次へ」を押して先に進んだときは、
+    この回そのものが消えるので時計も止まり、二重に進まない。
+  */
+  const autoAdvancing = canAutoAdvance(lesson, step) && isAnswered(step, values);
+
+  useEffect(() => {
+    if (!autoAdvancing) return;
+    const timer = window.setTimeout(() => {
+      setRevealed(false);
+      api.goNext();
+    }, AUTO_ADVANCE_MS);
+    return () => window.clearTimeout(timer);
+    // 回か答えが変わったときだけ引き直す
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAdvancing, step.id, step.key ? values[step.key] : ""]);
 
   const confirmAndSend = async () => {
     const outcome = await api.run({ force: true });
@@ -239,6 +267,11 @@ export function LessonRunner({
         }
         // 終わったあとだけ、逃げ道も同じ大きさで並べる（どちらも正しい行き先）
         secondaryProminent={step.type === "completion"}
+        /*
+          自動で進む回では、下のボタンに「送っています」ではなく
+          進む合図を出す。押さなくてよいことが、押す前に分かる。
+        */
+        autoAdvancing={autoAdvancing}
         busy={api.isSubmitting}
         /*
           解説の回は、カード本文とポーの台詞が同じ文になる（教材データが

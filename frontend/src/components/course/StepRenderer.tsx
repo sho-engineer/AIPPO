@@ -38,6 +38,7 @@ import {
 import { buildAiInput } from "../../course/engine";
 import { lookupLesson } from "../../course/live";
 import { recommendLessons } from "../../course/recommend";
+import { startableLessons } from "../../course/availability";
 import type { Course, Lesson } from "../../course/types";
 import type { useCourseLesson } from "../../course/useCourseLesson";
 
@@ -63,7 +64,15 @@ export function StepRenderer({
 }: StepRendererProps) {
   const { step, values, runs } = api;
   const completedCount = completedIds.length;
-  const nextLessons = course.lessons
+  /*
+    次に勧める教材。
+
+    **始められるものだけ**にする。近日公開のものを勧めると、
+    押した先で止まる。終わった直後の「次はこれ」で行き止まりに当たるのは、
+    何も勧めないより悪い。
+  */
+  const startable = startableLessons(course.lessons);
+  const nextLessons = startable
     .filter(
       (entry) =>
         entry.id !== lesson.id &&
@@ -431,7 +440,12 @@ export function StepRenderer({
             足さないと「最後の1本を終えたのに 8/9」のままになる。
           */
           done={completedCount + (completedIds.includes(lesson.id) ? 0 : 1)}
-          total={course.lessons.length}
+          /*
+            分母は始められる教材の数。ホームの進み具合と揃える。
+            片方だけ近日公開を数えると、同じコースなのに
+            画面によって「n/9」と「n/12」が出る。
+          */
+          total={startable.length}
           next={nextLessons}
           onSelectLesson={onSelectLesson}
         />

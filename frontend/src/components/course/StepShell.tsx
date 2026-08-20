@@ -15,6 +15,7 @@ import type { ReactNode } from "react";
 import {
   IconBulb,
   IconCaution,
+  IconCheck,
   IconRefresh,
   IconSparkle,
   type Icon,
@@ -68,6 +69,13 @@ export interface StepShellProps {
    */
   secondaryProminent?: boolean;
   busy?: boolean;
+  /**
+   * 選んだので、まもなく自動で次へ進む状態か。
+   *
+   * 黙って画面が変わると「勝手に飛んだ」と読まれる。
+   * 進む前に、進むと分かる合図を出す（Learning UX §2 / §3）。
+   */
+  autoAdvancing?: boolean;
   /** ポーを出すか。本文が同じことを言う画面では下げる。 */
   showPo?: boolean;
   children: ReactNode;
@@ -90,6 +98,7 @@ export function StepShell({
   secondary,
   secondaryProminent = false,
   busy = false,
+  autoAdvancing = false,
   showPo = true,
   children,
 }: StepShellProps) {
@@ -236,10 +245,16 @@ export function StepShell({
               testId="primary-action"
               onClick={onPrimary}
               disabled={primaryDisabled || busy}
-              icon={busy ? undefined : <IconSparkle className="h-5 w-5 shrink-0" />}
+              icon={
+                busy ? undefined : autoAdvancing ? (
+                  <IconCheck className="h-5 w-5 shrink-0" />
+                ) : (
+                  <IconSparkle className="h-5 w-5 shrink-0" />
+                )
+              }
               className={secondaryProminent ? "flex-1" : ""}
             >
-              {busy ? "送っています…" : primaryLabel}
+              {busy ? "送っています…" : autoAdvancing ? "つぎへ進みます" : primaryLabel}
             </PrimaryButton>
 
             {secondary && secondaryProminent && (
