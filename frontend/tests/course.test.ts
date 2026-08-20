@@ -297,6 +297,39 @@ describe("入力済みのまとめ", () => {
       "上司",
     ]);
   });
+
+  it("選んだ札の言葉を出す。教材の中の記号は出さない", () => {
+    /*
+      診断の答えは `writing` `tried` のような記号で持っている。
+      そのまま出すと、日本語の画面に英語の記号が並ぶ。
+      しかも記号は教材の中でしか意味を持たないので、別の質問で
+      同じ `writing` が出て、違う2つの答えが同じに見えていた。
+    */
+    const diagnosis = getLesson("diagnosis")!;
+    const last = diagnosis.steps[diagnosis.steps.length - 1];
+
+    const summary = summaryOf(diagnosis, last.id, {
+      work_kind: "writing",
+      ai_experience: "tried",
+      pain_point: "writing",
+    });
+
+    for (const entry of summary) {
+      expect(entry.value).not.toMatch(/^[a-z_]+$/);
+    }
+    expect(summary.map((entry) => entry.value)).toContain("文章を書くことが多い");
+  });
+
+  it("自分で書いた言葉は、そのまま出す", () => {
+    // 選択肢のどれにも一致しない。書いた文字が答えそのもの
+    const summary = summaryOf(REWRITE, "real_tone", {
+      real_task_text: "来週の打ち合わせの件です",
+    });
+
+    expect(summary.map((entry) => entry.value)).toContain(
+      "来週の打ち合わせの件です",
+    );
+  });
 });
 
 describe("おすすめの選び方", () => {
