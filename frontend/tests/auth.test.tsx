@@ -78,6 +78,10 @@ describe("登録・ログインの画面", () => {
 
     await user.type(screen.getByLabelText("メールアドレス"), "a@example.com");
     await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
+    await user.type(
+      screen.getByLabelText("パスワード（確認）"),
+      "aippo-strong-pass-9",
+    );
 
     expect(screen.getByTestId("auth-submit")).toBeDisabled();
 
@@ -108,6 +112,10 @@ describe("登録・ログインの画面", () => {
 
     await user.type(screen.getByLabelText("メールアドレス"), "a@example.com");
     await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
+    await user.type(
+      screen.getByLabelText("パスワード（確認）"),
+      "aippo-strong-pass-9",
+    );
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByTestId("auth-submit"));
 
@@ -182,6 +190,173 @@ describe("登録・ログインの画面", () => {
 
     const sent = await screen.findByTestId("auth-reset-sent");
     expect(sent).toHaveTextContent("登録があれば");
+  });
+});
+
+describe("パスワードの確認欄", () => {
+  /**
+   * 登録のときだけ2回入れてもらう。
+   *
+   * 打ち間違いは、登録した本人にしか直せない。次にログインしようと
+   * した日まで気づけず、そこからは再設定のメールを待つことになる。
+   * その場で気づけるようにする。
+   *
+   * 確認欄はサーバーへ送らない。確かめられるのはこの画面だけで、
+   * 送っても増えるのは、送信の中身にパスワードがもう1つ載ることだけ。
+   */
+  async function open() {
+    const user = userEvent.setup();
+    const send = stubFetch({
+      "/signup/": () =>
+        reply(201, {
+          user: {
+            email: "a@example.com",
+            display_name: "",
+            email_verified: false,
+            terms_version: "2026-08-03",
+            joined_at: "2026-08-01T00:00:00+09:00",
+          },
+          migration: { linked: false, sessions: 0, already_linked: false },
+        }),
+    });
+    renderDialog(<AuthDialog onClose={() => {}} />);
+    await user.type(screen.getByLabelText("メールアドレス"), "a@example.com");
+    await user.click(screen.getByRole("checkbox"));
+    return { user, send };
+  }
+
+  it("2つの欄が、続けて出る", async () => {
+    await open();
+
+    expect(screen.getByLabelText("パスワード")).toBeInTheDocument();
+    expect(screen.getByLabelText("パスワード（確認）")).toBeInTheDocument();
+  });
+
+  it("どちらも new-password にする", async () => {
+    // 使い回しを勧めない。保存済みのパスワードで埋めさせない
+    await open();
+
+    expect(screen.getByLabelText("パスワード")).toHaveAttribute(
+      "autocomplete",
+      "new-password",
+    );
+    expect(screen.getByLabelText("パスワード（確認）")).toHaveAttribute(
+      "autocomplete",
+      "new-password",
+    );
+  });
+
+  it("空のままでは登録できない", async () => {
+    // 片方だけ入れて送れると、確認欄を置いた意味が無い
+    const { user } = await open();
+
+    await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
+
+    expect(screen.getByTestId("auth-submit")).toBeDisabled();
+  });
+
+  it("食い違っていたら、その欄の下で知らせる", async () => {
+    const { user } = await open();
+
+    await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
+    await user.type(screen.getByLabelText("パスワード（確認）"), "aippo-strong-X");
+
+    expect(screen.getByText("パスワードが一致していません。")).toBeInTheDocument();
+  });
+
+  it("食い違っている間は、登録できない", async () => {
+    const { user, send } = await open();
+
+    await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
+    await user.type(screen.getByLabelText("パスワード（確認）"), "aippo-strong-X");
+    await user.click(screen.getByTestId("auth-submit"));
+
+    expect(screen.getByTestId("auth-submit")).toBeDisabled();
+    const calls = send.mock.calls.map((call) => String(call[0]));
+    expect(calls.some((url) => url.includes("/signup/"))).toBe(false);
+  });
+
+  it("打っている途中では、まだ言わない", async () => {
+    // 2文字目で赤くなる欄は、急かされているようにしか見えない
+    const { user } = await open();
+
+    await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
+
+    expect(
+      screen.queryByText("パスワードが一致していません。"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("一致したら送る。確認の値は送らない", async () => {
+    const { user, send } = await open();
+
+    await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
+    await user.type(
+      screen.getByLabelText("パスワード（確認）"),
+      "aippo-strong-pass-9",
+    );
+    await user.click(screen.getByTestId("auth-submit"));
+
+    await waitFor(() => {
+      const signup = send.mock.calls.find((call) =>
+        String(call[0]).includes("/signup/"),
+      );
+      expect(signup).toBeTruthy();
+      const body = String((signup?.[1] as RequestInit | undefined)?.body ?? "");
+      expect(body).not.toContain("password_confirm");
+    });
+  });
+
+  it("表示に切り替えると、2つとも見える", async () => {
+    /*
+      片方だけ見えても見比べられない。食い違ったときに、
+      どちらが違うのかを探せるようにする。
+    */
+    const { user } = await open();
+
+    await user.click(screen.getAllByRole("button", { name: "パスワードを表示" })[0]);
+
+    expect(screen.getByLabelText("パスワード")).toHaveAttribute("type", "text");
+    expect(screen.getByLabelText("パスワード（確認）")).toHaveAttribute(
+      "type",
+      "text",
+    );
+  });
+
+  it("ログインの画面には出さない", async () => {
+    // すでに決めたものを2回打たせる理由が無い
+    renderDialog(<AuthDialog mode="signin" onClose={() => {}} />);
+
+    expect(screen.getByLabelText("パスワード")).toBeInTheDocument();
+    expect(screen.queryByLabelText("パスワード（確認）")).not.toBeInTheDocument();
+  });
+});
+
+describe("登録のしかたの並び", () => {
+  /**
+   * 押せる条件を、ボタンより先に出す。
+   *
+   * 前はパスキーの入口が一番上にあった。押せる条件（メールと同意）は
+   * その下にあるので、開いた人がまず見るのは**押せないボタン**で、
+   * 何をすれば押せるのかはボタンの下の小さな字にしかなかった。
+   */
+  it("メールと同意が、登録のしかたより先に来る", async () => {
+    renderDialog(<AuthDialog onClose={() => {}} />);
+
+    const dialog = screen.getByTestId("auth-dialog");
+    const text = dialog.textContent ?? "";
+
+    expect(text.indexOf("メールアドレス")).toBeLessThan(
+      text.indexOf("登録のしかたを選ぶ"),
+    );
+    expect(text.indexOf("利用規約")).toBeLessThan(text.indexOf("登録のしかたを選ぶ"));
+  });
+
+  it("2つの道が、どちらも名前で分かる", async () => {
+    renderDialog(<AuthDialog onClose={() => {}} />);
+
+    expect(screen.getByText("パスキーで登録（おすすめ）")).toBeInTheDocument();
+    expect(screen.getByText("パスワードで登録")).toBeInTheDocument();
   });
 });
 

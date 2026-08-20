@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../../api/http";
 import {
   addPasskey,
+  browserReason,
   isPasskeyAvailable,
   listPasskeys,
   removePasskey,
@@ -80,7 +81,7 @@ export function PasskeyGroup({ onNotice }: PasskeyGroupProps) {
       } else if (error instanceof ApiError) {
         setFailure(error.detail);
       } else {
-        setFailure("パスキーを登録できませんでした。");
+        setFailure(browserReason(error, "登録でき"));
       }
     } finally {
       setBusy(false);

@@ -139,8 +139,23 @@ export const AUTH_COPY = {
   email: "メールアドレス",
   password: "パスワード",
   passwordHint: "8文字以上。よく使われる言葉だけの組み合わせは避けてください。",
+  passwordConfirm: "パスワード（確認）",
+  /*
+    打ち間違いは、登録した本人にしか直せない。
+    次にログインしようとした日まで気づけず、そこからは
+    再設定のメールを待つことになる。その場で気づけるようにする。
+  */
+  passwordMismatch: "パスワードが一致していません。",
+  showPassword: "パスワードを表示",
+  hidePassword: "パスワードを隠す",
   displayName: "呼ばれたい名前（任意）",
   displayNameHint: "あとから変えられます。空のままでもかまいません。",
+
+  /** 登録のしかたの選び方。2つの道があることを、先に見せる。 */
+  methodHeading: "登録のしかたを選ぶ",
+  passkeyMethod: "パスキーで登録（おすすめ）",
+  passkeyMethodLead: "パスワードを決めずに、指紋や顔で登録できます。",
+  passwordMethod: "パスワードで登録",
 
   submitSignUp: "登録する",
   submitSignIn: "ログインする",
