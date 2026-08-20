@@ -15,6 +15,9 @@ import { Card, CardHeading, IconBadge } from "../../AppShell";
 import { SaveProgressCard } from "../../auth/SaveProgressCard";
 import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
+import { AppliedTips } from "../AppliedTips";
+import { appliedTipsFor } from "../../../course/appliedTips";
+import { lookupLesson } from "../../../course/live";
 import {
   IconCheckCircle,
   IconClock,
@@ -33,15 +36,18 @@ import {
  *
  * ここは行き止まりにしない（憲章 原則 I）。
  * 「おめでとう」だけで終わらせると、次に何をすればよいか分からず、
- * その場でアプリを閉じることになる。出すものを4つに決めている。
+ * その場でアプリを閉じることになる。出すものを5つに決めている。
  *
  *   1. 何ができるようになったか（身についたこと）
  *   2. 持ち帰れるもの（今回の成果物。押せば手元に写せる）
  *   3. 全体のどこまで来たか
- *   4. 次の行き先
+ *   4. これで何ができるか（応用例・組み合わせ。AppliedTips）
+ *   5. 次の行き先
  *
  * 2 が肝心で、これが無いと「練習しただけ」で終わる。
  * せっかく作った文章を、その場で仕事に持っていけるようにする。
+ * 4 も同じ理由で足した——1本のレッスンだけでは「これで何の役に
+ * 立つのか」が見えないまま、次のレッスンへ流されてしまう。
  */
 export function CompletionView({
   skills,
@@ -52,6 +58,7 @@ export function CompletionView({
   done,
   total,
   next,
+  completedIds,
   onSelectLesson,
 }: {
   skills: string[];
@@ -69,6 +76,8 @@ export function CompletionView({
     /** 所要時間。「あと7分なら」と決められるように出す。 */
     estimatedMinutes?: number;
   }[];
+  /** 「こんな使い方もできます」で、足りない技を言い当てるのに使う。 */
+  completedIds: string[];
   onSelectLesson?: (lessonId: string) => void;
 }) {
   return (
@@ -149,6 +158,27 @@ export function CompletionView({
         いちばん下だと、次を選んで離れた人には見えない。
       */}
       <SurveyCard lessonId={lessonId} />
+
+      {/*
+        「これで何ができるか」を、次のレッスンより前に置く。
+        練習しただけで終わらせず、仕事の場面に結びつけてから
+        次へ進んでもらう。
+
+        いま終えたレッスンを、足りない技として案内しない
+        --------------------------------------------------
+        `completedIds` には、この画面を出している時点ではまだ
+        いまのレッスンが入っていない（`done` の数え方と同じ理由。
+        このファイル冒頭のコメント参照）。素通しすると、
+        たったいま終えたばかりの技を「学ぶ→」と案内してしまう。
+      */}
+      <AppliedTips
+        tips={appliedTipsFor(lessonId)}
+        lessonTitle={(id) => lookupLesson(id)?.title ?? null}
+        completedIds={
+          completedIds.includes(lessonId) ? completedIds : [...completedIds, lessonId]
+        }
+        onSelectLesson={onSelectLesson}
+      />
 
       {next.length > 0 && (
         <section aria-labelledby="next-heading">

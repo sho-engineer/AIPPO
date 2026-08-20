@@ -445,6 +445,7 @@ export function StepRenderer({
           */
           total={startable.length}
           next={nextLessons}
+          completedIds={completedIds}
           onSelectLesson={onSelectLesson}
         />
       );
