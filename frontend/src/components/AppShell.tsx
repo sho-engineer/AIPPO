@@ -56,6 +56,20 @@ export type AppHeaderProps = {
  * 付いているが、**出さない**。届いていないのに未読の印を出すのは、
  * 押させたいだけの嘘になる。位置だけ確保して、押せないことを
  * 読み上げにも伝えておく。
+ *
+ * 中央は「画面の中央」にする
+ * --------------------------
+ * `centered` のとき、ロゴは**帯の真ん中**に置く。左右の飾りの幅で
+ * 動かさない。
+ *
+ * 前は左（←、40px）と右（鈴＋似顔絵、80px）に挟まれた**残りの幅**の
+ * 真ん中へ置いていた。左右の重さが違うぶん、ロゴは 22px 左へずれる。
+ * 22px は、気のせいでは片づかない大きさだった（実測）。
+ * 帯の中で唯一の縦の基準がロゴなので、そこがずれると帯全体が傾いて見える。
+ *
+ * 直し方は、ロゴだけを帯に対して絶対配置にする。左右に何を足しても、
+ * 何を外しても、真ん中は動かない。押せる部品ではないので
+ * `pointer-events-none` を付けて、重なっても下の操作を邪魔しない。
  */
 export function AppHeader({ onBack, action, centered, onOpenAccount }: AppHeaderProps) {
   return (
@@ -64,7 +78,7 @@ export function AppHeader({ onBack, action, centered, onOpenAccount }: AppHeader
                  pt-[env(safe-area-inset-top)] backdrop-blur"
       data-testid="app-header"
     >
-      <div className="mx-auto flex h-14 max-w-2xl items-center gap-2">
+      <div className="relative mx-auto flex h-14 max-w-2xl items-center gap-2">
         {onBack && (
           <button
             type="button"
@@ -78,9 +92,25 @@ export function AppHeader({ onBack, action, centered, onOpenAccount }: AppHeader
           </button>
         )}
 
-        <div className={centered ? "flex flex-1 justify-center" : "flex-1"}>
-          <BrandLogo className="h-8" />
-        </div>
+        {centered ? (
+          <>
+            {/*
+              帯そのものの真ん中。左右に何があっても動かない。
+              flex の並びから外すので、右の欄を右端へ押す枠を別に置く。
+            */}
+            <span
+              className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+              data-testid="brand-logo-centered"
+            >
+              <BrandLogo className="h-8" />
+            </span>
+            <div className="flex-1" />
+          </>
+        ) : (
+          <div className="flex-1">
+            <BrandLogo className="h-8" />
+          </div>
+        )}
 
         {action ? (
           <button
