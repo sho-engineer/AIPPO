@@ -31,6 +31,14 @@ export interface ChoiceButtonProps {
   /** 左に置く印。 */
   icon?: ReactNode;
   disabled?: boolean;
+  /**
+   * 背の高い札にするか。
+   *
+   * 診断のように、2列に並べて絵と2〜3行の文が入る場面で使う。
+   * 高さを決め打ちにしておかないと、3行になった札だけが伸びて
+   * 列がガタつく（§18）。
+   */
+  tall?: boolean;
   testId?: string;
 }
 
@@ -41,6 +49,7 @@ export function ChoiceButton({
   onSelect,
   icon,
   disabled,
+  tall,
   testId,
 }: ChoiceButtonProps) {
   return (
@@ -50,7 +59,8 @@ export function ChoiceButton({
       disabled={disabled}
       aria-pressed={selected}
       data-testid={testId}
-      className={`flex h-full min-h-[3.5rem] w-full items-center gap-3 rounded-card border
+      className={`flex h-full w-full items-center gap-3 rounded-card border
+                  ${tall ? "min-h-[6.5rem]" : "min-h-[3.5rem]"}
                   px-3.5 py-3 text-left transition
                   enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55
                   ${

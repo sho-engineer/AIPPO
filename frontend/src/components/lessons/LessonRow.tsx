@@ -10,6 +10,8 @@
  */
 
 import { IconBookmark, IconCheck } from "../Icons";
+import { IconMark } from "../AppShell";
+import { lookOf } from "../../course/presentation";
 import {
   comingSoonNote,
   hasComingSoonDetail,
@@ -45,6 +47,7 @@ export function LessonRow({
 }) {
   const soon = isComingSoon(lesson);
   const prefix = testIdPrefix ?? "";
+  const look = lookOf(lesson.id);
 
   const meta = [
     lesson.estimatedMinutes !== undefined ? `${lesson.estimatedMinutes}分` : null,
@@ -72,11 +75,23 @@ export function LessonRow({
         className={`row row-tap items-baseline disabled:cursor-not-allowed
                     ${soon ? "opacity-55" : ""}`}
       >
+        {/*
+          用途の印。番号だけの行が9つ並ぶと、どれも同じ重さに見えて
+          「文字の一覧」になる。小さな線画を1つ置くだけで、
+          縦に流し読みするときの手がかりになる（大きな絵は置かない）。
+        */}
         <span
           aria-hidden="true"
-          className="w-6 shrink-0 text-xs tabular-nums text-ink-muted"
+          className="flex w-8 shrink-0 items-center gap-1.5 self-center"
         >
-          {String(lesson.number).padStart(2, "0")}
+          <span className="text-[0.6875rem] tabular-nums text-ink-muted">
+            {String(lesson.number).padStart(2, "0")}
+          </span>
+          <IconMark
+            icon={look.icon}
+            tone={look.tone === "plain" ? "brand" : look.tone}
+            className="h-4 w-4"
+          />
         </span>
 
         <span className="min-w-0 flex-1">

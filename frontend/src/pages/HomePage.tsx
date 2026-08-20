@@ -7,10 +7,11 @@
  * 順番は上から:
  *
  *   1. ポーのあいさつ
- *   2. 今日のつづき（コース名・何日目・7日の道のり・始めるボタン）
+ *   2. 今日のレッスン（題・ねらい・始めるボタン・所要時間）
  *   3. 学習の進み具合
- *   4. おすすめコース
- *   5. カテゴリから探す
+ *   4. 7日間の道のり
+ *   5. おすすめコース
+ *   6. カテゴリから探す
  *
  * 以前はこれが逆だった。円グラフ・継続日数・試した回数を先に見せ、
  * 「次にやること」は横スクロールのカードの中に埋もれていた。
@@ -36,11 +37,12 @@ import { ReviewPrompt } from "../components/ReviewPrompt";
 import {
   IconArrow,
   IconBars,
+  IconStreak,
   IconBookmark,
+  IconCalendar,
   IconCheck,
   IconChevronRight,
   IconClock,
-  IconMedal,
   IconSparkle,
 } from "../components/Icons";
 import { useCourse } from "../course/live";
@@ -104,16 +106,17 @@ function SectionHeading({
 // ---------------------------------------------------------- 今日のつづき
 
 /**
- * 7日の道のりを、丸で1列に並べたもの。
+ * 7日間の道のり。
  *
- * 数字だけの丸を並べる。題は出さない——7つ並べて全部に題を付けると、
- * それは道のりではなく目次になる。ここで伝えたいのは
- * 「いま何日目で、あと何日か」だけ。
+ * 丸を並べるのではなく、**1行に1回**の一覧にする。
+ * 丸だけでは何の回か分からず、番号を数えないと自分の位置が読めない。
+ * 題まで出せば、次に何をするのかが目で分かる。
  *
- * 終わった回はチェック、いまの回は青く塗る。色だけで表さないよう、
- * 読み上げ用の説明を1つずつ付ける。
- *
- * 最後の記章は修了証。ここまで来ると受け取れる、という行き先を見せる。
+ * 桁をそろえる
+ * ------------
+ * 左から「Day n」「題」「状態」の3列。Day と状態の幅を固定して、
+ * 題を残り全部にする。固定しないと、題の長さで Day の位置が動き、
+ * 縦に読み下せなくなる（9行あるので、そこが効く）。
  */
 function DayTrack({
   lessons,
@@ -126,102 +129,108 @@ function DayTrack({
   currentId: string | null;
   onSelectLesson: (id: string) => void;
 }) {
-  const allDone = lessons.length > 0 && lessons.every((l) => completed.includes(l.id));
-
   return (
-    <ol
-      /*
-        入りきらない端末では横に流す。画面ごと横に伸びるのは避ける（§33）ので、
-        流すのはこの1行の中だけにする。
-      */
-      className="mt-4 flex items-center justify-between overflow-x-auto pb-1"
-      role="list"
-      aria-label="7日間の道のり"
-      data-testid="day-track"
-    >
-      {lessons.map((lesson, index) => {
-        const done = completed.includes(lesson.id);
-        const current = lesson.id === currentId;
-        const soon = isComingSoon(lesson);
-        const state = done ? "おわった" : current ? "今日" : soon ? "近日公開" : "これから";
-
-        return (
-          <li key={lesson.id} className="flex shrink-0 items-center">
-            {/* 丸と丸をつなぐ線。道のりであることを示す */}
-            {index > 0 && (
-              <span
-                aria-hidden="true"
-                className={`h-px w-1 shrink-0 sm:w-3 ${done || current ? "bg-brand-line" : "bg-line"}`}
-              />
-            )}
-            <button
-              type="button"
-              onClick={() => onSelectLesson(lesson.id)}
-              disabled={soon}
-              aria-label={`Day ${lesson.number} ${lesson.title}（${state}）`}
-              data-testid={`day-${lesson.id}`}
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full
-                          text-xs font-bold tabular-nums transition
-                          disabled:cursor-not-allowed disabled:opacity-45
-                          ${
-                            current
-                              ? "bg-brand text-white shadow-cta"
-                              : done
-                                ? "bg-brand-soft text-brand-dark"
-                                : "border border-line bg-surface text-ink-muted"
-                          }`}
-            >
-              {done ? <IconCheck className="h-4 w-4" /> : lesson.number}
-            </button>
-          </li>
-        );
-      })}
-
-      <li className="flex shrink-0 items-center">
-        <span aria-hidden="true" className="h-px w-1 shrink-0 bg-line sm:w-3" />
-        <span
-          /*
-            役を持たない span に読み上げ用の名前は付けられない（axe が拾う）。
-            絵として扱うと決めて、役を明示する。
-          */
-          role="img"
-          aria-label={allDone ? "修了証を受け取れます" : "最後まで進むと修了証"}
-          className={`flex h-8 w-8 items-center justify-center rounded-full
-                      ${allDone ? "bg-joy-soft text-joy" : "bg-canvas text-ink-muted/50"}`}
-        >
-          <IconMedal className="h-4 w-4" />
+    <section aria-labelledby="roadmap-heading">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="roadmap-heading" className="flex items-center gap-2 text-base font-bold">
+          <IconMark icon={IconCalendar} className="h-[1.125rem] w-[1.125rem]" />
+          7日間の道のり
+        </h2>
+        {/*
+          「7日間」なのに回数が違うことがある（診断や最終課題が入る）。
+          数は数えて出す。書き込むと、教材を足したときに合わなくなる。
+        */}
+        <span className="shrink-0 text-xs text-ink-muted">
+          全{lessons.length}レッスン
         </span>
-      </li>
-    </ol>
+      </div>
+
+      <ol className="mt-2" role="list" data-testid="day-track">
+        {lessons.map((lesson) => {
+          const done = completed.includes(lesson.id);
+          const current = lesson.id === currentId;
+          const soon = isComingSoon(lesson);
+
+          return (
+            <li key={lesson.id}>
+              <button
+                type="button"
+                onClick={() => onSelectLesson(lesson.id)}
+                disabled={soon}
+                aria-disabled={soon}
+                data-testid={`day-${lesson.id}`}
+                className={`row row-tap items-center gap-3 disabled:cursor-not-allowed
+                            ${soon ? "opacity-55" : ""}`}
+              >
+                {/* 左の列は幅を固定する。題の長さで位置を動かさない */}
+                <span
+                  className={`w-12 shrink-0 text-xs tabular-nums
+                              ${current ? "font-bold text-brand-dark" : "text-ink-muted"}`}
+                >
+                  Day {lesson.number}
+                </span>
+
+                {/*
+                  印も幅を固定する。終わった回だけチェックが入るので、
+                  幅を空けておかないと題の頭が行ごとにずれる。
+                */}
+                <span className="flex w-4 shrink-0 justify-center" aria-hidden="true">
+                  {done ? (
+                    <IconCheck className="h-4 w-4 text-brand" />
+                  ) : current ? (
+                    <span className="h-2 w-2 rounded-full bg-brand" />
+                  ) : (
+                    <span className="h-2 w-2 rounded-full border border-line" />
+                  )}
+                </span>
+
+                <span
+                  className={`min-w-0 flex-1 truncate text-sm leading-6 ${current ? "font-bold" : ""}`}
+                >
+                  {lesson.title}
+                </span>
+
+                {/* 状態は右端。色だけでなく文字でも言う */}
+                <span className="w-12 shrink-0 text-right text-xs">
+                  {done ? (
+                    <span className="text-ink-muted">完了</span>
+                  ) : current ? (
+                    <span className="font-bold text-brand-dark">今日</span>
+                  ) : soon ? (
+                    <span className="text-ink-muted">準備中</span>
+                  ) : null}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 
 /**
- * 今日のつづき。
+ * 今日のレッスン。この画面の主役。
+ *
+ * 出すのは**レッスンの**名前とねらい。コース名ではない。
+ * コース名（7日でAIの最初の一歩）はどの日も同じで、今日やることを
+ * 何も言っていない。開いた人が知りたいのは「次に何をするか」で、
+ * それはレッスンの題とねらいにしか書かれていない。
+ *
+ * 所要時間はボタンの隣に置く。「8分なら今できる」と決められるように、
+ * 押す直前に見える場所へ置く。
  *
  * この画面で押す場所は基本ここ1つなので、面で囲う条件を満たしている。
  * 逆に言えば、囲ってよいのはここだけ。
  */
 function TodayCard({
-  courseTitle,
-  courseDescription,
   lesson,
-  dayLabel,
   started,
-  lessons,
-  completed,
   onStart,
-  onSelectLesson,
 }: {
-  courseTitle: string;
-  courseDescription: string;
   lesson: Lesson;
-  dayLabel: string;
   started: boolean;
-  lessons: Lesson[];
-  completed: string[];
   onStart: () => void;
-  onSelectLesson: (id: string) => void;
 }) {
   return (
     <section
@@ -234,47 +243,27 @@ function TodayCard({
         {started ? "今日のつづき" : "今日はここから"}
       </p>
 
-      <div className="mt-1.5 flex items-start justify-between gap-3">
-        <h2 id="next-heading" className="min-w-0 text-xl font-bold leading-8">
-          {courseTitle}
-        </h2>
-        {/* 何日目か。ここだけは丸く囲う——日付は「札」として読まれる */}
-        <span className="shrink-0 rounded-badge bg-brand-soft px-2.5 py-1 text-xs font-bold text-brand-dark">
-          {dayLabel}
-        </span>
-      </div>
+      <h2 id="next-heading" className="mt-1.5 text-xl font-bold leading-8">
+        {lesson.title}
+      </h2>
+      <p className="mt-1 text-sm leading-7 text-ink-muted">{lesson.goal}</p>
 
-      <p className="mt-1 text-sm leading-7 text-ink-muted">{courseDescription}</p>
-
-      <DayTrack
-        lessons={lessons}
-        completed={completed}
-        currentId={lesson.id}
-        onSelectLesson={onSelectLesson}
-      />
-
-      <div className="mt-4">
+      <div className="mt-4 flex items-center gap-3">
         <PrimaryButton
           testId="continue-lesson"
           onClick={onStart}
           trailing={<IconChevronRight className="h-5 w-5 shrink-0" />}
+          className="flex-1"
         >
           {started ? "つづきをはじめる" : "はじめる"}
         </PrimaryButton>
-      </div>
 
-      {/*
-        次に開くのがどれかは、ボタンの下に文字で置く。
-        コース名だけだと、押した先で何が始まるのか分からない。
-      */}
-      <p className="mt-2.5 flex items-center justify-center gap-2 text-xs text-ink-muted">
-        <span className="truncate">次は「{lesson.title}」</span>
         {lesson.estimatedMinutes !== undefined && (
-          <span className="flex shrink-0 items-center gap-1">
-            <IconClock className="h-3.5 w-3.5" />約{lesson.estimatedMinutes}分
+          <span className="flex shrink-0 items-center gap-1 text-xs text-ink-muted">
+            <IconClock className="h-4 w-4" />約{lesson.estimatedMinutes}分
           </span>
         )}
-      </p>
+      </div>
     </section>
   );
 }
@@ -327,13 +316,17 @@ function Progress({
       */}
       <div className="mt-2 flex items-baseline justify-between gap-3 text-xs">
         <p className="text-ink-muted">
-          完了レッスン{" "}
           <span className="text-sm font-bold tabular-nums text-ink">
-            {done}
-            <span className="text-ink-muted"> / {total}</span>
-          </span>
+            {done} / {total}
+          </span>{" "}
+          レッスン完了
         </p>
-        <p className="text-ink-muted">
+        {/*
+          続けた日数。炎の印を添える。
+          数字だけだと、進み具合の分子と見分けが付かない。
+        */}
+        <p className="flex items-center gap-1 text-ink-muted">
+          <IconStreak className="h-4 w-4 shrink-0 text-caution" aria-hidden="true" />
           {days > 0 ? (
             <>
               続けて{" "}
@@ -428,15 +421,9 @@ export function HomePage({
         {nextLesson && (
           <div className="mt-5">
             <TodayCard
-              courseTitle={course.title}
-              courseDescription={course.description}
               lesson={nextLesson}
-              dayLabel={`${nextLesson.number}日目`}
               started={completed.length > 0}
-              lessons={course.lessons}
-              completed={completed}
               onStart={() => onSelectLesson(nextLesson.id)}
-              onSelectLesson={onSelectLesson}
             />
           </div>
         )}
@@ -455,6 +442,16 @@ export function HomePage({
             days={streak.days}
             realTaskCount={streak.realTaskCount}
             onOpenRecord={onOpenRecord}
+          />
+        </div>
+
+        {/* ── 7日間の道のり ── */}
+        <div className="mt-7">
+          <DayTrack
+            lessons={course.lessons}
+            completed={completed}
+            currentId={nextLesson?.id ?? null}
+            onSelectLesson={onSelectLesson}
           />
         </div>
 
@@ -538,15 +535,24 @@ export function HomePage({
                   <button
                     type="button"
                     onClick={() => onSelectLesson(category.lessonId)}
-                    className="flex min-h-[3.5rem] w-full items-center gap-2.5 rounded-card
-                               border border-line bg-surface px-3 py-3 text-left shadow-card
-                               transition hover:border-brand-line active:scale-[0.99]"
+                    /*
+                      6つとも同じ大きさにする。字数（文章／情報整理）で
+                      高さが変わると、2列の並びがガタつく。
+                      印の大きさと文字の始まりも、行ごとにずらさない。
+                    */
+                    className="flex h-full min-h-[3.5rem] w-full items-center gap-2.5
+                               rounded-card border border-line bg-surface px-3 py-3
+                               text-left shadow-card transition
+                               hover:border-brand-line active:scale-[0.99]"
                   >
-                    <IconMark
-                      icon={look.icon}
-                      tone={look.tone === "plain" ? "brand" : look.tone}
-                      className="h-5 w-5"
-                    />
+                    {/* 印の列は幅を固定する。絵の形で文字の始まりを変えない */}
+                    <span className="flex w-5 shrink-0 justify-center">
+                      <IconMark
+                        icon={look.icon}
+                        tone={look.tone === "plain" ? "brand" : look.tone}
+                        className="h-5 w-5"
+                      />
+                    </span>
                     <span className="min-w-0 flex-1 truncate text-sm">
                       {category.label}
                     </span>

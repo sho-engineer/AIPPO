@@ -201,15 +201,19 @@ export function StepShell({
           )}
           {hintNearButton && (
             /*
-              押せない理由。禁止ではなく案内なので、注意の赤ではなく
-              電球を添える。「間違えた」ではなく「あと1つで進める」。
+              押せない理由。**注意の色で常時出さない。**
+
+              まだ選んでいないだけの人に、開いた瞬間からオレンジの警告が
+              出ていると、何か間違えたのかと読む。ここは禁止ではなく
+              案内なので、ふだんの文字色で電球を添えるだけにする。
+              色を使うのは、本当に失敗したとき（error）だけ。
             */
             <p
-              className="mb-2 flex items-start gap-1.5 text-xs leading-5 text-caution"
+              className="mb-2 flex items-start gap-1.5 text-xs leading-5 text-ink-muted"
               // 押せない理由は、押す前に読み上げへ届ける
               role="status"
             >
-              <IconBulb className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <IconBulb className="mt-0.5 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
               <span>{hintNearButton}</span>
             </p>
           )}

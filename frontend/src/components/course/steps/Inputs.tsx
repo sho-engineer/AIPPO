@@ -113,6 +113,7 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
                   label={option.label}
                   selected={active}
                   onSelect={() => toggle(option)}
+                  tall
                   icon={
                     Glyph ? (
                       <span
