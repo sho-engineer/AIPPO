@@ -38,6 +38,13 @@ from apps.catalog.models import (
 
 SEED_PATH = Path(__file__).resolve().parents[2] / "seed_catalog.json"
 
+#: これから増えるコース（中身はまだ無い）。
+#:
+#: `seed_catalog.json` とは別のファイルにしてある。あちらは
+#: 「コードからDBへ移して1文字も変わっていない」ことを確かめる正解データで、
+#: 増やすとその役目が薄れる。増えるものはこちらへ書く。
+UPCOMING_PATH = Path(__file__).resolve().parents[2] / "seed_upcoming.json"
+
 #: 取り込んだ時点で「近日公開」にしておく教材。
 #:
 #: 以前はここが逆で、始められるものを列挙していた
@@ -252,3 +259,78 @@ class Command(BaseCommand):
                 f"コース「{course.title}」: 追加 {added} / 更新 {updated} / 触れず {skipped}"
             )
         )
+
+        self._seed_upcoming(only_new)
+
+    def _seed_upcoming(self, only_new: bool) -> None:
+        """これから増えるコースを、近日公開として入れる。
+
+        中身（ステップ）は入れない。入れると「取れているのだから
+        始められる」作りが画面側にできてしまう。ここで入れるのは
+        一覧のカードに出す分——題・説明・難易度・レッスンの並び——だけ。
+
+        すでにあるコースの `availability_status` は**触らない**。
+        管理画面で開けたものを、実行のたびに閉じ直さないため。
+        """
+        if not UPCOMING_PATH.exists():
+            return
+
+        data = json.loads(UPCOMING_PATH.read_text(encoding="utf-8"))
+        courses = 0
+        lessons = 0
+
+        for entry in data.get("courses", []):
+            course, created = Course.objects.get_or_create(
+                slug=entry["id"],
+                defaults={
+                    "title": entry["title"],
+                    "description": entry.get("description", ""),
+                    "difficulty": entry.get("difficulty", "beginner"),
+                    "access_type": AccessType.FREE,
+                    "status": PublishStatus.PUBLISHED,
+                    "availability_status": AvailabilityStatus.COMING_SOON,
+                    "coming_soon_message": entry.get("comingSoonMessage", ""),
+                    "sort_order": entry.get("sortOrder", 0),
+                },
+            )
+            if not created:
+                if only_new:
+                    continue
+                course.title = entry["title"]
+                course.description = entry.get("description", "")
+                course.difficulty = entry.get("difficulty", "beginner")
+                course.status = PublishStatus.PUBLISHED
+                course.coming_soon_message = entry.get("comingSoonMessage", "")
+                course.sort_order = entry.get("sortOrder", 0)
+                # availability_status は入れない（上の説明のとおり）
+                course.save()
+            courses += 1
+
+            for order, row in enumerate(entry.get("lessons", [])):
+                if Lesson.objects.filter(slug=row["id"]).exists() and only_new:
+                    continue
+                Lesson.objects.update_or_create(
+                    slug=row["id"],
+                    defaults={
+                        "course": course,
+                        "number": row["number"],
+                        "title": row["title"],
+                        "goal": row["goal"],
+                        "template": LessonTemplate.CUSTOM,
+                        "estimated_minutes": row.get("estimatedMinutes"),
+                        "outcomes": row.get("outcomes", []),
+                        "tags": row.get("tags", []),
+                        "uses_ai": row.get("usesAi", True),
+                        "status": PublishStatus.PUBLISHED,
+                        "availability_status": AvailabilityStatus.COMING_SOON,
+                        "sort_order": order,
+                    },
+                )
+                lessons += 1
+
+        if courses:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"これから増えるコース: {courses}件 / レッスン {lessons}件（近日公開）"
+                )
+            )

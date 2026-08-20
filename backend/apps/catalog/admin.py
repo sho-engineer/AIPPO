@@ -70,8 +70,19 @@ class LessonInline(admin.TabularInline):
 
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
-    list_display = ("title", "slug", "access_type", "status", "lesson_count", "sort_order")
-    list_filter = ("status", "access_type")
+    list_display = (
+        "title",
+        "slug",
+        "difficulty",
+        "access_type",
+        "status",
+        # 出すことと始められることは別。一覧で両方見えないと、
+        # 「公開したのに始められない」に気づけない
+        "availability_status",
+        "lesson_count",
+        "sort_order",
+    )
+    list_filter = ("status", "availability_status", "difficulty", "access_type")
     search_fields = ("title", "slug")
     prepopulated_fields = {"slug": ("title",)}
     inlines = (LessonInline,)

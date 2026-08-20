@@ -28,11 +28,12 @@ import { useEffect, useState } from "react";
 
 import { AppHeader } from "../components/AppShell";
 import { CertificateEntry } from "../components/course/CertificateEntry";
+import { CourseCard } from "../components/course/CourseCard";
 import { LessonRow } from "../components/lessons/LessonRow";
 import { CertificatePage } from "./CertificatePage";
 import { PoAvatar } from "../po/PoAvatar";
 import { useCertificates } from "../course/certificate";
-import { lookupLesson, useCourse } from "../course/live";
+import { lookupLesson, useCourse, useCourses } from "../course/live";
 import { isComingSoon, startableLessons } from "../course/availability";
 import { loadRecommendations } from "../course/recommend";
 import { useCompletedLessons } from "../course/progress";
@@ -47,6 +48,12 @@ export interface CoursePageProps {
 
 export function CoursePage({ onSelectLesson }: CoursePageProps) {
   const course = useCourse();
+  /*
+    いま学ぶコース以外。中身のあるものも近日公開のものも入りうるが、
+    いまは近日公開しか無い（開けるコースは1つ）。
+    開けるものが増えたら、押して入れるように onOpen を渡す。
+  */
+  const upcoming = useCourses().filter((entry) => entry.id !== course.id);
   const completed = useCompletedLessons();
   const bookmarks = useBookmarks();
   const certificates = useCertificates();
@@ -246,12 +253,39 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
             </ul>
           )}
 
-          {query.trim() === "" && (
-            <p className="mt-3 text-xs leading-6 text-ink-muted">
-              残りは順次公開します。
-            </p>
-          )}
         </section>
+
+        {/*
+          これから増えるコース。
+
+          「残りは順次公開します」という一文の代わりに置いた。
+          その一文は、何がどれだけ増えるのかを何も言っていない。
+          題と本数まで見えていれば、いま開けるものを選ぶときの
+          手がかりになる（憲章 原則 I: 行き止まりを作らない）。
+
+          中身が届いていないとき（同梱データで動いているとき）は
+          何も出ない。無いものを作って見せない。
+        */}
+        {upcoming.length > 0 && (
+          <section className="mt-8" aria-labelledby="upcoming-heading">
+            <h2 id="upcoming-heading" className="section-title">
+              これから増えるコース
+            </h2>
+            <p className="mt-1 text-xs leading-6 text-ink-muted">
+              いま作っています。できたものから開いていきます。
+            </p>
+
+            <ul className="mt-3 space-y-3" role="list" data-testid="upcoming-courses">
+              {upcoming.map((entry) => (
+                <CourseCard
+                  key={entry.id}
+                  course={entry}
+                  completedIds={completed}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="mt-8">
           <PoAvatar

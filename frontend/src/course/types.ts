@@ -225,6 +225,14 @@ export type LessonMode = "standard" | "model_comparison";
 /** いま始められるか。 */
 export type LessonAvailability = "available" | "coming_soon";
 
+/**
+ * むずかしさの目安。
+ *
+ * いまはコースにだけ付けている。レッスン1本ずつに付けると、
+ * 9本すべてが「初級」と並ぶだけで、何の手がかりにもならない。
+ */
+export type Difficulty = "beginner" | "intermediate" | "advanced";
+
 export interface Lesson {
   id: string;
   /** 一覧に出す番号。「Lesson 1」など。 */
@@ -273,6 +281,21 @@ export interface Course {
   id: string;
   title: string;
   description: string;
+  /** 一覧のカードに出す目安。レッスンごとの難易度とは別。 */
+  difficulty?: Difficulty;
+  /**
+   * いま始められるか。
+   *
+   * レッスンと同じで、「一覧に出すか」とは別に持つ。
+   * 中身がまだ無いコースも、何ができるようになるかを先に見せたい。
+   * そのとき、出すことと始められることを1つの項目で表すと、
+   * 出した瞬間に始められてしまう。
+   *
+   * 省略されていたら「始められる」とみなす（古い応答との互換）。
+   */
+  availability?: LessonAvailability;
+  /** 近日公開のときに添える一言。空なら既定の文言。 */
+  comingSoonMessage?: string;
   lessons: Lesson[];
 }
 

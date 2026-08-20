@@ -26,6 +26,18 @@ import type { Course, Lesson } from "./types";
 type Listener = () => void;
 
 let current: Course = BUNDLED;
+/**
+ * 届いたコース一式。
+ *
+ * `current` は「いま学ぶコース」で、こちらは**一覧に出す全部**。
+ * 中身がまだ無いコース（近日公開）も入る。何ができるようになるかを
+ * 先に見せるためで、始められるかどうかは availability が持つ。
+ *
+ * 同梱データには近日公開のコースを入れていない。同梱の役目は
+ * 「通信できなくても最後まで学べること」で、これから増えるものの
+ * 一覧はその役目に要らない。二重に持つと必ず食い違う。
+ */
+let all: Course[] = [BUNDLED];
 let source: "bundled" | "server" = "bundled";
 let started = false;
 
@@ -73,10 +85,23 @@ export async function loadCatalog(): Promise<void> {
 
   try {
     const body = await getJson<{ courses: unknown[] }>("/api/v1/catalog/");
-    const first = body.courses?.[0];
-    if (!looksUsable(first)) return;
+    const courses = Array.isArray(body.courses) ? body.courses : [];
 
-    current = first;
+    /*
+      学ぶコースは、**中身のある最初の1本**にする。
+
+      並び順の先頭を無条件に採ると、近日公開のコースを一番上へ
+      並べ替えた日に、教材が1本も無い画面になる。
+    */
+    const usable = courses.find(looksUsable);
+    if (!usable) return;
+
+    current = usable;
+    /*
+      一覧は届いた全部。形の見分けが付くものだけ入れる
+      （中身が無くても、題と説明があればカードは出せる）。
+    */
+    all = courses.filter(looksListable);
     source = "server";
     notify();
   } catch {
@@ -87,9 +112,23 @@ export async function loadCatalog(): Promise<void> {
 /** テスト用。取りに行った記録と差し替えを元へ戻す。 */
 export function resetCatalog(): void {
   current = BUNDLED;
+  all = [BUNDLED];
   source = "bundled";
   started = false;
   notify();
+}
+
+/**
+ * カードに出せる形をしているか。
+ *
+ * `looksUsable` より緩い。あちらは「学べるか」を見るので中身を要求するが、
+ * 一覧のカードは題と説明だけで成り立つ。同じ関門にすると、
+ * これから増えるコースが1つも出せない。
+ */
+function looksListable(course: unknown): course is Course {
+  if (typeof course !== "object" || course === null) return false;
+  const { id, title } = course as Partial<Course>;
+  return typeof id === "string" && typeof title === "string";
 }
 
 export function currentCourse(): Course {
@@ -98,6 +137,10 @@ export function currentCourse(): Course {
 
 export function catalogSource(): "bundled" | "server" {
   return source;
+}
+
+export function allCourses(): Course[] {
+  return all;
 }
 
 /**
@@ -118,4 +161,15 @@ export function useCourse(): Course {
   }, []);
 
   return course;
+}
+
+/** 一覧に出すコース全部。これから増える分も入る。 */
+export function useCourses(): Course[] {
+  const courses = useSyncExternalStore(subscribe, allCourses, allCourses);
+
+  useEffect(() => {
+    void loadCatalog();
+  }, []);
+
+  return courses;
 }

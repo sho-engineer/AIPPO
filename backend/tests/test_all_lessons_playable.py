@@ -21,7 +21,12 @@ import pytest
 from django.core.management import call_command
 
 from apps.ai.actions import ACTIONS
-from apps.catalog.models import AvailabilityStatus, Lesson
+from apps.catalog.models import (
+    AvailabilityStatus,
+    Course,
+    Lesson,
+    PublishStatus,
+)
 
 GENERATE_URL = "/api/v1/ai/generate/"
 CATALOG_URL = "/api/v1/catalog/"
@@ -69,7 +74,13 @@ SAMPLE_INPUT: dict[str, dict[str, str]] = {
 
 @pytest.fixture
 def seeded(db):
+    """取り込んだうえで、**このコース**を返す。
+
+    教材の表には「これから増えるコース」の分も入る。
+    どのコースの話をしているのかを、試験の側で持てるようにする。
+    """
     call_command("seed_catalog")
+    return Course.objects.get(slug="first_step_7days")
 
 
 @pytest.fixture(autouse=True)
@@ -88,13 +99,20 @@ def _lessons_for(action_id: str) -> tuple[str, ...]:
 @pytest.mark.django_db
 class TestEveryLessonIsShipped:
     def test_all_nine_lessons_are_startable(self, seeded):
+        """このコースの9本は、すべて始められること。
+
+        数えるのはこのコースの分だけにする。教材の表には
+        「これから増えるコース」の分も入っていて、そちらは
+        中身がまだ無いので**始められないのが正しい**。
+        全件で数えると、正しい追加のたびにここが落ちる。
+        """
         stuck = list(
-            Lesson.objects.exclude(
+            seeded.lessons.exclude(
                 availability_status=AvailabilityStatus.AVAILABLE
             ).values_list("slug", flat=True)
         )
 
-        assert Lesson.objects.count() == 9
+        assert seeded.lessons.count() == 9
         assert stuck == [], f"始められない教材が残っている: {stuck}"
 
     def test_every_lesson_ships_steps(self, api_client, seeded):
@@ -162,9 +180,16 @@ class TestEveryActionRuns:
 
         紐づけを書き忘れると、その教材は最後まで進めない。
         画面では押せるので、途中で止まってはじめて分かる。
+
+        見るのは**始められる教材だけ**。近日公開のものはまだ中身が無く、
+        押す口も配っていないので、途中で止まりようがない。
         """
         ai_lessons = set(
-            Lesson.objects.filter(uses_ai=True).values_list("slug", flat=True)
+            Lesson.objects.filter(
+                uses_ai=True,
+                status=PublishStatus.PUBLISHED,
+                availability_status=AvailabilityStatus.AVAILABLE,
+            ).values_list("slug", flat=True)
         )
         covered = {slug for action in ACTIONS.values() for slug in action.lesson_ids}
 
