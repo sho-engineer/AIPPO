@@ -193,7 +193,8 @@ describe("入力を失わない", () => {
     renderLesson();
 
     await toQuickTry(user);
-    await user.click(screen.getByRole("button", { name: "もどる" }));
+    // 戻るはヘッダーの「←」。画面下から移した（戻る道を1本にするため）
+    await user.click(screen.getByTestId("lesson-back"));
     await user.click(screen.getByTestId("primary-action"));
 
     expect(

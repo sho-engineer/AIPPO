@@ -68,15 +68,17 @@ await p.getByRole("button", { name: "はじめる" }).first().click();
 await p.waitForTimeout(900);
 await scan("ホーム");
 
-await p.getByRole("button", { name: "教材一覧" }).click();
+await p.getByRole("button", { name: "コース" }).click();
 await p.waitForTimeout(700);
 await scan("教材一覧");
 
 // 設定と、その下位画面
-await p.getByRole("button", { name: "設定" }).click();
+await p.getByRole("button", { name: "その他" }).click();
 await p.waitForTimeout(700);
 await scan("設定");
-for (const name of ["アカウント設定", "AI設定", "学習設定", "通知設定", "言語設定", "学習データ・プライバシー", "規約とポリシー"]) {
+// 準備中として止めてあるものは入れない（押しても下位画面が開かない）。
+// AI設定・学習設定・言語設定は、決めた値をどこも読んでいなかったので止めた
+for (const name of ["アカウント設定", "通知設定", "音", "学習データ・プライバシー", "規約とポリシー"]) {
   await p.getByRole("button", { name: new RegExp(name) }).click();
   await p.waitForTimeout(500);
   await scan(`設定 ${name}`);
@@ -99,7 +101,7 @@ for (const name of ["アカウント設定", "AI設定", "学習設定", "通知
   await p.getByRole("button", { name: "前の画面へ戻る" }).click();
   await p.waitForTimeout(400);
 }
-await p.getByRole("button", { name: "教材一覧" }).click();
+await p.getByRole("button", { name: "コース" }).click();
 await p.waitForTimeout(600);
 
 await p.getByTestId("lesson-rewrite_text").click();
@@ -132,7 +134,11 @@ for (let i = 0; i < 30; i++) {
   if (text.includes("スキルを身につけました")) { await scan("レッスン 完了"); break; }
 
   try { await primary.waitFor({ state: "visible", timeout: 8000 }); } catch { break; }
-  if (await primary.isDisabled()) {
+  const blocked = async () =>
+    (await primary.isDisabled()) ||
+    (await primary.getAttribute("aria-disabled")) === "true";
+
+  if (await blocked()) {
     const ta = p.locator("textarea:visible").first();
     if (await ta.count()) await ta.fill("来週の打ち合わせの件、資料の確認をお願いします。");
     else {
@@ -142,7 +148,7 @@ for (let i = 0; i < 30; i++) {
     }
     await p.waitForTimeout(300);
   }
-  if (await primary.isDisabled()) break;
+  if (await blocked()) break;
   await primary.click();
   await p.waitForTimeout(800);
 }

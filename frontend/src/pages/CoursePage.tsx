@@ -27,126 +27,60 @@
 import { useEffect, useState } from "react";
 
 import { AppHeader } from "../components/AppShell";
-import { IconCheck } from "../components/Icons";
+import { CertificateEntry } from "../components/course/CertificateEntry";
+import { CourseCard } from "../components/course/CourseCard";
+import { LessonRow } from "../components/lessons/LessonRow";
+import { CertificatePage } from "./CertificatePage";
 import { PoAvatar } from "../po/PoAvatar";
-import { lookupLesson, useCourse } from "../course/live";
-import {
-  comingSoonNote,
-  hasComingSoonDetail,
-  isComingSoon,
-  startableLessons,
-} from "../course/availability";
+import { useCertificates } from "../course/certificate";
+import { lookupLesson, useCourse, useCourses } from "../course/live";
+import { isComingSoon, startableLessons } from "../course/availability";
 import { loadRecommendations } from "../course/recommend";
 import { useCompletedLessons } from "../course/progress";
+import { useBookmarks } from "../course/bookmarks";
+import { useKeeping } from "../course/keeping";
+import { searchLessons } from "../course/search";
 import type { Lesson } from "../course/types";
 
 export interface CoursePageProps {
   onSelectLesson: (lessonId: string) => void;
 }
 
-/**
- * 一覧の1行。
- *
- * 左に2桁の番号、右に所要時間。あいだに題とねらい。
- * 番号を桁でそろえるのは飾りではなく、9件の順番を
- * 一目で追えるようにするため。
- */
-function LessonRow({
-  lesson,
-  done,
-  firstUp,
-  onSelect,
-}: {
-  lesson: Lesson;
-  done: boolean;
-  /** 最初にやる1本。先頭に置いたうえで、ここだけ短く添える。 */
-  firstUp: boolean;
-  onSelect: () => void;
-}) {
-  const soon = isComingSoon(lesson);
-
-  const meta = [
-    lesson.estimatedMinutes !== undefined ? `${lesson.estimatedMinutes}分` : null,
-    lesson.usesAi ? null : "AIは使いません",
-  ].filter((part): part is string => part !== null);
-
-  return (
-    <li>
-      {/*
-        近日公開の教材も一覧には出す。何が来るのか分かるほうが、
-        いま1本しか無いことの説明にもなる。ただし押せなくする。
-        押せることと見えることを、見た目でも読み上げでも分ける。
-      */}
-      <button
-        type="button"
-        onClick={onSelect}
-        disabled={soon}
-        aria-disabled={soon}
-        data-testid={`lesson-${lesson.id}`}
-        data-availability={soon ? "coming_soon" : "available"}
-        className={`row row-tap items-baseline disabled:cursor-not-allowed
-                    ${soon ? "opacity-55" : ""}`}
-      >
-        <span
-          aria-hidden="true"
-          className="w-6 shrink-0 text-xs tabular-nums text-ink-muted"
-        >
-          {String(lesson.number).padStart(2, "0")}
-        </span>
-
-        <span className="min-w-0 flex-1">
-          <span className="flex items-baseline gap-2">
-            <span className="min-w-0 flex-1 text-sm font-bold leading-6">
-              {lesson.title}
-            </span>
-            {/* 状態を色だけで表さない。必ず文字か印を添える */}
-            {done && (
-              <IconCheck
-                className="h-4 w-4 shrink-0 self-center text-brand"
-                aria-label="おわった"
-              />
-            )}
-          </span>
-
-          <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
-            {lesson.goal}
-          </span>
-
-          {/*
-            補足は1行にまとめる。1つずつ囲うと添え物が主役になる。
-
-            中黒は要素のあいだにだけ入れる。頭に付けると
-            「・AIは使いません」のように、何かが抜け落ちて見える
-            （所要時間の無い診断で実際にそうなった）。
-          */}
-          <span className="mt-1 block text-xs text-ink-muted">
-            {soon ? (
-              hasComingSoonDetail(lesson) ? comingSoonNote(lesson) : "近日公開"
-            ) : (
-              <>
-                {meta.join("・")}
-                {firstUp && (
-                  <span className="font-bold text-brand-dark">
-                    {meta.length > 0 && "・"}まずはここから
-                  </span>
-                )}
-              </>
-            )}
-          </span>
-        </span>
-      </button>
-    </li>
-  );
-}
 
 export function CoursePage({ onSelectLesson }: CoursePageProps) {
   const course = useCourse();
+  /*
+    いま学ぶコース以外。中身のあるものも近日公開のものも入りうるが、
+    いまは近日公開しか無い（開けるコースは1つ）。
+    開けるものが増えたら、押して入れるように onOpen を渡す。
+  */
+  const upcoming = useCourses().filter((entry) => entry.id !== course.id);
   const completed = useCompletedLessons();
+  const bookmarks = useBookmarks();
+  /*
+    目印は登録した人のもの（course/keeping.ts）。
+    ゲストには印そのものを出さない。押せる形で置いておいて、
+    押した先で断るのは、押させてから取り上げるのと同じ。
+  */
+  const { canKeep } = useKeeping();
+  const certificates = useCertificates();
   const [recommended, setRecommended] = useState<string[]>([]);
+  const [query, setQuery] = useState("");
+  // 修了証は下位画面として開く。設定と同じで、1画面には1つの目的だけ置く
+  const [showingCertificates, setShowingCertificates] = useState(false);
 
   useEffect(() => {
     setRecommended(loadRecommendations());
   }, []);
+
+  if (showingCertificates) {
+    return (
+      <CertificatePage
+        certificates={certificates}
+        onBack={() => setShowingCertificates(false)}
+      />
+    );
+  }
 
   // 進捗の分母は「始められる教材」だけ。近日公開を混ぜると
   // 始めようのないもので割ることになり、いつまでも終わらない
@@ -163,6 +97,14 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
     startable.find(
       (lesson) => recommended.includes(lesson.id) && !completed.includes(lesson.id),
     )?.id ?? startable.find((lesson) => !completed.includes(lesson.id))?.id;
+
+  // 探している最中は、絞り込んだものだけを並べる。
+  // 空のときは全件（＝いつもの目次）に戻る
+  const found = searchLessons(course.lessons, query);
+
+  // 目印の付いた教材。id の並び順ではなく、一覧と同じ順に出す——
+  // 上下2か所で順番が違うと、同じものを探し直すことになる
+  const savedLessons = course.lessons.filter((lesson) => bookmarks.has(lesson.id));
 
   const skills = completed
     .map((id) => lookupLesson(id))
@@ -195,6 +137,44 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
           </section>
         )}
 
+        {/*
+          あとで見るに入れたもの。
+
+          付けられるだけで、まとめて見る場所が無いと目印の意味が無い
+          （一覧を上から探し直すことになる）。1件も無いときは
+          見出しごと出さない——空の枠は、機能が壊れているように見える。
+
+          探している最中は隠す。絞り込んだ結果の下に別の一覧が続くと、
+          どちらが検索結果なのか分からなくなる。
+        */}
+        {query.trim() === "" && savedLessons.length > 0 && (
+          <section className="mt-7" aria-labelledby="saved-heading">
+            <h2 id="saved-heading" className="section-title">
+              あとで見る
+            </h2>
+            <ul className="mt-2" role="list">
+              {savedLessons.map((lesson) => (
+                <LessonRow
+                  key={lesson.id}
+                  lesson={lesson}
+                  done={completed.includes(lesson.id)}
+                  firstUp={false}
+                  bookmarked
+                  onToggleBookmark={() => bookmarks.toggle(lesson.id)}
+                  testIdPrefix="saved-"
+                  onSelect={() => onSelectLesson(lesson.id)}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* 1枚も無ければ、この行ごと出ない */}
+        <CertificateEntry
+          count={certificates.length}
+          onOpen={() => setShowingCertificates(true)}
+        />
+
         <section className="mt-7" aria-labelledby="lessons-heading">
           <div className="flex items-baseline justify-between gap-3">
             <h2 id="lessons-heading" className="section-title">
@@ -205,22 +185,116 @@ export function CoursePage({ onSelectLesson }: CoursePageProps) {
             </span>
           </div>
 
-          <ul className="mt-2" role="list">
-            {course.lessons.map((lesson) => (
-              <LessonRow
-                key={lesson.id}
-                lesson={lesson}
-                done={completed.includes(lesson.id)}
-                firstUp={lesson.id === firstUpId}
-                onSelect={() => onSelectLesson(lesson.id)}
-              />
-            ))}
-          </ul>
+          {/*
+            探す口。
 
-          <p className="mt-3 text-xs leading-6 text-ink-muted">
-            残りは順次公開します。
-          </p>
+            9件しか無いので目次でも足りるが、「請求書」「議事録」のように
+            **やりたいことの言葉**で来る人は、題（「文章を書き直す」）と
+            自分の言葉が一致せず、合う1本にたどり着けない。
+            タグまで含めて当てる（search.ts）。
+
+            虫めがねのアイコンは付けない。入力欄そのものが探す場所だと
+            分かるので、絵を足しても意味が増えない。
+          */}
+          <div className="mt-2">
+            <label htmlFor="lesson-search" className="sr-only">
+              レッスンを探す
+            </label>
+            <input
+              id="lesson-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="やりたいことで探す（例: メール、要約）"
+              data-testid="lesson-search"
+              className="w-full border-b border-line bg-transparent px-1 py-2 text-sm
+                         placeholder:text-ink-muted focus:border-brand focus:outline-none"
+            />
+          </div>
+
+          {/*
+            見つからなかったときに、黙って空にしない。
+            打ち間違いなのか、そもそも無いのかが分からなくなる。
+          */}
+          {found.length === 0 ? (
+            /*
+              0件のときは、下に一覧が無い。
+
+              以前ここに「下の一覧から選んでください」と書いていたが、
+              絞り込みで消えているので**下には何も無い**。できないことを
+              指示していた。行き止まりで指示だけ残るのが、いちばんよくない。
+
+              代わりに、その場で戻せる口を置く。
+            */
+            <div className="mt-4" role="status">
+              <p className="text-sm leading-7 text-ink-muted">
+                「{query}」に当てはまる教材はありませんでした。
+                <br />
+                別の言い方でも探せます。
+              </p>
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                data-testid="lesson-search-clear"
+                className="-my-2 mt-1 py-2 text-sm font-bold text-brand
+                           transition hover:text-brand-dark"
+              >
+                すべての教材を見る
+              </button>
+            </div>
+          ) : (
+            <ul className="mt-2" role="list">
+              {found.map((lesson) => (
+                <LessonRow
+                  key={lesson.id}
+                  lesson={lesson}
+                  done={completed.includes(lesson.id)}
+                  firstUp={lesson.id === firstUpId}
+                  bookmarked={bookmarks.has(lesson.id)}
+                  onToggleBookmark={
+                    isComingSoon(lesson) || !canKeep
+                      ? undefined
+                      : () => bookmarks.toggle(lesson.id)
+                  }
+                  onSelect={() => onSelectLesson(lesson.id)}
+                />
+              ))}
+            </ul>
+          )}
+
         </section>
+
+        {/*
+          これから増えるコース。
+
+          「残りは順次公開します」という一文の代わりに置いた。
+          その一文は、何がどれだけ増えるのかを何も言っていない。
+          題と本数まで見えていれば、いま開けるものを選ぶときの
+          手がかりになる（憲章 原則 I: 行き止まりを作らない）。
+
+          中身が届いていないとき（同梱データで動いているとき）は
+          何も出ない。無いものを作って見せない。
+        */}
+        {upcoming.length > 0 && (
+          <section className="mt-8" aria-labelledby="upcoming-heading">
+            <h2 id="upcoming-heading" className="section-title">
+              これから増えるコース
+            </h2>
+            <p className="mt-1 text-xs leading-6 text-ink-muted">
+              いま作っています。できたものから開いていきます。
+            </p>
+
+            <ul className="mt-3 space-y-3" role="list" data-testid="upcoming-courses">
+              {upcoming.map((entry) => (
+                <CourseCard
+                  key={entry.id}
+                  course={entry}
+                  completedIds={completed}
+                />
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="mt-8">
           <PoAvatar

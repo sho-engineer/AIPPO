@@ -176,7 +176,7 @@ describe("画面での見え方", () => {
   };
 
   const openCourse = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(await screen.findByRole("button", { name: "教材一覧" }));
+    await user.click(await screen.findByRole("button", { name: "コース" }));
   };
 
   it("教材一覧に近日公開の教材も並ぶが、押せない", async () => {
@@ -216,8 +216,14 @@ describe("画面での見え方", () => {
       // 押せないボタンなので、クリックが弾かれてもよい
     });
 
-    // レッスン画面へは移っていないこと
-    expect(screen.queryByTestId("phase-stepper")).not.toBeInTheDocument();
+    /*
+      レッスン画面へは移っていないこと。
+
+      目印は進み具合の帯。以前は区切りの帯（phase-stepper）で見ていたが、
+      進み具合を1本にまとめた際に消えた。消えた目印で「無いこと」を
+      確かめると、**画面が開いていても通ってしまう**。
+    */
+    expect(screen.queryByTestId("lesson-progress")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: COURSE.title })).toBeInTheDocument();
   });
 
@@ -228,6 +234,8 @@ describe("画面での見え方", () => {
 
     // 届いた2本のうち始められるのは1本なので、分母は 1（2ではない）
     const progress = await screen.findByTestId("progress-summary");
-    expect(progress).toHaveTextContent("0/1");
+    expect(progress).toHaveTextContent(/0\s*\/\s*1/);
+    // 2本目（近日公開）を分母に数えていないこと
+    expect(progress).not.toHaveTextContent(/\/\s*2/);
   });
 });

@@ -105,7 +105,13 @@ export async function generate(
       throw new AiRequestError(detailOf(payload), "failed");
     }
 
-    return (await response.json()) as AiGenerateResult;
+    try {
+      return (await response.json()) as AiGenerateResult;
+    } catch {
+      // 200 なのに JSON でない（経路の設定違いなど）。
+      // 生の SyntaxError は画面の再実行の道を素通りする
+      throw new AiRequestError(FALLBACK_DETAIL, "failed");
+    }
   } catch (error) {
     if (error instanceof AiRequestError) throw error;
     // 通信できなかったことを黙って握りつぶさない。

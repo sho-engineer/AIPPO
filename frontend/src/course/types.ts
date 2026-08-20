@@ -212,6 +212,27 @@ export interface ConceptCard {
   highlight?: string;
   /** three_points / simple_flow のとき使う。 */
   points?: string[];
+
+  /**
+   * 見返すときに出す、**別の例**。
+   *
+   * 飛ばした解説をあとで見るとき、同じ文をもう一度出しても
+   * 「さっき飛ばしたもの」でしかない。読まなかった理由が
+   * 「その例がぴんと来なかった」ことなら、二度目も同じになる。
+   *
+   * 別の例を1つ持たせておけば、同じ理屈を違う場面で見せられる。
+   * **AIは呼ばない。**その場で作らせると、見返すたびに費用がかかるうえ、
+   * 出来がその時々で変わって、教材として確かめられなくなる。
+   *
+   * 省略してよい。無ければ、見返しでも元の例をそのまま出す。
+   */
+  reviewExample?: {
+    /** 言い換えた説明。無ければ本文をそのまま使う。 */
+    body?: string;
+    before?: string;
+    after?: string;
+    points?: string[];
+  };
 }
 
 /**
@@ -224,6 +245,14 @@ export type LessonMode = "standard" | "model_comparison";
 
 /** いま始められるか。 */
 export type LessonAvailability = "available" | "coming_soon";
+
+/**
+ * むずかしさの目安。
+ *
+ * いまはコースにだけ付けている。レッスン1本ずつに付けると、
+ * 9本すべてが「初級」と並ぶだけで、何の手がかりにもならない。
+ */
+export type Difficulty = "beginner" | "intermediate" | "advanced";
 
 export interface Lesson {
   id: string;
@@ -273,6 +302,21 @@ export interface Course {
   id: string;
   title: string;
   description: string;
+  /** 一覧のカードに出す目安。レッスンごとの難易度とは別。 */
+  difficulty?: Difficulty;
+  /**
+   * いま始められるか。
+   *
+   * レッスンと同じで、「一覧に出すか」とは別に持つ。
+   * 中身がまだ無いコースも、何ができるようになるかを先に見せたい。
+   * そのとき、出すことと始められることを1つの項目で表すと、
+   * 出した瞬間に始められてしまう。
+   *
+   * 省略されていたら「始められる」とみなす（古い応答との互換）。
+   */
+  availability?: LessonAvailability;
+  /** 近日公開のときに添える一言。空なら既定の文言。 */
+  comingSoonMessage?: string;
   lessons: Lesson[];
 }
 

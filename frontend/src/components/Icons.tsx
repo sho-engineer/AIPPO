@@ -598,6 +598,37 @@ export function IconShield({ className }: IconProps) {
   );
 }
 
+/**
+ * 炎。続けている日数に添える。
+ *
+ * 数字だけを並べると、進み具合の分子（何本終えたか）と見分けが付かない。
+ * 線だけで描く——塗った炎は絵文字に近づいて、画面の中で浮く。
+ */
+export function IconStreak({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M12 3.2c2.6 2.4 4.6 4.9 4.6 7.8a4.6 4.6 0 0 1-9.2 0c0-1.2.4-2.2 1.1-3.2.5 1 1.2 1.6 2 1.9-.4-2.4.2-4.6 1.5-6.5z" />
+      <path d="M12 20.8a2.6 2.6 0 0 0 2.6-2.6c0-1.3-.9-2.3-2.6-3.6-1.7 1.3-2.6 2.3-2.6 3.6a2.6 2.6 0 0 0 2.6 2.6z" />
+    </Svg>
+  );
+}
+
+/**
+ * 拡声器。音の設定に使う。
+ *
+ * 右へ出る2本の弧が「鳴っている」を表す。切ってあるときに斜線を重ねる
+ * 描き分けはしない——設定の行では、入り切りは言葉とつまみが伝える。
+ */
+export function IconSound({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M4.4 9.6h3.2L12 5.8v12.4l-4.4-3.8H4.4z" />
+      <path d="M15.4 9.6a3.4 3.4 0 0 1 0 4.8" />
+      <path d="M17.9 7a6.9 6.9 0 0 1 0 10" />
+    </Svg>
+  );
+}
+
 /** 錠。まだ開けられない。 */
 export function IconLock({ className }: IconProps) {
   return (

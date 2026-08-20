@@ -17,12 +17,57 @@
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": { "service": "backend" } },
-    { "source": "/admin/(.*)", "destination": { "service": "backend" } },
-    { "source": "/static/(.*)", "destination": { "service": "backend" } },
-    { "source": "/health/(.*)", "destination": { "service": "backend" } },
-    { "source": "/healthz", "destination": { "service": "backend" } },
-    { "source": "/readyz", "destination": { "service": "backend" } },
-    { "source": "/(.*)", "destination": { "service": "frontend" } }
+    {
+      "source": "/api/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/admin/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/static/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/health/(.*)",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/healthz",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/readyz",
+      "destination": {
+        "service": "backend"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "frontend"
+      }
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/v1/maintenance/prune/",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/v1/maintenance/reminders/",
+      "schedule": "0 0 * * *"
+    }
   ]
 }

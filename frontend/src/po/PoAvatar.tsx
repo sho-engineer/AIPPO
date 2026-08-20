@@ -17,13 +17,31 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { prefersReducedMotion } from "../course/motion";
 import type { PoEmotion, PoMessage } from "../course/types";
-import { PO_ALT, PO_FALLBACK, PO_PLACEHOLDER, poAssets } from "./assets";
+import {
+  PO_ALT,
+  PO_FALLBACK,
+  PO_PLACEHOLDER,
+  poAssets,
+  poTransform,
+} from "./assets";
 
 /** まばたきの間隔。5〜8秒でばらつかせる（等間隔だと機械に見える）。 */
 const BLINK_MIN_MS = 5000;
 const BLINK_MAX_MS = 8000;
 const BLINK_DURATION_MS = 140;
+
+/** 口の開け閉め。速すぎると点滅に見え、遅いと呼吸のように見える。 */
+const MOUTH_MS = 160;
+
+/**
+ * しゃべって見せる時間。
+ *
+ * 話し続けさせない。吹き出しの文は数秒で読み終わるのに、口だけ
+ * 動き続けると、まだ何か言っているのかと待たせることになる。
+ */
+const TALKING_MS = 1600;
 
 export type PoAvatarProps = {
   po: PoMessage;
@@ -68,6 +86,56 @@ function useBlink(emotion: PoEmotion): boolean {
   return blinking;
 }
 
+/**
+ * しゃべっている口の動き。
+ *
+ * 「話している」用の絵は1枚しか無いので、ふだんの絵と交互に出して
+ * 口が動いているように見せる。2枚の違いはほぼ口だけなので、
+ * 速く入れ替えると開け閉めに見える。
+ *
+ * 動きを減らす設定のときは入れ替えない。文字は吹き出しに出ているので、
+ * 口が動かなくても伝わるものは何も減らない。
+ */
+function useTalking(emotion: PoEmotion, message: string): boolean {
+  /*
+    返すのは「口を閉じているか」。**開いているか**ではない。
+
+    開いているかを返すと、初期状態が false（＝閉じ）になり、
+    最初の1枚が「話している」用の絵ではなくなる。絵の探し直し
+    （PO_FALLBACK）はその1枚目を起点にするので、起点がずれると
+    別の絵へ寄ってしまう。話し始めは口が開いている、が自然でもある。
+  */
+  const [closed, setClosed] = useState(false);
+
+  useEffect(() => {
+    if (emotion !== "talking" || prefersReducedMotion()) {
+      setClosed(false);
+      return;
+    }
+
+    let shut = false;
+    const timer = window.setInterval(() => {
+      shut = !shut;
+      setClosed(shut);
+    }, MOUTH_MS);
+
+    // 話し終わったら開いた絵に戻す。閉じたまま止めない
+    const stop = window.setTimeout(() => {
+      window.clearInterval(timer);
+      setClosed(false);
+    }, TALKING_MS);
+
+    return () => {
+      window.clearInterval(timer);
+      window.clearTimeout(stop);
+      setClosed(false);
+    };
+    // 文が変わるたびに、もう一度しゃべる
+  }, [emotion, message]);
+
+  return closed;
+}
+
 function PoImage({ emotion, className }: { emotion: PoEmotion; className: string }) {
   /**
    * 絵の探し方は3段。
@@ -102,24 +170,104 @@ function PoImage({ emotion, className }: { emotion: PoEmotion; className: string
     );
   }
 
+  const shown = chain[attempt];
+
   return (
-    <img
-      // key を変えて、次の候補へ移ったときに必ず読み直させる
-      key={chain[attempt]}
-      src={poAssets[chain[attempt]]}
-      alt={PO_ALT}
-      data-testid="po-image"
-      onError={() => setAttempt((current) => current + 1)}
-      className={`shrink-0 object-contain ${className}`}
+    /*
+      枠を1枚かませる。
+
+      8枚は台紙（512×512）こそ同じだが、**中の絵の大きさと位置が違う**。
+      そのまま出すと、しゃべるたび・まばたきのたびにポーが縮んで跳ねる
+      （talking は neutral の4分の3、warning は右へ寄っている）。
+
+      絵は描き直さない。ここで neutral の位置と大きさへ合わせる。
+      枠の大きさは呼び出し側が決め、中の絵はいつも同じ場所に立つ。
+    */
+    /*
+      枠は必ず正方形にする。
+
+      中の絵を absolute で敷くので、枠自身に高さの手がかりが無くなる。
+      呼び出し側が `w-full` のように幅だけ渡すと、高さが 0 になって
+      ポーが消える（実際に消えた）。台紙が 512×512 の正方形なので、
+      枠も正方形と決めておけば、幅だけ渡せば形が決まる。
+    */
+    <span
+      className={`relative block aspect-square shrink-0 overflow-hidden ${className}`}
+      data-po-frame={shown}
+    >
+      <img
+        // key を変えて、次の候補へ移ったときに必ず読み直させる
+        key={shown}
+        src={poAssets[shown]}
+        alt={PO_ALT}
+        data-testid="po-image"
+        onError={() => setAttempt((current) => current + 1)}
+        className="absolute inset-0 h-full w-full object-contain"
+        style={{ transform: poTransform(shown), transformOrigin: "center" }}
+      />
+    </span>
+  );
+}
+
+/**
+ * ポーの顔だけ。吹き出しは付けない。
+ *
+ * 画面の上のほうで大きく出すとき（ホーム、レッスンの導入、完了）は、
+ * 吹き出しの位置が画面ごとに違う。顔と吹き出しを1つの部品に固めると、
+ * 並べ方を変えるたびにこの中を触ることになる。
+ *
+ * まばたきと口の動きはここが持つ。置き場所が変わっても、
+ * 生きている感じは同じであってほしい。
+ */
+export function PoFace({
+  emotion,
+  message,
+  className = "h-20 w-20",
+  animate = true,
+}: {
+  emotion: PoEmotion;
+  /** しゃべっている風に口を動かす手がかり。変わるたびに動き直す。 */
+  message?: string;
+  className?: string;
+  animate?: boolean;
+}) {
+  const blinking = useBlink(emotion);
+  const mouthClosed = useTalking(emotion, message ?? "");
+
+  const shown: PoEmotion = blinking
+    ? "blink"
+    : emotion === "talking" && mouthClosed
+      ? "neutral"
+      : emotion;
+
+  const motion = !animate
+    ? ""
+    : emotion === "celebrate"
+      ? "animate-pop-in"
+      : "animate-float";
+
+  return (
+    <PoImage
+      emotion={shown}
+      className={`transition-opacity duration-200 ${className} ${motion}`}
     />
   );
 }
 
 export function PoAvatar({ po, compact = false, isVisible = true }: PoAvatarProps) {
   const blinking = useBlink(po.emotion);
+  const mouthClosed = useTalking(po.emotion, po.message);
   if (!isVisible) return null;
 
-  const shown: PoEmotion = blinking ? "blink" : po.emotion;
+  /*
+    出す絵の決め方。まばたきが最優先（一瞬だけ）、次に口の動き。
+    しゃべっている間は、ふだんの絵と交互に出して口を動かして見せる。
+  */
+  const shown: PoEmotion = blinking
+    ? "blink"
+    : po.emotion === "talking" && mouthClosed
+      ? "neutral"
+      : po.emotion;
   const size = compact ? "h-12 w-12" : "h-16 w-16 sm:h-20 sm:w-20";
 
   return (

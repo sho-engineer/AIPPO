@@ -31,10 +31,31 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? "line" : "list",
+  /*
+    CI では画面つきの報告も残す。
+
+    `line` だけにしていたので、CI の置き場（`frontend/playwright-report/`）へ
+    上げるものが**一度も作られていなかった**。落ちたときに
+    「No files were found」とだけ出て、何が起きたか誰にも分からない。
+
+    実際それで詰まった。手元で64件すべて通るのに CI の1件だけが落ち、
+    残っていたのが行ログだけだったので、原因にたどり着けなかった。
+
+    `open: "never"` を付けるのは、CI で報告を開こうとして止まるのを防ぐため。
+  */
+  reporter: process.env.CI
+    ? [["line"], ["html", { open: "never" }]]
+    : "list",
   use: {
     baseURL: "http://127.0.0.1:5173",
-    trace: "on-first-retry",
+    /*
+      落ちた回の記録を残す。
+
+      `on-first-retry` だと、**再試行で通った回**の記録しか残らない。
+      いちばん見たいのは、2回とも落ちた回のほう。そこが空になる。
+    */
+    trace: process.env.CI ? "retain-on-failure" : "on-first-retry",
+    screenshot: "only-on-failure",
   },
   projects: [
     { name: "desktop", use: { ...devices["Desktop Chrome"], ...channel } },

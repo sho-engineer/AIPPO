@@ -9,7 +9,7 @@
  * 「押させない・見せ方を変える」ためのもので、守りの本体ではない。
  */
 
-import type { Lesson } from "./types";
+import type { Course, Lesson } from "./types";
 
 export function isComingSoon(lesson: Lesson): boolean {
   // 省略は available とみなす。同梱データで動かすときに
@@ -45,6 +45,22 @@ export function hasComingSoonDetail(lesson: Lesson): boolean {
   if (lesson.comingSoonMessage) return true;
   if (!lesson.plannedReleaseDate) return false;
   return !Number.isNaN(new Date(lesson.plannedReleaseDate).getTime());
+}
+
+/**
+ * コースが始められるか。
+ *
+ * 教材と同じ考え方で、省略は「始められる」とみなす。同梱データで
+ * 動かすとき（サーバーに届かないとき）に全部が近日公開になると、
+ * 何も始められない画面になる。
+ */
+export function isCourseComingSoon(course: Course): boolean {
+  return course.availability === "coming_soon";
+}
+
+/** 近日公開のコースに添える一言。 */
+export function courseComingSoonNote(course: Course): string {
+  return course.comingSoonMessage || "いま教材を作っています。";
 }
 
 /** 始められる教材だけ。進捗の分母や「次におすすめ」に使う。 */

@@ -25,7 +25,12 @@ from apps.catalog.access import (
     is_startable,
     require_startable,
 )
-from apps.catalog.models import AvailabilityStatus, Lesson, PublishStatus
+from apps.catalog.models import (
+    AvailabilityStatus,
+    Course,
+    Lesson,
+    PublishStatus,
+)
 
 CATALOG_URL = "/api/v1/catalog/"
 GENERATE_URL = "/api/v1/ai/generate/"
@@ -37,7 +42,13 @@ GATED = "improve_answer"
 
 @pytest.fixture
 def seeded(db):
+    """取り込んだうえで、**このコース**を返す。
+
+    教材の表には「これから増えるコース」の分も入る。
+    どのコースの話をしているのかを、試験の側で持てるようにする。
+    """
     call_command("seed_catalog")
+    return Course.objects.get(slug="first_step_7days")
 
 
 @pytest.fixture
@@ -67,13 +78,18 @@ class TestReleaseScope:
 
         教材の中身は9本とも揃っている。閉じておくと、
         画面には出ているのに押せない教材が並ぶだけになる。
+
+        見るのはこのコースの分だけ。「これから増えるコース」は
+        中身がまだ無いので、始められないのが正しい。
         """
-        stuck = Lesson.objects.exclude(
-            availability_status=AvailabilityStatus.AVAILABLE
-        ).values_list("slug", flat=True)
+        stuck = (
+            Lesson.objects.filter(course=seeded)
+            .exclude(availability_status=AvailabilityStatus.AVAILABLE)
+            .values_list("slug", flat=True)
+        )
 
         assert list(stuck) == []
-        assert Lesson.objects.count() == 9
+        assert seeded.lessons.count() == 9
 
     def test_a_gated_lesson_is_still_listed(self, gated):
         """一覧から消してはいけない。出したうえで止めるのが「近日公開」。"""

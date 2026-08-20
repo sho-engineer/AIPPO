@@ -23,6 +23,7 @@
 import { BrandLogo } from "../components/BrandLogo";
 import { IconChat, IconChecklist, IconWrite } from "../components/Icons";
 import { PoeAvatar } from "../components/PoeAvatar";
+import { PO_WAVE } from "../po/assets";
 import { TitleBackdrop } from "../components/TitleBackdrop";
 import { BRAND, BUTTONS, POE_TITLE_GREETING } from "../content/ui";
 
@@ -127,7 +128,7 @@ export function TopPage({ onStart }: TopPageProps) {
           <div className="mt-6 flex flex-col items-center">
             <PoeAvatar
               variant="hero"
-              imageSrc="/brand/poe-wave.webp"
+              imageSrc={PO_WAVE}
               tutor={{
                 message: POE_TITLE_GREETING,
                 emotion: "neutral",

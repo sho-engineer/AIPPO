@@ -10,13 +10,20 @@
  *
  * 支給デザインにあって、ここに無いもの
  * ------------------------------------
- * 外部連携とサブスクリプションは、押せる形で置いたうえで「準備中」と
- * 書いて止めてある。課金はまだこのアプリに無いため。それらしい画面だけ
- * 作ると、触った人は「申し込んだのに反映されない」と受け取る。
- * 無いものは無いと書く。
+ * 外部連携・サブスクリプション・ヘルプ・言語設定は、押せる形で置いたうえで
+ * 「準備中」と書いて止めてある。課金も翻訳もまだこのアプリに無いため。
+ * それらしい画面だけ作ると、触った人は「申し込んだのに反映されない」
+ * 「英語にしたのに日本語のまま」と受け取る。無いものは無いと書く。
  *
- * アカウント設定は動く。登録なしでも最後まで使えるので、ここは
+ * 止め方は4つとも同じにする（行を disabled にして、説明の代わりに
+ * 「準備中です」を出す）。同じ「まだ無い」を、ある行は開けて中で断り、
+ * ある行は開けない、と分けると、開けた人は「こっちは動くのかもしれない」
+ * と読む。1画面の中で扱いを揃えるほうが、言葉を尽くすより早く伝わる。
+ *
+ * アカウント設定は動く。登録なしでも教材は最後まで通るので、ここは
  * 「登録しないと始まらない入口」ではなく「残したくなったときの置き場」。
+ * 取っておくもの（あとで見る印・プロンプト帳・修了証）だけが
+ * この置き場の内側にある（src/course/keeping.ts）。
  */
 
 import { useEffect, useState } from "react";
@@ -42,21 +49,18 @@ import {
   IconQuestion,
   IconRefresh,
   IconShield,
+  IconSound,
   IconSparkle,
 } from "../components/Icons";
 import {
-  SegmentedChoice,
-  SelectField,
   SettingsGroup,
   SettingsRow,
-  StepSlider,
   Toggle,
 } from "../components/settings/Controls";
-import { fetchModels, type AiModelChoice } from "../api/models";
+import { updateReminders } from "../api/accounts";
+import { previewSuccessSound } from "../course/sound";
+import { useAuth } from "../auth/AuthContext";
 import {
-  DAILY_GOALS,
-  LANGUAGES,
-  TONES,
   clearLearningData,
   exportLearningData,
   loadSettings,
@@ -69,19 +73,11 @@ import { APP_VERSION } from "../content/ui";
 /** 下位画面の名前。一覧は null。 */
 type Panel =
   | "account"
-  | "ai"
-  | "study"
   | "notification"
+  | "sound"
   | "privacy"
-  | "language"
   | "legal"
   | null;
-
-const LENGTH_OPTIONS = [
-  { value: "short" as const, label: "短め" },
-  { value: "standard" as const, label: "標準" },
-  { value: "long" as const, label: "長め" },
-];
 
 export interface SettingsPageProps {
   onBack: () => void;
@@ -90,7 +86,6 @@ export interface SettingsPageProps {
 export function SettingsPage({ onBack }: SettingsPageProps) {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [panel, setPanel] = useState<Panel>(null);
-  const [models, setModels] = useState<AiModelChoice[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   // 規約の下位画面。null なら3つの一覧
@@ -109,18 +104,12 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
   };
 
   /*
-    選べるモデルはサーバーに聞く。画面にモデル名を書かない。
-    取れなくても設定画面は開く（そのときは「サーバーにまかせる」だけになる）。
+    モデル一覧はもう聞かない。
+
+    AI設定を止めたので、聞いても出す先が無い。設定画面を開くたびに
+    サーバーへ1往復するだけになる。繋ぎ戻すときは
+    `api/models.ts` の fetchModels をここで呼ぶ（消していない）。
   */
-  useEffect(() => {
-    let alive = true;
-    void fetchModels().then((list) => {
-      if (alive) setModels(list);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // 知らせは数秒で消す。出しっぱなしにすると次の操作の邪魔になる
   useEffect(() => {
@@ -138,11 +127,9 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
   const title = {
     account: "アカウント設定",
-    ai: "AI設定",
-    study: "学習設定",
     notification: "通知設定",
+    sound: "音",
     privacy: "学習データ・プライバシー",
-    language: "言語設定",
     legal: "規約とポリシー",
   };
 
@@ -192,17 +179,11 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
               ) : (
                 <LegalView document={findLegalDocument(legalId)!} />
               ))}
-            {panel === "ai" && (
-              <AiPanel settings={settings} models={models} onChange={update} />
-            )}
-            {panel === "study" && (
-              <StudyPanel settings={settings} onChange={update} />
-            )}
             {panel === "notification" && (
               <NotificationPanel settings={settings} onChange={update} />
             )}
-            {panel === "language" && (
-              <LanguagePanel settings={settings} onChange={update} />
+            {panel === "sound" && (
+              <SoundPanel settings={settings} onChange={update} />
             )}
             {panel === "privacy" && (
               <PrivacyPanel
@@ -253,19 +234,34 @@ function MainMenu({
             description="登録・ログイン・パスワード・退会"
             onClick={() => onOpen("account")}
           />
+          {/*
+            AI設定は選ばせない。
+
+            モデル・口調・回答の長さ・出典表示のどれも、選んでも
+            **AIへの依頼には一切乗っていなかった**（実際に使うモデルは
+            教材データ側の指定で決まる）。とくにモデル選択は、サーバーから
+            一覧を取ってきて表示していたので、本物らしく見えるぶん質が悪い。
+            繋いだら onClick を戻して、下位画面をここへ足す。
+          */}
           <SettingsRow
             icon={IconSparkle}
-            tone="sky"
+            tone="plain"
             title="AI設定"
             description="AIの答え方や、参考にした情報の見せ方"
-            onClick={() => onOpen("ai")}
+            disabled
+            note="準備中です。いまはレッスンごとの決まりで動きます"
           />
+          {/*
+            学習設定も同じ。1日の目標時間も解説の自動展開も、
+            決めた値をどの画面も読んでいなかった。
+          */}
           <SettingsRow
             icon={IconBook}
-            tone="rose"
+            tone="plain"
             title="学習設定"
             description="1日の目標や、解説の出し方"
-            onClick={() => onOpen("study")}
+            disabled
+            note="準備中です"
           />
           <SettingsRow
             icon={IconBell}
@@ -274,12 +270,33 @@ function MainMenu({
             description="受け取る知らせを選びます"
             onClick={() => onOpen("notification")}
           />
+          {/*
+            音は動く。既定は切で、入れた人にだけ鳴る。
+            「準備中」の行に挟まれるので、動くことが分かる説明を書く。
+          */}
+          <SettingsRow
+            icon={IconSound}
+            tone="rose"
+            title="音"
+            description="できたときの短い音の入り切り"
+            onClick={() => onOpen("sound")}
+          />
+          {/*
+            言語は選ばせない。
+
+            訳文を1語も用意していないので、English を選べる形にすると
+            「選んだのに変わらない」だけが起きる。以前はここを開けたうえで
+            画面の中に「まだ切り替わりません」と書いていたが、それは
+            **選ばせてから断る**形で、いちばん心証が悪い。
+            用意できたら onClick を戻して、下位画面をここへ足す。
+          */}
           <SettingsRow
             icon={IconGlobe}
-            tone="violet"
+            tone="plain"
             title="言語設定"
             description="画面に出る言葉を選びます"
-            onClick={() => onOpen("language")}
+            disabled
+            note="準備中です。いまは日本語のみです"
           />
           <SettingsRow
             icon={IconShield}
@@ -336,7 +353,16 @@ function MainMenu({
               <button
                 type="button"
                 onClick={() => onOpenLegal(document.id)}
-                className="text-xs text-brand-dark underline transition hover:text-brand"
+                /*
+                  当たり判定を広げる。py で伸ばし、同じだけ -my で戻すので
+                  見た目の位置は変わらない。
+
+                  文字の高さそのままだと 22px しかなく、WCAG 2.2 の
+                  最小（24×24）を下回る。指で押す前提の画面で、
+                  親指の腹より小さい的を並べない。
+                */
+                className="-my-2 inline-block py-2 text-xs text-brand-dark underline
+                           transition hover:text-brand"
               >
                 {document.title}
               </button>
@@ -345,117 +371,6 @@ function MainMenu({
         </ul>
       </Card>
     </div>
-  );
-}
-
-// ------------------------------------------------------------------ AI設定
-
-function AiPanel({
-  settings,
-  models,
-  onChange,
-}: {
-  settings: Settings;
-  models: AiModelChoice[];
-  onChange: (patch: Partial<Settings>) => void;
-}) {
-  /*
-    「サーバーにまかせる」を必ず先頭に置く。
-    モデルを知らない人がほとんどで、選ばずに済む道が要る。
-  */
-  const modelOptions = [
-    { value: "", label: "おまかせ（推奨）", note: "いちばん向いているものを自動で選びます" },
-    ...models.map((model) => ({
-      value: model.id,
-      label: model.recommended ? `${model.label}（いまの既定）` : model.label,
-      note: model.note,
-    })),
-  ];
-
-  return (
-    <Card className="mt-5" padded={false}>
-      <SettingsGroup
-        title="AIモデル"
-        description="迷ったら、おまかせのままで大丈夫です。"
-      >
-        <SelectField
-          label="使うAIモデル"
-          labelHidden
-          value={settings.aiModel}
-          options={modelOptions}
-          onChange={(aiModel) => onChange({ aiModel })}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup title="答え方" description="AIの言葉づかいを選びます。">
-        <SegmentedChoice
-          legend="答え方"
-          value={settings.tone}
-          options={TONES}
-          onChange={(tone) => onChange({ tone })}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup
-        title="回答の長さ"
-        description="レッスンの中で長さを指定したときは、そちらが優先されます。"
-      >
-        <StepSlider
-          label="回答の長さ"
-          labelHidden
-          value={settings.answerLength}
-          options={LENGTH_OPTIONS}
-          onChange={(answerLength) => onChange({ answerLength })}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup title="結果の見せ方">
-        <Toggle
-          checked={settings.showSources}
-          onChange={(showSources) => onChange({ showSources })}
-          label="確かめるところを結果のそばに出す"
-          description="数字・日付・固有名詞など、自分で確認したほうがよい点を添えます"
-        />
-      </SettingsGroup>
-    </Card>
-  );
-}
-
-// ---------------------------------------------------------------- 学習設定
-
-function StudyPanel({
-  settings,
-  onChange,
-}: {
-  settings: Settings;
-  onChange: (patch: Partial<Settings>) => void;
-}) {
-  return (
-    <Card className="mt-5" padded={false}>
-      <SettingsGroup
-        title="1日の目標"
-        description="決めた時間に届かなくても、記録に×は付きません。"
-      >
-        <SegmentedChoice
-          legend="1日の目標"
-          value={String(settings.dailyGoalMinutes)}
-          options={DAILY_GOALS.map((minutes) => ({
-            value: String(minutes),
-            label: minutes === 0 ? "決めない" : `${minutes}分`,
-          }))}
-          onChange={(value) => onChange({ dailyGoalMinutes: Number(value) })}
-        />
-      </SettingsGroup>
-
-      <SettingsGroup title="解説の出し方">
-        <Toggle
-          checked={settings.autoOpenConcepts}
-          onChange={(autoOpenConcepts) => onChange({ autoOpenConcepts })}
-          label="短い解説をレッスンの中に挟む"
-          description="切ると、操作だけで進みます（あとから読み直せます）"
-        />
-      </SettingsGroup>
-    </Card>
   );
 }
 
@@ -468,55 +383,122 @@ function NotificationPanel({
   settings: Settings;
   onChange: (patch: Partial<Settings>) => void;
 }) {
+  const auth = useAuth();
+
+  /*
+    ログイン中は、サーバーが持っている値を正とする。
+    端末の値だけを見ていると、別の端末で切ったのに入ったままに見える。
+  */
+  const [remindStudy, setRemindStudy] = useState(
+    auth.user?.remind_study ?? settings.remindStudy,
+  );
+
+  useEffect(() => {
+    if (auth.user) setRemindStudy(auth.user.remind_study);
+  }, [auth.user]);
+
+  async function saveRemindStudy(next: boolean) {
+    // 押した瞬間に見た目を変える。往復を待たせると、効いていないように見える
+    setRemindStudy(next);
+    try {
+      await updateReminders(next);
+      await auth.refresh();
+    } catch {
+      // 保存できなかったら戻す。切ったつもりのまま届くのが一番よくない
+      setRemindStudy(!next);
+    }
+  }
+
   return (
     <Card className="mt-5" padded={false}>
       <SettingsGroup
         title="受け取る知らせ"
         description="いつでも切り替えられます。"
       >
+        {/*
+          学習リマインダーだけは、実際にメールが届く。
+          送るのはサーバーなので、切り替えもサーバーへ伝える
+          （端末にだけ持たせると「切ったのに届く」ことになる）。
+        */}
         <Toggle
-          checked={settings.remindStudy}
-          onChange={(remindStudy) => onChange({ remindStudy })}
+          checked={auth.user ? remindStudy : settings.remindStudy}
+          onChange={(next) => {
+            onChange({ remindStudy: next });
+            if (auth.user) void saveRemindStudy(next);
+          }}
           label="学習リマインダー"
-          description="学習の継続をサポートする通知を受け取る"
+          description={
+            auth.user
+              ? "しばらく開いていないとき、続きのお知らせをメールで受け取る"
+              : "登録すると、続きのお知らせをメールで受け取れます"
+          }
         />
+        {/*
+          残り3つは、配信の仕組みがまだ無い。
+
+          入れられるままにしておくと「受け取る設定にしたのに来ない」に
+          なる。届かないことを利用者の設定ミスに見せてしまうのが、
+          いちばんよくない。届く見込みが立つまでは触らせない。
+        */}
         <Toggle
           checked={settings.notifyRecommendations}
           onChange={(notifyRecommendations) => onChange({ notifyRecommendations })}
           label="おすすめ教材の通知"
           description="あなたに合った教材の提案を受け取る"
+          disabled
+          note="準備中です"
         />
         <Toggle
           checked={settings.notifyUpdates}
           onChange={(notifyUpdates) => onChange({ notifyUpdates })}
           label="新機能・アップデート情報"
           description="新機能やお知らせを受け取る"
+          disabled
+          note="準備中です"
         />
         <Toggle
           checked={settings.notifyByEmail}
           onChange={(notifyByEmail) => onChange({ notifyByEmail })}
           label="メール通知"
           description="重要なお知らせをメールで受け取る"
+          disabled
+          note="準備中です"
         />
       </SettingsGroup>
 
       {/*
-        いまは配信の仕組みが無い。設定だけ先に置いて、届くかのように
-        見せない。あとで仕組みができたとき、この注記だけ外せばよい。
+        届くのは「学習リマインダー」だけ。残り3つはまだ配信の仕組みが無い。
+        全部が届くように見せない——1つでも届かないものがあるなら、
+        どれが届くのかを書くほうが正直になる。
       */}
       <div className="px-4 pb-5">
         <p className="rounded-card bg-brand-soft px-4 py-3 text-xs leading-6 text-brand-dark">
-          いまは通知を送る仕組みがまだありません。ここで選んだ内容は端末に
-          残しておき、送れるようになったときにそのまま使います。
+          {auth.user
+            ? "いま実際に届くのは「学習リマインダー」だけです。残りは送る仕組みを用意しているところで、選んだ内容は残しておきます。"
+            : "お知らせを受け取るには登録が必要です。ここで選んだ内容は、登録したときにそのまま使います。"}
         </p>
       </div>
     </Card>
   );
 }
 
-// ---------------------------------------------------------------- 言語設定
+// -------------------------------------------------------------------- 音
 
-function LanguagePanel({
+/**
+ * 音の設定。
+ *
+ * 項目はひとつだけだが、通知の中には置かない。通知は「アプリの外から
+ * 届くもの」で、これは「画面の中で鳴るもの」。同じ場所に並べると、
+ * 音を切ったつもりでメールが止まったように読める。
+ *
+ * 試せるようにする
+ * ----------------
+ * 入れたあと、どんな音なのかは鳴らしてみないと分からない。設定を出て
+ * レッスンを1歩進めるまで分からない作りにはしない。それに、ブラウザは
+ * 「利用者が触るまで音を止める」ので、ここで一度鳴らしておくと、
+ * 学習中の1回目から確実に鳴る。
+ */
+function SoundPanel({
   settings,
   onChange,
 }: {
@@ -526,29 +508,39 @@ function LanguagePanel({
   return (
     <Card className="mt-5" padded={false}>
       <SettingsGroup
-        title="表示する言語"
-        description="画面に出る言葉を選びます。"
+        title="画面の中で鳴る音"
+        description="端末ごとの設定です。音量は端末側で調整してください。"
       >
-        <SegmentedChoice
-          legend="表示する言語"
-          value={settings.language}
-          options={LANGUAGES.map((language) => ({
-            value: language.value,
-            label: language.label,
-          }))}
-          onChange={(language) => onChange({ language })}
+        <Toggle
+          checked={settings.successSound}
+          onChange={(successSound) => {
+            onChange({ successSound });
+            // 入れた瞬間に鳴らす。何が鳴るのか、その場で分かるようにする
+            if (successSound) previewSuccessSound();
+          }}
+          label="できたときの音"
+          description="1歩進むたびに、短い音を鳴らします"
         />
       </SettingsGroup>
 
-      {/*
-        訳文をまだ1語も用意していない。「英語にできます」と見せてしまうと、
-        選んだ人は壊れていると受け取る。効かないことを先に書く。
-      */}
       <div className="px-4 pb-5">
-        <p className="rounded-card bg-caution-soft px-4 py-3 text-xs leading-6 text-caution">
-          いまは選んだ内容を覚えるだけで、画面はまだ切り替わりません。
-          English を用意できたときに、ここでの選択がそのまま効くようになります。
-          レッスンの本文とAIの答えは、今後も日本語のままです。
+        {/*
+          切っているときも押せる。
+          どんな音かを聞いてから決められるようにする——入れないと試せない
+          作りだと、「よく分からないが一度入れてみる」しか道が無くなる。
+        */}
+        <button
+          type="button"
+          data-testid="sound-preview"
+          onClick={() => previewSuccessSound()}
+          className="min-h-[2.75rem] rounded-cta bg-surface px-5 py-2 text-sm
+                     font-bold text-brand-dark shadow-card transition
+                     hover:bg-brand-soft"
+        >
+          音を試す
+        </button>
+        <p className="mt-3 text-xs leading-6 text-ink-muted">
+          音が鳴らなくても、できたことは画面の文字で必ず分かります。
         </p>
       </div>
     </Card>

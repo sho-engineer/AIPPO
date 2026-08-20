@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { generate, AiRequestError, type AiUsage } from "../api/ai";
 import { sendLearningEvent } from "../api/lesson";
+import { rememberForReview } from "./review";
 import {
   clearDraft,
   countRealTask,
@@ -460,6 +461,12 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       eventType: "concept_card_skipped",
       step: step.id,
     });
+    // あとで見返せるように控える（復習の回を作るときの材料）
+    rememberForReview({
+      lessonId: lesson.id,
+      stepId: step.id,
+      reason: "concept_skipped",
+    });
     move(nextStepId(lesson, stepId));
   }, [lesson, move, step.id, stepId]);
 
@@ -469,6 +476,11 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       lessonId: lesson.id,
       eventType: "real_task_skipped",
       step: step.id,
+    });
+    rememberForReview({
+      lessonId: lesson.id,
+      stepId: step.id,
+      reason: "real_task_skipped",
     });
     move(nextStepId(lesson, stepId));
   }, [lesson, move, step.id, stepId]);

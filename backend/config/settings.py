@@ -111,6 +111,8 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.catalog",
     "apps.lessons",
+    # 運用まわり（管理画面の締め出しと、触った記録）
+    "apps.ops",
     "apps.profiles",
     "apps.tutor",
 ]
@@ -119,11 +121,27 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
+    # 管理画面を、決めた接続元からしか開けなくする。
+    #
+    # CommonMiddleware より**前**に置くこと。あとに置くと、
+    # `/admin`（末尾の / 無し）を弾いたときに CommonMiddleware が
+    # その 404 を拾って `/admin/` への 301 に変えてしまう。
+    # 「そこに何かある」と教えることになり、隠した意味が消える。
+    #
+    # セッションを読むより前でもある。締め出す相手のために
+    # DB からセッションを引く理由は無い。
+    "apps.ops.middleware.AdminIpAllowlistMiddleware",
     "django.middleware.common.CommonMiddleware",
     # 以下3つは管理画面に必要（学習者向けAPIでは使わない）
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # 管理画面で学習者の記録に触れたことを残す。
+    #
+    # AuthenticationMiddleware より**後ろ**。誰が見たかを取るため。
+    # AdminIpAllowlistMiddleware より後ろでもある——先に置くと、
+    # 締め出した相手の 404 まで「見た」として残ってしまう。
+    "apps.ops.middleware.AdminAuditMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     # X_FRAME_OPTIONS はこのミドルウェアが無いと効かない
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -243,6 +261,38 @@ SECURE_HSTS_PRELOAD = not DEBUG
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_REFERRER_POLICY = "same-origin"
 X_FRAME_OPTIONS = "DENY"
+
+
+# --- 管理画面の守り -------------------------------------------------------
+# 管理画面に入られると、実証実験で集めた**全学習者の記録**が見える。
+# 合言葉ひとつしか間に無い状態で `/admin/` に置いておくのは危うい。
+# 守りは2枚。どちらも環境変数で入れる（手元の開発は今までどおり動く）。
+#
+#   1. 場所を変える（DJANGO_ADMIN_PATH）
+#      総当たりは `/admin/` を狙う。場所が違えば、そもそも見つからない。
+#      これは鍵ではなく「人目に付かない所へ置く」だけなので、2と併せて使う。
+#   2. 入れる接続元を絞る（DJANGO_ADMIN_ALLOWED_IPS）
+#      管理画面を開くのは運用する数人だけ。合言葉が漏れても、
+#      そこからでなければ入り口に届かない。
+def _admin_path(raw: str) -> str:
+    """`path()` に渡せる形へ整える。
+
+    先頭の / を付けて書く人も、末尾の / を忘れる人もいる。
+    どちらで書かれても同じ場所になるように、ここで揃えてしまう。
+    揃えないと「設定したのに 404」という、原因の見えない失敗になる。
+    空なら既定へ戻す（消し忘れの空行で管理画面が消えないように）。
+    """
+    cleaned = raw.strip().strip("/")
+    return f"{cleaned}/" if cleaned else "admin/"
+
+
+#: 既定は `admin/` のまま。変えなければ今までと同じ場所に出る。
+ADMIN_PATH = _admin_path(os.getenv("DJANGO_ADMIN_PATH", "admin/"))
+
+#: 管理画面に入れる接続元。**空なら制限しない**。
+#: 既定を「制限あり」にすると、設定を知らない人の手元で管理画面が
+#: いきなり消える。締め出すのは、締め出すと決めたときだけにする。
+ADMIN_ALLOWED_IPS = _list("DJANGO_ADMIN_ALLOWED_IPS")
 
 # 本文の長さは Serializer 側でも見ているが、
 # 巨大な本文でメモリを食い潰されないよう入口でも止める。
@@ -411,14 +461,50 @@ TRUST_FORWARDED_FOR = _bool("TRUST_FORWARDED_FOR", False)
 
 # 匿名学習者の識別
 LEARNER_KEY_COOKIE = "learner_key"
-LEARNER_KEY_MAX_AGE = 60 * 60 * 24 * 90  # 90日
+
+# 登録していない人の鍵が、何秒で切れるか。
+#
+# 以前は90日だった。長く持たせれば、登録しない人も数か月ぶんの続きを
+# 保てる——という考え方だった。いまは**7日**にしている。
+#
+# 登録なしで使えるのは変えない。変えたのは「登録なしのまま、いつまでも
+# 残せる」ところ。残すこと（目印・プロンプト帳・修了証）は登録した人の
+# ものにして、ゲストはその場で試すためのものにする。
+# 鍵が90日残っていると、その線引きが Cookie 側だけ緩いままになる。
+#
+# 7日にした理由。1本10分の教材を「今日1本、来週もう1本」という間隔で
+# 続ける人が、続きから始められる長さ。1日にすると、週末に始めて
+# 平日の夜に戻ってきた人が、毎回1本目からになる。
+LEARNER_KEY_MAX_AGE = 60 * 60 * 24 * 7  # 7日
 
 # 登録していない人の記録を、最後の利用から何日残すか。
 # プライバシーポリシーに書いた期間と揃える（食い違えば、それは嘘になる）。
 #
-# Cookie の寿命は90日。それを過ぎた時点で本人からも取り出せなくなるので、
-# さらに余裕を見た180日で消す。消すのは `manage.py prune_data`。
-GUEST_DATA_RETENTION_DAYS = int(os.getenv("GUEST_DATA_RETENTION_DAYS", "180"))
+# Cookie の寿命は7日。それを過ぎた時点で**本人からも取り出せない**記録に
+# なるので、そこから長く持っても、持っているのはこちらの都合だけになる。
+# 余裕を見て30日で消す。消すのは `manage.py prune_data`。
+GUEST_DATA_RETENTION_DAYS = int(os.getenv("GUEST_DATA_RETENTION_DAYS", "30"))
+
+# 操作記録（誰が誰の記録に触れたか）を何日残すか。
+#
+# 学習データより**長く**取る。触られたことに気づくのは、たいてい
+# ずっとあとになる。ゲストの学習データと同じ30日で消すと、問い合わせが
+# 来た時点で、調べるための記録がもう無い、ということが起きる。
+#
+# ただし永久には持たない。中身は入れていないが、接続元は個人に
+# 結びつきうるし、管理画面を開くたびに1行増える。1年で切る。
+AUDIT_LOG_RETENTION_DAYS = int(os.getenv("AUDIT_LOG_RETENTION_DAYS", "365"))
+
+# 定期実行（Vercel Cron）から `prune_data` を叩くための合言葉。
+#
+# **空のあいだ、その入り口は 404 のまま存在しない**（apps/ops/views.py）。
+# 逆にすると、合言葉を入れ忘れた配置で「誰でも消せる入り口」が開く。
+# 消す操作は取り消せないので、開いていないほうへ倒す。
+#
+# Vercel は CRON_SECRET を入れておくと、Cron からの要求に
+# `Authorization: Bearer <CRON_SECRET>` を自分で付けてくれる。
+# 名前を合わせてあるのはそのため。
+CRON_SECRET = os.getenv("CRON_SECRET", "")
 
 # --- メール -------------------------------------------------------------
 # 送るのは3通だけ（apps/accounts/emails.py）。

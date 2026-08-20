@@ -92,16 +92,37 @@ describe("画像が無いとき", () => {
 });
 
 describe("動き", () => {
+  /*
+    動きは**枠**に掛ける。中の絵ではない。
+
+    中の絵には、8枚の大きさと位置を揃えるための transform が乗っている。
+    同じ要素に動き（これも transform を使う）を掛けると、あとから当たった
+    ほうが勝って揃えが消える——浮いている間だけポーが縮む、という
+    ちぐはぐな見え方になる。だから層を分けてある。
+  */
+  const frame = () => screen.getByTestId("po-image").parentElement!;
+
   it("ふだんは浮くだけ", () => {
     render(<PoAvatar po={po({ emotion: "neutral" })} />);
-    expect(screen.getByTestId("po-image").className).toContain("animate-float");
+    expect(frame().className).toContain("animate-float");
   });
 
   it("celebrate は一度だけ跳ねる（跳ね続けない）", () => {
     render(<PoAvatar po={po({ emotion: "celebrate" })} />);
-    const className = screen.getByTestId("po-image").className;
+    const className = frame().className;
     expect(className).toContain("animate-pop-in");
     expect(className).not.toContain("animate-float");
+  });
+
+  it("動きと、大きさを揃える指定が、同じ要素に乗らない", () => {
+    /*
+      乗ると片方が消える。層が分かれていることを、ここで固定しておく。
+    */
+    render(<PoAvatar po={po({ emotion: "talking" })} />);
+    const image = screen.getByTestId("po-image");
+
+    expect(image.style.transform).toContain("scale(");
+    expect(image.className).not.toContain("animate-");
   });
 
   it("thinking のときだけアンテナが光る", () => {

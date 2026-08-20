@@ -191,5 +191,12 @@ def course_to_dict(course) -> dict[str, Any]:
         "id": course.slug,
         "title": course.title,
         "description": course.description,
+        "difficulty": course.difficulty,
+        # 出すことと始められることは別。画面はこの2つを見て、
+        # 一覧に出しつつ開かせない、を実現する
+        "availability": (
+            "available" if course.is_startable else "coming_soon"
+        ),
+        "comingSoonMessage": course.coming_soon_message,
         "lessons": lessons,
     }

@@ -59,7 +59,9 @@ def all_available(seeded):
 @pytest.mark.django_db
 class TestParity:
     def test_all_lessons_are_imported(self, seeded):
-        assert Lesson.objects.count() == len(SEED["lessons"])
+        # 数えるのはこのコースの分だけ。ほかのコース（これから増える分）も
+        # 同じ表に入るので、全件で数えると足すたびにここが落ちる
+        assert seeded.lessons.count() == len(SEED["lessons"])
 
     @pytest.mark.parametrize(
         "index,slug",
@@ -133,7 +135,7 @@ class TestParity:
         call_command("seed_catalog")
 
         assert course_to_dict(Course.objects.get(slug=SEED["id"])) == before
-        assert Lesson.objects.count() == len(SEED["lessons"])
+        assert seeded.lessons.count() == len(SEED["lessons"])
 
     def test_only_new_keeps_edits(self, seeded):
         """--only-new は、管理画面での修正を巻き戻さないこと。"""

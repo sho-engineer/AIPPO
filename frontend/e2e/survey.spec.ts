@@ -15,9 +15,21 @@
  * 記録から出せないほうの1つ（`docs/roadmap.md`）。ここが唯一の入口。
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { stubApi, type StubHandle } from "./support/stubApi";
+
+/**
+ * 進めない状態か。
+ *
+ * `disabled` だけを見ない。答えが足りないときのボタンは、押せる形のまま
+ * `aria-disabled` で「まだ進めない」を表している（押した人に理由を返すため）。
+ * 属性だけで見分けると、押しても進まないボタンを押し続けることになる。
+ */
+async function blocked(primary: Locator): Promise<boolean> {
+  if (await primary.isDisabled()) return true;
+  return (await primary.getAttribute("aria-disabled")) === "true";
+}
 
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
 
@@ -27,7 +39,7 @@ async function runToCompletion(page: Page): Promise<void> {
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
   await page.getByRole("button", { name: "はじめる" }).first().click();
-  await page.getByRole("button", { name: "教材一覧" }).click();
+  await page.getByRole("button", { name: "コース" }).click();
   await page.getByTestId("lesson-rewrite_text").click();
 
   for (let i = 0; i < 40; i++) {
@@ -35,7 +47,7 @@ async function runToCompletion(page: Page): Promise<void> {
     const primary = page.getByTestId("primary-action").first();
     if (!(await primary.isVisible().catch(() => false))) break;
 
-    if (await primary.isDisabled()) {
+    if (await blocked(primary)) {
       const box = page.locator("textarea:visible").first();
       if (await box.count()) {
         await box.fill(SAMPLE);
@@ -50,7 +62,7 @@ async function runToCompletion(page: Page): Promise<void> {
       }
       await page.waitForTimeout(80);
     }
-    if (await primary.isDisabled()) break;
+    if (await blocked(primary)) break;
     await primary.click();
     await page.waitForTimeout(120);
   }

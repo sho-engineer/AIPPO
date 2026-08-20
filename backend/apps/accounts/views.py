@@ -57,6 +57,8 @@ from apps.accounts.throttle import TooManyAttempts
 from apps.accounts.throttle import clear as clear_attempts
 from apps.accounts.throttle import consume as consume_attempt
 from apps.lessons.models import LearningEventType, LearningSession
+from apps.lessons.services.quota import client_ip
+from apps.ops import audit
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -294,8 +296,22 @@ class ProfileView(APIView):
             return _invalid(serializer.errors)
 
         profile, _ = UserProfile.objects.get_or_create(user=request.user)
-        profile.display_name = serializer.validated_data["display_name"]
-        profile.save(update_fields=["display_name", "updated_at"])
+
+        """送られてきた項目だけを直す。
+
+        表示名と知らせの設定は別の画面から届く。片方だけ送られたときに
+        もう片方を既定値で上書きすると、触っていない設定が黙って戻る。
+        """
+        changed = ["updated_at"]
+        data = serializer.validated_data
+        if "display_name" in data:
+            profile.display_name = data["display_name"]
+            changed.append("display_name")
+        if "remind_study" in data:
+            profile.remind_study = data["remind_study"]
+            changed.append("remind_study")
+
+        profile.save(update_fields=changed)
 
         return Response({"user": describe_user(request.user)})
 
@@ -443,6 +459,17 @@ class DeleteLearningDataView(APIView):
         LearnerProfile.objects.filter(learner_key__in=keys).delete()
         SkillProgress.objects.filter(learner_key__in=keys).delete()
 
+        # 「本当に消えたのか」とあとから聞かれたときに、答えられるようにする。
+        # 消した本人の記憶しか残らないのは、答えとして弱い
+        audit.record(
+            audit.AuditAction.SELF_DATA_DELETE,
+            actor="self",
+            target_model="lessons.LearningSession",
+            target_id=str(request.user.pk),
+            ip=client_ip(request),
+            rows=deleted,
+        )
+
         logger.info("accounts.learning_data.deleted user=%s", request.user.pk)
         return Response({"deleted": True, "rows": deleted})
 
@@ -462,6 +489,16 @@ class DeleteAccountView(APIView):
         LearningSession.objects.filter(learner_key__in=keys).delete()
         LearnerProfile.objects.filter(learner_key__in=keys).delete()
         SkillProgress.objects.filter(learner_key__in=keys).delete()
+
+        # 消す**前**に残す。消したあとでは user.pk が無くなり、
+        # 「誰のアカウントが消えたか」を書けなくなる
+        audit.record(
+            audit.AuditAction.SELF_ACCOUNT_DELETE,
+            actor="self",
+            target_model="accounts.User",
+            target_id=str(user.pk),
+            ip=client_ip(request),
+        )
 
         logout(request)
         user.delete()

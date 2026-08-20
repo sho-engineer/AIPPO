@@ -14,9 +14,21 @@
  * が受け持つ。ここで両方やると、落ちたときにどちらの問題か分からない。
  */
 
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+
+/**
+ * 進めない状態か。
+ *
+ * `disabled` だけを見ない。答えが足りないときのボタンは、押せる形のまま
+ * `aria-disabled` で「まだ進めない」を表している（押した人に理由を返すため）。
+ * 属性だけで見分けると、押しても進まないボタンを押し続けることになる。
+ */
+async function blocked(primary: Locator): Promise<boolean> {
+  if (await primary.isDisabled()) return true;
+  return (await primary.getAttribute("aria-disabled")) === "true";
+}
 
 async function toSettings(page: Page): Promise<void> {
   await page.goto("/");
@@ -24,7 +36,7 @@ async function toSettings(page: Page): Promise<void> {
   await page.reload();
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
-  await page.getByRole("button", { name: "設定" }).click();
+  await page.getByRole("button", { name: "その他" }).click();
 }
 
 async function openAuth(page: Page): Promise<void> {
@@ -146,13 +158,13 @@ test.describe("登録していない人", () => {
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
     await page.getByRole("button", { name: "はじめる" }).first().click();
-    await page.getByRole("button", { name: "教材一覧" }).click();
+    await page.getByRole("button", { name: "コース" }).click();
     await page.getByTestId("lesson-rewrite_text").click();
 
     const primary = page.getByTestId("primary-action").first();
     for (let i = 0; i < 40; i++) {
       if (await page.getByTestId("completion-view").isVisible().catch(() => false)) break;
-      if (await primary.isDisabled()) {
+      if (await blocked(primary)) {
         const box = page.locator("textarea:visible").first();
         if (await box.count()) await box.fill("来週の打ち合わせの件、資料の確認をお願いします。");
         else {
@@ -164,7 +176,7 @@ test.describe("登録していない人", () => {
         }
         await page.waitForTimeout(80);
       }
-      if (await primary.isDisabled()) break;
+      if (await blocked(primary)) break;
       await primary.click();
       await page.waitForTimeout(120);
     }

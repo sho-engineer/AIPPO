@@ -110,17 +110,45 @@ class Difficulty(models.TextChoices):
 
 
 class Course(models.Model):
-    """レッスンをまとめる単位。"""
+    """レッスンをまとめる単位。
+
+    コースにも「出すか（status）」と「始められるか（availability_status）」を
+    別々に持たせてある。レッスンと同じ考え方。
+
+    中身がまだ1本も無いコースを一覧に出したいことがある。
+    「これから何ができるようになるか」が先に見えているほうが、
+    いま開けるものを選びやすいため。そのとき、出すことと始められることを
+    1つの項目で表すと、**出した瞬間に始められてしまう**。
+    """
 
     slug = models.SlugField(max_length=80, unique=True, help_text="URLと保存に使う名前")
     title = models.CharField(max_length=120)
     description = models.TextField(blank=True)
+
+    difficulty = models.CharField(
+        max_length=20,
+        choices=Difficulty.choices,
+        default=Difficulty.BEGINNER,
+        help_text="一覧のカードに出す。レッスンごとの難易度とは別（コース全体の目安）",
+    )
 
     access_type = models.CharField(
         max_length=20, choices=AccessType.choices, default=AccessType.FREE
     )
     status = models.CharField(
         max_length=20, choices=PublishStatus.choices, default=PublishStatus.DRAFT
+    )
+    availability_status = models.CharField(
+        max_length=20,
+        choices=AvailabilityStatus.choices,
+        default=AvailabilityStatus.COMING_SOON,
+        verbose_name="利用可能状態",
+        help_text="出したうえで始められるか。既定は近日公開（うっかり開かないように）",
+    )
+    coming_soon_message = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="近日公開のときに添える一言。空なら既定の文言",
     )
     sort_order = models.PositiveIntegerField(default=0)
     thumbnail = models.CharField(
@@ -143,6 +171,15 @@ class Course(models.Model):
     @property
     def is_public(self) -> bool:
         return self.status == PublishStatus.PUBLISHED
+
+    @property
+    def is_startable(self) -> bool:
+        """いま始められるか。
+
+        出ていることと始められることは別。中身がまだ無いコースは
+        一覧に出るが、ここは False になる（レッスンと同じ扱い）。
+        """
+        return self.is_public and self.availability_status == AvailabilityStatus.AVAILABLE
 
 
 class Lesson(models.Model):

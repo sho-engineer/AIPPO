@@ -62,10 +62,23 @@ describe("自分の課題のステップ", () => {
       <LessonRunner lesson={lessonFromRealTask} onFinish={() => {}} onExit={() => {}} />,
     );
 
-    expect(await screen.findByTestId("primary-action")).toBeDisabled();
-    // 押せない理由を黙って隠さない
+    /*
+      押せる形のまま「まだ進めない」を表す（aria-disabled）。
+      本物の disabled にすると押下を受け取れず、理由をその場で言えない。
+    */
+    expect(await screen.findByTestId("primary-action")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    /*
+      押せない理由を黙って隠さない。
+
+      文に見出しは混ぜない。見出しはそれ自体が文になっていることがあり、
+      「条件を一つ足してみましょうをえらんでみましょう。」になった。
+      いま見るのは「何をすれば進めるか」が書いてあること。
+    */
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(/自分の文章/),
+      expect(screen.getByRole("status")).toHaveTextContent(/入力してください/),
     );
   });
 

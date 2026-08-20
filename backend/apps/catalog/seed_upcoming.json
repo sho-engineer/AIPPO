@@ -1,0 +1,314 @@
+{
+  "_comment": [
+    "これから増えるコース。中身（ステップ）はまだ無い。",
+    "一覧に出して「何ができるようになるか」を先に見せるためのもので、",
+    "始められる状態にはしない（availability: coming_soon）。",
+    "",
+    "seed_catalog.json とは別のファイルにしてある。あちらは",
+    "『コードからDBへ移して1文字も変わっていない』ことを確かめる",
+    "正解データ（tests/test_catalog_parity.py）で、増やすと",
+    "その役目が薄れる。増えるものはこちらへ書く。",
+    "",
+    "中身ができたコースは、ここから seed_catalog.json 側へ移し、",
+    "availability を available にする。"
+  ],
+  "courses": [
+    {
+      "id": "work_writing",
+      "title": "仕事の文章をAIで整える",
+      "description": "メール・説明文・依頼文など、仕事で毎日使う文章をAIで整えます。",
+      "difficulty": "beginner",
+      "sortOrder": 10,
+      "comingSoonMessage": "いま教材を作っています",
+      "lessons": [
+        {
+          "id": "work_writing_email",
+          "number": 1,
+          "title": "伝わりやすいメールを作る",
+          "goal": "誰に・何を・どんな言い方で、をAIに伝えてメールを作れるようになる",
+          "estimatedMinutes": 8,
+          "outcomes": [
+            "読む相手を伝えられる",
+            "お願いしたいことを1つに絞れる",
+            "候補日のような具体を入れられる"
+          ],
+          "tags": ["writing"]
+        },
+        {
+          "id": "work_writing_shorten",
+          "number": 2,
+          "title": "長いメールを短くする",
+          "goal": "内容を落とさずに短くする加減が分かる",
+          "estimatedMinutes": 7,
+          "outcomes": [
+            "残す要点を先に決められる",
+            "文字数を指定できる",
+            "短くしても失礼にならない言い方にできる"
+          ],
+          "tags": ["writing"]
+        },
+        {
+          "id": "work_writing_audience",
+          "number": 3,
+          "title": "相手に合わせて言い方を変える",
+          "goal": "同じ内容を、上司・同僚・お客様それぞれに合う言い方へ変えられる",
+          "estimatedMinutes": 7,
+          "outcomes": [
+            "相手を伝えると結果が変わることが分かる",
+            "同じ用件を3通りで出せる"
+          ],
+          "tags": ["writing"]
+        },
+        {
+          "id": "work_writing_from_notes",
+          "number": 4,
+          "title": "箇条書きから文章を作る",
+          "goal": "メモの断片から、そのまま送れる案内文を作れるようになる",
+          "estimatedMinutes": 8,
+          "outcomes": [
+            "箇条書きを渡すだけで文章にできる",
+            "抜けている情報に気づける"
+          ],
+          "tags": ["writing"]
+        }
+      ]
+    },
+    {
+      "id": "summarize_organize",
+      "title": "長い情報を要約・整理する",
+      "description": "文章・メモ・資料から必要なところだけ取り出して、使いやすい形にします。",
+      "difficulty": "beginner",
+      "sortOrder": 20,
+      "comingSoonMessage": "いま教材を作っています",
+      "lessons": [
+        {
+          "id": "summarize_three_lines",
+          "number": 1,
+          "title": "長い文章を3行でまとめる",
+          "goal": "「要約して」から一歩進んで、行数と読み手を指定できるようになる",
+          "estimatedMinutes": 7,
+          "outcomes": ["行数を指定できる", "誰向けの要約かを伝えられる"],
+          "tags": ["summarizing"]
+        },
+        {
+          "id": "summarize_meeting_notes",
+          "number": 2,
+          "title": "会議メモから決定事項を抜き出す",
+          "goal": "決まったこと・やること・担当・期限の形で出してもらえるようになる",
+          "estimatedMinutes": 8,
+          "outcomes": ["出力の形を指定できる", "抜けている項目に気づける"],
+          "tags": ["summarizing"]
+        },
+        {
+          "id": "summarize_categorize",
+          "number": 3,
+          "title": "バラバラな情報をカテゴリに整理する",
+          "goal": "集めた声を、要望・不満・質問などに分けられるようになる",
+          "estimatedMinutes": 8,
+          "outcomes": ["分け方を自分で決められる", "分類の理由を確かめられる"],
+          "tags": ["organizing"]
+        },
+        {
+          "id": "summarize_for_me",
+          "number": 4,
+          "title": "長い資料から、自分に必要なところだけ探す",
+          "goal": "全部をまとめずに、自分の立場で要るところだけ取り出せるようになる",
+          "estimatedMinutes": 7,
+          "outcomes": ["立場を伝えられる", "全部まとめなくてよいと分かる"],
+          "tags": ["summarizing"]
+        }
+      ]
+    },
+    {
+      "id": "make_images",
+      "title": "AIで画像をつくる",
+      "description": "言葉でイメージを伝えて、ほしい絵に近づけていきます。",
+      "difficulty": "beginner",
+      "sortOrder": 30,
+      "comingSoonMessage": "画像を作る仕組みを用意しています",
+      "lessons": [
+        {
+          "id": "image_first",
+          "number": 1,
+          "title": "はじめてAIで画像を作る",
+          "goal": "1枚作って、言葉を足すと絵が変わることを確かめる",
+          "estimatedMinutes": 8,
+          "outcomes": ["1枚作れる", "雰囲気を足すと変わることが分かる"],
+          "tags": ["image"]
+        },
+        {
+          "id": "image_composition",
+          "number": 2,
+          "title": "構図を指定してみる",
+          "goal": "どこから見た絵かを伝えられるようになる",
+          "estimatedMinutes": 7,
+          "outcomes": ["見る位置を指定できる", "置き場所を指定できる"],
+          "tags": ["image"]
+        },
+        {
+          "id": "image_style",
+          "number": 3,
+          "title": "テイストを変えてみる",
+          "goal": "同じものでも、絵の調子で印象が大きく変わることが分かる",
+          "estimatedMinutes": 7,
+          "outcomes": ["調子を選べる", "用途に合う調子を決められる"],
+          "tags": ["image"]
+        },
+        {
+          "id": "image_for_sns",
+          "number": 4,
+          "title": "SNS用の画像を作る",
+          "goal": "用途・被写体・雰囲気・縦横を決めて、そのまま使える1枚にする",
+          "estimatedMinutes": 9,
+          "outcomes": ["用途を先に決められる", "縦横を指定できる"],
+          "tags": ["image"]
+        },
+        {
+          "id": "image_own",
+          "number": 5,
+          "title": "自分のイメージを画像にする",
+          "goal": "作りたいものを自分の言葉で伝えて、1枚に仕上げる",
+          "estimatedMinutes": 10,
+          "outcomes": [
+            "作りたいものを伝えられる",
+            "雰囲気を指定できる",
+            "構図を指定できる"
+          ],
+          "tags": ["image"]
+        }
+      ]
+    },
+    {
+      "id": "expand_ideas",
+      "title": "アイデア・企画を広げる",
+      "description": "答えを出してもらうのではなく、自分の考えをAIで広げます。",
+      "difficulty": "beginner",
+      "sortOrder": 40,
+      "comingSoonMessage": "いま教材を作っています",
+      "lessons": [
+        {
+          "id": "ideas_ten",
+          "number": 1,
+          "title": "アイデアを10個出してもらう",
+          "goal": "条件を入れると、使える案に変わることが分かる",
+          "estimatedMinutes": 7,
+          "outcomes": ["人数や予算を条件にできる", "数を指定できる"],
+          "tags": ["ideas"]
+        },
+        {
+          "id": "ideas_perspective",
+          "number": 2,
+          "title": "違う視点から考える",
+          "goal": "立場を変えて考えてもらえるようになる",
+          "estimatedMinutes": 7,
+          "outcomes": ["視点を指定できる", "自分では出ない案が出ることが分かる"],
+          "tags": ["ideas"]
+        },
+        {
+          "id": "ideas_narrow",
+          "number": 3,
+          "title": "アイデアを絞る",
+          "goal": "費用・やりやすさ・効果で見比べて、3つに絞れるようになる",
+          "estimatedMinutes": 8,
+          "outcomes": ["絞る基準を決められる", "選んだ理由を言葉にできる"],
+          "tags": ["comparing"]
+        },
+        {
+          "id": "ideas_to_plan",
+          "number": 4,
+          "title": "アイデアを実行計画にする",
+          "goal": "選んだ案を、最初にやること・担当・期限まで落とせるようになる",
+          "estimatedMinutes": 8,
+          "outcomes": ["最初の一歩を決められる", "必要なものを洗い出せる"],
+          "tags": ["planning"]
+        }
+      ]
+    },
+    {
+      "id": "better_answers",
+      "title": "AIの回答をもっと良くする",
+      "description": "一度で完璧を求めず、やり取りしながら近づけていきます。",
+      "difficulty": "beginner",
+      "sortOrder": 50,
+      "comingSoonMessage": "いま教材を作っています",
+      "lessons": [
+        {
+          "id": "better_add_condition",
+          "number": 1,
+          "title": "条件を1つ足す",
+          "goal": "足す条件は一度に1つ、が近道だと分かる",
+          "estimatedMinutes": 6,
+          "outcomes": ["1つずつ足せる", "何が効いたか分かる"],
+          "tags": ["improving"]
+        },
+        {
+          "id": "better_format",
+          "number": 2,
+          "title": "出力形式を指定する",
+          "goal": "表・箇条書き・手順など、受け取る形を決められるようになる",
+          "estimatedMinutes": 6,
+          "outcomes": ["形を指定できる", "そのまま使える形で受け取れる"],
+          "tags": ["improving"]
+        },
+        {
+          "id": "better_example",
+          "number": 3,
+          "title": "例を見せる",
+          "goal": "欲しいものの例を1つ添えると、結果が近づくことが分かる",
+          "estimatedMinutes": 7,
+          "outcomes": ["例を添えられる", "言葉で説明しにくい好みを伝えられる"],
+          "tags": ["improving"]
+        },
+        {
+          "id": "better_retry",
+          "number": 4,
+          "title": "AIにもう一度改善させる",
+          "goal": "作り直しは失敗ではなく、ふつうの使い方だと分かる",
+          "estimatedMinutes": 6,
+          "outcomes": ["直したいところを言葉にできる", "別案を頼める"],
+          "tags": ["improving"]
+        }
+      ]
+    },
+    {
+      "id": "safe_at_work",
+      "title": "AIを安全に仕事で使う",
+      "description": "便利さだけでなく、確かめるところを身につけます。",
+      "difficulty": "beginner",
+      "sortOrder": 60,
+      "comingSoonMessage": "いま教材を作っています",
+      "lessons": [
+        {
+          "id": "safe_no_secrets",
+          "number": 1,
+          "title": "入れてはいけない情報を知る",
+          "goal": "入れてよいものと、入れてはいけないものを見分けられるようになる",
+          "estimatedMinutes": 6,
+          "usesAi": false,
+          "outcomes": ["合言葉や鍵を入れないと分かる", "社外秘の線引きが分かる"],
+          "tags": ["safety"]
+        },
+        {
+          "id": "safe_verify",
+          "number": 2,
+          "title": "AIの回答をそのまま信じない",
+          "goal": "数字・日付・固有名詞は確かめる、が身につく",
+          "estimatedMinutes": 6,
+          "usesAi": false,
+          "outcomes": ["確かめる場所が分かる", "確かめ方が分かる"],
+          "tags": ["safety"]
+        },
+        {
+          "id": "safe_big_decisions",
+          "number": 3,
+          "title": "大事な判断をAIだけで決めない",
+          "goal": "医療・法律・お金の判断は、専門家にも確かめると決められる",
+          "estimatedMinutes": 6,
+          "usesAi": false,
+          "outcomes": ["AIは判断を助けるものだと分かる", "相談先を決められる"],
+          "tags": ["safety"]
+        }
+      ]
+    }
+  ]
+}

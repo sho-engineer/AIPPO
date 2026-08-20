@@ -19,6 +19,8 @@ export interface AccountUser {
   email_verified: boolean;
   terms_version: string;
   joined_at: string;
+  /** 学習リマインダーを受け取るか。送るのはサーバーなので、正はこちら。 */
+  remind_study: boolean;
 }
 
 export interface Progress {
@@ -150,4 +152,15 @@ export function fetchSocialProviders(
   signal?: AbortSignal,
 ): Promise<{ providers: SocialProvider[] }> {
   return getJson(`${BASE}/social/providers/`, signal);
+}
+
+
+/**
+ * 学習リマインダーを受け取るかを切り替える。
+ *
+ * 端末（localStorage）ではなくサーバーへ保存する。送るのはサーバーなので、
+ * 端末にだけ持たせると「切ったのに届く」ことになる。
+ */
+export function updateReminders(remindStudy: boolean): Promise<{ user: AccountUser }> {
+  return sendJson(`${BASE}/profile/`, { remind_study: remindStudy }, "PATCH");
 }

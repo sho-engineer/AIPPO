@@ -6,39 +6,48 @@
  *
  * 順番は上から:
  *
- *   1. 次にやるレッスン（名前・所要時間・始めるボタン）
- *   2. 7日間のどこまで来たか
- *   3. 進み具合（細い棒と「n / m」だけ）
- *   4. ほかの教材への入り口
+ *   1. ポーのあいさつ
+ *   2. 今日のレッスン（題・ねらい・始めるボタン・所要時間）
+ *   3. 学習の進み具合
+ *   4. 7日間の道のり
+ *   5. おすすめコース
+ *   6. カテゴリから探す
  *
  * 以前はこれが逆だった。円グラフ・継続日数・試した回数を先に見せ、
  * 「次にやること」は横スクロールのカードの中に埋もれていた。
  * 数字を眺めに来る人はいない。学びに来ている。
  *
- * やめたもの（すべて意図的）
- * --------------------------
- * - 円形の進捗グラフ … 50% を大きく出しても、次の一手は分からない
- * - 「順調です。この調子で続けていきましょう。」 … 誰にでも当てはまる
- *   文は、読んでも何も変わらない。代わりに次の教材の名前を出す
- * - おすすめの横スクロール … 右端が切れたカードは「見落とし」を作る
- * - 「無料」「初級」「近日公開」の pill … 押せないものを押せる形にしない
- * - 大きな角丸カードの反復 … 節と余白と線で分ける
- *
  * 出すのは**自分のこと**だけ。順位も、他人との比較も出さない
  * （比べさせると、遅い人ほど続かなくなる）。
+ *
+ * 数字は測ったものだけ
+ * --------------------
+ * 支給デザインには「学習時間 2時間15分」がある。**出していない。**
+ * このアプリは滞在時間を測っていないので、出すなら数え始めるところから
+ * になる。空いた場所には、実際に数えている「続けて n 日」を置いた。
+ * 見た目のために、測っていない数字を作らない。
  */
 
 import { useEffect, useState } from "react";
 
 import { AppHeader, IconMark } from "../components/AppShell";
-import { IconArrow, IconCheck, IconClock } from "../components/Icons";
-import { useCourse } from "../course/live";
+import { PoHero } from "../components/aippo/PoHero";
+import { PrimaryButton } from "../components/aippo/PrimaryButton";
+import { ReviewPrompt } from "../components/ReviewPrompt";
+import { ReviewCards } from "../components/course/ReviewCards";
 import {
-  comingSoonNote,
-  hasComingSoonDetail,
-  isComingSoon,
-  startableLessons,
-} from "../course/availability";
+  IconArrow,
+  IconBars,
+  IconStreak,
+  IconBookmark,
+  IconCalendar,
+  IconCheck,
+  IconChevronRight,
+  IconClock,
+  IconSparkle,
+} from "../components/Icons";
+import { useCourse } from "../course/live";
+import { isComingSoon, startableLessons } from "../course/availability";
 import { CATEGORIES, lookOf } from "../course/presentation";
 import { recommendationsForHome } from "../course/recommend";
 import { useCompletedLessons } from "../course/progress";
@@ -49,81 +58,68 @@ export interface HomePageProps {
   onSelectLesson: (lessonId: string) => void;
   /** コース一覧タブへ。 */
   onOpenCourse: () => void;
+  /** 学習記録タブへ。 */
+  onOpenRecord: () => void;
+  onOpenAccount: () => void;
 }
 
-// ---------------------------------------------------------------- 次にやること
+// ------------------------------------------------------------ 節の見出し
 
 /**
- * 画面のいちばん上。ここだけは面で囲う。
+ * 節の見出し。左に線だけの印、右に行き先。
  *
- * この画面で押す場所は基本ここ1つなので、
- * 「独立した操作単位」として囲う条件を満たしている。
- * 逆に言えば、囲ってよいのはここだけ。
+ * 印は器に入れない。淡色の四角に入れると、節が増えるほど同じ形の四角が
+ * 縦に並び、見出しそのものより印のほうが目立つ。
  */
-function NextUp({
-  lesson,
-  started,
-  onStart,
+function SectionHeading({
+  icon,
+  id,
+  children,
+  action,
 }: {
-  lesson: Lesson;
-  started: boolean;
-  onStart: () => void;
+  icon: Parameters<typeof IconMark>[0]["icon"];
+  id: string;
+  children: React.ReactNode;
+  action?: { label: string; onClick: () => void };
 }) {
   return (
-    <section
-      className="rounded-panel border border-brand-line bg-surface p-4"
-      aria-labelledby="next-heading"
-      data-testid="next-up"
-    >
-      <p className="text-xs font-bold text-brand-dark">
-        {started ? "続きから" : "今日はここから"}
-      </p>
-
-      <h2 id="next-heading" className="mt-1.5 text-lg font-bold leading-7">
-        {lesson.title}
+    <div className="flex items-center justify-between gap-3">
+      <h2 id={id} className="flex items-center gap-2 text-base font-bold">
+        <IconMark icon={icon} className="h-[1.125rem] w-[1.125rem]" />
+        {children}
       </h2>
-      <p className="mt-1 text-sm leading-7 text-ink-muted">{lesson.goal}</p>
-
-      {/*
-        所要時間は、始める前にいちばん知りたいこと。
-        「8分なら今できる」と決められるように、ボタンのすぐ横に置く。
-      */}
-      <div className="mt-4 flex items-center gap-4">
+      {action && (
         <button
           type="button"
-          data-testid="continue-lesson"
-          onClick={onStart}
-          className="flex items-center gap-2 rounded-cta bg-brand px-5 py-2.5 text-sm
-                     font-bold text-white transition hover:bg-brand-dark active:bg-brand-dark"
+          onClick={action.onClick}
+          /* 当たり判定を広げる（py と -my を同じだけ。見た目は変わらない） */
+          className="-my-2 flex shrink-0 items-center gap-0.5 py-2 text-xs font-bold
+                     text-brand transition hover:text-brand-dark"
         >
-          {started ? "学習を続ける" : "はじめる"}
-          <IconArrow className="h-4 w-4 shrink-0" />
+          {action.label}
+          <IconChevronRight className="h-3.5 w-3.5" />
         </button>
-
-        {lesson.estimatedMinutes !== undefined && (
-          <span className="flex items-center gap-1.5 text-xs text-ink-muted">
-            <IconClock className="h-3.5 w-3.5 shrink-0" />
-            約{lesson.estimatedMinutes}分
-          </span>
-        )}
-      </div>
-    </section>
+      )}
+    </div>
   );
 }
 
-// -------------------------------------------------------------- 7日間の道のり
+// ---------------------------------------------------------- 今日のつづき
 
 /**
- * 7日間のどこまで来たか。
+ * 7日間の道のり。
  *
- * 9本ぜんぶを常に大きく出す必要は無い。**いまいる場所の前後**が
- * 見えれば足りる。終わったものは畳んで件数だけにし、
- * これから来るものは2本だけ見せる。
+ * 丸を並べるのではなく、**1行に1回**の一覧にする。
+ * 丸だけでは何の回か分からず、番号を数えないと自分の位置が読めない。
+ * 題まで出せば、次に何をするのかが目で分かる。
  *
- * 以前はここが「0〜8 の丸を9個」だった。丸だけでは何の回か分からず、
- * 押せない回まで押せる形で並んでいた。
+ * 桁をそろえる
+ * ------------
+ * 左から「Day n」「題」「状態」の3列。Day と状態の幅を固定して、
+ * 題を残り全部にする。固定しないと、題の長さで Day の位置が動き、
+ * 縦に読み下せなくなる（9行あるので、そこが効く）。
  */
-function Roadmap({
+function DayTrack({
   lessons,
   completed,
   currentId,
@@ -134,49 +130,27 @@ function Roadmap({
   currentId: string | null;
   onSelectLesson: (id: string) => void;
 }) {
-  const currentIndex = lessons.findIndex((lesson) => lesson.id === currentId);
-
-  /*
-    ひとつ前から見せる。どこから来たかが見えるほうが、
-    自分がどのあたりにいるか分かる。
-  */
-  const from = Math.max(0, currentIndex - 1);
-
-  // いまの回と、その前後。多すぎると「まだこんなにある」に見える
-  const visible = lessons.slice(from, from + 4);
-
-  /*
-    畳んだぶんの件数。
-
-    「一覧の何番目か」ではなく、**実際に終わった数**を数える。
-    位置で数えると、まだ1本も終えていない人に
-    「ここまで1回おわりました」と出る（実際に出した）。
-  */
-  const doneBefore = lessons
-    .slice(0, from)
-    .filter((lesson) => completed.includes(lesson.id)).length;
-
   return (
     <section aria-labelledby="roadmap-heading">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="roadmap-heading" className="section-title">
+        <h2 id="roadmap-heading" className="flex items-center gap-2 text-base font-bold">
+          <IconMark icon={IconCalendar} className="h-[1.125rem] w-[1.125rem]" />
           7日間の道のり
         </h2>
-        <span className="text-xs text-ink-muted">全{lessons.length}回</span>
+        {/*
+          「7日間」なのに回数が違うことがある（診断や最終課題が入る）。
+          数は数えて出す。書き込むと、教材を足したときに合わなくなる。
+        */}
+        <span className="shrink-0 text-xs text-ink-muted">
+          全{lessons.length}レッスン
+        </span>
       </div>
 
-      <ol className="mt-2" role="list">
-        {doneBefore > 0 && (
-          <li className="flex items-center gap-2 border-b border-line py-2.5 text-xs text-ink-muted">
-            <IconCheck className="h-3.5 w-3.5 shrink-0 text-brand" />
-            ここまで{doneBefore}回おわりました
-          </li>
-        )}
-
-        {visible.map((lesson) => {
-          const soon = isComingSoon(lesson);
-          const isCurrent = lesson.id === currentId;
+      <ol className="mt-2" role="list" data-testid="day-track">
+        {lessons.map((lesson) => {
           const done = completed.includes(lesson.id);
+          const current = lesson.id === currentId;
+          const soon = isComingSoon(lesson);
 
           return (
             <li key={lesson.id}>
@@ -185,43 +159,46 @@ function Roadmap({
                 onClick={() => onSelectLesson(lesson.id)}
                 disabled={soon}
                 aria-disabled={soon}
-                data-testid={`roadmap-${lesson.id}`}
-                className={`row row-tap items-baseline disabled:cursor-not-allowed
+                data-testid={`day-${lesson.id}`}
+                className={`row row-tap items-center gap-3 disabled:cursor-not-allowed
                             ${soon ? "opacity-55" : ""}`}
               >
-                {/* 回の番号。丸で囲わない。数字そのもので順番は伝わる */}
+                {/* 左の列は幅を固定する。題の長さで位置を動かさない */}
                 <span
                   className={`w-12 shrink-0 text-xs tabular-nums
-                              ${isCurrent ? "font-bold text-brand-dark" : "text-ink-muted"}`}
+                              ${current ? "font-bold text-brand-dark" : "text-ink-muted"}`}
                 >
                   Day {lesson.number}
                 </span>
 
-                <span className="min-w-0 flex-1">
-                  <span
-                    className={`block text-sm leading-6 ${isCurrent ? "font-bold" : ""}`}
-                  >
-                    {lesson.title}
-                  </span>
-                  {soon && hasComingSoonDetail(lesson) && (
-                    <span className="mt-0.5 block text-xs text-ink-muted">
-                      {comingSoonNote(lesson)}
-                    </span>
+                {/*
+                  印も幅を固定する。終わった回だけチェックが入るので、
+                  幅を空けておかないと題の頭が行ごとにずれる。
+                */}
+                <span className="flex w-4 shrink-0 justify-center" aria-hidden="true">
+                  {done ? (
+                    <IconCheck className="h-4 w-4 text-brand" />
+                  ) : current ? (
+                    <span className="h-2 w-2 rounded-full bg-brand" />
+                  ) : (
+                    <span className="h-2 w-2 rounded-full border border-line" />
                   )}
                 </span>
 
-                {/*
-                  状態は右端に、文字で。色だけでは伝わらない人がいる。
-                  「近日公開」を青い錠前の pill にはしない——
-                  押せないものほど静かに置く。
-                */}
-                <span className="shrink-0 self-center text-xs">
+                <span
+                  className={`min-w-0 flex-1 truncate text-sm leading-6 ${current ? "font-bold" : ""}`}
+                >
+                  {lesson.title}
+                </span>
+
+                {/* 状態は右端。色だけでなく文字でも言う */}
+                <span className="w-12 shrink-0 text-right text-xs">
                   {done ? (
-                    <IconCheck className="h-4 w-4 text-brand" aria-label="おわった" />
-                  ) : isCurrent ? (
+                    <span className="text-ink-muted">完了</span>
+                  ) : current ? (
                     <span className="font-bold text-brand-dark">今日</span>
                   ) : soon ? (
-                    <span className="text-ink-muted">近日公開</span>
+                    <span className="text-ink-muted">準備中</span>
                   ) : null}
                 </span>
               </button>
@@ -233,54 +210,94 @@ function Roadmap({
   );
 }
 
+/**
+ * 今日のレッスン。この画面の主役。
+ *
+ * 出すのは**レッスンの**名前とねらい。コース名ではない。
+ * コース名（7日でAIの最初の一歩）はどの日も同じで、今日やることを
+ * 何も言っていない。開いた人が知りたいのは「次に何をするか」で、
+ * それはレッスンの題とねらいにしか書かれていない。
+ *
+ * 所要時間はボタンの隣に置く。「8分なら今できる」と決められるように、
+ * 押す直前に見える場所へ置く。
+ *
+ * この画面で押す場所は基本ここ1つなので、面で囲う条件を満たしている。
+ * 逆に言えば、囲ってよいのはここだけ。
+ */
+function TodayCard({
+  lesson,
+  started,
+  onStart,
+}: {
+  lesson: Lesson;
+  started: boolean;
+  onStart: () => void;
+}) {
+  return (
+    <section
+      className="rounded-panel border border-line bg-surface p-4 shadow-card"
+      aria-labelledby="next-heading"
+      data-testid="next-up"
+    >
+      <p className="flex items-center gap-1.5 text-xs font-bold text-brand">
+        <IconBookmark className="h-4 w-4" />
+        {started ? "今日のつづき" : "今日はここから"}
+      </p>
+
+      <h2 id="next-heading" className="mt-1.5 text-xl font-bold leading-8">
+        {lesson.title}
+      </h2>
+      <p className="mt-1 text-sm leading-7 text-ink-muted">{lesson.goal}</p>
+
+      <div className="mt-4 flex items-center gap-3">
+        <PrimaryButton
+          testId="continue-lesson"
+          onClick={onStart}
+          trailing={<IconChevronRight className="h-5 w-5 shrink-0" />}
+          className="flex-1"
+        >
+          {started ? "つづきをはじめる" : "はじめる"}
+        </PrimaryButton>
+
+        {lesson.estimatedMinutes !== undefined && (
+          <span className="flex shrink-0 items-center gap-1 text-xs text-ink-muted">
+            <IconClock className="h-4 w-4" />約{lesson.estimatedMinutes}分
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}
+
 // ------------------------------------------------------------------ 進み具合
 
-/**
- * 進み具合。
- *
- * 細い棒と「n / m」だけ。50% を大きく見せる意味は無い。
- * 続けている日数と、自分の課題で試した回数は、実際に数えているので
- * 小さく添える（滞在時間のような、測っていない数字は出さない）。
- */
 function Progress({
   done,
   total,
   days,
   realTaskCount,
-  onOpenCourse,
+  onOpenRecord,
 }: {
   done: number;
   total: number;
   days: number;
   realTaskCount: number;
-  onOpenCourse: () => void;
+  onOpenRecord: () => void;
 }) {
   const ratio = total === 0 ? 0 : done / total;
 
   return (
     <section aria-labelledby="progress-heading" data-testid="progress-summary">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 id="progress-heading" className="section-title">
-          学習の進み具合
-        </h2>
-        <button
-          type="button"
-          onClick={onOpenCourse}
-          className="shrink-0 text-xs font-bold text-brand transition hover:text-brand-dark"
-        >
-          教材をすべて見る
-        </button>
-      </div>
-
-      <p className="mt-2 text-sm">
-        <span className="font-bold tabular-nums">
-          {done}/{total}
-        </span>
-        <span className="text-ink-muted"> レッスン完了</span>
-      </p>
+      <SectionHeading
+        icon={IconBars}
+        id="progress-heading"
+        action={{ label: "詳細を見る", onClick: onOpenRecord }}
+      >
+        学習の進み具合
+      </SectionHeading>
 
       <div
-        className="mt-2 h-1.5 overflow-hidden rounded-full bg-line"
+        className="mt-3 h-2 overflow-hidden rounded-full bg-line"
         role="progressbar"
         aria-label="コース全体の進み具合"
         aria-valuemin={0}
@@ -294,10 +311,37 @@ function Progress({
         />
       </div>
 
-      {(days > 0 || realTaskCount > 0) && (
-        <p className="mt-2 text-xs text-ink-muted">
-          続けて{days}日
-          {realTaskCount > 0 && `・自分の課題で${realTaskCount}回ためしました`}
+      {/*
+        左右に1つずつ。支給デザインは右が「学習時間」だが、
+        滞在時間は測っていないので、実際に数えている日数を置く。
+      */}
+      <div className="mt-2 flex items-baseline justify-between gap-3 text-xs">
+        <p className="text-ink-muted">
+          <span className="text-sm font-bold tabular-nums text-ink">
+            {done} / {total}
+          </span>{" "}
+          レッスン完了
+        </p>
+        {/*
+          続けた日数。炎の印を添える。
+          数字だけだと、進み具合の分子と見分けが付かない。
+        */}
+        <p className="flex items-center gap-1 text-ink-muted">
+          <IconStreak className="h-4 w-4 shrink-0 text-caution" aria-hidden="true" />
+          {days > 0 ? (
+            <>
+              続けて{" "}
+              <span className="text-sm font-bold tabular-nums text-ink">{days}</span> 日
+            </>
+          ) : (
+            "今日がはじめの1日"
+          )}
+        </p>
+      </div>
+
+      {realTaskCount > 0 && (
+        <p className="mt-1 text-xs text-ink-muted">
+          自分の課題で{realTaskCount}回ためしました
         </p>
       )}
     </section>
@@ -306,7 +350,12 @@ function Progress({
 
 // ------------------------------------------------------------------ 本体
 
-export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
+export function HomePage({
+  onSelectLesson,
+  onOpenCourse,
+  onOpenRecord,
+  onOpenAccount,
+}: HomePageProps) {
   /*
     終わったレッスンは、端末とサーバーの両方から取る。
     登録して別の端末で開いた人にも、同じ数が出るようにする。
@@ -341,44 +390,38 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
     「次」以外の、始められる教材。ここに横スクロールは使わない。
     右端で切れたカードは、そこに何かがあること自体を見落とさせる。
   */
-  const others = startable.filter((lesson) => lesson.id !== nextLesson?.id).slice(0, 3);
+  const others = startable.filter((lesson) => lesson.id !== nextLesson?.id).slice(0, 2);
 
   return (
     <>
-      <AppHeader />
+      <AppHeader onOpenAccount={onOpenAccount} />
 
-      <main className="mx-auto max-w-2xl px-4 pb-24 pt-4">
-        {/* ── ポーのひとこと ── */}
+      <main className="mx-auto max-w-2xl px-5 pb-28 pt-2">
         {/*
           ポーは学習ガイドであって、チャットボットではない。
-          画面の主役に据えず、次にやることへ添える1行だけにする。
-          以前は画面上端に吹き出しの面を置き、そこに
-          「今日も一緒に、AIの一歩を進めていきましょう。」と
-          誰にでも当てはまる文を出していた。
+          あいさつは1回だけ、短く。誰にでも当てはまる励ましは書かない。
         */}
-        <section
-          className="flex items-center gap-2.5"
-          aria-label="ポーからのあいさつ"
-          data-testid="po-greeting"
-        >
-          <img
-            src="/brand/poe-wave.webp"
-            alt=""
-            aria-hidden="true"
-            className="h-10 w-10 shrink-0 object-contain"
-          />
-          <p className="text-sm leading-6 text-ink-muted">
-            {completed.length === 0
-              ? "はじめまして、ポーです。1本目は10分で終わります。"
+        <PoHero
+          title={
+            <>
+              こんにちは！
+              <br />
+              ポーです
+            </>
+          }
+          emotion="talking"
+          message={
+            completed.length === 0
+              ? "一緒に学んで、使える力を少しずつつけていきましょう！"
               : nextLesson
                 ? `おかえりなさい。次は「${nextLesson.title}」です。`
-                : "ここまでの教材はすべて終わりました。"}
-          </p>
-        </section>
+                : "ここまでの教材はすべて終わりました。"
+          }
+        />
 
         {nextLesson && (
-          <div className="mt-4">
-            <NextUp
+          <div className="mt-5">
+            <TodayCard
               lesson={nextLesson}
               started={completed.length > 0}
               onStart={() => onSelectLesson(nextLesson.id)}
@@ -386,14 +429,12 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
           </div>
         )}
 
-        <div className="mt-7">
-          <Roadmap
-            lessons={course.lessons}
-            completed={completed}
-            currentId={nextLesson?.id ?? null}
-            onSelectLesson={onSelectLesson}
-          />
-        </div>
+        {/*
+          そろそろ見返しどきのもの。無ければ何も出ない。
+          余白は ReviewPrompt 自身が持つ。ここで囲うと、
+          出すものが無い日にも空の余白だけが残る。
+        */}
+        <ReviewPrompt onSelectLesson={onSelectLesson} />
 
         <div className="mt-7">
           <Progress
@@ -401,59 +442,102 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
             total={startable.length}
             days={streak.days}
             realTaskCount={streak.realTaskCount}
-            onOpenCourse={onOpenCourse}
+            onOpenRecord={onOpenRecord}
           />
         </div>
 
-        {/* ── ほかの教材 ── */}
+        {/*
+          飛ばした解説。無い日は何も出ない。
+
+          道のりの前に置く。「次へ進む」より前に「戻れる場所」を出すのは、
+          穴が空いたまま先へ進んでほしくないため。ただし押し付けない——
+          出すのは節ひとつで、開かなければそのまま下へ流れる。
+        */}
+        <ReviewCards course={course} />
+
+        {/* ── 7日間の道のり ── */}
+        <div className="mt-7">
+          <DayTrack
+            lessons={course.lessons}
+            completed={completed}
+            currentId={nextLesson?.id ?? null}
+            onSelectLesson={onSelectLesson}
+          />
+        </div>
+
+        {/* ── おすすめコース ── */}
         {others.length > 0 && (
           <section className="mt-7" aria-labelledby="others-heading">
-            <h2 id="others-heading" className="section-title">
-              ほかの教材
-            </h2>
+            <SectionHeading
+              icon={IconSparkle}
+              id="others-heading"
+              action={{ label: "すべて見る", onClick: onOpenCourse }}
+            >
+              おすすめコース
+            </SectionHeading>
 
-            <ul className="mt-2" role="list">
-              {others.map((lesson) => (
-                <li key={lesson.id}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectLesson(lesson.id)}
-                    data-testid={`recommend-${lesson.id}`}
-                    data-availability="available"
-                    className="row row-tap items-baseline"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-bold leading-6">
-                        {lesson.title}
+            <ul className="mt-3 space-y-3" role="list">
+              {others.map((lesson) => {
+                const look = lookOf(lesson.id);
+                return (
+                  <li key={lesson.id}>
+                    <button
+                      type="button"
+                      onClick={() => onSelectLesson(lesson.id)}
+                      data-testid={`recommend-${lesson.id}`}
+                      data-availability="available"
+                      className="flex w-full items-center gap-3 rounded-panel border
+                                 border-line bg-surface p-3 text-left shadow-card
+                                 transition hover:border-brand-line active:scale-[0.995]"
+                    >
+                      {/*
+                        絵の代わりに、用途の印を淡い地に置く。
+                        写真もイラストも用意が無いので、無いものを
+                        それらしく埋めない。
+                      */}
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-14 w-14 shrink-0 items-center justify-center
+                                    rounded-card ${look.wash}`}
+                      >
+                        <IconMark
+                          icon={look.icon}
+                          tone={look.tone === "plain" ? "brand" : look.tone}
+                          className="h-6 w-6"
+                        />
                       </span>
-                      <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
-                        {lesson.goal}
+
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-bold leading-6">
+                          {lesson.title}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-5 text-ink-muted">
+                          {lesson.goal}
+                        </span>
+                        {lesson.estimatedMinutes !== undefined && (
+                          <span className="mt-1 flex items-center gap-1 text-xs text-ink-muted">
+                            <IconClock className="h-3.5 w-3.5" />約
+                            {lesson.estimatedMinutes}分
+                          </span>
+                        )}
                       </span>
-                    </span>
-                    {lesson.estimatedMinutes !== undefined && (
-                      <span className="shrink-0 self-center text-xs tabular-nums text-ink-muted">
-                        {lesson.estimatedMinutes}分
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
+
+                      <IconChevronRight className="h-5 w-5 shrink-0 text-ink-muted" />
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}
 
-        {/* ── 用途から探す ── */}
-        {/*
-          丸いチップを6個並べるのをやめ、2列の一覧にした。
-          チップの列は「タグの群れ」に見えて、押せる入り口だと分かりにくい。
-          印は器に入れず、線だけにしている。
-        */}
+        {/* ── カテゴリから探す ── */}
         <section className="mt-7" aria-labelledby="category-heading">
-          <h2 id="category-heading" className="section-title">
-            用途から探す
-          </h2>
+          <SectionHeading icon={IconArrow} id="category-heading">
+            カテゴリから探す
+          </SectionHeading>
 
-          <ul className="mt-2 grid grid-cols-2 gap-x-4" role="list">
+          <ul className="mt-3 grid grid-cols-2 gap-3" role="list">
             {CATEGORIES.map((category) => {
               const look = lookOf(category.lessonId);
               return (
@@ -461,14 +545,28 @@ export function HomePage({ onSelectLesson, onOpenCourse }: HomePageProps) {
                   <button
                     type="button"
                     onClick={() => onSelectLesson(category.lessonId)}
-                    className="row row-tap items-center gap-2.5 py-3"
+                    /*
+                      6つとも同じ大きさにする。字数（文章／情報整理）で
+                      高さが変わると、2列の並びがガタつく。
+                      印の大きさと文字の始まりも、行ごとにずらさない。
+                    */
+                    className="flex h-full min-h-[3.5rem] w-full items-center gap-2.5
+                               rounded-card border border-line bg-surface px-3 py-3
+                               text-left shadow-card transition
+                               hover:border-brand-line active:scale-[0.99]"
                   >
-                    <IconMark
-                      icon={look.icon}
-                      tone={look.tone === "plain" ? "brand" : look.tone}
-                      className="h-[1.125rem] w-[1.125rem]"
-                    />
-                    <span className="text-sm">{category.label}</span>
+                    {/* 印の列は幅を固定する。絵の形で文字の始まりを変えない */}
+                    <span className="flex w-5 shrink-0 justify-center">
+                      <IconMark
+                        icon={look.icon}
+                        tone={look.tone === "plain" ? "brand" : look.tone}
+                        className="h-5 w-5"
+                      />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      {category.label}
+                    </span>
+                    <IconChevronRight className="h-4 w-4 shrink-0 text-ink-muted" />
                   </button>
                 </li>
               );

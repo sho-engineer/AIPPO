@@ -12,29 +12,21 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { AppHeader, Card, CardHeading } from "../components/AppShell";
-import { IconBook, IconCaution, IconSparkle } from "../components/Icons";
+import { IconBook } from "../components/Icons";
 import { PrivacyDialog } from "../components/course/PrivacyDialog";
-import { SafetyNote } from "../components/SafetyNote";
+import { LessonHeader } from "../components/course/LessonHeader";
+import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
-import {
-  ChoiceStep,
-  ChoiceTiles,
-  CompletionView,
-  ConceptCardView,
-  GeneratingCard,
-  ObservationList,
-  OutcomePreview,
-  PromptPreview,
-  QuizStep,
-  ResultCompare,
-  RunHistory,
-  StartChoiceTiles,
-  TextStep,
-  ThreeWayCompare,
-} from "../components/course/StepViews";
+import { useCourse } from "../course/live";
 import { buildAiInput } from "../course/engine";
-import { lookupLesson, useCourse } from "../course/live";
+import { promptEntryFor } from "../course/promptSummary";
+import { savePrompt } from "../course/promptLibrary";
+import { useKeeping } from "../course/keeping";
+import {
+  AUTO_ADVANCE_MS,
+  canAutoAdvance,
+  isAnswered,
+} from "../course/autoAdvance";
 import { recommendLessons, saveRecommendations } from "../course/recommend";
 import { saveProfile } from "../api/diagnosis";
 import { useCompletedLessons } from "../course/progress";
@@ -88,31 +80,8 @@ export function LessonRunner({
   */
   const course = useCourse();
   const completedIds = useCompletedLessons();
-  const completedCount = completedIds.length;
-  const nextLessons = course.lessons
-    .filter(
-      (entry) =>
-        entry.id !== lesson.id &&
-        entry.usesAi &&
-        !completedIds.includes(entry.id),
-    )
-    .slice(0, 2);
-
-  const lastRun = runs[runs.length - 1];
-  const meta = (step.meta ?? {}) as {
-    reviewPoints?: string[];
-    factCheck?: boolean;
-    answer?: string[];
-    /** 元・1回目・改善後の3つを並べるか。 */
-    threeWay?: boolean;
-  };
-
-  /** 最初の1回で使う例文。空欄から始めさせないために事前に入れておく。 */
-  const sampleText = (() => {
-    const quick = lesson.steps.find((entry) => entry.type === "quick_try");
-    return (quick?.meta as { sampleText?: string } | undefined)?.sampleText;
-  })();
-
+  /* 帳面にしまえるのは登録した人だけ（course/keeping.ts）。 */
+  const { canKeep } = useKeeping();
   const send = async (label?: string) => {
     const outcome = await api.run({ label });
     if (outcome === "sent") api.goNext();
@@ -149,326 +118,72 @@ export function LessonRunner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id, step.type, api.isSubmitting, api.error, api.findings.length]);
 
+  /*
+    選ぶだけの回は、選んだら自動で次へ送る（Learning UX §3）。
+
+    どの回を送ってよいかは autoAdvance.ts が決める。とくに
+    「次がAIを呼ぶ回」では送らない——札を1つ触っただけでお金のかかる
+    要求が飛ぶことになり、迷って押し直すたびに課金される。
+
+    片付けで時計を止めるのが要。手で「次へ」を押して先に進んだときは、
+    この回そのものが消えるので時計も止まり、二重に進まない。
+  */
+  const autoAdvancing = canAutoAdvance(lesson, step) && isAnswered(step, values);
+
+  /*
+    受け取ったことを返す文。
+
+    作文はせず、**選んだ答えそのもの**を出す。教材が選択肢の言葉を
+    持っているので、値ではなく人が読める側を探して使う。
+  */
+  const chosen = step.key ? (values[step.key] ?? "").trim() : "";
+  const chosenLabel =
+    step.options?.find((option) => option.value === chosen)?.label || chosen;
+  const doneLabel = autoAdvancing && chosenLabel ? `「${chosenLabel}」で進みます` : null;
+
+  useEffect(() => {
+    if (!autoAdvancing) return;
+    const timer = window.setTimeout(() => {
+      setRevealed(false);
+      api.goNext();
+    }, AUTO_ADVANCE_MS);
+    return () => window.clearTimeout(timer);
+    // 回か答えが変わったときだけ引き直す
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoAdvancing, step.id, step.key ? values[step.key] : ""]);
+
   const confirmAndSend = async () => {
     const outcome = await api.run({ force: true });
     if (outcome === "sent") api.goNext();
   };
 
-  const body = (() => {
-    switch (step.type) {
-      case "safety_check":
-        if (step.options) {
-          return (
-            <div>
-              <div className="flex items-start gap-2 rounded-card bg-caution-soft px-4 py-3 text-sm leading-7 text-caution">
-                <IconCaution className="mt-1.5 h-4 w-4 shrink-0" />
-                <span>{step.poMessage}</span>
-              </div>
-              <div className="mt-5">
-                <StartChoiceTiles
-                  onPick={(value) => {
-                    api.setValue(step.key ?? "", value);
-                    api.goNext();
-                  }}
-                  onSkip={api.skipRealTask}
-                />
-              </div>
-            </div>
-          );
-        }
-        return (
-          <div className="rounded-card border border-brand-line bg-surface p-5">
-            <p className="text-sm leading-7">{step.poMessage}</p>
-            <ul className="mt-4 space-y-2 text-sm leading-7" role="list">
-              <li>・会社の秘密や個人情報は入力しない</li>
-              <li>・数字・日付・固有名詞は、あとで自分で確かめる</li>
-              <li>・医療・法律・お金の大事な判断は、専門家にも確認する</li>
-            </ul>
-          </div>
-        );
-
-      case "intro":
-        return (
-          <div className="rounded-card border border-brand-line bg-surface p-5">
-            <p className="text-sm leading-7">{step.poMessage}</p>
-          </div>
-        );
-
-      case "outcome_preview":
-        return (
-          <OutcomePreview
-            minutes={lesson.estimatedMinutes}
-            before={lesson.beforeExample}
-            after={lesson.afterExample}
-            skills={lesson.learnedSkills ?? lesson.outcomes}
-          />
-        );
-
-      case "concept_card":
-        return step.card ? <ConceptCardView card={step.card} /> : null;
-
-      case "quick_try":
-        return (
-          <div>
-            <ChoiceStep
-              step={step}
-              value={values[step.key ?? ""] ?? ""}
-              onChange={(value) => api.setValue(step.key ?? "", value)}
-            />
-            {/*
-              何を送るのかは、この画面でも見えるようにしておく（要件 §12）。
-              ただし確認のためだけの1画面は挟まない。
-              最初の結果までが遠くなると、そこで離れる。
-            */}
-            {sampleText && (
-              <div className="mt-5">
-                <Card>
-                  <CardHeading icon={IconSparkle} tone="plain">
-                    AIにはこう伝えます
-                  </CardHeading>
-                  <p className="mt-4 whitespace-pre-wrap rounded-card bg-canvas p-4 text-sm leading-7">
-                    {sampleText}
-                  </p>
-                </Card>
-              </div>
-            )}
-          </div>
-        );
-
-      case "observation":
-        return (
-          <div>
-            {lastRun && (
-              <ResultCompare
-                before={lastRun.inputText}
-                after={lastRun.outputText}
-                reviewPoints={meta.reviewPoints ?? []}
-                factCheck={meta.factCheck}
-              />
-            )}
-            <div className="mt-6">
-              <ObservationList
-                step={step}
-                value={values[step.key ?? ""] ?? ""}
-                onChange={(value) => api.setValue(step.key ?? "", value)}
-              />
-            </div>
-          </div>
-        );
-
-      case "condition_choice":
-        return (
-          <div>
-            {/*
-              直前の結果を上に置く。
-              条件だけを並べても「何に対して足すのか」が画面から消えていて、
-              思い出しながら選ばせることになっていた。
-            */}
-            {lastRun && (
-              <Card className="mb-5">
-                <CardHeading icon={IconSparkle} tone="plain">
-                  いまのAIの結果
-                </CardHeading>
-                <p className="mt-4 whitespace-pre-wrap break-words rounded-card bg-canvas p-4 text-sm leading-7">
-                  {lastRun.outputText}
-                </p>
-              </Card>
-            )}
-            <ChoiceTiles
-              step={step}
-              value={values[step.key ?? ""] ?? ""}
-              onChange={(value) => api.setValue(step.key ?? "", value)}
-            />
-          </div>
-        );
-
-      case "single_choice":
-      case "multi_choice":
-        return meta.answer ? (
-          <QuizStep
-            step={step}
-            value={values[step.key ?? ""] ?? ""}
-            onChange={(value) => {
-              api.setValue(step.key ?? "", value);
-              setRevealed(true);
-            }}
-            revealed={revealed}
-          />
-        ) : (
-          <ChoiceStep
-            step={step}
-            value={values[step.key ?? ""] ?? ""}
-            onChange={(value) => api.setValue(step.key ?? "", value)}
-            multiple={step.type === "multi_choice"}
-          />
-        );
-
-      case "text_input":
-      case "template_builder":
-      case "real_task":
-        return (
-          <>
-          <TextStep
-            step={step}
-            value={values[step.key ?? ""] ?? ""}
-            onChange={(value) => api.setValue(step.key ?? "", value)}
-            sampleText={step.type === "real_task" ? undefined : sampleText}
-            onHint={api.showHint}
-            hintsLeft={(step.hints?.length ?? 0) - api.hintIndex}
-          />
-          {/* 入れてはいけないものを、書き始める前に伝える（§15） */}
-          <SafetyNote placement="input" />
-          </>
-        );
-
-      case "prompt_preview": {
-        const input = buildAiInput(step, values);
-        const cards = Object.entries(input)
-          .filter(([key, value]) => value && key !== "original_text")
-          .map(([key, value]) => ({ label: LABELS[key] ?? key, value }));
-        return (
-          <PromptPreview
-            cards={[
-              { label: "やること", value: lesson.title },
-              ...cards,
-            ]}
-            detail={buildDetail(lesson.title, input)}
-          />
-        );
-      }
-
-      case "ai_generate":
-        return (
-          <GeneratingCard
-            busy={api.isSubmitting}
-            message={
-              api.isSubmitting
-                ? (step.instruction ?? "AIが考えています…")
-                : api.error
-                  ? "もう一度おくってみましょう。"
-                  : "送っています。"
-            }
-          />
-        );
-
-      case "result_review":
-      case "result_compare":
-      case "improvement_choice":
-        if (meta.threeWay && runs.length >= 2) {
-          return (
-            <div>
-              <ThreeWayCompare
-                original={runs[0].inputText}
-                first={runs[0].outputText}
-                improved={runs[runs.length - 1].outputText}
-                condition={values.condition ?? ""}
-              />
-              <SafetyNote placement="output" />
-              <RunHistory runs={runs} />
-            </div>
-          );
-        }
-        return (
-          <div>
-            {lastRun && (
-              <ResultCompare
-                before={lastRun.inputText}
-                after={lastRun.outputText}
-                reviewPoints={meta.reviewPoints ?? ["元の意味が変わっていないか"]}
-                factCheck={meta.factCheck}
-              />
-            )}
-            {step.type === "improvement_choice" && (
-              <div className="mt-6">
-                <ChoiceStep
-                  step={step}
-                  value={values.improvement ?? ""}
-                  onChange={(value) => api.setValue("improvement", value)}
-                />
-              </div>
-            )}
-            {/* AIの回答をそのまま信じないことを、結果のそばで伝える（§15） */}
-            <SafetyNote placement="output" />
-            <RunHistory runs={runs} />
-          </div>
-        );
-
-      case "reflection":
-        return (
-          <div className="rounded-card border border-brand-line bg-surface p-5">
-            <p className="text-sm leading-7">{step.poMessage}</p>
-            <ul className="mt-4 space-y-2 text-sm leading-7" role="list">
-              {lesson.outcomes.map((outcome) => (
-                <li key={outcome}>・{outcome}</li>
-              ))}
-            </ul>
-            {api.realTaskSkipped && (
-              <p className="mt-4 text-xs text-ink-muted">
-                自分の文章での練習は、あとからでも試せます。
-              </p>
-            )}
-          </div>
-        );
-
-      case "completion":
-        if (lesson.id === "diagnosis") {
-          const ids = recommendLessons(values);
-          return (
-            <div data-testid="completion-view">
-              <p className="text-sm leading-7 text-ink-muted">
-                答えに近いものを3つ選びました。上から順に試すのがおすすめです。
-              </p>
-              <ol className="mt-4 space-y-3" role="list">
-                {ids.map((id, index) => {
-                  const target = lookupLesson(id);
-                  if (!target) return null;
-                  return (
-                    <li
-                      key={id}
-                      data-testid={`recommended-${id}`}
-                      className="rounded-card border border-brand-line bg-surface p-4"
-                    >
-                      <p className="text-xs text-brand-dark">おすすめ {index + 1}</p>
-                      <h3 className="mt-1 text-base font-bold">{target.title}</h3>
-                      <p className="mt-1 text-sm leading-6 text-ink-muted">
-                        {target.goal}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ol>
-            </div>
-          );
-        }
-        return (
-          <CompletionView
-            skills={lesson.learnedSkills ?? lesson.outcomes}
-            outcomeText={lastRun?.outputText}
-            outcomeLabel={
-              api.realTaskSkipped ? "AIが書いた文章（練習）" : "AIが書いた文章"
-            }
-            lessonId={lesson.id}
-            lessonNumber={lesson.number}
-            /*
-              このレッスンぶんを足して数える。
-              画面を出している時点ではまだ「完了」を記録していないので、
-              足さないと「最後の1本を終えたのに 8/9」のままになる。
-            */
-            done={completedCount + (completedIds.includes(lesson.id) ? 0 : 1)}
-            total={course.lessons.length}
-            next={nextLessons}
-            onSelectLesson={onSelectLesson}
-          />
-        );
-
-      default:
-        return null;
-    }
-  })();
+  const body = (
+    <StepRenderer
+      lesson={lesson}
+      api={api}
+      course={course}
+      completedIds={completedIds}
+      revealed={revealed}
+      setRevealed={setRevealed}
+      onSelectLesson={onSelectLesson}
+    />
+  );
 
   const onPrimary = () => {
     switch (step.type) {
       case "prompt_preview":
+        /*
+          自分で組み立てた依頼を、帳面へしまう。
+
+          しまうのはここ。「この内容でよい」と押した瞬間が、条件の
+          決まった唯一の時点になる。完了画面のコピーボタンに任せると、
+          押さずに閉じた人には何も残らない。
+
+          本文は入れない（promptSummary が外している）。指示は次も使えるが、
+          そのときの文章は一度きり。
+        */
+        // ゲストには溜めない。7日で鍵が切れるので、帳面ごと消える
+        if (canKeep) savePrompt(promptEntryFor(lesson, buildAiInput(step, values)));
         // 送るのは次のステップ。ここは「この内容でよい」の意思表示だけ
         api.goNext();
         return;
@@ -520,12 +235,31 @@ export function LessonRunner({
   const blockingIssue = api.issue?.blocking ? api.issue : null;
 
   return (
-    <main className="min-h-screen">
+    <>
       {/*
-        抜け道は1つでよい。「＜」と「レッスン一覧へ」を両方置いていたが、
-        行き先が同じものを2つ並べると、違う場所へ行くのだと思わせる。
+        レッスン中は、ロゴではなく**いま何をしているか**を上に出す。
+        ロゴは開いた瞬間に一度見れば足り、19歩のあいだ出しておく価値は無い。
+
+        左の「←」は1歩戻る、右の「×」は出る。行き先が違うので分けてある。
+        前は右上の「レッスン一覧へ」と画面下の「もどる」に散っていて、
+        どちらがどこへ行くのか押すまで分からなかった。
+
+        `<main>` の**外**に置くこと。中に入れると「本文の中のボタン」に
+        なり、教材の選択肢を探す仕組み（E2E も含む）が拾ってしまう。
+        実際それでレッスンから勝手に出ていた。帯は本文ではない。
       */}
-      <AppHeader centered action={{ label: "レッスン一覧へ", onClick: onExit }} />
+      <LessonHeader
+        title={lesson.title}
+        onBack={api.canBack ? api.goBack : undefined}
+        onExit={onExit}
+        /*
+          診断は受けなくても先へ進める。出ることが「スキップ」と同じ
+          意味になるので、そこだけ言葉で出す。
+        */
+        exitLabel={lesson.id === "diagnosis" ? "スキップ" : undefined}
+      />
+
+      <main className="min-h-screen">
 
       <StepShell
         {...(step.type === "outcome_preview"
@@ -550,7 +284,6 @@ export function LessonRunner({
         primaryDisabled={Boolean(blockingIssue)}
         hintNearButton={api.issue?.reason ?? null}
         error={api.error}
-        onBack={api.canBack ? api.goBack : undefined}
         secondary={
           step.type === "real_task"
             ? { label: "今回はスキップする", onClick: api.skipRealTask }
@@ -561,7 +294,21 @@ export function LessonRunner({
                 ? { label: "解説を飛ばす", onClick: api.skipConcept }
                 : undefined
         }
+        // 終わったあとだけ、逃げ道も同じ大きさで並べる（どちらも正しい行き先）
+        secondaryProminent={step.type === "completion"}
+        /*
+          自動で進む回では、下のボタンに「送っています」ではなく
+          進む合図を出す。押さなくてよいことが、押す前に分かる。
+        */
+        autoAdvancing={autoAdvancing}
+        doneLabel={doneLabel}
         busy={api.isSubmitting}
+        /*
+          解説の回は、カード本文とポーの台詞が同じ文になる（教材データが
+          同じ文字を持っている）。同じことを2回言うと、2つ別のことが
+          書いてあるのかと読んでしまう。ここだけ吹き出しを下げる。
+        */
+        showPo={step.type !== "concept_card"}
       >
         {body}
       </StepShell>
@@ -580,40 +327,7 @@ export function LessonRunner({
           }
         />
       )}
-    </main>
+      </main>
+    </>
   );
-}
-
-/** 依頼内容のカードに出す見出し。専門用語を使わない。 */
-const LABELS: Record<string, string> = {
-  audience: "読む相手",
-  tone: "表現",
-  length: "長さ",
-  purpose: "まとめる目的",
-  format: "出力の形",
-  style: "説明のしかた",
-  example: "具体例",
-  criteria: "比べる基準",
-  priority: "いちばん大事にしたいこと",
-  as_table: "表にするか",
-  deadline: "期限",
-  available_time: "使える時間",
-  avoid: "避けたいこと",
-  improvement: "直したい方向",
-  topic: "知りたいこと",
-  goal: "達成したいこと",
-  options_text: "比べたいもの",
-};
-
-/** 詳細表示に出す文面。サーバーが組み立てるものと同じ形にそろえる。 */
-function buildDetail(title: string, input: Record<string, string>): string {
-  const lines = [`やること: ${title}`, ""];
-  for (const [key, value] of Object.entries(input)) {
-    if (!value || key === "original_text") continue;
-    lines.push(`- ${LABELS[key] ?? key}: ${value}`);
-  }
-  if (input.original_text) {
-    lines.push("", "--- 対象 ---", input.original_text);
-  }
-  return lines.join("\n");
 }

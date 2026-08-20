@@ -10,11 +10,21 @@
  * - ポーは入力の邪魔をしない。狭いときは小さくする
  */
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
-import { IconCaution, IconCheck, type Icon } from "../Icons";
-import { PoAvatar } from "../../po/PoAvatar";
-import { LESSON_PHASES, type LessonPhase, type PoMessage } from "../../course/types";
+import {
+  IconBulb,
+  IconCaution,
+  IconCheck,
+  IconRefresh,
+  IconSparkle,
+  type Icon,
+} from "../Icons";
+import { PoHero } from "../aippo/PoHero";
+import { PrimaryButton } from "../aippo/PrimaryButton";
+import { LessonProgress } from "./LessonProgress";
+import { StepTransition } from "./StepTransition";
+import type { LessonPhase, PoMessage } from "../../course/types";
 
 export interface StepShellProps {
   title: string;
@@ -40,6 +50,16 @@ export interface StepShellProps {
   /** ボタンの近くに出す理由。禁止ではなく案内（要件 §6.6）。 */
   hintNearButton?: string | null;
   /**
+   * 答えを受け取ったことを返す短い文。
+   *
+   * 選んだ直後は、押した札が青くなるだけで「登録されたのか」は分からない。
+   * 選んだ中身をそのまま返せば、押し間違いにもその場で気づける
+   * （Learning UX §2: 何ができたかが具体的に分かる feedback）。
+   *
+   * 作文はしない。**選んだ答えそのもの**を出す。
+   */
+  doneLabel?: string | null;
+  /**
    * 失敗したことを伝える文。
    *
    * ステップの種類に関係なく、**必ずここに出す**。
@@ -47,81 +67,39 @@ export interface StepShellProps {
    * 「押したのに何も起きない」ように見える（実際に起きた）。
    */
   error?: string | null;
-  onBack?: () => void;
   /** 「今回はスキップ」など、主導線以外の逃げ道。 */
   secondary?: { label: string; onClick: () => void };
+  /**
+   * 逃げ道を、主導線と同じ大きさのボタンで並べるか。
+   *
+   * ふだんは細い文字のままにする。逃げ道が主導線と同じ大きさで並ぶと、
+   * どちらを押せばよいのか決められなくなる。
+   * 終わったあとの画面だけは別で、「次へ行く」と「もう一度やる」は
+   * どちらも正しい行き先なので、対等に並べる。
+   */
+  secondaryProminent?: boolean;
   busy?: boolean;
+  /**
+   * 選んだので、まもなく自動で次へ進む状態か。
+   *
+   * 黙って画面が変わると「勝手に飛んだ」と読まれる。
+   * 進む前に、進むと分かる合図を出す（Learning UX §2 / §3）。
+   */
+  autoAdvancing?: boolean;
+  /** ポーを出すか。本文が同じことを言う画面では下げる。 */
+  showPo?: boolean;
   children: ReactNode;
 }
 
 /**
- * 名前の付いた4段の帯。
+ * 押せない理由の出し方。
  *
- * 済んだところはチェックで塗り、いまいるところだけ文字を濃くする。
- * 色だけで現在地を示さない（丸の大きさと文字の太さでも変える）。
+ *   まだ押していない … ふだんの文字色。電球を添えるだけ
+ *   押したのに進めなかった … 注意の色。何をすれば進めるかを言う
+ *
+ * 開いた瞬間からオレンジの警告が出ていると、まだ選んでいないだけの人が
+ * 「何か間違えた」と読む。押して初めて、断りとして色を使う。
  */
-function PhaseStepper({ phase }: { phase: LessonPhase }) {
-  const current = LESSON_PHASES.findIndex((entry) => entry.key === phase);
-
-  return (
-    <ol
-      className="flex items-start"
-      role="list"
-      aria-label="レッスンの流れ"
-      data-testid="phase-stepper"
-    >
-      {LESSON_PHASES.map((entry, index) => {
-        const done = index < current;
-        const here = index === current;
-        return (
-          <li key={entry.key} className="flex flex-1 flex-col items-center">
-            <div className="flex w-full items-center">
-              {/* 手前へつながる線。先頭だけ描かない */}
-              <span
-                aria-hidden="true"
-                className={`h-0.5 flex-1 ${
-                  index === 0 ? "bg-transparent" : done || here ? "bg-brand" : "bg-line"
-                }`}
-              />
-              <span
-                aria-hidden="true"
-                className={`flex shrink-0 items-center justify-center rounded-full transition-all
-                            ${
-                              done
-                                ? "h-5 w-5 bg-brand text-white"
-                                : here
-                                  ? "h-5 w-5 bg-brand ring-4 ring-brand-soft"
-                                  : "h-3.5 w-3.5 bg-line"
-                            }`}
-              >
-                {done && <IconCheck className="h-3 w-3" />}
-              </span>
-              <span
-                aria-hidden="true"
-                className={`h-0.5 flex-1 ${
-                  index === LESSON_PHASES.length - 1
-                    ? "bg-transparent"
-                    : done
-                      ? "bg-brand"
-                      : "bg-line"
-                }`}
-              />
-            </div>
-            <span
-              className={`mt-1.5 text-center text-[0.6875rem] leading-4 ${
-                here ? "font-bold text-brand" : "text-ink-muted"
-              }`}
-            >
-              {entry.label}
-              {here && <span className="sr-only">（いまここ）</span>}
-            </span>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
-
 export function StepShell({
   title,
   eyebrow,
@@ -135,90 +113,38 @@ export function StepShell({
   onPrimary,
   primaryDisabled = false,
   hintNearButton,
+  doneLabel,
   error,
-  onBack,
   secondary,
+  secondaryProminent = false,
   busy = false,
+  autoAdvancing = false,
+  showPo = true,
   children,
 }: StepShellProps) {
-  /**
-   * 出す点は最大7つ。
-   * 20ステップぶん並べると1つ1つが潰れて、かえって進み具合が読めない。
-   */
-  const MAX_DOTS = 7;
-  const half = Math.floor(MAX_DOTS / 2);
-  const start = Math.max(
-    0,
-    Math.min(progress.current - 1 - half, progress.total - MAX_DOTS),
-  );
-  const shown = Math.min(MAX_DOTS, progress.total);
-  const dots = Array.from({ length: shown }, (_, offset) => {
-    const index = start + offset;
-    return {
-      index,
-      last: offset === shown - 1,
-      state:
-        index < progress.current - 1
-          ? ("done" as const)
-          : index === progress.current - 1
-            ? ("current" as const)
-            : ("todo" as const),
-    };
-  });
+  /*
+    「押したのに進めなかった」を覚えておく。
+    回が変わったら忘れる——前の回で断られたことを、次の回まで
+    引きずって赤いままにしない。
+  */
+  const [refused, setRefused] = useState(false);
+  useEffect(() => setRefused(false), [title]);
 
   return (
     <div className="mx-auto max-w-2xl px-5 pb-40 pt-2 sm:pb-32">
       {/*
-        区切りの名前が分かるなら、そちらを先に出す。
-        点だけだと「あと何歩か」しか読めず、何をしている最中かは伝わらない。
-      */}
-      {phase && (
-        <div className="mb-4">
-          <PhaseStepper phase={phase} />
-        </div>
-      )}
+        進み具合は細い帯ひとつ。
 
-      {/*
-        進み具合は点でつないで見せる。
-        棒グラフだと「あと何回か」が読めないが、点なら数えられる。
-        数が多いレッスンでは点が潰れるので、現在地の前後だけ出す。
+        前は「区切りの帯（4段）」「丸の列（最大7つ）」「数字」の3つで
+        同じことを言っていた。3段あると、どれを見れば「あと何回か」が
+        分かるのか決められず、結局どれも読まれない。上が説明で埋まって
+        本文が下へ押し出される問題もあった。
 
-        区切りの帯を出しているときは、点の列は畳んで数字だけ残す。
-        同じことを2段で言うと、どちらを見ればよいのか分からなくなる
-        （それでも「あと何歩か」は数字で分かる）。
+        phase は受け取るが、ここでは描かない。区切りの名前は
+        見出しと本文で伝わる（読み上げ向けに data 属性で残す）。
       */}
-      <div
-        role="progressbar"
-        aria-label="レッスンの進み具合"
-        aria-valuenow={progress.current}
-        aria-valuemin={1}
-        aria-valuemax={progress.total}
-        aria-valuetext={`${progress.total}歩のうち${progress.current}歩目`}
-        className={`flex items-center gap-1.5 ${
-          phase ? "justify-end" : "justify-center"
-        }`}
-      >
-        {!phase &&
-          dots.map((dot) => (
-          <span key={dot.index} className="flex items-center gap-1.5">
-            <span
-              aria-hidden="true"
-              className={`block rounded-full transition-all ${
-                dot.state === "done"
-                  ? "h-2.5 w-2.5 bg-brand"
-                  : dot.state === "current"
-                    ? "h-3 w-3 bg-brand ring-4 ring-brand-soft"
-                    : "h-2.5 w-2.5 bg-brand-line"
-              }`}
-            />
-            {!dot.last && (
-              <span aria-hidden="true" className="h-px w-4 bg-brand-line sm:w-6" />
-            )}
-            </span>
-          ))}
-        <span className="shrink-0 text-xs text-ink-muted">
-          {progress.current} / {progress.total}
-        </span>
+      <div className="pt-1" data-phase={phase ?? undefined}>
+        <LessonProgress current={progress.current} total={progress.total} />
       </div>
 
       {/* 入力済みの内容。折りたたんでおく（要件 §6.4） */}
@@ -255,30 +181,40 @@ export function StepShell({
         </details>
       )}
 
-      {eyebrow && (
-        <p className="mt-5 flex items-center gap-2 text-sm font-bold text-brand">
-          <eyebrow.icon className="h-4 w-4 shrink-0" />
-          {eyebrow.label}
-        </p>
-      )}
-      <h1 className={`text-xl font-bold sm:text-2xl ${eyebrow ? "mt-1" : "mt-6"}`}>
-        {title}
-      </h1>
-      {instruction && (
-        <p className="mt-2 text-sm leading-7 text-ink-muted">{instruction}</p>
-      )}
-
       {/*
-        ステップが変わったことを、ごく短い動きで伝える。
-        key にステップの見出しを渡し、変わるたびにやり直す。
-        0.22 秒。これ以上長くすると、進むたびに待たされる。
+        見出し・説明・ポーを、ひとかたまりで上に置く。
+
+        前はポーを画面のいちばん下（ボタンのすぐ上）に置いていた。
+        案内役の言葉は**読み始める前**に要るもので、読み終えた後に
+        出てきても遅い。支給デザインも6枚とも、ポーは見出しの右にいる。
       */}
-      <div key={title} className="mt-6 animate-slide-in">
-        {children}
+      <div className="mt-4">
+        <PoHero
+          eyebrow={
+            eyebrow && (
+              <span className="flex items-center gap-1.5 text-sm font-bold text-brand">
+                <eyebrow.icon className="h-4 w-4 shrink-0" />
+                {eyebrow.label}
+              </span>
+            )
+          }
+          title={title}
+          description={instruction}
+          message={showPo ? po.message : undefined}
+          emotion={po.emotion}
+          compact={!eyebrow}
+        />
       </div>
 
-      <div className="mt-8 sm:mt-10">
-        <PoAvatar po={po} compact />
+      {/*
+        ステップが入れ替わったことを、短い動きで伝える。
+
+        向きに意味を持たせてある（進むと左から、戻ると右から）。
+        紙をめくる向きと同じで、「いま戻った」ことが文字を読まなくても
+        分かる。秒数と加減速は course/motion.ts にまとめてある。
+      */}
+      <div className="mt-6">
+        <StepTransition stepKey={title}>{children}</StepTransition>
       </div>
 
       {/*
@@ -300,49 +236,100 @@ export function StepShell({
               <span>{error}</span>
             </p>
           )}
-          {hintNearButton && (
+          {/*
+            受け取った合図。押した札が青くなるだけでは、登録されたのか
+            分からない。選んだ中身を返して、押し間違いにその場で気づけるようにする。
+          */}
+          {doneLabel && (
             <p
-              className="mb-2 text-xs text-caution"
+              data-testid="step-done-inline"
+              role="status"
+              className="mb-2 flex items-center gap-1.5 text-xs font-bold text-brand"
+            >
+              <span
+                aria-hidden="true"
+                className="flex h-4 w-4 shrink-0 items-center justify-center
+                           rounded-full bg-brand text-white"
+              >
+                <IconCheck className="h-2.5 w-2.5" />
+              </span>
+              {doneLabel}
+            </p>
+          )}
+
+          {hintNearButton && !doneLabel && (
+            <p
+              data-testid="step-hint"
+              data-tone={refused ? "warning" : "neutral"}
+              className={`mb-2 flex items-start gap-1.5 text-xs leading-5 ${
+                refused ? "font-bold text-caution" : "text-ink-muted"
+              }`}
               // 押せない理由は、押す前に読み上げへ届ける
               role="status"
             >
-              {hintNearButton}
+              {refused ? (
+                <IconCaution className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              ) : (
+                <IconBulb
+                  className="mt-0.5 h-4 w-4 shrink-0 text-brand"
+                  aria-hidden="true"
+                />
+              )}
+              <span>{hintNearButton}</span>
             </p>
           )}
-          <div className="flex items-center gap-3">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="shrink-0 rounded-cta border border-line px-4 py-2.5
-                           text-sm text-ink-muted transition hover:bg-brand-soft
-                           hover:text-brand-dark"
-              >
-                もどる
-              </button>
-            )}
-            <button
-              type="button"
-              data-testid="primary-action"
-              onClick={onPrimary}
-              disabled={primaryDisabled || busy}
-              /*
-                進むボタン。
+          {/*
+            戻る道はヘッダーの「←」1本にした。
 
-                以前は画面幅いっぱいの rounded-full を min-h-12 で置いていた。
-                下端を横切る大きな丸い帯は、それだけで広告のように見え、
-                すぐ上にある教材の中身より強くなる。
-                高さを詰め、角を弱め、幅は必要な分だけにしている。
+            前はここにも「もどる」があり、上の「レッスン一覧へ」と合わせて
+            戻る手段が上下に散っていた。行き先が違うもの（1歩戻る／出る）が
+            離れて置かれていると、どちらがどこへ行くのか押すまで分からない。
+
+            ここは「次にやること」だけにする。画面の下に1つだけ置くから、
+            迷わず押せる（憲章 原則 I）。
+          */}
+          {/*
+            進むボタン。幅いっぱい・56px。支給デザイン6枚とも、
+            下端にあるのはこの1つだけ。
+          */}
+          <div className={secondaryProminent ? "flex items-stretch gap-3" : ""}>
+            <PrimaryButton
+              testId="primary-action"
+              onClick={onPrimary}
+              /*
+                送信中は本当に受け付けない（二度押しで費用が倍になる）。
+                答えが足りないだけのときは押せるようにして、押されたら
+                理由を出す。押しても何も起きないボタンは、理由が
+                分からないまま二度三度と押される。
               */
-              className="flex-1 rounded-cta bg-brand px-6 py-2.5 text-sm font-bold
-                         text-white transition hover:bg-brand-dark active:bg-brand-dark
-                         disabled:cursor-not-allowed disabled:bg-line
-                         disabled:text-ink-muted"
+              disabled={busy}
+              blocked={primaryDisabled && !busy}
+              onBlockedClick={() => setRefused(true)}
+              icon={
+                busy ? undefined : autoAdvancing ? (
+                  <IconCheck className="h-5 w-5 shrink-0" />
+                ) : (
+                  <IconSparkle className="h-5 w-5 shrink-0" />
+                )
+              }
+              className={secondaryProminent ? "flex-1" : ""}
             >
-              {busy ? "送っています…" : primaryLabel}
-            </button>
+              {busy ? "送っています…" : autoAdvancing ? "つぎへ進みます" : primaryLabel}
+            </PrimaryButton>
+
+            {secondary && secondaryProminent && (
+              <PrimaryButton
+                secondary
+                onClick={secondary.onClick}
+                icon={<IconRefresh className="h-5 w-5 shrink-0" />}
+                className="flex-1"
+              >
+                {secondary.label}
+              </PrimaryButton>
+            )}
           </div>
-          {secondary && (
+
+          {secondary && !secondaryProminent && (
             <button
               type="button"
               onClick={secondary.onClick}

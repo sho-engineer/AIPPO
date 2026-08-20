@@ -17,10 +17,18 @@ import { IconCheckCircle, IconStar } from "../Icons";
 import { useAuth } from "../../auth/AuthContext";
 import { AUTH_COPY } from "../../content/ui";
 
+/*
+  挙げるのは、登録しないと**本当にできないこと**だけ。
+
+  以前は「進み具合が残ります」と3通りに言い換えて並べていた。
+  進み具合はゲストのままでも残る（7日）ので、3行のうち3行が
+  すでにできていることの言い換えになっていた。
+  そこを直して、取っておくもの（course/keeping.ts）を挙げる。
+*/
 const REASONS = [
+  "いま組み立てた伝え方が、プロンプト帳に残ります",
+  "コースを終えると、修了証を受け取れます",
   "別の端末からでも、続きから始められます",
-  "作ったものと進み具合が残ります",
-  "端末を変えても、やり直しになりません",
 ];
 
 export function SaveProgressCard() {

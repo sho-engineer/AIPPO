@@ -78,7 +78,28 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 | `CSRF_TRUSTED_ORIGINS` | 独自ドメインを足したとき |
 | `SESSION_COOKIE_AGE` / `SESSION_ABSOLUTE_MAX_AGE` | ログインの期限を変えたいとき（既定は30日 / 90日） |
 | `PASSKEY_RP_ID` / `PASSKEY_ORIGINS` | パスキーのドメインを明示したいとき（未設定なら `FRONTEND_URL` から決まる） |
+| `CRON_SECRET` | 定期実行（古いデータの削除・学習リマインダー）を動かすとき。**入れるまで両方とも止まったまま** |
+| `AUDIT_LOG_RETENTION_DAYS` | 操作記録を何日残すか（既定365。ゲストの学習データの30日より長く取る） |
+| `GUEST_DATA_RETENTION_DAYS` | 登録なしの記録を何日残すか（既定30。ゲストのCookieは7日で切れる） |
 | `SENTRY_DSN` | 例外を見張りたくなったとき |
+
+### 一般に公開する前に入れるもの
+
+| キー | 例 |
+|---|---|
+| `VITE_OPERATOR_NAME` | `〇〇株式会社` / 個人なら氏名 |
+| `VITE_OPERATOR_ADDRESS` | `東京都〇〇区…` |
+| `VITE_OPERATOR_CONTACT` | `support@example.com` |
+
+規約とプライバシーポリシーに出る運営者の情報。**入れないと画面に
+「（公開前に記入）」と出たまま公開される。**
+
+コードに直接書かず環境変数にしてあるのは、事実でない社名や住所が
+うっかりリポジトリに入るのを防ぐため（それ自体が景品表示法や
+特定商取引法の問題になる）。住所や窓口は、コードを直さずに変わる
+ものでもある。
+
+身内だけのクローズドベータのうちは空でよい。一般公開の直前に入れる。
 
 ---
 
@@ -109,8 +130,10 @@ DATABASE_URL="<Neonの接続文字列>" python manage.py seed_catalog
 ```
 
 `migrate` は二重送信の抑止に使うキャッシュ表（`aippo_cache`）も作る
-（`apps/lessons/migrations/0006_cache_table.py`）。忘れると
-AI実行のたびに落ちるので、必ず流すこと。
+（`apps/lessons/migrations/0006_cache_table.py`）。
+
+**忘れても落ちない**——AI実行は通り、二重送信の防止だけが静かに外れる。
+本物のAIでは二重の費用になるので、`manage.py preflight` で確かめること。
 
 管理画面に入りたいときは、続けて:
 
@@ -157,6 +180,11 @@ DATABASE_URL="<Neonの接続文字列>" python manage.py createsuperuser
   と書かれている）。仕様が変わる可能性がある。うまくいかない場合の
   逃げ道として、Oracle Cloud に載せる手順を `docs/deploy-oracle.md` に
   残してある。
-- **`prune_data` の定期実行**: 登録していない人の記録を消す処理
-  （`manage.py prune_data`）を1日1回動かす仕組みは、まだ入れていない。
-  Vercel Cron で叩けるようにするか、手で回す。
+- **定期実行には `CRON_SECRET` が要る**: 古いデータの削除（`prune_data`）と
+  学習リマインダーは Vercel Cron から叩く形で入っているが、
+  **`CRON_SECRET` を入れるまで入り口は 404 のまま**動かない。
+  合言葉が空のときに素通りさせると、入れ忘れた配置で
+  「誰でも全データを消せる URL」が開くため、安全な側へ倒してある。
+- **管理画面の操作記録**: 誰がどの学習者の記録を開いたかを残している
+  （`apps/ops/models.py` の `AuditLog`、管理画面からは読むだけ）。
+  既定で365日保持。`ADMIN_ALLOWED_IPS` と併せて使うこと。

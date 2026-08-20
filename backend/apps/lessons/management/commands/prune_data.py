@@ -122,12 +122,24 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
     # 日次カウンタも同じ。過ぎた日の数は、もう誰も見ない
     counters = AiUsageCounter.objects.filter(date__lt=cutoff.date())
 
+    """
+    操作記録は別の物差しで切る。
+
+    学習データの `cutoff` を使い回すと、触られたことに気づくより先に
+    調べるための記録が消える。気づくのはたいていずっとあとになる。
+    """
+    from apps.ops.models import AuditLog
+
+    audit_cutoff = timezone.now() - timedelta(days=settings.AUDIT_LOG_RETENTION_DAYS)
+    audit_logs = AuditLog.objects.filter(at__lt=audit_cutoff)
+
     counts = {
         "学習セッション": sessions.count(),
         "診断の回答": profiles.count(),
         "身につけたこと": skills.count(),
         "試行回数": throttles.count(),
         "AI実行回数": counters.count(),
+        "操作記録": audit_logs.count(),
     }
 
     if not dry_run:
@@ -137,6 +149,7 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
         skills.delete()
         throttles.delete()
         counters.delete()
+        audit_logs.delete()
         # 使われなくなった結びつき（user が空のもの）も片付ける
         LearnerIdentity.objects.filter(user__isnull=True, learner_key__in=keys).delete()
 

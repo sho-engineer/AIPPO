@@ -3,8 +3,52 @@ import { describe, expect, it } from "vitest";
 import { SCREENS, canTransition, nextScreen } from "../src/app/screens";
 
 describe("画面遷移", () => {
-  it("5画面（タイトル・ホーム・教材一覧・レッスン・設定）", () => {
-    expect(SCREENS).toEqual(["TOP", "HOME", "COURSE", "LESSON", "SETTINGS"]);
+  it("7画面（タイトル・ホーム・コース・レッスン・学習記録・保存したもの・設定）", () => {
+    expect(SCREENS).toEqual([
+      "TOP",
+      "HOME",
+      "COURSE",
+      "LESSON",
+      "RECORD",
+      "SAVED",
+      "SETTINGS",
+    ]);
+  });
+
+  it("保存したものへは、下タブのどこからでも行ける", () => {
+    // 取っておいたものを開くのに、一覧を読み下させない
+    expect(nextScreen("HOME", "OPEN_SAVED")).toBe("SAVED");
+    expect(nextScreen("COURSE", "OPEN_SAVED")).toBe("SAVED");
+    expect(nextScreen("RECORD", "OPEN_SAVED")).toBe("SAVED");
+    expect(nextScreen("SETTINGS", "OPEN_SAVED")).toBe("SAVED");
+  });
+
+  it("保存したものから、そのまま開ける／行き止まりにならない", () => {
+    expect(nextScreen("SAVED", "SELECT_LESSON")).toBe("LESSON");
+    expect(nextScreen("SAVED", "BACK_TO_HOME")).toBe("HOME");
+    expect(nextScreen("SAVED", "OPEN_COURSE")).toBe("COURSE");
+  });
+
+  it("レッスンの途中からは、保存したものへ入れない", () => {
+    // 1画面1タスクを崩さない。設定と同じ扱いにする
+    expect(canTransition("LESSON", "OPEN_SAVED")).toBe(false);
+  });
+
+  it("学習履歴へは、下タブのどこからでも行ける", () => {
+    // 作ったものを取りに来る場所なので、どこからでも1手で開けること
+    expect(nextScreen("HOME", "OPEN_RECORD")).toBe("RECORD");
+    expect(nextScreen("COURSE", "OPEN_RECORD")).toBe("RECORD");
+    expect(nextScreen("SETTINGS", "OPEN_RECORD")).toBe("RECORD");
+  });
+
+  it("学習履歴から、同じ教材をやり直せる", () => {
+    // 見返して「もう一度」と思ったときに、探し直させない
+    expect(nextScreen("RECORD", "SELECT_LESSON")).toBe("LESSON");
+  });
+
+  it("学習履歴が行き止まりにならない", () => {
+    expect(nextScreen("RECORD", "BACK_TO_HOME")).toBe("HOME");
+    expect(nextScreen("RECORD", "OPEN_COURSE")).toBe("COURSE");
   });
 
   it("タイトル → ホーム → レッスン と進める", () => {

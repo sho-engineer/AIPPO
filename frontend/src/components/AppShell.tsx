@@ -17,11 +17,12 @@ import { BrandLogo } from "./BrandLogo";
 import {
   IconBell,
   IconBook,
+  IconBookmark,
   IconChevronLeft,
   IconClock,
   IconHome,
+  IconMore,
   IconPerson,
-  IconSliders,
   type Icon,
 } from "./Icons";
 
@@ -34,78 +35,156 @@ export type AppHeaderProps = {
   action?: { label: string; onClick: () => void };
   /** ロゴを中央へ寄せるか。戻るボタンがあるときは中央のほうが落ち着く。 */
   centered?: boolean;
+  /** 右上の似顔絵から行く先。渡さないと、押せない飾りになる。 */
+  onOpenAccount?: () => void;
 };
 
 /**
  * 上の帯。
  *
- * 中身はロゴと、お知らせ・本人の欄だけ。それ以上のものは載らないので、
- * 高さもそれに見合う分しか取らない。
+ * 中身はロゴと、お知らせ・本人の欄だけ。支給デザイン6枚とも同じ形で、
+ * 左にロゴ（戻れる画面では戻るボタン＋中央ロゴ）、右にお知らせと似顔絵。
  *
- * 以前は py-3 に 40px の丸ボタンを積んで 64px あった。スマホの
- * 縦は限られていて、帯が厚いぶんそのまま教材の見える量が減る。
- * 44px まで詰め、下端に線を1本引いて中身との境を示している
- * （線を引けば、背景をぼかして浮かせる必要が無くなる）。
+ * 高さは 56px。前は 44px まで詰めていたが、支給デザインのロゴは
+ * それより大きく、詰めると帯の中でロゴが窮屈に見える。
+ * 上端には切り欠き（ノッチ）ぶんの余白を足す——足さないと、
+ * iPhone では時計とロゴが重なる。
+ *
+ * お知らせの鈴は押せない
+ * ----------------------
+ * 知らせを配る仕組みがまだ無い。支給デザインには青い点（未読の印）が
+ * 付いているが、**出さない**。届いていないのに未読の印を出すのは、
+ * 押させたいだけの嘘になる。位置だけ確保して、押せないことを
+ * 読み上げにも伝えておく。
+ *
+ * 中央は「画面の中央」にする
+ * --------------------------
+ * `centered` のとき、ロゴは**帯の真ん中**に置く。左右の飾りの幅で
+ * 動かさない。
+ *
+ * 前は左（←、40px）と右（鈴＋似顔絵、80px）に挟まれた**残りの幅**の
+ * 真ん中へ置いていた。左右の重さが違うぶん、ロゴは 22px 左へずれる。
+ * 22px は、気のせいでは片づかない大きさだった（実測）。
+ * 帯の中で唯一の縦の基準がロゴなので、そこがずれると帯全体が傾いて見える。
+ *
+ * 直し方は、ロゴだけを帯に対して絶対配置にする。左右に何を足しても、
+ * 何を外しても、真ん中は動かない。押せる部品ではないので
+ * `pointer-events-none` を付けて、重なっても下の操作を邪魔しない。
  */
-export function AppHeader({ onBack, action, centered }: AppHeaderProps) {
+export function AppHeader({ onBack, action, centered, onOpenAccount }: AppHeaderProps) {
   return (
     <header
-      className="sticky top-0 z-20 flex h-11 items-center gap-2 border-b border-line
-                 bg-canvas px-4"
+      className="sticky top-0 z-20 border-b border-line bg-canvas/95 px-4
+                 pt-[env(safe-area-inset-top)] backdrop-blur"
       data-testid="app-header"
     >
-      {onBack && (
-        <button
-          type="button"
-          onClick={onBack}
-          aria-label="前の画面へ戻る"
-          className="-ml-1.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-badge
-                     text-ink-muted transition hover:bg-brand-soft hover:text-brand"
-        >
-          <IconChevronLeft className="h-5 w-5" />
-        </button>
-      )}
+      <div className="relative mx-auto flex h-14 max-w-2xl items-center gap-2">
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            aria-label="前の画面へ戻る"
+            className="-ml-1 flex h-10 w-10 shrink-0 items-center justify-center
+                       rounded-full text-ink transition hover:bg-brand-soft
+                       hover:text-brand"
+          >
+            <IconChevronLeft className="h-6 w-6" />
+          </button>
+        )}
 
-      <div className={centered ? "flex flex-1 justify-center" : "flex-1"}>
-        <BrandLogo className="h-6" />
+        {centered ? (
+          <>
+            {/*
+              帯そのものの真ん中。左右に何があっても動かない。
+              flex の並びから外すので、右の欄を右端へ押す枠を別に置く。
+            */}
+            <span
+              className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+              data-testid="brand-logo-centered"
+            >
+              <BrandLogo className="h-8" />
+            </span>
+            <div className="flex-1" />
+          </>
+        ) : (
+          <div className="flex-1">
+            <BrandLogo className="h-8" />
+          </div>
+        )}
+
+        {action ? (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="-mr-1 shrink-0 rounded-badge px-2 py-2 text-sm font-bold
+                       text-brand transition hover:text-brand-dark"
+          >
+            {action.label}
+          </button>
+        ) : (
+          <div className="flex shrink-0 items-center gap-1">
+            {/*
+              鈴。配る仕組みが無いので押せない。
+              置かない手もあるが、後で足したときに右上の並びが動いて、
+              覚えた位置が変わってしまう。
+            */}
+            <span
+              className="flex h-10 w-10 items-center justify-center text-ink-muted/50"
+              title="お知らせは準備中です"
+            >
+              <IconBell className="h-5 w-5" aria-hidden="true" />
+              <span className="sr-only">お知らせ（準備中）</span>
+            </span>
+
+            {/*
+              似顔絵。登録していてもいなくても同じ場所から入る。
+              行き先を渡していないときは、押せない印として出す。
+            */}
+            {onOpenAccount ? (
+              <button
+                type="button"
+                onClick={onOpenAccount}
+                aria-label="アカウントと設定"
+                data-testid="header-account"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
+                           bg-brand-soft text-brand-dark transition hover:brightness-95"
+              >
+                <IconPerson className="h-5 w-5" />
+              </button>
+            ) : (
+              <span
+                aria-hidden="true"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
+                           bg-brand-soft/60 text-brand-dark/50"
+              >
+                <IconPerson className="h-5 w-5" />
+              </span>
+            )}
+          </div>
+        )}
       </div>
-
-      {action ? (
-        <button
-          type="button"
-          onClick={action.onClick}
-          className="shrink-0 text-sm font-bold text-brand transition hover:text-brand-dark"
-        >
-          {action.label}
-        </button>
-      ) : (
-        /*
-          お知らせと本人の欄。まだ中身が無いので押せなくしてある。
-          置かない選択もあるが、そうすると後で足したときに
-          右上の並びが動いて、覚えた位置が変わってしまう。
-        */
-        <div className="flex shrink-0 items-center gap-1 text-ink-muted/40">
-          <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center">
-            <IconBell className="h-[1.125rem] w-[1.125rem]" />
-          </span>
-          <span aria-hidden="true" className="flex h-8 w-8 items-center justify-center">
-            <IconPerson className="h-[1.125rem] w-[1.125rem]" />
-          </span>
-        </div>
-      )}
     </header>
   );
 }
 
 // ------------------------------------------------------------------ 下タブ
 
-export type TabKey = "home" | "course" | "record" | "settings";
+export type TabKey = "home" | "course" | "record" | "saved" | "more";
 
+/*
+  5つとも行き先がある。
+
+  「保存したもの」は目印を付けた教材の置き場で、前は教材一覧の中に
+  節として埋まっていた。支給デザインが独立した行き先にしているのは、
+  取っておいたものを**探さずに**開けるようにするため。埋めておくと、
+  取っておいた人ほど一覧を下まで読むことになる。
+*/
 const TABS: { key: TabKey; label: string; icon: Icon; ready: boolean }[] = [
   { key: "home", label: "ホーム", icon: IconHome, ready: true },
-  { key: "course", label: "教材一覧", icon: IconBook, ready: true },
-  { key: "record", label: "学習履歴", icon: IconClock, ready: false },
-  { key: "settings", label: "設定", icon: IconSliders, ready: true },
+  { key: "course", label: "コース", icon: IconBook, ready: true },
+  { key: "record", label: "学習記録", icon: IconClock, ready: true },
+  { key: "saved", label: "保存したもの", icon: IconBookmark, ready: true },
+  { key: "more", label: "その他", icon: IconMore, ready: true },
 ];
 
 export function BottomTabBar({
@@ -139,8 +218,13 @@ export function BottomTabBar({
                 disabled={!tab.ready}
                 aria-current={active ? "page" : undefined}
                 onClick={() => onSelect(tab.key)}
-                className={`relative flex w-full flex-col items-center gap-1 px-1 py-1.5
-                            text-[0.6875rem] leading-4 transition
+                /*
+                  5つ並ぶので、字は小さく・折り返さない。
+                  「保存したもの」は6字あり、折り返すと帯の高さが変わって
+                  他の4つの位置まで動く（§29）。
+                */
+                className={`relative flex w-full flex-col items-center gap-1 px-0.5 py-1.5
+                            text-[0.625rem] leading-4 whitespace-nowrap transition
                             disabled:cursor-not-allowed disabled:text-ink-muted/40
                             ${active ? "font-bold text-brand-dark" : "text-ink-muted hover:text-ink"}`}
               >
@@ -259,8 +343,10 @@ export function IconMark({
  * 以前は画面じゅうがこれで、カードがカードを囲んでいた。
  * 全部が同じ白い面で浮いていると、どれが本題か分からなくなる。
  *
- * 輪郭は影ではなく線で出す。影で浮かせた面が並ぶと、画面が
- * 「貼り重ねた紙」に見えて、読む順番が伝わらない。
+ * 輪郭は、細い線とごく薄い影の両方で出す。支給デザインの面は
+ * 下地（薄い青みの灰）の上に白い紙が置かれている見え方で、線だけだと
+ * その差が出ない。影は 4px/16px/5% までに留める——濃くすると、面が
+ * 並ぶほど画面が「貼り重ねた紙」に見えて、読む順番が伝わらない。
  *
  * 余白は `padded` で切る。className に p-0 を渡す形にはしない。
  * 同じ性質の指定を2つ書くと、どちらが勝つかが CSS の並び順まかせになり、
@@ -281,7 +367,7 @@ export function Card({
   return (
     <section
       data-testid={testId}
-      className={`overflow-hidden rounded-panel border border-line bg-surface
+      className={`overflow-hidden rounded-panel border border-line bg-surface shadow-card
                   ${padded ? "p-4" : ""} ${className}`}
     >
       {children}
