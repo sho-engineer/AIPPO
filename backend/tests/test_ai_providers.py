@@ -71,14 +71,37 @@ class TestRegistry:
 
         assert "unknown" in caplog.text
 
-    def test_planned_providers_fail_loudly(self, settings, caplog):
-        """名前だけある先（google）も、黙って別の先へ回さない。"""
-        settings.AI_PROVIDER = "google"
+    def test_planned_providers_fail_loudly(self, settings, caplog, monkeypatch):
+        """名前だけで実体が無い先も、黙って別の先へ回さない。"""
+        import apps.ai.providers.registry as registry
+
+        monkeypatch.setattr(registry, "PLANNED", ("future_provider",))
+        settings.AI_PROVIDER = "future_provider"
 
         with caplog.at_level("ERROR"), pytest.raises(AIServiceNotConfigured):
             get_provider()
 
         assert "not_implemented" in caplog.text
+
+    def test_gemini_is_selected_when_a_key_exists(self, settings):
+        settings.AI_PROVIDER = "gemini"
+        settings.GEMINI_API_KEY = "test-key"
+        assert get_provider().name == "gemini"
+
+    def test_google_is_an_alias_of_gemini(self, settings):
+        """以前の仮の呼び名。設定を書き換えなくても動くようにしておく。"""
+        settings.AI_PROVIDER = "google"
+        settings.GEMINI_API_KEY = "test-key"
+        assert get_provider().name == "gemini"
+
+    def test_gemini_missing_key_fails_loudly(self, settings, caplog):
+        settings.AI_PROVIDER = "gemini"
+        settings.GEMINI_API_KEY = ""
+
+        with caplog.at_level("ERROR"), pytest.raises(AIServiceNotConfigured):
+            get_provider()
+
+        assert "missing_key" in caplog.text
 
     def test_the_error_carries_a_code_and_a_message_for_users(self, settings):
         """画面がコードで分岐でき、利用者には言い訳がましくない文が出ること。"""
@@ -112,7 +135,9 @@ class TestRegistry:
         assert provider.generate_text(REQUEST).usage.model == "mock-9"
 
     def test_future_providers_are_listed(self):
-        assert {"mock", "openai", "anthropic", "google"} <= set(available_providers())
+        assert {"mock", "openai", "anthropic", "gemini", "google"} <= set(
+            available_providers()
+        )
 
 
 class TestMockProvider:
@@ -261,6 +286,124 @@ class TestOpenAIProvider:
 
     def test_empty_text_is_translated(self):
         client = _FakeOpenAI(_FakeResponse("   "))
+
+        with pytest.raises(AIMalformedError):
+            self._provider(client).generate_text(REQUEST)
+
+
+class _FakeGeminiModels:
+    """google-genai SDK の `client.models` の最低限の振る舞いを真似る。
+
+    本物を叩かずに、例外の翻訳と利用実績の取り出しだけを確かめたい。
+    """
+
+    def __init__(self, response=None, error=None) -> None:
+        self._response = response
+        self._error = error
+        self.captured: dict = {}
+
+    def generate_content(self, **kwargs):
+        self.captured.update(kwargs)
+        if self._error is not None:
+            raise self._error
+        return self._response
+
+
+class _FakeGeminiClient:
+    def __init__(self, response=None, error=None) -> None:
+        self.models = _FakeGeminiModels(response, error)
+
+
+class _FakeGeminiUsage:
+    def __init__(self, prompt: int = 11, candidates: int = 22) -> None:
+        self.prompt_token_count = prompt
+        self.candidates_token_count = candidates
+
+
+class _FakeGeminiCandidate:
+    def __init__(self, finish_reason: str = "STOP") -> None:
+        self.finish_reason = finish_reason
+
+
+class _FakeGeminiResponse:
+    def __init__(
+        self, text: str, model: str = "gemini-2.5-flash", finish_reason: str = "STOP"
+    ) -> None:
+        self.text = text
+        self.model_version = model
+        self.usage_metadata = _FakeGeminiUsage()
+        self.candidates = [_FakeGeminiCandidate(finish_reason)]
+
+
+class TestGeminiProvider:
+    def _provider(self, client):
+        from apps.ai.providers.gemini_provider import GeminiProvider
+
+        return GeminiProvider(client=client, model="gemini-2.5-flash")
+
+    def test_structured_output_is_parsed_and_usage_recorded(self):
+        client = _FakeGeminiClient(_FakeGeminiResponse('{"result": "書き直した文章"}'))
+        result = self._provider(client).generate_structured(REQUEST, SCHEMA)
+
+        assert result.data["result"] == "書き直した文章"
+        assert result.usage.provider == "gemini"
+        assert result.usage.model == "gemini-2.5-flash"
+        assert result.usage.input_tokens == 11
+        assert result.usage.output_tokens == 22
+
+    def test_schema_is_sent_to_the_model(self):
+        client = _FakeGeminiClient(_FakeGeminiResponse('{"result": "x"}'))
+        self._provider(client).generate_structured(REQUEST, SCHEMA)
+
+        config = client.models.captured["config"]
+        assert config.response_mime_type == "application/json"
+        assert config.response_json_schema == SCHEMA
+
+    def test_timeout_and_token_cap_are_applied(self, settings):
+        settings.AI_REQUEST_TIMEOUT_SECONDS = 7
+        settings.AI_MAX_OUTPUT_TOKENS = 123
+
+        client = _FakeGeminiClient(_FakeGeminiResponse('{"result": "x"}'))
+        self._provider(client).generate_structured(REQUEST, SCHEMA)
+
+        config = client.models.captured["config"]
+        assert config.http_options.timeout == 7000
+        assert config.max_output_tokens == 123
+
+    def test_timeout_is_translated(self):
+        from google.genai import errors
+
+        error = errors.APIError(504, {"error": {"message": "boom"}})
+        client = _FakeGeminiClient(error=error)
+
+        with pytest.raises(AITimeoutError):
+            self._provider(client).generate_structured(REQUEST, SCHEMA)
+
+    def test_api_error_is_translated(self):
+        from google.genai import errors
+
+        error = errors.APIError(500, {"error": {"message": "boom"}})
+        client = _FakeGeminiClient(error=error)
+
+        with pytest.raises(AIProviderError):
+            self._provider(client).generate_structured(REQUEST, SCHEMA)
+
+    def test_refusal_is_translated(self):
+        from apps.ai.providers.base import AIRefusedError
+
+        client = _FakeGeminiClient(_FakeGeminiResponse("", finish_reason="SAFETY"))
+
+        with pytest.raises(AIRefusedError):
+            self._provider(client).generate_text(REQUEST)
+
+    def test_malformed_json_is_translated(self):
+        client = _FakeGeminiClient(_FakeGeminiResponse("これはJSONではない"))
+
+        with pytest.raises(AIMalformedError):
+            self._provider(client).generate_structured(REQUEST, SCHEMA)
+
+    def test_empty_text_is_translated(self):
+        client = _FakeGeminiClient(_FakeGeminiResponse("   "))
 
         with pytest.raises(AIMalformedError):
             self._provider(client).generate_text(REQUEST)

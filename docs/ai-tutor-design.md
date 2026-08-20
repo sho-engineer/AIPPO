@@ -286,3 +286,48 @@ JSONのみを返してください。
 | 5 | E2E テストを作る | Playwright（AI はテスト用レスポンスに差し替え） |
 
 各作業の詳細な受け入れ条件は `specs/001-handson-lesson-mvp/tasks.md` を参照。
+
+## 10. AIプロバイダ戦略
+
+`apps/ai/providers/`（`registry.py` が唯一の差し替え口）は、
+特定の1社に依存しないための抽象化。View や教材データは
+プロバイダのクラスを直接 import しない。
+
+| プロバイダ | 位置づけ |
+| --- | --- |
+| `mock` | 外部へ出ない。開発とテストの既定（憲章 原則 III：鍵が無くても教材9本を完走できる） |
+| `gemini` | **既定の本番用**。費用と無料枠（開発時）の都合、および要約・書き直し・分類・発想のような本教材の課題との相性で選んでいる |
+| `openai` | 本番でも使える。比較・切り替え先として残す（消さない） |
+| `anthropic` | 同上。将来のモデル比較コース用にも使う |
+
+どれも `apps/ai/providers/base.py` の `AIProvider` を実装するだけで足せる。
+1社が値上げ・障害・規約変更を起こしても、`AI_PROVIDER` の環境変数を
+変えるだけで他社へ切り替えられる状態を保つ。
+
+### 本番データ取り扱いの方針
+
+本番サービスで、ユーザーの仕事の文章・機密情報・個人情報を扱う場合は、
+**Free Tier 前提で運用しない**。
+
+- Gemini の Free Tier は、入力が学習に使われうる契約になっている
+- 本番では **Paid Tier**（ユーザー入力を学習利用されない契約条件）を前提にする
+- どちらの契約の鍵かは API からは分からない。契約時に確認し、
+  デプロイ設定（`GEMINI_API_KEY`）に入れる鍵を運用側で管理すること
+- 開発・プレビュー環境の Free Tier 利用は妨げない（そこに実際の
+  ユーザーの機密情報が乗ることは想定していない）
+
+### 呼び出しごとの provider / model 指定
+
+`get_provider(name, model)` は、教材データ側（`LessonStep`）が
+呼び出しごとに provider と model を指定できるようにするための入口
+（将来のモデル比較コース用）。現時点では教材データはこれを使わず、
+`AI_PROVIDER` / `AI_MODEL` 系の設定値に従う。
+
+### 利用実績の記録
+
+各プロバイダの呼び出しは `AIUsage`（`provider` / `model` / `input_tokens` /
+`output_tokens` / `latency_ms`）を返す。現状はこれを永続化していない。
+費用の追跡・Credit 消費との連動が必要になった時点で、
+`user_id` / `task_type` / `provider` / `model` / `input_tokens` /
+`output_tokens` / `estimated_cost` / `credit_consumed` / `timestamp` を
+持つ記録先を別途用意する（未着手）。

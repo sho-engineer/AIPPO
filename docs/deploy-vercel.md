@@ -73,7 +73,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 
 | キー | いつ |
 |---|---|
-| `AI_PROVIDER` を `openai` / `anthropic` に、`OPENAI_API_KEY` か `ANTHROPIC_API_KEY` | 本物のAIを使うとき |
+| `AI_PROVIDER` を `gemini`（既定・費用と無料枠の都合） / `openai` / `anthropic` に、対応する `GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | 本物のAIを使うとき。本番でユーザーの入力を扱うなら Gemini は Paid Tier（学習利用しない契約）の鍵にすること |
 | `EMAIL_BACKEND` を smtp に、`EMAIL_HOST` `EMAIL_HOST_USER` `EMAIL_HOST_PASSWORD` `DEFAULT_FROM_EMAIL` | 実際に確認メールを送るとき |
 | `CSRF_TRUSTED_ORIGINS` | 独自ドメインを足したとき |
 | `SESSION_COOKIE_AGE` / `SESSION_ABSOLUTE_MAX_AGE` | ログインの期限を変えたいとき（既定は30日 / 90日） |

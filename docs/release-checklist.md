@@ -92,8 +92,9 @@ EMAIL_HOST_USER=<利用者名>
 EMAIL_HOST_PASSWORD=<鍵>
 DEFAULT_FROM_EMAIL=<差出人アドレス>
 
-AI_PROVIDER=openai              ← または anthropic
-OPENAI_API_KEY=<鍵>             ← または ANTHROPIC_API_KEY
+AI_PROVIDER=gemini              ← 既定。または openai / anthropic
+GEMINI_API_KEY=<鍵>             ← または OPENAI_API_KEY / ANTHROPIC_API_KEY
+                                 ← 本番でユーザーの入力を扱うなら Gemini は Paid Tier の鍵
 
 CRON_SECRET=<下のコマンドで作る>
 DJANGO_ADMIN_PATH=<推測されない名前>/

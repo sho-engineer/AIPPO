@@ -4,9 +4,9 @@
 差し替えるのは `AI_PROVIDER` 環境変数だけで済むようにする。
 
   MockProvider      … 外部へ出ない。開発とテストの既定
-  OpenAIProvider    … MVP の本番用
-  GoogleProvider    … 将来（モデル比較コース用の枠だけ用意）
-  AnthropicProvider … 将来（同上）
+  GeminiProvider    … 既定の本番用（費用・無料枠の都合）
+  OpenAIProvider    … 本番でも使える（比較・切り替え先として残す）
+  AnthropicProvider … 同上（モデル比較コース用にも使う）
 
 将来のモデル比較コースのために、**1回の呼び出しごとに**
 provider と model を指定できる形にしてある。

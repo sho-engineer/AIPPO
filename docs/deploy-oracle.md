@@ -143,7 +143,7 @@ Vercel の URL を開き、レッスンを1本最後まで進める（`AI_PROVID
 
 ## あとから足すもの
 
-- **本物のAI**: `.env` の `AI_PROVIDER` を `anthropic` か `openai` にして鍵を入れ、`docker compose up -d`
+- **本物のAI**: `.env` の `AI_PROVIDER` を `gemini`（既定） / `anthropic` / `openai` にして対応する鍵を入れ、`docker compose up -d`（本番でユーザーの入力を扱うなら Gemini は Paid Tier の鍵にすること）
 - **実際のメール送信**: `EMAIL_BACKEND` を smtp にし、`EMAIL_HOST` 等を埋める
 - **独自ドメイン**: DuckDNS のままでも動くが、いずれ own domain に変えたくなったら
   `BACKEND_DOMAIN` と Vercel 側のカスタムドメイン設定を両方直す
