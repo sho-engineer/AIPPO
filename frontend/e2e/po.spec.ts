@@ -39,6 +39,7 @@ async function openRewrite(page: Page): Promise<void> {
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await page.getByRole("button", { name: "コース" }).click();
+  await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-rewrite_text").click();
   await expect(page.getByTestId("primary-action").first()).toBeVisible();
 }

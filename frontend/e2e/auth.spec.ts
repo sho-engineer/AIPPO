@@ -52,7 +52,8 @@ test.describe("登録", () => {
     await openAuth(page);
 
     await page.getByLabel("メールアドレス").fill("learner@example.com");
-    await page.getByLabel("パスワード").fill("aippo-strong-pass-9");
+    await page.getByLabel("パスワード", { exact: true }).fill("aippo-strong-pass-9");
+    await page.getByLabel("パスワード（確認）").fill("aippo-strong-pass-9");
 
     await expect(page.getByTestId("auth-submit")).toBeDisabled();
     expect(api.auth).toHaveLength(0);
@@ -63,7 +64,8 @@ test.describe("登録", () => {
     await openAuth(page);
 
     await page.getByLabel("メールアドレス").fill("learner@example.com");
-    await page.getByLabel("パスワード").fill("aippo-strong-pass-9");
+    await page.getByLabel("パスワード", { exact: true }).fill("aippo-strong-pass-9");
+    await page.getByLabel("パスワード（確認）").fill("aippo-strong-pass-9");
     await page.getByRole("checkbox").check();
     await page.getByTestId("auth-submit").click();
 
@@ -75,7 +77,8 @@ test.describe("登録", () => {
     await openAuth(page);
 
     await page.getByLabel("メールアドレス").fill("learner@example.com");
-    await page.getByLabel("パスワード").fill("aippo-strong-pass-9");
+    await page.getByLabel("パスワード", { exact: true }).fill("aippo-strong-pass-9");
+    await page.getByLabel("パスワード（確認）").fill("aippo-strong-pass-9");
     await page.getByRole("checkbox").check();
     await page.getByTestId("auth-submit").click();
     await expect(page.getByTestId("account-email")).toBeVisible();
@@ -159,6 +162,7 @@ test.describe("登録していない人", () => {
     await page.reload();
     await page.getByRole("button", { name: "はじめる" }).first().click();
     await page.getByRole("button", { name: "コース" }).click();
+    await page.getByTestId("current-course-open").click();
     await page.getByTestId("lesson-rewrite_text").click();
 
     const primary = page.getByTestId("primary-action").first();

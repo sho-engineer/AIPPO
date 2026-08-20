@@ -35,6 +35,8 @@ async function answerAll(page: Page): Promise<void> {
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await page.getByRole("button", { name: "コース" }).first().click();
+  // コースは3段（一覧 → 中身 → レッスン）。レッスンが並ぶのは2段目
+  await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-diagnosis").first().click();
 
   // 最初の1枚は説明。そこから3問

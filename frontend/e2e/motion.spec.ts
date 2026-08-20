@@ -99,6 +99,8 @@ async function openLesson(page: Page): Promise<void> {
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await page.getByRole("button", { name: "コース" }).first().click();
+  // コースは3段（一覧 → 中身 → レッスン）。レッスンが並ぶのは2段目
+  await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-rewrite_text").first().click();
   await expect(page.getByTestId("step-transition")).toBeVisible();
 }
