@@ -176,7 +176,7 @@ describe("画面での見え方", () => {
   };
 
   const openCourse = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(await screen.findByRole("button", { name: "教材一覧" }));
+    await user.click(await screen.findByRole("button", { name: "コース" }));
   };
 
   it("教材一覧に近日公開の教材も並ぶが、押せない", async () => {
@@ -234,6 +234,8 @@ describe("画面での見え方", () => {
 
     // 届いた2本のうち始められるのは1本なので、分母は 1（2ではない）
     const progress = await screen.findByTestId("progress-summary");
-    expect(progress).toHaveTextContent("0/1");
+    expect(progress).toHaveTextContent(/0\s*\/\s*1/);
+    // 2本目（近日公開）を分母に数えていないこと
+    expect(progress).not.toHaveTextContent(/\/\s*2/);
   });
 });

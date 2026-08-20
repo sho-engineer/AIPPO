@@ -61,7 +61,7 @@ async function toCourse(page: Page): Promise<void> {
   await page.reload();
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
-  await page.getByRole("button", { name: "教材一覧" }).click();
+  await page.getByRole("button", { name: "コース" }).click();
 }
 
 test.describe("近日公開", () => {

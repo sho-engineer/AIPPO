@@ -9,9 +9,14 @@
  * 他のステップの都合で読みにくくならないよう、独立させてある。
  */
 
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 
-import { IconPlay, IconSparkle } from "../../Icons";
+import {
+  IconCheckCircle,
+  IconChevronRight,
+  IconPlay,
+  IconSparkle,
+} from "../../Icons";
 import { diffSentences } from "../../../lib/diff";
 
 // --------------------------------------------------------- 3段階の比較
@@ -33,8 +38,6 @@ export function ThreeWayCompare({
   improved: string;
   condition: string;
 }) {
-  const [tab, setTab] = useState<"original" | "first" | "improved">("improved");
-
   /**
    * 改善後の列だけ、変わった文を目立たせる。
    *
@@ -45,106 +48,121 @@ export function ThreeWayCompare({
     (part) => part.kind !== "removed",
   );
 
-  const panels = [
-    { id: "original" as const, label: "元の文章", body: original, tone: "border-line" },
-    { id: "first" as const, label: "1回目", body: first, tone: "border-line" },
-    {
-      id: "improved" as const,
-      label: condition ? `改善後（${condition}）` : "改善後",
-      body: improved,
-      tone: "border-brand",
-      parts: improvedParts,
-    },
-  ];
-
-  const render = (panel: (typeof panels)[number]) =>
-    panel.parts ? (
-      <>
-        {panel.parts.map((part, index) =>
-          part.kind === "added" ? (
-            <mark
-              key={index}
-              className="rounded bg-brand-soft px-0.5 font-bold text-brand-dark"
-            >
-              {part.text}
-            </mark>
-          ) : (
-            <span key={index}>{part.text}</span>
-          ),
-        )}
-      </>
-    ) : (
-      panel.body || "（入力なし）"
-    );
+  const marked = (parts: { kind: string; text: string }[]) => (
+    <>
+      {parts.map((part, index) =>
+        part.kind === "added" ? (
+          <mark
+            key={index}
+            className="rounded bg-brand-soft px-0.5 font-bold text-brand-dark"
+          >
+            {part.text}
+          </mark>
+        ) : (
+          <span key={index}>{part.text}</span>
+        ),
+      )}
+    </>
+  );
 
   return (
     <div data-testid="result-compare">
-      {/* 狭い画面：タブ */}
-      <div className="sm:hidden">
-        <div role="tablist" className="flex gap-1.5">
-          {panels.map((panel) => (
-            <button
-              key={panel.id}
-              role="tab"
-              type="button"
-              aria-selected={tab === panel.id}
-              onClick={() => setTab(panel.id)}
-              className={`chip flex-1 text-xs ${
-                tab === panel.id ? "chip-on" : "chip-off"
-              }`}
-            >
-              {panel.label}
-            </button>
-          ))}
+      {/*
+        最初の結果と、条件を足したあと。**横に並べる**。
+
+        前は札で切り替える形にしていた。切り替えだと、片方を見ている間
+        もう片方は消えているので、結局どこが変わったのかは記憶で比べる
+        ことになる。狭い画面でも、並べたほうが分かる。
+      */}
+      <section className="rounded-panel border border-line bg-surface p-4 shadow-card">
+        <div className="flex items-stretch gap-2">
+          <div className="min-w-0 flex-1" data-testid="result-first">
+            <h3 className="flex items-center gap-1.5 text-xs font-bold text-brand">
+              <IconSparkle className="h-4 w-4 shrink-0" />
+              最初のAI結果
+            </h3>
+            <p className="mt-2 whitespace-pre-wrap break-words border-t border-line pt-2
+                          text-xs leading-6">
+              {first || "（まだありません）"}
+            </p>
+          </div>
+
+          {/* 左から右へ変わったこと。向きを1つ置くだけで伝わる */}
+          <span
+            aria-hidden="true"
+            className="flex shrink-0 items-center text-brand"
+          >
+            <IconChevronRight className="h-5 w-5" />
+          </span>
+
+          <div className="min-w-0 flex-1" data-testid="result-improved">
+            <h3 className="flex items-center gap-1.5 text-xs font-bold text-brand-dark">
+              <IconCheckCircle className="h-4 w-4 shrink-0 text-brand" />
+              {condition ? `改善後（${condition}）` : "改善後"}
+            </h3>
+            <p className="mt-2 whitespace-pre-wrap break-words border-t border-line pt-2
+                          text-xs leading-6">
+              {improved ? marked(improvedParts) : "（まだありません）"}
+            </p>
+          </div>
         </div>
-        <section className="mt-3 rounded-card border border-line bg-surface p-4">
-          <p className="whitespace-pre-wrap break-words text-sm leading-7">
-            {render(panels.find((panel) => panel.id === tab)!)}
-          </p>
-        </section>
-      </div>
+
+        {/*
+          何が変わったか。比べている面の中に入れる。
+          離して置くと、何と何を比べた結果なのかが結び付かない。
+        */}
+        <div className="mt-3 border-t border-line pt-3">
+          <ChangePoints before={first} after={improved} condition={condition} />
+        </div>
+      </section>
 
       {/*
-        広い画面：3つ並べ、あいだに向きを置く。
-        ただ横に並べるだけだと「3つある」で終わり、
-        左から右へ変わっていったことが読み取れない。
+        元の文章から、ここまでの道のり。
+
+        2つ並べただけだと「AIが何かした」で終わる。
+        自分が書いた文から2手かかっていることは、3つ並べて初めて分かる。
       */}
-      <div className="hidden items-stretch gap-1 sm:flex">
-        {panels.map((panel, index) => (
+      <ol className="mt-3 flex items-stretch gap-1" role="list">
+        {[
+          { id: "original" as const, label: "元の文章", body: original },
+          { id: "first" as const, label: "1回目", body: first },
+          { id: "improved" as const, label: "改善後", body: improved },
+        ].map((panel, index) => (
           <Fragment key={panel.id}>
             {index > 0 && (
               <span
                 aria-hidden="true"
                 className="flex shrink-0 items-center text-brand-line"
               >
-                <IconPlay className="h-5 w-5" />
+                <IconPlay className="h-4 w-4" />
               </span>
             )}
-            <section
+            <li
               data-testid={`compare-${panel.id}`}
-              className={`flex-1 rounded-card bg-surface p-4 shadow-card ${
-                panel.id === "improved" ? "ring-2 ring-brand" : ""
+              className={`min-w-0 flex-1 rounded-card border p-2.5 ${
+                panel.id === "improved"
+                  ? "border-brand bg-brand-soft/60"
+                  : "border-line bg-surface"
               }`}
             >
-              <h3
-                className={`text-xs font-bold ${
+              <p
+                className={`text-[0.6875rem] font-bold ${
                   panel.id === "improved" ? "text-brand-dark" : "text-ink-muted"
                 }`}
               >
                 {panel.label}
-              </h3>
-              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7">
-                {render(panel)}
               </p>
-            </section>
+              {/*
+                ここは道のりの目印なので、全文は出さない。
+                3列に全文を入れると、1列が細長い柱になって読めない。
+              */}
+              <p className="mt-1 line-clamp-3 break-words text-[0.6875rem] leading-5 text-ink-muted">
+                {panel.body || "（入力なし）"}
+              </p>
+            </li>
           </Fragment>
         ))}
-      </div>
-
-      {/* 何が変わったか。測って分かることだけを出す */}
-      <div className="mt-4">
-        <ChangePoints before={first} after={improved} condition={condition} />
-      </div>
+      </ol>
 
       {/* 何が変わったかは、1回目と改善後の差で見せる */}
       <details className="mt-4 rounded-card border border-line bg-surface px-4 py-3">
@@ -225,7 +243,7 @@ export function ChangePoints({
 
   return (
     <div
-      className="flex flex-wrap items-center gap-2 rounded-card bg-canvas px-4 py-3"
+      className="flex flex-wrap items-center gap-2"
       data-testid="change-points"
     >
       <span className="flex items-center gap-2 text-xs font-bold">

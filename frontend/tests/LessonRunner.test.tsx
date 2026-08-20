@@ -63,9 +63,15 @@ describe("自分の課題のステップ", () => {
     );
 
     expect(await screen.findByTestId("primary-action")).toBeDisabled();
-    // 押せない理由を黙って隠さない
+    /*
+      押せない理由を黙って隠さない。
+
+      文に見出しは混ぜない。見出しはそれ自体が文になっていることがあり、
+      「条件を一つ足してみましょうをえらんでみましょう。」になった。
+      いま見るのは「何をすれば進めるか」が書いてあること。
+    */
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(/自分の文章/),
+      expect(screen.getByRole("status")).toHaveTextContent(/入力してください/),
     );
   });
 

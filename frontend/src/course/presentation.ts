@@ -11,6 +11,7 @@
 import {
   IconBook,
   IconBuilding,
+  IconCheck,
   IconBulb,
   IconCalendar,
   IconChat,
@@ -111,6 +112,38 @@ export function optionTone(name?: OptionIconName): Tone {
 
 export function optionIcon(name?: OptionIconName): Icon | null {
   return name ? (OPTION_ICONS[name] ?? null) : null;
+}
+
+/**
+ * 診断の選択肢に添える絵。
+ *
+ * 教材データ側には持たせない。データは**何を聞くか**だけを持ち、
+ * 絵は見せ方の都合なので、こちら側で引く（教材を書く人に、
+ * 絵の名前まで覚えてもらう理由が無い）。
+ *
+ * 引けなかった値には何も出さない。それらしい絵を当てるより、
+ * 文字だけのほうが読み違えない。
+ */
+const DIAGNOSIS_ICONS: Record<string, Icon> = {
+  // ふだんの仕事 / いま面倒なこと（同じ言葉は同じ絵にする）
+  writing: IconMail,
+  reading: IconBook,
+  researching: IconQuestion,
+  explaining: IconQuestion,
+  summarizing: IconList,
+  ideas: IconBulb,
+  comparing: IconScale,
+  planning: IconCalendar,
+  organizing: IconFolder,
+  // AIを使ったことがあるか
+  none: IconQuestion,
+  tried: IconSparkle,
+  occasional: IconChat,
+  regular: IconCheck,
+};
+
+export function diagnosisIcon(value: string): Icon | null {
+  return DIAGNOSIS_ICONS[value] ?? null;
 }
 
 /**

@@ -104,7 +104,18 @@ export function checkStep(step: LessonStep, values: StepValues): StepIssue | nul
   const required = step.required ?? rules.required ?? false;
 
   if (required && !value) {
-    return { reason: `${step.title}をえらんでみましょう。`, blocking: true };
+    /*
+      見出しを文に混ぜない。
+
+      見出しは「条件を一つ足してみましょう」のように、それ自体が文に
+      なっていることがある。混ぜると「条件を一つ足してみましょうを
+      えらんでみましょう。」になる（実際に出た）。
+      何をすればよいかは、書く欄か選ぶ札かで決まる。そこだけを言う。
+    */
+    return {
+      reason: step.options?.length ? "ひとつ選んでください。" : "入力してください。",
+      blocking: true,
+    };
   }
 
   if (rules.maxLength && value.length > rules.maxLength) {

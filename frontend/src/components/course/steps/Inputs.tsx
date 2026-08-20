@@ -14,9 +14,17 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 
-import { IconCheck } from "../../Icons";
+import {
+  IconBook,
+  IconCheck,
+  IconPaste,
+  IconPencil,
+  IconRefresh,
+  type Icon,
+} from "../../Icons";
+import { ChoiceButton } from "../../aippo/ChoiceButton";
 import { isFreeValue } from "../../../course/engine";
-import { optionIcon } from "../../../course/presentation";
+import { diagnosisIcon, optionIcon } from "../../../course/presentation";
 import type { LessonStep, StepOption } from "../../../course/types";
 
 // --------------------------------------------------------------- 選択肢
@@ -61,14 +69,66 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
     onChange(next.join(","));
   };
 
+  /*
+    並べ方は、選択肢の**言葉の長さ**で決める。
+
+    「自分／上司／取引先」のように短いものは、横に流す札（chip）が読みやすい。
+    「長い文章を読むことが多い」のように文なら、横に流すと1つずつ折り返して
+    列がガタガタになるので、2列のタイルにして高さをそろえる。
+
+    ステップの種類で分けないのは、同じ single_choice でも中身が
+    どちらにもなるため。教材を足すたびに分岐を書き足したくない。
+  */
+  const longest = Math.max(0, ...options.map((option) => option.label.length));
+  const tiles = longest > 8;
+
   return (
     <div>
-      <ul className="flex flex-wrap gap-2" role="list">
+      <ul
+        className={tiles ? "grid grid-cols-2 gap-2.5" : "flex flex-wrap gap-2"}
+        role="list"
+        data-layout={tiles ? "tiles" : "chips"}
+      >
         {options.map((option) => {
           const active = option.free
             ? showFree
             : selected.includes(option.value);
-          const Glyph = optionIcon(option.icon);
+          const Glyph = optionIcon(option.icon) ?? diagnosisIcon(option.value);
+
+          if (tiles) {
+            return (
+              /*
+                最後の1つが余ったときは、2列ぶんに広げる。
+                半分だけの札が下にぽつんと残ると、列が崩れて見える。
+              */
+              <li
+                key={option.label}
+                className={
+                  options.length % 2 === 1 && option === options[options.length - 1]
+                    ? "col-span-2"
+                    : ""
+                }
+              >
+                <ChoiceButton
+                  label={option.label}
+                  selected={active}
+                  onSelect={() => toggle(option)}
+                  icon={
+                    Glyph ? (
+                      <span
+                        aria-hidden="true"
+                        className={`flex h-9 w-9 items-center justify-center rounded-card
+                                    ${active ? "bg-brand text-white" : "bg-brand-soft text-brand"}`}
+                      >
+                        <Glyph className="h-5 w-5" />
+                      </span>
+                    ) : undefined
+                  }
+                />
+              </li>
+            );
+          }
+
           return (
             <li key={option.label}>
               <button
@@ -110,6 +170,43 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
 
 // --------------------------------------------------------------- 文章入力
 
+/**
+ * 文章の入れ方を1つ選ぶ札。
+ *
+ * 見た目は上の見出し（タブ）に寄せる。押すたびに画面が切り替わるのではなく、
+ * その場で入力欄が埋まるだけなので、`tab` の役は持たせない
+ * （役を付けると、読み上げが「別の面に切り替わる」と案内してしまう）。
+ */
+function InputMode({
+  icon: Glyph,
+  label,
+  active,
+  onClick,
+}: {
+  icon: Icon;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex min-h-[2.75rem] flex-1 items-center justify-center gap-1.5
+                  whitespace-nowrap rounded-badge px-2.5 py-2 text-xs font-bold
+                  transition
+                  ${
+                    active
+                      ? "bg-brand-soft text-brand-dark"
+                      : "text-ink-muted hover:bg-brand-soft/50"
+                  }`}
+    >
+      <Glyph className="h-4 w-4 shrink-0" />
+      {label}
+    </button>
+  );
+}
+
 interface TextProps {
   step: LessonStep;
   value: string;
@@ -144,38 +241,51 @@ export function TextStep({
 
   return (
     <div>
-      {/* 空の入力欄だけを出さない（要件 §6.2） */}
-      <div className="flex flex-wrap gap-2">
+      {/*
+        文章の入れ方。空の入力欄だけを出さない（要件 §6.2）。
+
+        横一列の見出しの形にする。札を散らして並べるより、
+        「入れ方が3つあって、いまはこれ」が一目で分かる。
+        いま選んでいるものは、下線と色の両方で示す（色だけにしない）。
+      */}
+      <div
+        className="flex items-stretch gap-1 overflow-x-auto rounded-card border
+                   border-line bg-surface p-1 shadow-card"
+        role="group"
+        aria-label="文章の入れ方"
+      >
+        <InputMode
+          icon={IconPencil}
+          label="自分で入力する"
+          active={value.length > 0 && value !== sampleText}
+          onClick={() => textarea.current?.focus()}
+        />
+        <InputMode icon={IconPaste} label="貼り付ける" active={false} onClick={paste} />
         {sampleText && (
-          <button
-            type="button"
+          <InputMode
+            icon={IconBook}
+            label="例文を使う"
+            active={value === sampleText}
             onClick={() => onChange(sampleText)}
-            className="chip chip-off min-h-[2.75rem] text-sm"
-          >
-            用意された例文を使う
-          </button>
+          />
         )}
-        <button
-          type="button"
-          onClick={paste}
-          className="chip chip-off min-h-[2.75rem] text-sm"
-        >
-          貼り付ける
-        </button>
         {value && (
-          <button
-            type="button"
+          <InputMode
+            icon={IconRefresh}
+            label="消す"
+            active={false}
             onClick={() => onChange("")}
-            className="chip chip-off min-h-[2.75rem] text-sm"
-          >
-            消して自分で書く
-          </button>
+          />
         )}
       </div>
 
       <label htmlFor={inputId} className="mt-4 block text-sm font-bold">
         {step.title}
       </label>
+      {/*
+        入力欄は面として置く。地を白にし、囲みを1本引く。
+        下地（薄い青みの灰）の上では、枠だけだと「書ける場所」に見えない。
+      */}
       <textarea
         id={inputId}
         ref={textarea}
@@ -183,7 +293,9 @@ export function TextStep({
         onChange={(event) => onChange(event.target.value.slice(0, max))}
         placeholder={step.placeholder}
         rows={6}
-        className="mt-2 w-full rounded-card border border-line px-4 py-3 text-base leading-7"
+        className="mt-2 w-full rounded-card border border-line bg-surface px-4 py-3
+                   text-base leading-7 shadow-card outline-none transition
+                   focus:border-brand focus:ring-2 focus:ring-brand-soft"
       />
 
       <div className="mt-2 flex items-center justify-between gap-3">

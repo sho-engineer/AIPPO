@@ -232,6 +232,8 @@ export function LessonRunner({
                 ? { label: "解説を飛ばす", onClick: api.skipConcept }
                 : undefined
         }
+        // 終わったあとだけ、逃げ道も同じ大きさで並べる（どちらも正しい行き先）
+        secondaryProminent={step.type === "completion"}
         busy={api.isSubmitting}
         /*
           解説の回は、カード本文とポーの台詞が同じ文になる（教材データが

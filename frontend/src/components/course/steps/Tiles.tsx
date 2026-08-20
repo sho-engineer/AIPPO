@@ -50,7 +50,11 @@ export function ChoiceTiles({
         選んだことは、枠・地色・右のチェックの3つで示す（色だけにしない）。
       */}
       <ul
-        className="grid grid-cols-1 gap-2.5 sm:grid-cols-3"
+        /*
+          2列。1列にすると6つで画面1枚ぶんの高さになり、
+          「どれがあるか」を見るのにスクロールが要る。
+        */
+        className="grid grid-cols-2 gap-2.5"
         role="list"
         data-testid="choice-tiles"
       >
@@ -70,12 +74,13 @@ export function ChoiceTiles({
                   setShowFree(false);
                   onChange(option.value);
                 }}
-                className={`flex min-h-[3.5rem] w-full items-center gap-3 rounded-card
-                            px-3 py-3 text-sm shadow-card transition
+                className={`flex h-full min-h-[3.5rem] w-full items-center gap-2.5
+                            rounded-card border px-3 py-3 text-sm transition
+                            active:scale-[0.99]
                             ${
                               active
-                                ? "bg-brand-soft font-bold text-brand-dark ring-2 ring-brand"
-                                : "bg-surface hover:-translate-y-0.5 hover:shadow-raised"
+                                ? "border-brand bg-brand-soft/70 font-bold text-brand-dark"
+                                : "border-line bg-surface shadow-card hover:border-brand-line"
                             }`}
               >
                 <IconBadge
@@ -83,8 +88,10 @@ export function ChoiceTiles({
                   tone={optionTone(option.icon)}
                   size="sm"
                 />
-                <span className="min-w-0 flex-1 text-left">{option.label}</span>
-                {active && <IconCheckCircle className="h-5 w-5 shrink-0 text-brand" />}
+                <span className="min-w-0 flex-1 text-left leading-6">{option.label}</span>
+                {active && (
+                  <IconCheckCircle className="h-5 w-5 shrink-0 text-brand" />
+                )}
               </button>
             </li>
           );

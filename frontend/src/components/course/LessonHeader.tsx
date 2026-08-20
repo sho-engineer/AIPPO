@@ -59,10 +59,13 @@ export function LessonHeader({ title, onBack, onExit }: LessonHeaderProps) {
       {/*
         題名。長いレッスン名でも帯を2段にしない——高さが変わると、
         その下の中身が毎回ずれる。入りきらない分は省略する。
+
+        見出し（h1）にはしない。帯はどのステップでも同じ文字を出し続ける
+        ので、画面の見出しにはならない。見出しは、いま何をしているかを言う
+        ステップ側（PoHero）が持つ。h1 が2つあると、読み上げで
+        「この画面は何か」を探すときに2回聞かされる。
       */}
-      <h1 className="min-w-0 flex-1 truncate text-center text-sm font-bold">
-        {title}
-      </h1>
+      <p className="min-w-0 flex-1 truncate text-center text-sm font-bold">{title}</p>
 
       <div className="flex w-9 shrink-0 justify-end">
         <button

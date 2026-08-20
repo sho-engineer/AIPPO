@@ -12,8 +12,9 @@
 
 import type { ReactNode } from "react";
 
-import { IconCaution, type Icon } from "../Icons";
-import { PoAvatar } from "../../po/PoAvatar";
+import { IconCaution, IconRefresh, IconSparkle, type Icon } from "../Icons";
+import { PoHero } from "../aippo/PoHero";
+import { PrimaryButton } from "../aippo/PrimaryButton";
 import { LessonProgress } from "./LessonProgress";
 import { StepTransition } from "./StepTransition";
 import type { LessonPhase, PoMessage } from "../../course/types";
@@ -51,6 +52,15 @@ export interface StepShellProps {
   error?: string | null;
   /** 「今回はスキップ」など、主導線以外の逃げ道。 */
   secondary?: { label: string; onClick: () => void };
+  /**
+   * 逃げ道を、主導線と同じ大きさのボタンで並べるか。
+   *
+   * ふだんは細い文字のままにする。逃げ道が主導線と同じ大きさで並ぶと、
+   * どちらを押せばよいのか決められなくなる。
+   * 終わったあとの画面だけは別で、「次へ行く」と「もう一度やる」は
+   * どちらも正しい行き先なので、対等に並べる。
+   */
+  secondaryProminent?: boolean;
   busy?: boolean;
   /** ポーを出すか。本文が同じことを言う画面では下げる。 */
   showPo?: boolean;
@@ -72,6 +82,7 @@ export function StepShell({
   hintNearButton,
   error,
   secondary,
+  secondaryProminent = false,
   busy = false,
   showPo = true,
   children,
@@ -127,18 +138,30 @@ export function StepShell({
         </details>
       )}
 
-      {eyebrow && (
-        <p className="mt-5 flex items-center gap-2 text-sm font-bold text-brand">
-          <eyebrow.icon className="h-4 w-4 shrink-0" />
-          {eyebrow.label}
-        </p>
-      )}
-      <h1 className={`text-xl font-bold sm:text-2xl ${eyebrow ? "mt-1" : "mt-6"}`}>
-        {title}
-      </h1>
-      {instruction && (
-        <p className="mt-2 text-sm leading-7 text-ink-muted">{instruction}</p>
-      )}
+      {/*
+        見出し・説明・ポーを、ひとかたまりで上に置く。
+
+        前はポーを画面のいちばん下（ボタンのすぐ上）に置いていた。
+        案内役の言葉は**読み始める前**に要るもので、読み終えた後に
+        出てきても遅い。支給デザインも6枚とも、ポーは見出しの右にいる。
+      */}
+      <div className="mt-4">
+        <PoHero
+          eyebrow={
+            eyebrow && (
+              <span className="flex items-center gap-1.5 text-sm font-bold text-brand">
+                <eyebrow.icon className="h-4 w-4 shrink-0" />
+                {eyebrow.label}
+              </span>
+            )
+          }
+          title={title}
+          description={instruction}
+          message={showPo ? po.message : undefined}
+          emotion={po.emotion}
+          compact={!eyebrow}
+        />
+      </div>
 
       {/*
         ステップが入れ替わったことを、短い動きで伝える。
@@ -150,23 +173,6 @@ export function StepShell({
       <div className="mt-6">
         <StepTransition stepKey={title}>{children}</StepTransition>
       </div>
-
-      {/*
-        ポーは毎ステップ出さない。
-
-        本文がポーと同じことを言っている画面では、吹き出しは
-        情報を増やさずに縦を伸ばすだけになる（解説の回で実際に、
-        カード本文とポーの台詞が一字一句同じになっていた）。
-
-        出す・出さないの判断は、中身を知っている呼び出し側に持たせる。
-        ここで文字を比べて自動で消すと、少し言い換えただけで
-        二重に戻り、なぜ消えたのかも読めなくなる。
-      */}
-      {showPo && (
-        <div className="mt-8 sm:mt-10">
-          <PoAvatar po={po} compact />
-        </div>
-      )}
 
       {/*
         次にやること。画面の下に固定する。
@@ -206,29 +212,34 @@ export function StepShell({
             ここは「次にやること」だけにする。画面の下に1つだけ置くから、
             迷わず押せる（憲章 原則 I）。
           */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              data-testid="primary-action"
+          {/*
+            進むボタン。幅いっぱい・56px。支給デザイン6枚とも、
+            下端にあるのはこの1つだけ。
+          */}
+          <div className={secondaryProminent ? "flex items-stretch gap-3" : ""}>
+            <PrimaryButton
+              testId="primary-action"
               onClick={onPrimary}
               disabled={primaryDisabled || busy}
-              /*
-                進むボタン。
-
-                以前は画面幅いっぱいの rounded-full を min-h-12 で置いていた。
-                下端を横切る大きな丸い帯は、それだけで広告のように見え、
-                すぐ上にある教材の中身より強くなる。
-                高さを詰め、角を弱め、幅は必要な分だけにしている。
-              */
-              className="flex-1 rounded-cta bg-brand px-6 py-2.5 text-sm font-bold
-                         text-white transition hover:bg-brand-dark active:bg-brand-dark
-                         disabled:cursor-not-allowed disabled:bg-line
-                         disabled:text-ink-muted"
+              icon={busy ? undefined : <IconSparkle className="h-5 w-5 shrink-0" />}
+              className={secondaryProminent ? "flex-1" : ""}
             >
               {busy ? "送っています…" : primaryLabel}
-            </button>
+            </PrimaryButton>
+
+            {secondary && secondaryProminent && (
+              <PrimaryButton
+                secondary
+                onClick={secondary.onClick}
+                icon={<IconRefresh className="h-5 w-5 shrink-0" />}
+                className="flex-1"
+              >
+                {secondary.label}
+              </PrimaryButton>
+            )}
           </div>
-          {secondary && (
+
+          {secondary && !secondaryProminent && (
             <button
               type="button"
               onClick={secondary.onClick}

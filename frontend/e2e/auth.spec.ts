@@ -24,7 +24,7 @@ async function toSettings(page: Page): Promise<void> {
   await page.reload();
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
-  await page.getByRole("button", { name: "設定" }).click();
+  await page.getByRole("button", { name: "その他" }).click();
 }
 
 async function openAuth(page: Page): Promise<void> {
@@ -146,7 +146,7 @@ test.describe("登録していない人", () => {
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
     await page.getByRole("button", { name: "はじめる" }).first().click();
-    await page.getByRole("button", { name: "教材一覧" }).click();
+    await page.getByRole("button", { name: "コース" }).click();
     await page.getByTestId("lesson-rewrite_text").click();
 
     const primary = page.getByTestId("primary-action").first();

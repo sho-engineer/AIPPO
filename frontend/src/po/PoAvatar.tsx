@@ -177,6 +177,51 @@ function PoImage({ emotion, className }: { emotion: PoEmotion; className: string
   );
 }
 
+/**
+ * ポーの顔だけ。吹き出しは付けない。
+ *
+ * 画面の上のほうで大きく出すとき（ホーム、レッスンの導入、完了）は、
+ * 吹き出しの位置が画面ごとに違う。顔と吹き出しを1つの部品に固めると、
+ * 並べ方を変えるたびにこの中を触ることになる。
+ *
+ * まばたきと口の動きはここが持つ。置き場所が変わっても、
+ * 生きている感じは同じであってほしい。
+ */
+export function PoFace({
+  emotion,
+  message,
+  className = "h-20 w-20",
+  animate = true,
+}: {
+  emotion: PoEmotion;
+  /** しゃべっている風に口を動かす手がかり。変わるたびに動き直す。 */
+  message?: string;
+  className?: string;
+  animate?: boolean;
+}) {
+  const blinking = useBlink(emotion);
+  const mouthClosed = useTalking(emotion, message ?? "");
+
+  const shown: PoEmotion = blinking
+    ? "blink"
+    : emotion === "talking" && mouthClosed
+      ? "neutral"
+      : emotion;
+
+  const motion = !animate
+    ? ""
+    : emotion === "celebrate"
+      ? "animate-pop-in"
+      : "animate-float";
+
+  return (
+    <PoImage
+      emotion={shown}
+      className={`transition-opacity duration-200 ${className} ${motion}`}
+    />
+  );
+}
+
 export function PoAvatar({ po, compact = false, isVisible = true }: PoAvatarProps) {
   const blinking = useBlink(po.emotion);
   const mouthClosed = useTalking(po.emotion, po.message);

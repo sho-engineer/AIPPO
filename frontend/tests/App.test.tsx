@@ -21,7 +21,7 @@ describe("画面の行き来", () => {
 
   /** 下タブの「コース」を押して一覧へ。 */
   const openCourseTab = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(await screen.findByRole("button", { name: "教材一覧" }));
+    await user.click(await screen.findByRole("button", { name: "コース" }));
   };
 
   it("タイトルから始まる", () => {
@@ -80,7 +80,7 @@ describe("画面の行き来", () => {
     expect(await screen.findByTestId("recommend-diagnosis")).toBeEnabled();
   });
 
-  it("下タブの教材一覧へ移ると、全レッスンとFinal Challengeが並ぶ", async () => {
+  it("下タブのコースへ移ると、全レッスンとFinal Challengeが並ぶ", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -140,18 +140,19 @@ describe("画面の行き来", () => {
     expect(screen.getByTestId("poe-avatar")).toBeInTheDocument();
 
     await start(user);
-    expect(await screen.findByTestId("po-greeting")).toBeInTheDocument();
+    // ホームでも同じ目印にそろえた（前は po-greeting という別名だった）
+    expect(await screen.findByTestId("po-avatar")).toBeInTheDocument();
 
     await user.click(await screen.findByTestId("continue-lesson"));
     expect(await screen.findByTestId("po-avatar")).toBeInTheDocument();
   });
 
-  it("下タブから学習履歴へ入り、ホームへ戻れる", async () => {
+  it("下タブから学習記録へ入り、ホームへ戻れる", async () => {
     const user = userEvent.setup();
     render(<App />);
     await start(user);
 
-    await user.click(await screen.findByRole("button", { name: /学習履歴/ }));
+    await user.click(await screen.findByRole("button", { name: /学習記録/ }));
     expect(
       await screen.findByRole("heading", { name: "学習履歴" }),
     ).toBeInTheDocument();
@@ -162,12 +163,12 @@ describe("画面の行き来", () => {
     ).toBeInTheDocument();
   });
 
-  it("下タブから設定へ入り、ホームへ戻れる", async () => {
+  it("下タブのその他から設定へ入り、ホームへ戻れる", async () => {
     const user = userEvent.setup();
     render(<App />);
     await start(user);
 
-    await user.click(await screen.findByRole("button", { name: "設定" }));
+    await user.click(await screen.findByRole("button", { name: "その他" }));
     expect(await screen.findByRole("heading", { name: "設定" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "ホーム" }));

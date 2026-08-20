@@ -27,13 +27,15 @@ import { loadPlace, savePlace } from "./app/session";
 import { useSocialResult } from "./auth/useSocialResult";
 import { nextScreen, type Screen } from "./app/screens";
 import { RecordPage } from "./pages/RecordPage";
+import { SavedPage } from "./pages/SavedPage";
 
 /** 下タブのどれが光っているか。 */
 const TAB_OF: Partial<Record<Screen, TabKey>> = {
   HOME: "home",
   COURSE: "course",
   RECORD: "record",
-  SETTINGS: "settings",
+  SAVED: "saved",
+  SETTINGS: "more",
 };
 
 /** 下タブの行き先。 */
@@ -41,7 +43,8 @@ const SCREEN_OF_TAB: Partial<Record<TabKey, Screen>> = {
   home: "HOME",
   course: "COURSE",
   record: "RECORD",
-  settings: "SETTINGS",
+  saved: "SAVED",
+  more: "SETTINGS",
 };
 
 export function App() {
@@ -91,6 +94,8 @@ export function App() {
           <HomePage
             onSelectLesson={(id) => openLesson(id, "HOME")}
             onOpenCourse={() => setScreen(nextScreen("HOME", "OPEN_COURSE"))}
+            onOpenRecord={() => setScreen(nextScreen("HOME", "OPEN_RECORD"))}
+            onOpenAccount={() => setScreen(nextScreen("HOME", "OPEN_SETTINGS"))}
           />
         );
 
@@ -99,6 +104,15 @@ export function App() {
 
       case "RECORD":
         return <RecordPage onSelectLesson={(id) => openLesson(id, "RECORD")} />;
+
+      case "SAVED":
+        return (
+          <SavedPage
+            onSelectLesson={(id) => openLesson(id, "SAVED")}
+            onOpenCourse={() => setScreen(nextScreen("SAVED", "OPEN_COURSE"))}
+            onOpenAccount={() => setScreen(nextScreen("SAVED", "OPEN_SETTINGS"))}
+          />
+        );
 
       case "SETTINGS":
         return <SettingsPage onBack={() => setScreen("HOME")} />;
@@ -117,6 +131,8 @@ export function App() {
             <HomePage
               onSelectLesson={(id) => openLesson(id, "HOME")}
               onOpenCourse={() => setScreen("COURSE")}
+              onOpenRecord={() => setScreen("RECORD")}
+              onOpenAccount={() => setScreen("SETTINGS")}
             />
           );
         }

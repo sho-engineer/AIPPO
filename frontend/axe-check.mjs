@@ -68,12 +68,12 @@ await p.getByRole("button", { name: "はじめる" }).first().click();
 await p.waitForTimeout(900);
 await scan("ホーム");
 
-await p.getByRole("button", { name: "教材一覧" }).click();
+await p.getByRole("button", { name: "コース" }).click();
 await p.waitForTimeout(700);
 await scan("教材一覧");
 
 // 設定と、その下位画面
-await p.getByRole("button", { name: "設定" }).click();
+await p.getByRole("button", { name: "その他" }).click();
 await p.waitForTimeout(700);
 await scan("設定");
 // 準備中として止めてあるものは入れない（押しても下位画面が開かない）。
@@ -101,7 +101,7 @@ for (const name of ["アカウント設定", "通知設定", "音", "学習デ�
   await p.getByRole("button", { name: "前の画面へ戻る" }).click();
   await p.waitForTimeout(400);
 }
-await p.getByRole("button", { name: "教材一覧" }).click();
+await p.getByRole("button", { name: "コース" }).click();
 await p.waitForTimeout(600);
 
 await p.getByTestId("lesson-rewrite_text").click();

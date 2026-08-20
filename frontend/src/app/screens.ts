@@ -12,7 +12,15 @@
  * URL共有やブラウザバックが要るようになった時点で導入する。
  */
 
-export const SCREENS = ["TOP", "HOME", "COURSE", "LESSON", "RECORD", "SETTINGS"] as const;
+export const SCREENS = [
+  "TOP",
+  "HOME",
+  "COURSE",
+  "LESSON",
+  "RECORD",
+  "SAVED",
+  "SETTINGS",
+] as const;
 
 export type Screen = (typeof SCREENS)[number];
 
@@ -22,6 +30,7 @@ export type ScreenEvent =
   | "BACK_TO_HOME"
   | "OPEN_COURSE"
   | "OPEN_RECORD"
+  | "OPEN_SAVED"
   | "OPEN_SETTINGS"
   | "BACK_TO_TOP";
 
@@ -31,6 +40,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     SELECT_LESSON: "LESSON",
     OPEN_COURSE: "COURSE",
     OPEN_RECORD: "RECORD",
+    OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
   },
@@ -38,6 +48,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     SELECT_LESSON: "LESSON",
     BACK_TO_HOME: "HOME",
     OPEN_RECORD: "RECORD",
+    OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
   },
@@ -48,6 +59,16 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     SELECT_LESSON: "LESSON",
     BACK_TO_HOME: "HOME",
     OPEN_COURSE: "COURSE",
+    OPEN_SAVED: "SAVED",
+    OPEN_SETTINGS: "SETTINGS",
+    BACK_TO_TOP: "TOP",
+  },
+  // 取っておいた教材の置き場。ここからそのまま開ける
+  SAVED: {
+    SELECT_LESSON: "LESSON",
+    BACK_TO_HOME: "HOME",
+    OPEN_COURSE: "COURSE",
+    OPEN_RECORD: "RECORD",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
   },
@@ -56,6 +77,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     BACK_TO_HOME: "HOME",
     OPEN_COURSE: "COURSE",
     OPEN_RECORD: "RECORD",
+    OPEN_SAVED: "SAVED",
     BACK_TO_TOP: "TOP",
   },
 };
