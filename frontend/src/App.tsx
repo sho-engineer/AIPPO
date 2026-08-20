@@ -103,7 +103,12 @@ export function App() {
         return <CoursePage onSelectLesson={(id) => openLesson(id, "COURSE")} />;
 
       case "RECORD":
-        return <RecordPage onSelectLesson={(id) => openLesson(id, "RECORD")} />;
+        return (
+          <RecordPage
+            onSelectLesson={(id) => openLesson(id, "RECORD")}
+            onOpenCourse={() => setScreen(nextScreen("RECORD", "OPEN_COURSE"))}
+          />
+        );
 
       case "SAVED":
         return (

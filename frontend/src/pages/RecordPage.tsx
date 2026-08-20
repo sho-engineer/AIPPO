@@ -14,17 +14,30 @@
  *
  * 「作ったもの」を先に置く。数字を眺めに来る人はいない。
  * 使えるものを取りに来ている。
+ *
+ * 何も無いときに、行き止まりにしない
+ * ----------------------------------
+ * 「まだありません」で終える画面を作らない（憲章 原則 I）。
+ * ここは初日にいちばん空になる画面で、しかも1本目を終える**前**に
+ * 開かれる。「レッスンでAIに何か作ってもらうと、ここに残ります」と
+ * 書いてあるのに、そのレッスンへ行く道がこの画面に無かった。
+ * やり方を書いて道を置かないのは、書いていないのとあまり変わらない。
+ *
+ * 読み込めなかったときも同じ。「もう一度お試しください」と書くなら、
+ * もう一度を押せる場所をその文の隣に置く。下タブで往復させない。
  */
 
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchHistory, type Artifact, type History } from "../api/history";
 import { AppHeader } from "../components/AppShell";
-import { IconCheck, IconClock } from "../components/Icons";
+import { IconCheck, IconClock, IconSparkle } from "../components/Icons";
 import { lookupLesson } from "../course/live";
 
 export interface RecordPageProps {
   onSelectLesson: (lessonId: string) => void;
+  /** 何も無いときの行き先。 */
+  onOpenCourse: () => void;
 }
 
 /** 「8月18日 15:03」の形。年は今年なら出さない（読む量を減らす）。 */
@@ -119,7 +132,7 @@ function ArtifactCard({
   );
 }
 
-export function RecordPage({ onSelectLesson }: RecordPageProps) {
+export function RecordPage({ onSelectLesson, onOpenCourse }: RecordPageProps) {
   const [history, setHistory] = useState<History | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -175,13 +188,27 @@ export function RecordPage({ onSelectLesson }: RecordPageProps) {
         )}
 
         {failed && (
-          <p
+          <div
             role="alert"
             data-testid="record-error"
             className="mt-5 rounded-card bg-caution-soft px-4 py-3 text-sm leading-6 text-caution"
           >
-            記録を読み込めませんでした。通信を確かめて、もう一度お試しください。
-          </p>
+            <p>記録を読み込めませんでした。通信を確かめて、もう一度お試しください。</p>
+            {/*
+              「もう一度」を押せる場所を、その文の隣に置く。
+              下タブで往復させると、同じことを別の手順で覚えることになる。
+            */}
+            <button
+              type="button"
+              onClick={() => void load()}
+              data-testid="record-retry"
+              className="mt-2 min-h-[2.75rem] rounded-cta border border-caution/40 px-5
+                         py-2 text-sm font-bold text-caution transition
+                         hover:bg-caution/10"
+            >
+              もう一度読み込む
+            </button>
+          </div>
         )}
 
         {/* ── 作ったもの ── */}
@@ -193,9 +220,34 @@ export function RecordPage({ onSelectLesson }: RecordPageProps) {
           {history === null && !failed ? (
             <p className="mt-2 text-sm text-ink-muted">読み込んでいます…</p>
           ) : history && history.artifacts.length === 0 ? (
-            <p className="mt-2 text-sm leading-7 text-ink-muted">
-              まだありません。レッスンでAIに何か作ってもらうと、ここに残ります。
-            </p>
+            <div
+              className="mt-3 rounded-panel border border-line bg-surface p-6 text-center
+                         shadow-card"
+              data-testid="record-empty"
+            >
+              <span
+                aria-hidden="true"
+                className="mx-auto flex h-12 w-12 items-center justify-center rounded-full
+                           bg-brand-soft text-brand"
+              >
+                <IconSparkle className="h-6 w-6" />
+              </span>
+              <p className="mt-3 text-sm font-bold">作ったものはまだありません</p>
+              <p className="mt-1 text-xs leading-6 text-ink-muted">
+                レッスンでAIに何か作ってもらうと、ここに残ります。
+                1本10分ほどで終わります。
+              </p>
+              <button
+                type="button"
+                onClick={onOpenCourse}
+                data-testid="record-empty-start"
+                className="mt-4 min-h-[2.75rem] rounded-cta bg-brand px-6 py-2 text-sm
+                           font-bold text-white shadow-cta transition
+                           hover:brightness-110 active:scale-[0.98]"
+              >
+                レッスンを始める
+              </button>
+            </div>
           ) : (
             <ul className="mt-2" role="list" data-testid="artifact-list">
               {history?.artifacts.map((artifact) => (
