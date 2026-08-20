@@ -49,10 +49,11 @@ import {
 import { useCourse } from "../course/live";
 import { isComingSoon, startableLessons } from "../course/availability";
 import { CATEGORIES, lookOf } from "../course/presentation";
+import { CourseStampRow, NextMilestoneHint } from "../components/course/CourseStamps";
 import { recommendationsForHome } from "../course/recommend";
 import { useCompletedLessons } from "../course/progress";
 import { readStreak, touchStreak } from "../lib/draft";
-import type { Lesson } from "../course/types";
+import type { Course, Lesson } from "../course/types";
 
 export interface HomePageProps {
   onSelectLesson: (lessonId: string) => void;
@@ -272,20 +273,20 @@ function TodayCard({
 // ------------------------------------------------------------------ 進み具合
 
 function Progress({
+  course,
   done,
   total,
   days,
   realTaskCount,
   onOpenRecord,
 }: {
+  course: Course;
   done: number;
   total: number;
   days: number;
   realTaskCount: number;
   onOpenRecord: () => void;
 }) {
-  const ratio = total === 0 ? 0 : done / total;
-
   return (
     <section aria-labelledby="progress-heading" data-testid="progress-summary">
       <SectionHeading
@@ -296,19 +297,15 @@ function Progress({
         学習の進み具合
       </SectionHeading>
 
-      <div
-        className="mt-3 h-2 overflow-hidden rounded-full bg-line"
-        role="progressbar"
-        aria-label="コース全体の進み具合"
-        aria-valuemin={0}
-        aria-valuemax={total}
-        aria-valuenow={done}
-        aria-valuetext={`${total}本のうち${done}本おわりました`}
-      >
-        <div
-          className="h-full rounded-full bg-brand transition-[width] duration-500"
-          style={{ width: `${ratio * 100}%` }}
-        />
+      {/*
+        丸を並べたスタンプで進み具合を見せる。ただの棒より、
+        1本ごとに埋まっていく実感が強い。「詳しくは完了画面で」に
+        なるので、節目の一覧まではここに出さない
+        （巨大なゲーミフィケーション画面にはしない）。
+      */}
+      <div className="mt-3">
+        <CourseStampRow course={course} done={done} total={total} />
+        <NextMilestoneHint course={course} done={done} />
       </div>
 
       {/*
@@ -438,6 +435,7 @@ export function HomePage({
 
         <div className="mt-7">
           <Progress
+            course={course}
             done={completed.length}
             total={startable.length}
             days={streak.days}

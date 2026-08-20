@@ -13,6 +13,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { CompletionView } from "../src/components/course/steps/Completion";
+import { COURSE } from "../src/course/catalog";
 
 describe("完了画面の応用例", () => {
   it("いま終えたレッスンを、足りない技として案内しない", () => {
@@ -22,6 +23,7 @@ describe("完了画面の応用例", () => {
     */
     render(
       <CompletionView
+        course={COURSE}
         skills={["要点だけを取り出せる"]}
         outcomeLabel="AIが書いた要約"
         lessonId="summarize_text"
@@ -45,6 +47,7 @@ describe("完了画面の応用例", () => {
   it("組み合わせでは、本当に足りない技だけを案内する", () => {
     render(
       <CompletionView
+        course={COURSE}
         skills={["要点だけを取り出せる"]}
         outcomeLabel="AIが書いた要約"
         lessonId="summarize_text"

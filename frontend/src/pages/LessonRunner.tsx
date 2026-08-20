@@ -39,6 +39,8 @@ export interface LessonRunnerProps {
   onExit: () => void;
   /** 完了画面から次のレッスンへ直接移る。行き止まりにしないため。 */
   onSelectLesson?: (lessonId: string) => void;
+  /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
+  onOpenCourseCatalog?: () => void;
 }
 
 /** ステップの種類ごとの「次にやること」。1つに絞る（憲章 原則 I）。 */
@@ -69,6 +71,7 @@ export function LessonRunner({
   onFinish,
   onExit,
   onSelectLesson,
+  onOpenCourseCatalog,
 }: LessonRunnerProps) {
   const api = useCourseLesson(lesson);
   const { step, values, runs } = api;
@@ -195,6 +198,34 @@ export function LessonRunner({
     if (outcome === "sent") api.goNext();
   };
 
+  /*
+    レッスンを終えたことを記録する。
+
+    「完了する」ボタン（下の onPrimary の completion 分岐）と、
+    完了画面の「次のコースを見る」ボタンの、両方から呼ぶ。
+
+    どちらも同じ画面（完了ステップ）に出ている、対等な出口。
+    片方だけに記録を結びつけると、もう片方から出た人の
+    「終えた」が端末にもサーバーにも残らない——実際にこの形で
+    見つかった（E2E で、8/9 のまま次のコースへ渡ってしまっていた）。
+
+    2回呼ばれても壊れない。`markCompleted` は集合なので、
+    同じ id を足しても増えない。
+  */
+  const finalizeCompletion = () => {
+    if (lesson.id === "diagnosis") {
+      // 診断の結果は端末に残す。次に開いたときも同じ順で出す
+      saveRecommendations(recommendLessons(values));
+      // 誰が来たかを実証実験で見るために送る。待たない
+      void saveProfile({
+        ai_experience: values.ai_experience ?? "",
+        job_category: values.work_kind ?? "",
+        pain_point: values.pain_point ?? "",
+      });
+    }
+    api.complete();
+  };
+
   const body = (
     <StepRenderer
       lesson={lesson}
@@ -204,6 +235,14 @@ export function LessonRunner({
       revealed={revealed}
       setRevealed={setRevealed}
       onSelectLesson={onSelectLesson}
+      onOpenCourseCatalog={
+        onOpenCourseCatalog
+          ? () => {
+              finalizeCompletion();
+              onOpenCourseCatalog();
+            }
+          : undefined
+      }
     />
   );
 
@@ -251,17 +290,7 @@ export function LessonRunner({
         api.goNext();
         return;
       case "completion":
-        if (lesson.id === "diagnosis") {
-          // 診断の結果は端末に残す。次に開いたときも同じ順で出す
-          saveRecommendations(recommendLessons(values));
-          // 誰が来たかを実証実験で見るために送る。待たない
-          void saveProfile({
-            ai_experience: values.ai_experience ?? "",
-            job_category: values.work_kind ?? "",
-            pain_point: values.pain_point ?? "",
-          });
-        }
-        api.complete();
+        finalizeCompletion();
         onFinish();
         return;
       default:

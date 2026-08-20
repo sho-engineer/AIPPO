@@ -52,6 +52,8 @@ export interface StepRendererProps {
   revealed: boolean;
   setRevealed: (next: boolean) => void;
   onSelectLesson?: (lessonId: string) => void;
+  /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
+  onOpenCourseCatalog?: () => void;
 }
 
 export function StepRenderer({
@@ -62,6 +64,7 @@ export function StepRenderer({
   revealed,
   setRevealed,
   onSelectLesson,
+  onOpenCourseCatalog,
 }: StepRendererProps) {
   const { step, values, runs } = api;
   const completedCount = completedIds.length;
@@ -425,6 +428,7 @@ export function StepRenderer({
       }
       return (
         <CompletionView
+          course={course}
           skills={lesson.learnedSkills ?? lesson.outcomes}
           outcomeText={lastRun?.outputText}
           outcomeLabel={
@@ -447,6 +451,7 @@ export function StepRenderer({
           next={nextLessons}
           completedIds={completedIds}
           onSelectLesson={onSelectLesson}
+          onOpenCourseCatalog={onOpenCourseCatalog}
         />
       );
 

@@ -208,6 +208,8 @@ export function App() {
             onExit={() => setScreen(nextScreen("LESSON", "OPEN_COURSE_DETAIL"))}
             // 完了画面から、そのまま次のレッスンへ入れるようにする
             onSelectLesson={(id) => openLesson(id, "LESSON")}
+            // コース完走の締めくくりから、コース一覧へ
+            onOpenCourseCatalog={() => setScreen(nextScreen("LESSON", "OPEN_COURSE"))}
           />
         );
       }
