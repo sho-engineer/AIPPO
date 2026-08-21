@@ -166,6 +166,11 @@ export function App() {
             course={opened}
             onSelectLesson={(id) => openLesson(id, "COURSE_DETAIL")}
             onBack={() => setScreen(nextScreen("COURSE_DETAIL", "OPEN_COURSE"))}
+            // 「作れるようになるもの」から、やり方の説明へ
+            onOpenRecipe={(recipeId) => {
+              setRecipeId(recipeId);
+              setScreen(nextScreen("COURSE_DETAIL", "OPEN_RECIPE"));
+            }}
           />
         );
       }

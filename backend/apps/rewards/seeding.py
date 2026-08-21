@@ -22,12 +22,21 @@
 
 from __future__ import annotations
 
-from apps.catalog.models import Course
+from apps.catalog.models import (
+    AccessType,
+    AvailabilityStatus,
+    Course,
+    Lesson,
+    PublishStatus,
+)
 from apps.rewards.models import (
     AiTaskPricing,
     LearningPath,
     LearningPathLesson,
     PathRewardMilestone,
+    Recipe,
+    RecipeLearningPath,
+    RecipeRequiredLesson,
     StampDefinition,
     StampType,
 )
@@ -51,6 +60,59 @@ AI_TASK_PRICING: tuple[tuple[str, int, str], ...] = (
     ("image_high", 3, "高品質の画像生成"),
     ("image_edit", 2, "画像の修正"),
     ("video_future", 10, "将来の動画生成（未実装）"),
+)
+
+#: 「こんな使い方もできます」（レシピ）の初期データ。
+#:
+#: id は **画面側の `appliedTips.ts` と一致させる**。画面はここの id で
+#: 説明を引くので、食い違うと「押しても開けない案内」になる
+#: （tests/test_rewards_seeding.py が一致を見張る）。
+#:
+#: 無料コースのレシピはすべて無料にする（憲章）。
+#: (slug, title, description, category, [必要なレッスンの slug])
+RECIPES: tuple[tuple[str, str, str, str, tuple[str, ...]], ...] = (
+    (
+        "meeting_notes_share",
+        "長い会議メモを、上司へそのまま送れる文章にする",
+        "決まったことだけを取り出してから、読む相手に合わせて整える。",
+        "会議",
+        ("summarize_text", "rewrite_text"),
+    ),
+    (
+        "meeting_summary_only",
+        "長い会議メモから、要点だけを取り出す",
+        "決まったことと次にやることだけを、短く残す。",
+        "会議",
+        ("summarize_text",),
+    ),
+    (
+        "compare_new_tool",
+        "新しい道具を、導入するか決める",
+        "分からない仕組みを説明してもらってから、候補どうしを比べる。",
+        "比較検討",
+        ("explain_topic", "compare_options"),
+    ),
+    (
+        "plan_and_share",
+        "進め方を決めて、そのまま共有する",
+        "手順を作ってから、送れる長さにまとめる。",
+        "計画",
+        ("make_plan", "summarize_text"),
+    ),
+    (
+        "improve_then_address",
+        "AIの下書きを、相手向けに仕上げる",
+        "一度で終わらせずに条件を足してから、伝え方まで整える。",
+        "文章作成",
+        ("improve_answer", "rewrite_text"),
+    ),
+    (
+        "clear_writing_for_email",
+        "そのまま送れるメールにする",
+        "誰に、どんな言い方で送るかを決めてから書き直す。",
+        "文章作成",
+        ("rewrite_text",),
+    ),
 )
 
 #: Learning Path として取り込むコースの slug。
@@ -128,8 +190,52 @@ def seed_foundation_path() -> LearningPath | None:
     return path
 
 
+def seed_recipes(path: LearningPath | None) -> int:
+    """レシピを入れ、そのパスへ結びつける。
+
+    必要なレッスンが1本でも欠けているレシピは入れない。押した先に
+    無いレッスンを案内することになるため（憲章 原則 I）。教材が
+    増えたら、次に流したときに入る。
+    """
+    if path is None:
+        return 0
+
+    made = 0
+    for order, (slug, title, description, category, lesson_slugs) in enumerate(RECIPES):
+        lessons = list(Lesson.objects.filter(slug__in=lesson_slugs))
+        if len(lessons) != len(lesson_slugs):
+            continue  # まだ揃っていない。無いレッスンへは案内しない
+
+        recipe, created = Recipe.objects.get_or_create(
+            slug=slug,
+            defaults={
+                "title": title,
+                "description": description,
+                "category": category,
+                "access_type": AccessType.FREE,
+                "status": PublishStatus.PUBLISHED,
+                "availability_status": AvailabilityStatus.AVAILABLE,
+                "sort_order": order,
+            },
+        )
+        made += int(created)
+
+        by_slug = {lesson.slug: lesson for lesson in lessons}
+        for index, lesson_slug in enumerate(lesson_slugs):
+            RecipeRequiredLesson.objects.get_or_create(
+                recipe=recipe,
+                lesson=by_slug[lesson_slug],
+                defaults={"order": index, "required": True},
+            )
+
+        RecipeLearningPath.objects.get_or_create(recipe=recipe, learning_path=path)
+
+    return made
+
+
 def seed_rewards() -> tuple[LearningPath | None, int]:
     """初期データを一式そろえる。教材の取り込みが終わったあとに呼ぶ。"""
     pricing_made = seed_ai_task_pricing()
     path = seed_foundation_path()
+    seed_recipes(path)
     return path, pricing_made

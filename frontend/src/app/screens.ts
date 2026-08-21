@@ -72,6 +72,8 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
   COURSE_DETAIL: {
     SELECT_LESSON: "LESSON",
     OPEN_COURSE: "COURSE",
+    // 「作れるようになるもの」から、やり方の説明へ
+    OPEN_RECIPE: "RECIPE",
     BACK_TO_HOME: "HOME",
     OPEN_RECORD: "RECORD",
     OPEN_SAVED: "SAVED",

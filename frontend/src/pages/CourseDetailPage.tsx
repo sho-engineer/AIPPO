@@ -33,6 +33,7 @@ import { useEffect, useState } from "react";
 
 import { AppHeader } from "../components/AppShell";
 import { CertificateEntry } from "../components/course/CertificateEntry";
+import { PathRecipes } from "../components/course/PathRecipes";
 import { LessonRow } from "../components/lessons/LessonRow";
 import { CertificatePage } from "./CertificatePage";
 import { PoAvatar } from "../po/PoAvatar";
@@ -41,6 +42,7 @@ import { lookupLesson } from "../course/live";
 import { isComingSoon, startableLessons } from "../course/availability";
 import { loadRecommendations } from "../course/recommend";
 import { useCompletedLessons } from "../course/progress";
+import { useLearningPath } from "../course/learningPath";
 import { useBookmarks } from "../course/bookmarks";
 import { useKeeping } from "../course/keeping";
 import { searchLessons } from "../course/search";
@@ -52,14 +54,22 @@ export interface CourseDetailPageProps {
   onSelectLesson: (lessonId: string) => void;
   /** コース一覧へ戻る。 */
   onBack: () => void;
+  /** 「作れるようになるもの」から、やり方の説明をひらく。 */
+  onOpenRecipe?: (recipeId: string) => void;
 }
 
 export function CourseDetailPage({
   course,
   onSelectLesson,
   onBack,
+  onOpenRecipe,
 }: CourseDetailPageProps) {
   const completed = useCompletedLessons();
+  /*
+    このコースに対応する学習パス。レシピはパスだけが持っている。
+    届かなければ null で、その節ごと出さない（course/learningPath.ts）。
+  */
+  const path = useLearningPath(course.id);
   const bookmarks = useBookmarks();
   /*
     目印は登録した人のもの（course/keeping.ts）。
@@ -267,6 +277,11 @@ export function CourseDetailPage({
           )}
 
         </section>
+
+        {/* 終えると何が作れるようになるか。始める前に見せる */}
+        {path && onOpenRecipe && (
+          <PathRecipes recipes={path.recipes} onOpenRecipe={onOpenRecipe} />
+        )}
 
         <div className="mt-8">
           <PoAvatar
