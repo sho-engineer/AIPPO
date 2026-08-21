@@ -40,11 +40,26 @@
 
 export type AppliedTipAccessLevel = "free" | "premium";
 
+/**
+ * どんな場面向けかの分類。絞り込み・並び替えに使う（表示は任意）。
+ * 増やすときは既存の項目の意味とぶつからない名前にすること。
+ */
+export const APPLIED_TIP_CATEGORIES = [
+  "会議",
+  "文章作成",
+  "比較検討",
+  "計画",
+] as const;
+
+export type AppliedTipCategory = (typeof APPLIED_TIP_CATEGORIES)[number];
+
 export interface AppliedTip {
   id: string;
   title: string;
   /** 何のためにこの組み合わせを使うか。1文で。 */
   description: string;
+  /** どんな場面向けか。将来、場面別の絞り込みに使う。 */
+  category: AppliedTipCategory;
   /**
    * 使う技（レッスンの id）。
    *
@@ -74,6 +89,7 @@ export const APPLIED_TIPS: AppliedTip[] = [
     id: "meeting_notes_share",
     title: "長い会議メモを、上司へそのまま送れる文章にする",
     description: "決まったことだけを取り出してから、読む相手に合わせて整える。",
+    category: "会議",
     requiredLessonIds: ["summarize_text", "rewrite_text"],
     flow: ["長い文章を短くまとめる", "誰向けかを整えて書き直す"],
     accessLevel: "free",
@@ -83,6 +99,7 @@ export const APPLIED_TIPS: AppliedTip[] = [
     id: "meeting_summary_only",
     title: "長い会議メモから、要点だけを取り出す",
     description: "決まったことと次にやることだけを、短く残す。",
+    category: "会議",
     requiredLessonIds: ["summarize_text"],
     flow: ["長い文章を短くまとめる"],
     accessLevel: "free",
@@ -92,6 +109,7 @@ export const APPLIED_TIPS: AppliedTip[] = [
     id: "compare_new_tool",
     title: "新しい道具を、導入するか決める",
     description: "分からない仕組みを説明してもらってから、候補どうしを比べる。",
+    category: "比較検討",
     requiredLessonIds: ["explain_topic", "compare_options"],
     flow: ["分からないことを説明してもらう", "選択肢を比較する"],
     accessLevel: "free",
@@ -101,6 +119,7 @@ export const APPLIED_TIPS: AppliedTip[] = [
     id: "plan_and_share",
     title: "進め方を決めて、そのまま共有する",
     description: "手順を作ってから、送れる長さにまとめる。",
+    category: "計画",
     requiredLessonIds: ["make_plan", "summarize_text"],
     flow: ["計画を作る", "長い文章を短くまとめる"],
     accessLevel: "free",
@@ -110,6 +129,7 @@ export const APPLIED_TIPS: AppliedTip[] = [
     id: "improve_then_address",
     title: "AIの下書きを、相手向けに仕上げる",
     description: "一度で終わらせずに条件を足してから、伝え方まで整える。",
+    category: "文章作成",
     requiredLessonIds: ["improve_answer", "rewrite_text"],
     flow: ["回答を改善する", "誰向けかを整えて書き直す"],
     accessLevel: "free",
@@ -119,6 +139,7 @@ export const APPLIED_TIPS: AppliedTip[] = [
     id: "clear_writing_for_email",
     title: "そのまま送れるメールにする",
     description: "誰に、どんな言い方で送るかを決めてから書き直す。",
+    category: "文章作成",
     requiredLessonIds: ["rewrite_text"],
     flow: ["誰向けかを整えて書き直す"],
     accessLevel: "free",

@@ -28,6 +28,7 @@ const COMBO: AppliedTip = {
   id: "combo_1",
   title: "長い会議メモを、上司へそのまま送れる文章にする",
   description: "決まったことだけを取り出してから、読む相手に合わせて整える。",
+  category: "会議",
   requiredLessonIds: ["summarize_text", "rewrite_text"],
   flow: ["長い文章を短くまとめる", "誰向けかを整えて書き直す"],
   accessLevel: "free",
