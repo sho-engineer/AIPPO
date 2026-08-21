@@ -132,6 +132,12 @@ DATABASE_URL="<Neonの接続文字列>" python manage.py seed_catalog
 `migrate` は二重送信の抑止に使うキャッシュ表（`aippo_cache`）も作る
 （`apps/lessons/migrations/0006_cache_table.py`）。
 
+`seed_catalog` は教材のあとに、学習パス・スタンプ定義・節目の特典・
+AI単価の初期データも入れる（`apps/rewards/seeding.py`）。**順番は必ず
+`migrate` → `seed_catalog`。** 逆にはできない——教材がまだ無い状態では
+学習パスを作る相手がいないため、スタンプ定義が1件も無いまま動きはじめ、
+エラーも出ないのにスタンプが永久に埋まらない状態になる。
+
 **忘れても落ちない**——AI実行は通り、二重送信の防止だけが静かに外れる。
 本物のAIでは二重の費用になるので、`manage.py preflight` で確かめること。
 
