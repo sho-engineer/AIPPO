@@ -75,29 +75,62 @@ test.describe("ポーの絵", () => {
     await stubApi(page);
     await openRewrite(page);
 
-    // 通しで出た表情と、そのとき実際に読んだ絵を集める
-    const loaded = new Map<string, string>();
-    for (let i = 0; i < 40; i++) {
+    /*
+      表情ごとに、出た絵を**ぜんぶ**集める（1枚だけ見ない）。
+
+      1枚だけ見ると、取った瞬間で結果が変わる。ポーは動くので、
+      同じ表情でも複数の絵を正しく行き来する。
+
+        まばたき … どの表情でも、140ミリ秒だけ blink へ替わる
+        口の動き … talking のときは 160ミリ秒ごとに neutral と
+                   交互に出して、口が動いて見えるようにしている
+
+      つまり「talking なのに neutral を読んでいる」のは、
+      多くの場合**正しい動き**の途中を捉えただけになる。実際これで
+      検査が落ちたり通ったりしていた（CI で落ち、手元では通る）。
+
+      見たいのは「その表情の絵を、一度でもちゃんと読めているか」。
+      読めていなければ代用へ倒れており、自分の絵は一度も出てこない。
+      口が閉じている間も取りこぼさないよう、少し間を置いて何度か見る。
+    */
+    const loaded = new Map<string, Set<string>>();
+
+    const sample = async () => {
       const avatar = page.getByTestId("po-avatar").first();
-      if (await avatar.isVisible().catch(() => false)) {
-        const emotion = await avatar.getAttribute("data-emotion");
-        const src = await avatar
-          .locator("img")
-          .first()
-          .getAttribute("src")
-          .catch(() => null);
-        if (emotion && src && !loaded.has(emotion)) loaded.set(emotion, src);
+      if (!(await avatar.isVisible().catch(() => false))) return;
+
+      // 表情と絵は**一度に**取る。別々に取ると、その間に描き直されて
+      // 「ある瞬間の表情」と「別の瞬間の絵」を突き合わせることになる
+      const seen = await avatar
+        .evaluate((node) => ({
+          emotion: node.getAttribute("data-emotion"),
+          src: node.querySelector("img")?.getAttribute("src") ?? null,
+        }))
+        .catch(() => null);
+      if (!seen?.emotion || !seen.src) return;
+
+      const already = loaded.get(seen.emotion) ?? new Set<string>();
+      already.add(seen.src);
+      loaded.set(seen.emotion, already);
+    };
+
+    for (let i = 0; i < 40; i++) {
+      // 口の動き（160ミリ秒ごと）の両方の側を、必ずまたぐ
+      for (let shot = 0; shot < 3; shot++) {
+        await sample();
+        await page.waitForTimeout(90);
       }
       if (await page.getByTestId("completion-view").isVisible().catch(() => false)) break;
       if (!(await advance(page))) break;
-      await page.waitForTimeout(120);
     }
 
-    // 代用へ倒れていれば、別の表情の絵を読んでいる
-    for (const [emotion, src] of loaded) {
-      expect(src, `${emotion} が自分の絵ではなく ${src} を読んでいる`).toContain(
-        `${emotion}.webp`,
-      );
+    // 代用へ倒れていれば、自分の絵は一度も出てこない
+    for (const [emotion, srcs] of loaded) {
+      const own = [...srcs].some((src) => src.includes(`${emotion}.webp`));
+      expect(
+        own,
+        `${emotion} が自分の絵を一度も読んでいない（出たのは ${[...srcs].join(" / ")}）`,
+      ).toBe(true);
     }
 
     // 集められていないと、上の検査が素通りする
