@@ -111,6 +111,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.catalog",
     "apps.lessons",
+    "apps.rewards",
     # 運用まわり（管理画面の締め出しと、触った記録）
     "apps.ops",
     "apps.profiles",

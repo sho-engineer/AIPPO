@@ -209,6 +209,17 @@ class LearningEventType(models.TextChoices):
     LESSON_ABANDONED = "lesson_abandoned"
     TUTOR_FALLBACK_USED = "tutor_fallback_used"
 
+    # Learning Path / Recipe / Stamp / Credit（apps.rewards）
+    LEARNING_PATH_STARTED = "learning_path_started"
+    RECIPE_VIEWED = "recipe_viewed"
+    RECIPE_STARTED = "recipe_started"
+    RECIPE_COMPLETED = "recipe_completed"
+    STAMP_EARNED = "stamp_earned"
+    REWARD_CLAIMED = "reward_claimed"
+    CREDIT_EARNED = "credit_earned"
+    CREDIT_CONSUMED = "credit_consumed"
+    CREDIT_INSUFFICIENT = "credit_insufficient"
+
 
 class LearningEvent(models.Model):
     """操作ログ。
