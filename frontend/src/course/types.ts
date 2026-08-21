@@ -261,6 +261,16 @@ export interface Lesson {
   title: string;
   goal: string;
 
+  /**
+   * 一覧やカードに出す絵。`public/` からの道筋。
+   *
+   * 省略してよい。無ければ `course/lessonThumbnail.ts` の表を引く
+   * （サーバーから届く教材データがまだこれを持っていないため）。
+   * 絵の有無は**公開状態とは関係が無い**。始められるかどうかは
+   * `availability` が決める。
+   */
+  thumbnail?: string;
+
   /** 今日つくるもの。最初の画面に出す。 */
   outcomeTitle?: string;
   outcomeDescription?: string;

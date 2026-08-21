@@ -50,6 +50,8 @@ import { useCourse } from "../course/live";
 import { isComingSoon, startableLessons } from "../course/availability";
 import { CATEGORIES, lookOf } from "../course/presentation";
 import { CourseStampRow, NextMilestoneHint } from "../components/course/CourseStamps";
+import { LessonThumbnail } from "../components/lessons/LessonThumbnail";
+import { lessonThumbnail } from "../course/lessonThumbnail";
 import { recommendationsForHome } from "../course/recommend";
 import { useCompletedLessons } from "../course/progress";
 import { readStreak, touchStreak } from "../lib/draft";
@@ -234,6 +236,8 @@ function TodayCard({
   started: boolean;
   onStart: () => void;
 }) {
+  const thumbnail = lessonThumbnail(lesson);
+
   return (
     <section
       className="rounded-panel border border-line bg-surface p-4 shadow-card"
@@ -249,6 +253,12 @@ function TodayCard({
         {lesson.title}
       </h2>
       <p className="mt-1 text-sm leading-7 text-ink-muted">{lesson.goal}</p>
+
+      {/*
+        今日やる1本の絵。絵の無いレッスンでは、この場所ごと出さない
+        （枠だけ残すと、読み込みに失敗しているように見える）。
+      */}
+      {thumbnail && <LessonThumbnail src={thumbnail} className="mt-4" />}
 
       <div className="mt-4 flex items-center gap-3">
         <PrimaryButton
