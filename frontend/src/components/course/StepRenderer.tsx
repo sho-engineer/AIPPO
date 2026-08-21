@@ -54,6 +54,8 @@ export interface StepRendererProps {
   onSelectLesson?: (lessonId: string) => void;
   /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
   onOpenCourseCatalog?: () => void;
+  /** 「やり方をくわしく見る」を押したとき。 */
+  onOpenRecipe?: (tipId: string) => void;
 }
 
 export function StepRenderer({
@@ -65,6 +67,7 @@ export function StepRenderer({
   setRevealed,
   onSelectLesson,
   onOpenCourseCatalog,
+  onOpenRecipe,
 }: StepRendererProps) {
   const { step, values, runs } = api;
   const completedCount = completedIds.length;
@@ -452,6 +455,7 @@ export function StepRenderer({
           completedIds={completedIds}
           onSelectLesson={onSelectLesson}
           onOpenCourseCatalog={onOpenCourseCatalog}
+          onOpenRecipe={onOpenRecipe}
         />
       );
 

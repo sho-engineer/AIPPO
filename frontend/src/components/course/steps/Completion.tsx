@@ -74,6 +74,7 @@ export function CompletionView({
   completedIds,
   onSelectLesson,
   onOpenCourseCatalog,
+  onOpenRecipe,
 }: {
   /** スタンプの絵と、節目の中身を決めるのに使う。 */
   course: Course;
@@ -97,6 +98,8 @@ export function CompletionView({
   onSelectLesson?: (lessonId: string) => void;
   /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
   onOpenCourseCatalog?: () => void;
+  /** 「やり方をくわしく見る」を押したとき。 */
+  onOpenRecipe?: (tipId: string) => void;
 }) {
   /*
     このレッスンで、新しく超えた節目。
@@ -234,6 +237,7 @@ export function CompletionView({
           completedIds.includes(lessonId) ? completedIds : [...completedIds, lessonId]
         }
         onSelectLesson={onSelectLesson}
+        onOpenRecipe={onOpenRecipe}
       />
 
       {/*

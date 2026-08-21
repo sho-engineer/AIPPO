@@ -32,6 +32,9 @@ import { loadPlace, savePlace } from "./app/session";
 import { useSocialResult } from "./auth/useSocialResult";
 import { nextScreen, type Screen } from "./app/screens";
 import { RecordPage } from "./pages/RecordPage";
+import { RecipePage } from "./pages/RecipePage";
+import { appliedTipById } from "./course/appliedTips";
+import { useCompletedLessons } from "./course/progress";
 import { SavedPage } from "./pages/SavedPage";
 
 /** 下タブのどれが光っているか。 */
@@ -71,7 +74,15 @@ export function App() {
   const [detailCourseId, setDetailCourseId] = useState<string>(
     restored?.courseId ?? course.id,
   );
+  /*
+    いま開いている「こんな使い方もできます」。
+
+    覚え直さない（savePlace に入れない）。読み込み直したときに
+    説明だけが出ていると、どのレッスンから来たのかが分からなくなる。
+  */
+  const [recipeId, setRecipeId] = useState<string | null>(null);
   const courses = useCourses();
+  const completed = useCompletedLessons();
 
   useEffect(
     () => savePlace({ screen, lessonId, courseId: detailCourseId }),
@@ -159,6 +170,29 @@ export function App() {
         );
       }
 
+      case "RECIPE": {
+        const tip = recipeId ? appliedTipById(recipeId) : null;
+
+        /*
+          知らない id が入っても落とさない。ホームへ倒す
+          （覚えていた場所が古い、教材の入れ替えで消えた、など）。
+        */
+        if (!tip) {
+          setScreen("HOME");
+          return null;
+        }
+
+        return (
+          <RecipePage
+            tip={tip}
+            lessonTitle={(id) => lookupLesson(id)?.title ?? null}
+            completedIds={completed}
+            onSelectLesson={(id) => openLesson(id, "RECIPE")}
+            onBack={() => setScreen(nextScreen("RECIPE", "BACK_TO_HOME"))}
+          />
+        );
+      }
+
       case "RECORD":
         return (
           <RecordPage
@@ -210,6 +244,11 @@ export function App() {
             onSelectLesson={(id) => openLesson(id, "LESSON")}
             // コース完走の締めくくりから、コース一覧へ
             onOpenCourseCatalog={() => setScreen(nextScreen("LESSON", "OPEN_COURSE"))}
+            // 「やり方をくわしく見る」から、使い方の説明へ
+            onOpenRecipe={(tipId) => {
+              setRecipeId(tipId);
+              setScreen(nextScreen("LESSON", "OPEN_RECIPE"));
+            }}
           />
         );
       }

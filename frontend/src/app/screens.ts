@@ -26,6 +26,8 @@ export const SCREENS = [
   "COURSE",
   "COURSE_DETAIL",
   "LESSON",
+  // 「こんな使い方もできます」のくわしい説明。完了画面から来る
+  "RECIPE",
   "RECORD",
   "SAVED",
   "SETTINGS",
@@ -39,6 +41,7 @@ export type ScreenEvent =
   | "BACK_TO_HOME"
   | "OPEN_COURSE"
   | "OPEN_COURSE_DETAIL"
+  | "OPEN_RECIPE"
   | "OPEN_RECORD"
   | "OPEN_SAVED"
   | "OPEN_SETTINGS"
@@ -80,6 +83,24 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     BACK_TO_HOME: "HOME",
     OPEN_COURSE: "COURSE",
     OPEN_COURSE_DETAIL: "COURSE_DETAIL",
+    // 完了画面の「こんな使い方もできます」から、くわしい説明へ
+    OPEN_RECIPE: "RECIPE",
+    BACK_TO_TOP: "TOP",
+  },
+  /*
+    使い方のくわしい説明。
+
+    ここから足りない技のレッスンへ入れる（読んで終わりにしない）。
+    戻る先はホーム——来たのは完了画面からで、そこへ戻しても
+    同じレッスンをもう一度終える画面が出るだけになる。
+  */
+  RECIPE: {
+    SELECT_LESSON: "LESSON",
+    BACK_TO_HOME: "HOME",
+    OPEN_COURSE: "COURSE",
+    OPEN_RECORD: "RECORD",
+    OPEN_SAVED: "SAVED",
+    OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
   },
   // 学習履歴。ここから同じ教材をやり直せるので、レッスンへも出られる

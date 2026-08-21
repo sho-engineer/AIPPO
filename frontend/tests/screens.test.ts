@@ -3,17 +3,34 @@ import { describe, expect, it } from "vitest";
 import { SCREENS, canTransition, nextScreen } from "../src/app/screens";
 
 describe("画面遷移", () => {
-  it("8画面（コースは一覧と中身の2段）", () => {
+  it("9画面（コースは一覧と中身の2段）", () => {
     expect(SCREENS).toEqual([
       "TOP",
       "HOME",
       "COURSE",
       "COURSE_DETAIL",
       "LESSON",
+      "RECIPE",
       "RECORD",
       "SAVED",
       "SETTINGS",
     ]);
+  });
+
+  it("完了画面から、使い方のくわしい説明へ行ける", () => {
+    expect(nextScreen("LESSON", "OPEN_RECIPE")).toBe("RECIPE");
+  });
+
+  it("使い方の説明から、足りない技のレッスンへ入れる", () => {
+    /*
+      読んで終わりにしない。「自分にはまだできない」で止めず、
+      その場から学びに行けるようにする。
+    */
+    expect(nextScreen("RECIPE", "SELECT_LESSON")).toBe("LESSON");
+  });
+
+  it("使い方の説明は、行き止まりにしない", () => {
+    expect(canTransition("RECIPE", "BACK_TO_HOME")).toBe(true);
   });
 
   it("コースは、一覧 → 中身 → レッスンの3段で進む", () => {

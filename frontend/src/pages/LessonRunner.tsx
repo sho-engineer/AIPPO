@@ -41,6 +41,8 @@ export interface LessonRunnerProps {
   onSelectLesson?: (lessonId: string) => void;
   /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
   onOpenCourseCatalog?: () => void;
+  /** 「やり方をくわしく見る」を押したとき。 */
+  onOpenRecipe?: (tipId: string) => void;
 }
 
 /** ステップの種類ごとの「次にやること」。1つに絞る（憲章 原則 I）。 */
@@ -72,6 +74,7 @@ export function LessonRunner({
   onExit,
   onSelectLesson,
   onOpenCourseCatalog,
+  onOpenRecipe,
 }: LessonRunnerProps) {
   const api = useCourseLesson(lesson);
   const { step, values, runs } = api;
@@ -240,6 +243,19 @@ export function LessonRunner({
           ? () => {
               finalizeCompletion();
               onOpenCourseCatalog();
+            }
+          : undefined
+      }
+      /*
+        くわしい説明へ出るのも、完了画面からの**出口**の1つ。
+        ここで記録を確定しないと、この道から出た人のぶんだけ
+        完了が残らない（「次のコースを見る」で実際に起きた）。
+      */
+      onOpenRecipe={
+        onOpenRecipe
+          ? (tipId: string) => {
+              finalizeCompletion();
+              onOpenRecipe(tipId);
             }
           : undefined
       }
