@@ -16,9 +16,9 @@ import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CoursePage } from "../src/pages/CoursePage";
+import { CourseDetailPage } from "../src/pages/CourseDetailPage";
 import { formatCompletedOn } from "../src/course/certificate";
-import { resetCatalog } from "../src/course/live";
+import { resetCatalog, useCourse } from "../src/course/live";
 
 const CERTIFICATE = {
   course_slug: "first_step_7days",
@@ -59,10 +59,32 @@ afterEach(() => {
   act(() => resetCatalog());
 });
 
+/**
+ * コースの中身の画面。
+ *
+ * この検査が見ているのは「1つのコースの中の並び」なので、
+ * コース一覧（どのコースにするか）ではなく、その次の段を開く。
+ * コースはサーバーから届いたものを使う（useCourse）。
+ */
+function CourseDetail({
+  onSelectLesson = () => {},
+}: {
+  onSelectLesson?: (id: string) => void;
+}) {
+  const course = useCourse();
+  return (
+    <CourseDetailPage
+      course={course}
+      onSelectLesson={onSelectLesson}
+      onBack={() => {}}
+    />
+  );
+}
+
 describe("修了証の入り口", () => {
   it("1枚も無ければ、空の枠を出さない", async () => {
     serve([]);
-    render(<CoursePage onSelectLesson={() => {}} />);
+    render(<CourseDetail />);
 
     // 教材一覧そのものは出ていること（何も描かれないのとは違う）
     expect(await screen.findByTestId("lesson-rewrite_text")).toBeInTheDocument();
@@ -72,7 +94,7 @@ describe("修了証の入り口", () => {
 
   it("サーバーに届かなくても、教材一覧は開く", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("届かない"));
-    render(<CoursePage onSelectLesson={() => {}} />);
+    render(<CourseDetail />);
 
     expect(await screen.findByTestId("lesson-rewrite_text")).toBeInTheDocument();
     expect(screen.queryByTestId("open-certificate")).not.toBeInTheDocument();
@@ -80,7 +102,7 @@ describe("修了証の入り口", () => {
 
   it("受け取ったら、件数を添えた行が出る", async () => {
     serve([CERTIFICATE]);
-    render(<CoursePage onSelectLesson={() => {}} />);
+    render(<CourseDetail />);
 
     const entry = await screen.findByTestId("open-certificate");
     expect(entry).toHaveTextContent("修了証を見る");
@@ -92,7 +114,7 @@ describe("修了証の中身", () => {
   const open = async () => {
     serve([CERTIFICATE]);
     const user = userEvent.setup();
-    render(<CoursePage onSelectLesson={() => {}} />);
+    render(<CourseDetail />);
     await user.click(await screen.findByTestId("open-certificate"));
     return user;
   };
@@ -122,7 +144,7 @@ describe("修了証の中身", () => {
   it("身についたことが空なら、見出しごと出さない", async () => {
     serve([{ ...CERTIFICATE, skills: [] }]);
     const user = userEvent.setup();
-    render(<CoursePage onSelectLesson={() => {}} />);
+    render(<CourseDetail />);
     await user.click(await screen.findByTestId("open-certificate"));
 
     expect(await screen.findByTestId("certificate-page")).toBeInTheDocument();

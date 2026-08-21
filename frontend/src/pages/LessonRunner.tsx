@@ -39,6 +39,8 @@ export interface LessonRunnerProps {
   onExit: () => void;
   /** 完了画面から次のレッスンへ直接移る。行き止まりにしないため。 */
   onSelectLesson?: (lessonId: string) => void;
+  /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
+  onOpenCourseCatalog?: () => void;
 }
 
 /** ステップの種類ごとの「次にやること」。1つに絞る（憲章 原則 I）。 */
@@ -69,6 +71,7 @@ export function LessonRunner({
   onFinish,
   onExit,
   onSelectLesson,
+  onOpenCourseCatalog,
 }: LessonRunnerProps) {
   const api = useCourseLesson(lesson);
   const { step, values, runs } = api;
@@ -119,6 +122,43 @@ export function LessonRunner({
   }, [step.id, step.type, api.isSubmitting, api.error, api.findings.length]);
 
   /*
+    「なおす」で戻ってきた回。
+
+    サマリーの「なおす」は、その質問へ戻すだけだった。戻った先には
+    前の答えがそのまま残っているので、下の自動送りが「もう答えてある」と
+    判断して 500ms で次へ送ってしまう。**押しても何も起きない**ように
+    見えて、答えを直せない。実際に3問とも素通りしていた。
+
+    そこで「戻ってきた回で、答えがまだ変わっていない間」だけ自動送りを
+    止める。止めるのはそこだけで、別の札を押した瞬間からは
+    ふだんどおり自動で進む——直したあとにもう一度「次へ」を
+    押させるのでは、直す前より手間が増える。
+
+    答えを先に消す方法は採らない。いま何を選んでいるかを見ながら
+    選び直せるほうが、選び直しやすい。
+  */
+  const [editing, setEditing] = useState<{ stepId: string; value: string } | null>(
+    null,
+  );
+
+  const editSummary = (stepId: string) => {
+    const target = lesson.steps.find((entry) => entry.id === stepId);
+    const current = target?.key ? (values[target.key] ?? "") : "";
+    setEditing({ stepId, value: current });
+    api.goTo(stepId);
+  };
+
+  // その回から離れたら、覚えていた印は捨てる。
+  // 残すと、あとで同じ回に来たときに理由もなく自動送りが止まる
+  useEffect(() => {
+    if (editing && editing.stepId !== step.id) setEditing(null);
+  }, [editing, step.id]);
+
+  const answerNow = step.key ? (values[step.key] ?? "") : "";
+  const holdingForEdit =
+    editing !== null && editing.stepId === step.id && editing.value === answerNow;
+
+  /*
     選ぶだけの回は、選んだら自動で次へ送る（Learning UX §3）。
 
     どの回を送ってよいかは autoAdvance.ts が決める。とくに
@@ -128,7 +168,8 @@ export function LessonRunner({
     片付けで時計を止めるのが要。手で「次へ」を押して先に進んだときは、
     この回そのものが消えるので時計も止まり、二重に進まない。
   */
-  const autoAdvancing = canAutoAdvance(lesson, step) && isAnswered(step, values);
+  const autoAdvancing =
+    canAutoAdvance(lesson, step) && isAnswered(step, values) && !holdingForEdit;
 
   /*
     受け取ったことを返す文。
@@ -157,6 +198,34 @@ export function LessonRunner({
     if (outcome === "sent") api.goNext();
   };
 
+  /*
+    レッスンを終えたことを記録する。
+
+    「完了する」ボタン（下の onPrimary の completion 分岐）と、
+    完了画面の「次のコースを見る」ボタンの、両方から呼ぶ。
+
+    どちらも同じ画面（完了ステップ）に出ている、対等な出口。
+    片方だけに記録を結びつけると、もう片方から出た人の
+    「終えた」が端末にもサーバーにも残らない——実際にこの形で
+    見つかった（E2E で、8/9 のまま次のコースへ渡ってしまっていた）。
+
+    2回呼ばれても壊れない。`markCompleted` は集合なので、
+    同じ id を足しても増えない。
+  */
+  const finalizeCompletion = () => {
+    if (lesson.id === "diagnosis") {
+      // 診断の結果は端末に残す。次に開いたときも同じ順で出す
+      saveRecommendations(recommendLessons(values));
+      // 誰が来たかを実証実験で見るために送る。待たない
+      void saveProfile({
+        ai_experience: values.ai_experience ?? "",
+        job_category: values.work_kind ?? "",
+        pain_point: values.pain_point ?? "",
+      });
+    }
+    api.complete();
+  };
+
   const body = (
     <StepRenderer
       lesson={lesson}
@@ -166,6 +235,14 @@ export function LessonRunner({
       revealed={revealed}
       setRevealed={setRevealed}
       onSelectLesson={onSelectLesson}
+      onOpenCourseCatalog={
+        onOpenCourseCatalog
+          ? () => {
+              finalizeCompletion();
+              onOpenCourseCatalog();
+            }
+          : undefined
+      }
     />
   );
 
@@ -213,17 +290,7 @@ export function LessonRunner({
         api.goNext();
         return;
       case "completion":
-        if (lesson.id === "diagnosis") {
-          // 診断の結果は端末に残す。次に開いたときも同じ順で出す
-          saveRecommendations(recommendLessons(values));
-          // 誰が来たかを実証実験で見るために送る。待たない
-          void saveProfile({
-            ai_experience: values.ai_experience ?? "",
-            job_category: values.work_kind ?? "",
-            pain_point: values.pain_point ?? "",
-          });
-        }
-        api.complete();
+        finalizeCompletion();
         onFinish();
         return;
       default:
@@ -278,7 +345,7 @@ export function LessonRunner({
         phase={step.phase}
         po={api.po}
         summary={api.summary}
-        onEditSummary={api.goTo}
+        onEditSummary={editSummary}
         primaryLabel={PRIMARY_LABEL[step.type] ?? "次へ"}
         onPrimary={onPrimary}
         primaryDisabled={Boolean(blockingIssue)}

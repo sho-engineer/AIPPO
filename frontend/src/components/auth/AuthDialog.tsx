@@ -12,6 +12,24 @@
  *   外から調べられる。ログインの失敗はどちらの理由でも同じ文にする
  *
  * パスワードは入力欄以外のどこにも出さない。console.log もしない。
+ *
+ * 登録の並べ方
+ * ------------
+ * 登録では、**どちらの道でも要るもの**を先に置く。
+ * メールアドレス・呼ばれたい名前・同意の3つ。そのあとで
+ * 「パスキーで登録」「パスワードで登録」を選ばせる。
+ *
+ * 前はパスキーの入口が一番上にあった。押せる条件（メールと同意）が
+ * その下にあるので、開いた人はまず**押せないボタン**を見ることになり、
+ * 何をすれば押せるのかはボタンの下の小さな字にしか書いていなかった。
+ * 要るものを先に出せば、その説明は要らなくなる。
+ *
+ * パスワードの確認欄
+ * ------------------
+ * 登録のときだけ2回入れてもらう。打ち間違いは、登録した本人にしか
+ * 直せない。次にログインしようとした日まで気づけず、そこからは
+ * 再設定のメールを待つことになる。確認欄はサーバーへは送らない
+ * （送っても、確かめられるのはこの画面だけ）。
  */
 
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
@@ -47,6 +65,9 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
   const [view, setView] = useState<AuthMode>(mode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  /* 打った中身を目で確かめられるようにする。2つの欄で同じ挙動にする */
+  const [revealPassword, setRevealPassword] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -65,6 +86,9 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
   useEffect(() => {
     setFailure(null);
     setSent(false);
+    // 別の話になっているので、確認欄も持ち越さない
+    setPasswordConfirm("");
+    setRevealPassword(false);
   }, [view]);
 
   // Esc で閉じられるようにする。閉じ方が1つしかないと逃げ場がない
@@ -78,6 +102,20 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
 
   const fieldError = (name: string) => failure?.fieldErrors[name];
 
+  /*
+    確認欄が合っていないか。
+
+    打っている途中を捕まえて「一致していません」と出さない。
+    2文字目で赤くなる欄は、急かされているようにしか見えない。
+    出すのは、確認欄に何か入っていて、かつ食い違っているときだけ。
+  */
+  const mismatch =
+    view === "signup" && passwordConfirm.length > 0 && password !== passwordConfirm;
+
+  /** 登録の押せない理由。押せる形のまま止めて、理由をその場に出す。 */
+  const signUpBlocked =
+    view === "signup" && (!consent || mismatch || passwordConfirm.length === 0);
+
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
@@ -86,6 +124,22 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
     setFailure(null);
     try {
       if (view === "signup") {
+        /*
+          画面側でも止めてあるが、ここでも見る。Enter での送信や、
+          あとから条件を足したときに、素通りする道を残さない。
+          確認欄はサーバーへは送らない（signUp の形は変えない）。
+        */
+        if (password !== passwordConfirm) {
+          setFailure(
+            new ApiError({
+              status: 0,
+              code: "PASSWORD_MISMATCH",
+              detail: AUTH_COPY.passwordMismatch,
+              fieldErrors: { password_confirm: AUTH_COPY.passwordMismatch },
+            }),
+          );
+          return;
+        }
         const migration = await auth.signUp({
           email,
           password,
@@ -184,16 +238,16 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
         )}
 
         {/*
-          パスキーを先に出す。合言葉を決めるところが、登録でいちばん
-          手が止まる場所なので、そこを飛ばせる道を上に置く。
-          使えない端末では何も出ない（PasskeyPanel が自分で判断する）。
+          ログインでは、パスキーを一番上に置く。打つものが何も無いので、
+          条件も前置きも要らない——押せばそれで終わる。
+
+          登録では下（フォームの中）に置く。押せる条件（メールと同意）が
+          先に要るためで、条件より先にボタンを見せると、
+          最初に目に入るのが押せないボタンになる。
         */}
-        {view !== "reset" && (
+        {view === "signin" && (
           <PasskeyPanel
-            mode={view === "signup" ? "signup" : "signin"}
-            email={email}
-            displayName={displayName}
-            consent={consent}
+            mode="signin"
             disabled={busy}
             onDone={async (message) => {
               await auth.refresh();
@@ -228,28 +282,18 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
             )}
           </div>
 
-          {view !== "reset" && (
-            <div>
-              <label htmlFor={`${ids}-password`} className="text-sm font-bold">
-                {AUTH_COPY.password}
-              </label>
-              <input
-                id={`${ids}-password`}
-                type="password"
-                value={password}
-                /* 新規は new-password。使い回しを勧めない */
-                autoComplete={view === "signup" ? "new-password" : "current-password"}
-                required
-                minLength={8}
-                aria-describedby={`${ids}-password-hint`}
-                aria-invalid={Boolean(fieldError("password"))}
-                onChange={(event) => setPassword(event.target.value)}
-                className={FIELD}
-              />
-              <p id={`${ids}-password-hint`} className="mt-1 text-xs text-ink-muted">
-                {fieldError("password") ?? (view === "signup" ? AUTH_COPY.passwordHint : "")}
-              </p>
-            </div>
+          {view === "signin" && (
+            <PasswordField
+              id={`${ids}-password`}
+              label={AUTH_COPY.password}
+              value={password}
+              onChange={setPassword}
+              autoComplete="current-password"
+              revealed={revealPassword}
+              onToggleReveal={() => setRevealPassword((on) => !on)}
+              hint={fieldError("password") ?? ""}
+              invalid={Boolean(fieldError("password"))}
+            />
           )}
 
           {view === "signup" && (
@@ -302,12 +346,67 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
                   <p className="mt-2 text-xs text-caution">{fieldError("accept_terms")}</p>
                 )}
               </div>
+
+              {/*
+                ここから下が「登録のしかた」。上の3つはどちらの道でも要る。
+                2つの道があることと、その違いを、選ぶ前に見せる。
+              */}
+              <div className="pt-1">
+                <h3 className="section-title" data-testid="auth-methods">
+                  {AUTH_COPY.methodHeading}
+                </h3>
+
+                <p className="mt-2 text-sm font-bold">{AUTH_COPY.passkeyMethod}</p>
+                <p className="mt-1 text-xs leading-6 text-ink-muted">
+                  {AUTH_COPY.passkeyMethodLead}
+                </p>
+
+                <PasskeyPanel
+                  mode="signup"
+                  email={email}
+                  displayName={displayName}
+                  consent={consent}
+                  disabled={busy}
+                  onDone={async (message) => {
+                    await auth.refresh();
+                    onDone?.(message);
+                    onClose();
+                  }}
+                />
+
+                <p className="mt-4 text-sm font-bold">{AUTH_COPY.passwordMethod}</p>
+              </div>
+
+              <PasswordField
+                id={`${ids}-password`}
+                label={AUTH_COPY.password}
+                value={password}
+                onChange={setPassword}
+                autoComplete="new-password"
+                revealed={revealPassword}
+                onToggleReveal={() => setRevealPassword((on) => !on)}
+                hint={fieldError("password") ?? AUTH_COPY.passwordHint}
+                invalid={Boolean(fieldError("password"))}
+              />
+
+              <PasswordField
+                id={`${ids}-password-confirm`}
+                label={AUTH_COPY.passwordConfirm}
+                value={passwordConfirm}
+                onChange={setPasswordConfirm}
+                autoComplete="new-password"
+                revealed={revealPassword}
+                onToggleReveal={() => setRevealPassword((on) => !on)}
+                testId="auth-password-confirm"
+                error={mismatch ? AUTH_COPY.passwordMismatch : undefined}
+                invalid={mismatch}
+              />
             </>
           )}
 
           <button
             type="submit"
-            disabled={busy || (view === "signup" && !consent)}
+            disabled={busy || signUpBlocked}
             data-testid="auth-submit"
             className="min-h-[3rem] w-full rounded-cta bg-brand px-6 py-3 text-base
                        font-bold text-white shadow-raised transition hover:brightness-110
@@ -369,6 +468,83 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
         </>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * パスワードの入力欄。
+ *
+ * 「表示」を付けてある。打ったものが1文字も見えないと、確認欄と
+ * 食い違ったときに、どちらが違うのか探せない。表示は2つの欄で
+ * まとめて切り替える——片方だけ見えても、見比べられない。
+ *
+ * 見えている間も、値はどこにも出さない。`type` を変えるだけで、
+ * 画面の外へは何も渡さない。
+ */
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  autoComplete,
+  revealed,
+  onToggleReveal,
+  hint,
+  error,
+  invalid,
+  testId,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: "new-password" | "current-password";
+  revealed: boolean;
+  onToggleReveal: () => void;
+  hint?: string;
+  error?: string;
+  invalid?: boolean;
+  testId?: string;
+}) {
+  return (
+    <div>
+      <label htmlFor={id} className="text-sm font-bold">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          data-testid={testId}
+          type={revealed ? "text" : "password"}
+          value={value}
+          autoComplete={autoComplete}
+          required
+          minLength={8}
+          aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
+          aria-invalid={invalid || undefined}
+          onChange={(event) => onChange(event.target.value)}
+          className={`${FIELD} pr-20`}
+        />
+        <button
+          type="button"
+          onClick={onToggleReveal}
+          aria-pressed={revealed}
+          className="absolute inset-y-0 right-0 mt-1 flex items-center px-4 text-xs
+                     font-bold text-brand-dark"
+        >
+          {revealed ? AUTH_COPY.hidePassword : AUTH_COPY.showPassword}
+        </button>
+      </div>
+      {error ? (
+        <p id={`${id}-error`} role="alert" className="mt-1 text-xs text-caution">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={`${id}-hint`} className="mt-1 text-xs text-ink-muted">
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }

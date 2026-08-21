@@ -68,6 +68,8 @@ async function toCourse(page: Page): Promise<void> {
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await page.getByRole("button", { name: "コース" }).click();
+  // コースは3段（一覧 → 中身 → レッスン）。レッスンが並ぶのは2段目
+  await page.getByTestId("current-course-open").click();
 }
 
 async function advance(page: Page): Promise<boolean> {

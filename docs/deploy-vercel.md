@@ -73,7 +73,7 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 
 | キー | いつ |
 |---|---|
-| `AI_PROVIDER` を `openai` / `anthropic` に、`OPENAI_API_KEY` か `ANTHROPIC_API_KEY` | 本物のAIを使うとき |
+| `AI_PROVIDER` を `gemini`（既定・費用と無料枠の都合） / `openai` / `anthropic` に、対応する `GEMINI_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` | 本物のAIを使うとき。本番でユーザーの入力を扱うなら Gemini は Paid Tier（学習利用しない契約）の鍵にすること |
 | `EMAIL_BACKEND` を smtp に、`EMAIL_HOST` `EMAIL_HOST_USER` `EMAIL_HOST_PASSWORD` `DEFAULT_FROM_EMAIL` | 実際に確認メールを送るとき |
 | `CSRF_TRUSTED_ORIGINS` | 独自ドメインを足したとき |
 | `SESSION_COOKIE_AGE` / `SESSION_ABSOLUTE_MAX_AGE` | ログインの期限を変えたいとき（既定は30日 / 90日） |
@@ -131,6 +131,12 @@ DATABASE_URL="<Neonの接続文字列>" python manage.py seed_catalog
 
 `migrate` は二重送信の抑止に使うキャッシュ表（`aippo_cache`）も作る
 （`apps/lessons/migrations/0006_cache_table.py`）。
+
+`seed_catalog` は教材のあとに、学習パス・スタンプ定義・節目の特典・
+AI単価の初期データも入れる（`apps/rewards/seeding.py`）。**順番は必ず
+`migrate` → `seed_catalog`。** 逆にはできない——教材がまだ無い状態では
+学習パスを作る相手がいないため、スタンプ定義が1件も無いまま動きはじめ、
+エラーも出ないのにスタンプが永久に埋まらない状態になる。
 
 **忘れても落ちない**——AI実行は通り、二重送信の防止だけが静かに外れる。
 本物のAIでは二重の費用になるので、`manage.py preflight` で確かめること。

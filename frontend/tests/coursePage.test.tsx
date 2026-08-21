@@ -20,8 +20,8 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AuthProvider } from "../src/auth/AuthContext";
-import { CoursePage } from "../src/pages/CoursePage";
-import { resetCatalog } from "../src/course/live";
+import { CourseDetailPage } from "../src/pages/CourseDetailPage";
+import { resetCatalog, useCourse } from "../src/course/live";
 
 /** サーバーから届く形。近日公開を1本混ぜる。 */
 const CATALOG = {
@@ -130,7 +130,7 @@ function serve({ bookmarks = [] as string[], writeOk = true } = {}) {
 async function open() {
   render(
     <AuthProvider>
-      <CoursePage onSelectLesson={() => {}} />
+      <CourseDetail />
     </AuthProvider>,
   );
   await screen.findByTestId("lesson-summarize_text");
@@ -146,6 +146,28 @@ afterEach(() => {
   cleanup();
   act(() => resetCatalog());
 });
+
+/**
+ * コースの中身の画面。
+ *
+ * この検査が見ているのは「1つのコースの中の並び」なので、
+ * コース一覧（どのコースにするか）ではなく、その次の段を開く。
+ * コースはサーバーから届いたものを使う（useCourse）。
+ */
+function CourseDetail({
+  onSelectLesson = () => {},
+}: {
+  onSelectLesson?: (id: string) => void;
+}) {
+  const course = useCourse();
+  return (
+    <CourseDetailPage
+      course={course}
+      onSelectLesson={onSelectLesson}
+      onBack={() => {}}
+    />
+  );
+}
 
 describe("探す", () => {
   it("やりたいことの言葉で絞れる", async () => {
@@ -316,7 +338,7 @@ describe("応答が壊れていても、画面は開く", () => {
 
     render(
     <AuthProvider>
-      <CoursePage onSelectLesson={() => {}} />
+      <CourseDetail />
     </AuthProvider>,
   );
 

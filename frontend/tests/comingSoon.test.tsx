@@ -175,8 +175,15 @@ describe("画面での見え方", () => {
     await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
   };
 
+  /**
+   * コースの中身（レッスンが並ぶ段）まで開く。
+   *
+   * コースは3段（一覧 → 中身 → レッスン）。近日公開の**教材**を見るのは
+   * 2段目なので、そこまで進む。
+   */
   const openCourse = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.click(await screen.findByRole("button", { name: "コース" }));
+    await user.click(await screen.findByTestId("current-course-open"));
   };
 
   it("教材一覧に近日公開の教材も並ぶが、押せない", async () => {

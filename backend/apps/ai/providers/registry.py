@@ -44,10 +44,13 @@ _BUILDERS: dict[str, str] = {
     "stub": "mock",
     "openai": "openai",
     "anthropic": "anthropic",
+    "gemini": "gemini",
+    # 以前の仮の呼び名。設定を書き換えなくても動くようにしておく
+    "google": "gemini",
 }
 
 #: まだ実API を実装していないもの。名前だけ受け付けて mock へ倒す。
-PLANNED = ("google",)
+PLANNED: tuple[str, ...] = ()
 
 
 def available_providers() -> tuple[str, ...]:
@@ -61,6 +64,7 @@ def available_providers() -> tuple[str, ...]:
 REQUIRED_KEYS: dict[str, str] = {
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY",
 }
 
 
@@ -106,6 +110,16 @@ def get_provider(name: str | None = None, model: str | None = None) -> AIProvide
         from apps.ai.providers.anthropic_provider import AnthropicChatProvider
 
         return AnthropicChatProvider(model=model)
+
+    if resolved == "gemini":
+        if not getattr(settings, REQUIRED_KEYS["gemini"], ""):
+            logger.error("ai.provider.missing_key name=gemini")
+            raise AIServiceNotConfigured(
+                "AI_PROVIDER=gemini ですが GEMINI_API_KEY が設定されていません"
+            )
+        from apps.ai.providers.gemini_provider import GeminiProvider
+
+        return GeminiProvider(model=model)
 
     return MockProvider(model=model)
 

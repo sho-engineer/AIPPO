@@ -216,11 +216,11 @@ class LearningEventView(_SessionMixin, APIView):
         )
 
         if data["event_type"] == LearningEventType.LESSON_COMPLETED:
-            self._complete(session)
+            self._complete(request, session)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def _complete(self, session: LearningSession) -> None:
+    def _complete(self, request: Request, session: LearningSession) -> None:
         session.completed_at = timezone.now()
         session.current_step = "COMPLETE"
         session.save(update_fields=["completed_at", "current_step", "updated_at"])
@@ -231,6 +231,32 @@ class LearningEventView(_SessionMixin, APIView):
                 skill_key=skill_key,
                 defaults={"lesson_id": session.lesson_id},
             )
+
+        self._award_stamps_and_rewards(request, session)
+
+    @staticmethod
+    def _award_stamps_and_rewards(request: Request, session: LearningSession) -> None:
+        """このレッスンが属する Learning Path ぶんのスタンプを埋め、届いた節目があれば渡す。
+
+        Credit の受け取りは account が要る（apps/rewards/models.py 参照）。
+        ゲストのままでもスタンプは埋まるが、節目のCreditはここでは渡さない
+        （サーバー側で判定し、client からの指定は一切受け付けない——設計方針 §36）。
+        """
+        from apps.rewards.models import LearningPath
+        from apps.rewards.stamps import award_lesson_stamp, claim_due_milestones
+
+        award_lesson_stamp(session.learner_key, session.lesson_id)
+
+        user = getattr(request, "user", None)
+        if not (user and user.is_authenticated):
+            return
+
+        keys = readable_keys(request)
+        paths = LearningPath.objects.filter(
+            path_lessons__lesson__slug=session.lesson_id
+        ).distinct()
+        for path in paths:
+            claim_due_milestones(user, keys, path)
 
 
 class SessionStateView(APIView):

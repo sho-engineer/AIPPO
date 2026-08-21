@@ -92,8 +92,9 @@ EMAIL_HOST_USER=<利用者名>
 EMAIL_HOST_PASSWORD=<鍵>
 DEFAULT_FROM_EMAIL=<差出人アドレス>
 
-AI_PROVIDER=openai              ← または anthropic
-OPENAI_API_KEY=<鍵>             ← または ANTHROPIC_API_KEY
+AI_PROVIDER=gemini              ← 既定。または openai / anthropic
+GEMINI_API_KEY=<鍵>             ← または OPENAI_API_KEY / ANTHROPIC_API_KEY
+                                 ← 本番でユーザーの入力を扱うなら Gemini は Paid Tier の鍵
 
 CRON_SECRET=<下のコマンドで作る>
 DJANGO_ADMIN_PATH=<推測されない名前>/
@@ -129,6 +130,12 @@ DATABASE_URL="<Neonの接続文字列>" python manage.py createsuperuser
 
 **忘れても落ちない。** AI実行は 200 を返し続け、二重送信の防止だけが
 静かに効かなくなる。本物のAIに切り替えたあとは、そのまま二重の費用になる。
+
+`seed_catalog` は教材のあとに、学習パス・スタンプ定義・節目の特典・
+AI単価の初期データも入れる（`apps/rewards/seeding.py`）。**順番は必ず
+`migrate` → `seed_catalog`。** これも忘れても落ちない——スタンプ定義が
+1件も無いまま動きはじめ、レッスンを終えてもスタンプが埋まらないだけになる。
+入ったかどうかは、管理画面の「学習パス」に1件あるかで確かめられる。
 動かして気づける類ではないので、`preflight` で見るようにしてある。
 
 ### 5. 確かめる

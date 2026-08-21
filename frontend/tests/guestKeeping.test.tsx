@@ -24,7 +24,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 
 import { AuthProvider } from "../src/auth/AuthContext";
-import { CoursePage } from "../src/pages/CoursePage";
+import { CourseDetailPage } from "../src/pages/CourseDetailPage";
+import { useCourse } from "../src/course/live";
 import { LessonRunner } from "../src/pages/LessonRunner";
 import { SavedPage } from "../src/pages/SavedPage";
 import { loadPrompts, savePrompt } from "../src/course/promptLibrary";
@@ -109,11 +110,33 @@ const openSaved = () =>
 const openCourse = () =>
   render(
     <AuthProvider>
-      <CoursePage onSelectLesson={() => {}} />
+      <CourseDetail />
     </AuthProvider>,
   );
 
 beforeEach(() => window.localStorage.clear());
+
+/**
+ * コースの中身の画面。
+ *
+ * この検査が見ているのは「1つのコースの中の並び」なので、
+ * コース一覧（どのコースにするか）ではなく、その次の段を開く。
+ * コースはサーバーから届いたものを使う（useCourse）。
+ */
+function CourseDetail({
+  onSelectLesson = () => {},
+}: {
+  onSelectLesson?: (id: string) => void;
+}) {
+  const course = useCourse();
+  return (
+    <CourseDetailPage
+      course={course}
+      onSelectLesson={onSelectLesson}
+      onBack={() => {}}
+    />
+  );
+}
 
 describe("登録していない人", () => {
   beforeEach(() => server({ signedIn: false }));

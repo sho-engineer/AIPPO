@@ -132,6 +132,11 @@ class Attempt(models.Model):
     model_name = models.CharField(max_length=100, blank=True)
     token_usage = models.JSONField(default=dict, blank=True)
     latency_ms = models.PositiveIntegerField(null=True, blank=True)
+    #: 概算費用（USD）。単価を設定していないプロバイダは null のまま
+    #: （0円と「分からない」を混同しない。apps/ai/pricing.py 参照）。
+    estimated_cost_usd = models.DecimalField(
+        max_digits=10, decimal_places=6, null=True, blank=True
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -203,6 +208,17 @@ class LearningEventType(models.TextChoices):
     LESSON_COMPLETED = "lesson_completed"
     LESSON_ABANDONED = "lesson_abandoned"
     TUTOR_FALLBACK_USED = "tutor_fallback_used"
+
+    # Learning Path / Recipe / Stamp / Credit（apps.rewards）
+    LEARNING_PATH_STARTED = "learning_path_started"
+    RECIPE_VIEWED = "recipe_viewed"
+    RECIPE_STARTED = "recipe_started"
+    RECIPE_COMPLETED = "recipe_completed"
+    STAMP_EARNED = "stamp_earned"
+    REWARD_CLAIMED = "reward_claimed"
+    CREDIT_EARNED = "credit_earned"
+    CREDIT_CONSUMED = "credit_consumed"
+    CREDIT_INSUFFICIENT = "credit_insufficient"
 
 
 class LearningEvent(models.Model):

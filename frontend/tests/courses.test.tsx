@@ -1,12 +1,13 @@
 /**
  * コースが複数あるときの扱い。
  *
- * 守るのは4つ。
+ * 守るのは5つ。
  *
  *   1. 中身のあるコースを学ぶ側に選ぶ（並び順の先頭を鵜呑みにしない）
- *   2. これから増えるコースも一覧には出す
- *   3. ただし押させない
+ *   2. すべてのコースが同じ形で並ぶ
+ *   3. 近日公開のものは押させない
  *   4. 押せない理由をその場に書く
+ *   5. 続きに戻る1本が、先頭に別の形で出る
  */
 
 import { render, screen, waitFor, within } from "@testing-library/react";
@@ -103,22 +104,57 @@ describe("学ぶコースの選び方", () => {
   });
 });
 
-describe("これから増えるコース", () => {
+describe("コース一覧", () => {
   const open = () => {
-    render(<CoursePage onSelectLesson={() => {}} />);
+    render(
+      <CoursePage onOpenCourse={() => {}} onSelectLesson={() => {}} />,
+    );
   };
 
-  it("一覧に出る", async () => {
-    // 何がどれだけ増えるのかを先に見せる
+  it("すべてのコースが並ぶ", async () => {
+    // 何がどれだけあるのかを、選ぶ前に見せる
     serve(catalog());
     open();
 
-    const list = await screen.findByTestId("upcoming-courses");
+    const list = await screen.findByTestId("all-courses");
     expect(within(list).getByText("AIで画像をつくる")).toBeInTheDocument();
     expect(within(list).getByText("AIを安全に仕事で使う")).toBeInTheDocument();
   });
 
-  it("押せない", async () => {
+  it("学習中のコースは、下の一覧に重ねて出さない", async () => {
+    /*
+      同じ題が1画面に2回出ると、上と下が別のものに見える。
+      上に出ているものは上で完結させて、下は
+      「まだ手を付けていないもの」だけにする。
+    */
+    serve(catalog());
+    open();
+
+    const list = await screen.findByTestId("all-courses");
+    expect(
+      within(list).queryByText(`${COURSE.title}（サーバー版）`),
+    ).not.toBeInTheDocument();
+    // 上には出ている
+    expect(screen.getByTestId("current-course-open")).toHaveTextContent(
+      `${COURSE.title}（サーバー版）`,
+    );
+  });
+
+  it("続きに戻る1本が、先頭に別の形で出る", async () => {
+    /*
+      この画面を開く人がいちばん多く求めているのは、探すことではなく
+      続きに戻ること。同じ形で7つ並べると、毎回自分の1本を探し直す。
+    */
+    serve(catalog());
+    open();
+
+    await waitFor(() =>
+      expect(screen.getByTestId("current-course-continue")).toBeInTheDocument(),
+    );
+    expect(screen.getByTestId("current-course-count")).toHaveTextContent("/");
+  });
+
+  it("近日公開のコースは押せない", async () => {
     // 押せるのに何も起きないものを作らない
     serve(catalog());
     open();
@@ -144,23 +180,33 @@ describe("これから増えるコース", () => {
     );
   });
 
-  it("いま学んでいるコースは、増える側に出さない", async () => {
-    // 同じものが2か所に出ると、別のものだと読まれる
+  it("いきなりレッスンを並べない", async () => {
+    /*
+      ここは「どのコースにするか」を決める場所。開いた瞬間に
+      9本のレッスンが出ると、決めるための材料が画面から消える。
+      レッスンが並ぶのは、コースを選んだ次の段。
+    */
     serve(catalog());
     open();
 
-    const list = await screen.findByTestId("upcoming-courses");
-    expect(
-      within(list).queryByText(`${COURSE.title}（サーバー版）`),
-    ).not.toBeInTheDocument();
+    await screen.findByTestId("all-courses");
+    expect(screen.queryByTestId("lesson-search")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("lesson-rewrite_text")).not.toBeInTheDocument();
   });
 
-  it("届いていないときは、何も出さない", async () => {
-    // 同梱データで動いているとき。無いものを作って見せない
+  it("届いていないときは、学習中の1本だけ出す", async () => {
+    /*
+      同梱データで動いているとき。他のコースは知らないので、
+      空の枠を作らず、節ごと出さない。
+    */
     serve({ courses: [] });
     open();
 
-    await waitFor(() => expect(screen.getByTestId("lesson-search")).toBeInTheDocument());
-    expect(screen.queryByTestId("upcoming-courses")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("current-course-open")).toHaveTextContent(
+        COURSE.title,
+      ),
+    );
+    expect(screen.queryByTestId("all-courses")).not.toBeInTheDocument();
   });
 });

@@ -334,3 +334,30 @@ class Command(BaseCommand):
                     f"これから増えるコース: {courses}件 / レッスン {lessons}件（近日公開）"
                 )
             )
+
+        self._seed_rewards()
+
+    def _seed_rewards(self) -> None:
+        """学習パス・スタンプ・節目の特典・AI単価も、ここで揃える。
+
+        新しい環境は `migrate → seed_catalog` の順に立ち上がるので、
+        マイグレーションの時点では**コースもレッスンもまだ無い**。
+        そこで作ろうとしても相手がいないため、教材を入れ終わった
+        ここから呼ぶ（apps/rewards/seeding.py に理由を書いた）。
+
+        これを忘れると、スタンプ定義が1件も無いまま動きはじめる。
+        エラーは出ず、ただスタンプが永久に埋まらない——いちばん
+        気づきにくい壊れ方になる。
+        """
+        from apps.rewards.seeding import seed_rewards
+
+        path, pricing_made = seed_rewards()
+        if path is not None:
+            self.stdout.write(
+                self.style.SUCCESS(
+                    f"学習パス「{path.title}」: "
+                    f"スタンプ {path.stamp_definitions.count()} / "
+                    f"節目 {path.milestones.count()} / "
+                    f"AI単価 追加 {pricing_made}"
+                )
+            )

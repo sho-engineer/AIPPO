@@ -14,6 +14,8 @@ const KEY = "aippo:place";
 export interface Place {
   screen: Screen;
   lessonId: string;
+  /** 中を見ていたコース。古い控えには入っていないので、省略できる。 */
+  courseId?: string;
 }
 
 export function savePlace(place: Place): void {

@@ -111,6 +111,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.catalog",
     "apps.lessons",
+    "apps.rewards",
     # 運用まわり（管理画面の締め出しと、触った記録）
     "apps.ops",
     "apps.profiles",
@@ -395,22 +396,57 @@ REST_FRAMEWORK = {
 # --- AI プロバイダ -------------------------------------------------------
 # "mock" のままでも全教材を完走できることが憲章 原則 III の要件。
 #
-# 既定は openai / gpt-5-nano。openai / anthropic を指定したのに鍵が無いときは、
+# 既定は gemini / gemini-2.5-flash（費用と無料枠の都合。開発・MVP向け）。
+# openai は引き続き使える（本番の比較・切り替え先として残す。消さない）。
+# anthropic も同様。いずれかを指定したのに鍵が無いときは、
 # 黙って mock へ倒さず **はっきり失敗させる**（503 AI_SERVICE_NOT_CONFIGURED、
 # apps/ai/providers/registry.py）。偽物の答えを本物として学習者に見せるほうが
 # 害が大きい。鍵の有無は /health/ready でも見る。
-AI_PROVIDER = os.getenv("AI_PROVIDER", "openai")
+#
+# 本番でユーザーの入力（仕事の文章・機密情報・個人情報を含みうる）を
+# 扱う場合は、Gemini の Free Tier 前提で運用しないこと。Paid Tier
+# （ユーザー入力を学習利用しない契約条件）の鍵を使う。このファイルは
+# 鍵がどちらの契約かを検知できないので、デプロイ設定側で必ず守る
+# （docs/ai-tutor-design.md 参照）。
+AI_PROVIDER = os.getenv("AI_PROVIDER", "gemini")
 AI_MODEL = os.getenv("AI_MODEL", "gpt-5-nano")
+AI_MODEL_GEMINI = os.getenv("AI_MODEL_GEMINI", "gemini-2.5-flash")
 
 # 鍵は必ずここで settings へ入れる。registry.py は settings しか見ない。
 # 環境変数を直接読む形にすると、片方だけ入れ忘れたときに
 # 「鍵を渡しているのに使えない」という、原因の分かりにくい失敗になる。
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
 # 1回の呼び出しの上限。長くすると待ち時間も費用も伸びる。
 AI_REQUEST_TIMEOUT_SECONDS = float(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "20"))
 AI_MAX_OUTPUT_TOKENS = int(os.getenv("AI_MAX_OUTPUT_TOKENS", "600"))
+
+
+def _ai_price(name: str) -> float | None:
+    """USD / 1,000トークン。未設定なら None（「0円」と区別する）。"""
+    raw = os.getenv(name, "")
+    return float(raw) if raw else None
+
+
+# AI利用料の概算（apps/ai/pricing.py）。プロバイダ単位のみ（モデル単位ではない）。
+# 実際の契約単価を運用側が入れる。入れていないプロバイダは概算を出さない
+# （推測の数字を利用料として見せない）。
+AI_PRICE_PER_1K_TOKENS: dict[str, tuple[float | None, float | None]] = {
+    "gemini": (
+        _ai_price("AI_PRICE_GEMINI_INPUT_PER_1K"),
+        _ai_price("AI_PRICE_GEMINI_OUTPUT_PER_1K"),
+    ),
+    "openai": (
+        _ai_price("AI_PRICE_OPENAI_INPUT_PER_1K"),
+        _ai_price("AI_PRICE_OPENAI_OUTPUT_PER_1K"),
+    ),
+    "anthropic": (
+        _ai_price("AI_PRICE_ANTHROPIC_INPUT_PER_1K"),
+        _ai_price("AI_PRICE_ANTHROPIC_OUTPUT_PER_1K"),
+    ),
+}
 
 # 学習者ひとりが1日に実行できる回数。0以下で「上限なし」。
 # 悪用対策ではなく、ふつうに使っている人の使いすぎを止める目安。

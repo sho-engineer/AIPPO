@@ -152,6 +152,17 @@ export function buildAiInput(step: LessonStep, values: StepValues): StepValues {
  *
  * 現在地より前のステップだけを見る。
  * まだ答えていない先の欄まで出すと、何を聞かれているのか分からなくなる。
+ *
+ * 出すのは、選んだ言葉のほう
+ * --------------------------
+ * 教材の中では答えを `writing` `tried` のような短い記号で持っている。
+ * ここへそのまま出すと、日本語の画面に英語の記号が並ぶ。
+ * しかも記号は教材の中でしか意味を持たないので、
+ * 別の質問で同じ `writing` が出て、2つの答えが同じに見えることまであった。
+ *
+ * 選択肢を持つ回では、その人が実際に押した札の言葉を出す。
+ * 自分で書いた回（選択肢が無い）は、書いた文字がそのまま答えなので、
+ * そちらはそのまま出す。
  */
 export function summaryOf(
   lesson: Lesson,
@@ -164,9 +175,17 @@ export function summaryOf(
   return lesson.steps
     .slice(0, index)
     .filter((step) => step.key && (values[step.key] ?? "").trim())
-    .map((step) => ({
-      stepId: step.id,
-      label: step.title,
-      value: values[step.key as string],
-    }));
+    .map((step) => {
+      const answer = values[step.key as string];
+      /*
+        「その他（自分で書く）」で入れた言葉は、選択肢のどれにも一致しない。
+        見つからなければ、書いた言葉をそのまま出す。
+      */
+      const chosen = step.options?.find((option) => option.value === answer);
+      return {
+        stepId: step.id,
+        label: step.title,
+        value: chosen?.label ?? answer,
+      };
+    });
 }

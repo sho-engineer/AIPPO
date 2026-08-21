@@ -16,6 +16,7 @@ import {
   isPasskeyAvailable,
   signInWithPasskey,
   signUpWithPasskey,
+  browserReason,
   wasCancelled,
 } from "../../api/passkeys";
 import { IconCaution, IconKey } from "../Icons";
@@ -85,7 +86,7 @@ export function PasskeyPanel({
       } else if (error instanceof ApiError) {
         setFailure(error.detail);
       } else {
-        setFailure("パスキーを使えませんでした。もう一度お試しください。");
+        setFailure(browserReason(error));
       }
     } finally {
       setBusy(false);
@@ -117,11 +118,15 @@ export function PasskeyPanel({
             : "パスキーでログイン"}
       </button>
 
-      <p className="mt-2 text-center text-xs leading-6 text-ink-muted">
-        {mode === "signup"
-          ? "パスワードを決めずに、指紋や顔で登録できます。"
-          : "メールもパスワードも入力せずに入れます。"}
-      </p>
+      {/*
+        登録では、この上（AuthDialog の「登録のしかたを選ぶ」）で
+        同じことを言っているので、ここでは繰り返さない。
+      */}
+      {mode === "signin" && (
+        <p className="mt-2 text-center text-xs leading-6 text-ink-muted">
+          メールもパスワードも入力せずに入れます。
+        </p>
+      )}
 
       {needsEmail && !ready && (
         <p className="mt-1 text-center text-xs text-ink-muted">

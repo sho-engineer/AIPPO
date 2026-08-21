@@ -1,10 +1,24 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../src/App";
 import { COURSE } from "../src/course/catalog";
+import { resetCatalog } from "../src/course/live";
 import { BRAND } from "../src/content/ui";
+
+/** サーバーから届く形の、2本目のコース（近日公開）。 */
+const SECOND_COURSE = {
+  id: "work_writing",
+  title: "仕事の文章をAIで整える",
+  description: "文章まわりの技をまとめて練習する。",
+  availability: "coming_soon",
+  lessons: [],
+};
+
+function catalogReply(courses: unknown[]): Response {
+  return { ok: true, status: 200, json: async () => ({ courses }) } as Response;
+}
 
 /**
  * タイトル → ホーム → コース一覧 → レッスン の通し導線。
@@ -13,7 +27,15 @@ import { BRAND } from "../src/content/ui";
  * レッスンの中身は course のテストが受け持つ。
  */
 describe("画面の行き来", () => {
-  beforeEach(() => window.localStorage.clear());
+  beforeEach(() => {
+    window.localStorage.clear();
+    resetCatalog();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetCatalog();
+  });
 
   const start = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
@@ -22,6 +44,17 @@ describe("画面の行き来", () => {
   /** 下タブの「コース」を押して一覧へ。 */
   const openCourseTab = async (user: ReturnType<typeof userEvent.setup>) => {
     await user.click(await screen.findByRole("button", { name: "コース" }));
+  };
+
+  /**
+   * コース一覧から、学習中のコースの中身をひらく。
+   *
+   * コースは3段になっている（一覧 → 中身 → レッスン）。レッスンが
+   * 並ぶのは2段目なので、そこまで進んでから見る。
+   */
+  const openCourseDetail = async (user: ReturnType<typeof userEvent.setup>) => {
+    await openCourseTab(user);
+    await user.click(await screen.findByTestId("current-course-open"));
   };
 
   it("タイトルから始まる", () => {
@@ -80,12 +113,39 @@ describe("画面の行き来", () => {
     expect(await screen.findByTestId("recommend-diagnosis")).toBeEnabled();
   });
 
-  it("下タブのコースへ移ると、全レッスンとFinal Challengeが並ぶ", async () => {
+  it("下タブのコースへ移ると、コースが並ぶ（レッスンは出さない）", async () => {
+    /*
+      ここは「どのコースにするか」を決める場所。開いた瞬間に
+      9本のレッスンが出ると、決めるための材料が画面から消える。
+
+      「すべてのコース」は、学習中のコース以外が1本以上あるときだけ
+      出る（CoursePage.tsx）。同梱データはコース1本ぶんしか無いので、
+      2本目が届く形でサーバーの応答を仕込む。
+    */
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      if (url.includes("/api/v1/catalog/")) {
+        return Promise.resolve(catalogReply([COURSE, SECOND_COURSE]));
+      }
+      return Promise.reject(new Error(`未対応のfetch: ${url}`));
+    });
+
     const user = userEvent.setup();
     render(<App />);
 
     await start(user);
     await openCourseTab(user);
+
+    expect(await screen.findByTestId("all-courses")).toBeInTheDocument();
+    expect(screen.queryByTestId("lesson-rewrite_text")).not.toBeInTheDocument();
+  });
+
+  it("コースの中へ入ると、全レッスンとFinal Challengeが並ぶ", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await start(user);
+    await openCourseDetail(user);
 
     expect(
       await screen.findByRole("heading", { name: COURSE.title }),
@@ -99,12 +159,12 @@ describe("画面の行き来", () => {
     }
   });
 
-  it("コース一覧からレッスンを選べる", async () => {
+  it("コースの中からレッスンを選べる", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await start(user);
-    await openCourseTab(user);
+    await openCourseDetail(user);
     await user.click(await screen.findByTestId("lesson-rewrite_text"));
 
     // レッスンの最初の画面は、レッスンそのものの名前を見出しにする

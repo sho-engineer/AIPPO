@@ -8,7 +8,7 @@
 """
 
 from django.contrib import admin
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, Q, Sum
 from django.utils.html import format_html
 
 from apps.lessons.models import (
@@ -76,6 +76,7 @@ class AttemptAdmin(admin.ModelAdmin):
         "model_name",
         "total_tokens",
         "latency_ms",
+        "estimated_cost_usd",
     )
     list_filter = ("status", "step", "tutor_origin", "model_name", "created_at")
     date_hierarchy = "created_at"
@@ -188,6 +189,21 @@ class VerificationSummaryAdmin(admin.ModelAdmin):
                 input_tokens += usage.get("input", 0) or 0
                 output_tokens += usage.get("output", 0) or 0
 
+        # 概算費用（Phase 10: AI Cost Tracking）。単価を設定していない
+        # プロバイダの分は estimated_cost_usd が null なので、SUM は
+        # 自然にそれらを飛ばす（0円として合算しない——分からない実行が
+        # 混ざっているのに合計だけ出すと、その分過小に見えてしまう）。
+        total_cost = attempts.aggregate(total=Sum("estimated_cost_usd"))["total"]
+        priced_runs = attempts.filter(estimated_cost_usd__isnull=False).count()
+        # 「1アクティブ学習者あたり」の目安（無料ユーザーの原価上限の確認用）。
+        # アクティブ = 1回でもAIを実行したことがある学習者。
+        active_learners = (
+            sessions.filter(attempts__isnull=False).values("learner_key").distinct().count()
+        )
+        avg_cost_per_active_learner = (
+            (total_cost / active_learners) if total_cost and active_learners else None
+        )
+
         # 誰が来て、誰が完走したか。
         # 完了率だけでは、AIを使ったことがない人が離脱しているのか、
         # ふだん使う人が物足りなくて離脱しているのかを区別できない。
@@ -234,6 +250,9 @@ class VerificationSummaryAdmin(admin.ModelAdmin):
                 "avg_latency_ms": round(tokens["avg_latency"] or 0),
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
+                "total_cost_usd": total_cost,
+                "priced_runs": priced_runs,
+                "avg_cost_per_active_learner": avg_cost_per_active_learner,
                 "survey_count": surveys.count(),
                 "survey_tally": survey_tally,
                 "by_experience": by_experience,

@@ -227,6 +227,22 @@ class TestRecording:
 
         assert Attempt.objects.get().user_input == REWRITE_INPUT["original_text"]
 
+    def test_estimated_cost_is_null_when_pricing_not_configured(self, api_client):
+        """0円と「単価が分からない」を混同しない（apps/ai/pricing.py）。"""
+        _post(api_client)
+
+        assert Attempt.objects.get().estimated_cost_usd is None
+
+    def test_estimated_cost_is_computed_when_pricing_is_configured(
+        self, api_client, settings
+    ):
+        settings.AI_PRICE_PER_1K_TOKENS = {"mock": (0.001, 0.002)}
+        _post(api_client)
+
+        attempt = Attempt.objects.get()
+        assert attempt.estimated_cost_usd is not None
+        assert attempt.estimated_cost_usd > 0
+
     def test_selected_conditions_are_kept(self, api_client):
         """どの条件を選んだかは残す。本文と違い個人情報にならない。"""
         _post(api_client)

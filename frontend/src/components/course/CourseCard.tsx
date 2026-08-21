@@ -18,9 +18,10 @@
  * 理由をその行に書く。黙って無反応にはしない。
  */
 
-import { IconBars, IconChevronRight, IconClock } from "../Icons";
+import { IconChevronRight, IconClock } from "../Icons";
 import { IconMark } from "../AppShell";
 import { courseComingSoonNote, isCourseComingSoon } from "../../course/availability";
+import { courseIcon } from "../../course/courseVisual";
 import type { Course } from "../../course/types";
 
 const DIFFICULTY_LABEL: Record<string, string> = {
@@ -63,7 +64,12 @@ export function CourseCard({ course, completedIds, onOpen }: CourseCardProps) {
                     enabled:hover:border-brand-line enabled:active:scale-[0.995]
                     disabled:cursor-not-allowed ${soon ? "opacity-60" : ""}`}
       >
-        <IconMark icon={IconBars} className="mt-0.5 h-5 w-5" />
+        {/*
+          コースごとに絵を変える。7つ並ぶので、題を読む前に
+          「どれがどれか」の当たりが付く手がかりが要る。
+          前は全部同じ絵で、目で拾えるのは題の文字だけだった。
+        */}
+        <IconMark icon={courseIcon(course.id)} className="mt-0.5 h-5 w-5" />
 
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-bold leading-6">{course.title}</span>

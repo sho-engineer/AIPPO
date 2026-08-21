@@ -103,6 +103,12 @@ for (const name of ["アカウント設定", "通知設定", "音", "学習デ�
 }
 await p.getByRole("button", { name: "コース" }).click();
 await p.waitForTimeout(600);
+await scan("コース一覧");
+
+// コースは3段。レッスンが並ぶのは2段目
+await p.getByTestId("current-course-open").click();
+await p.waitForTimeout(700);
+await scan("コースの中身");
 
 await p.getByTestId("lesson-rewrite_text").click();
 await p.waitForTimeout(900);

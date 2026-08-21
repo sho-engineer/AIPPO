@@ -1,8 +1,12 @@
 /**
  * 画面の切り替え。
  *
- * タイトル → ホーム → コース一覧 → レッスン。
+ * タイトル → ホーム → コース一覧 → コースの中身 → レッスン。
  * レッスンの中身は教材データが決めるので、ここは器だけを持つ。
+ *
+ * コースを3段にしてある。1段目でどのコースかを決め、2段目で
+ * 道のり（Day 0 / Day 1 …）を見て、3段目で学ぶ。段を飛ばすと、
+ * いまどのコースの何本目にいるのかが画面から消える。
  *
  * いまどこにいるかは端末に覚えておく。
  * 読み込み直したときにトップへ戻されると、入力だけが残って
@@ -17,11 +21,12 @@ import { useEffect, useState } from "react";
 
 import { BottomTabBar, type TabKey } from "./components/AppShell";
 import { CoursePage } from "./pages/CoursePage";
+import { CourseDetailPage } from "./pages/CourseDetailPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { HomePage } from "./pages/HomePage";
 import { LessonRunner } from "./pages/LessonRunner";
 import { TopPage } from "./pages/TopPage";
-import { lookupLesson, useCourse } from "./course/live";
+import { lookupLesson, useCourse, useCourses } from "./course/live";
 import { isStartable } from "./course/availability";
 import { loadPlace, savePlace } from "./app/session";
 import { useSocialResult } from "./auth/useSocialResult";
@@ -33,6 +38,8 @@ import { SavedPage } from "./pages/SavedPage";
 const TAB_OF: Partial<Record<Screen, TabKey>> = {
   HOME: "home",
   COURSE: "course",
+  // コースの中身も「コース」の中。下タブの光る場所は動かさない
+  COURSE_DETAIL: "course",
   RECORD: "record",
   SAVED: "saved",
   SETTINGS: "more",
@@ -55,8 +62,26 @@ export function App() {
   const [lessonId, setLessonId] = useState<string>(
     restored?.lessonId ?? course.lessons[0].id,
   );
+  /*
+    いま中を見ているコース。
 
-  useEffect(() => savePlace({ screen, lessonId }), [screen, lessonId]);
+    覚えておく。読み込み直したときに一覧へ戻されると、
+    せっかく選んだところからやり直しになる。
+  */
+  const [detailCourseId, setDetailCourseId] = useState<string>(
+    restored?.courseId ?? course.id,
+  );
+  const courses = useCourses();
+
+  useEffect(
+    () => savePlace({ screen, lessonId, courseId: detailCourseId }),
+    [screen, lessonId, detailCourseId],
+  );
+
+  const openCourse = (id: string, from: Screen) => {
+    setDetailCourseId(id);
+    setScreen(nextScreen(from, "OPEN_COURSE_DETAIL"));
+  };
 
   const openLesson = (id: string, from: Screen) => {
     /*
@@ -69,6 +94,16 @@ export function App() {
     */
     const lesson = lookupLesson(id);
     if (lesson && !isStartable(lesson)) return;
+
+    /*
+      そのレッスンが属するコースも覚えておく。
+      レッスンから1つ戻る先は、そのコースの中身になる。
+      ホームから直接開いた1本でも、戻る先が中途半端にならない。
+    */
+    const owner = courses.find((entry) =>
+      entry.lessons.some((item) => item.id === id),
+    );
+    if (owner) setDetailCourseId(owner.id);
 
     setLessonId(id);
     setScreen(nextScreen(from, "SELECT_LESSON"));
@@ -100,7 +135,29 @@ export function App() {
         );
 
       case "COURSE":
-        return <CoursePage onSelectLesson={(id) => openLesson(id, "COURSE")} />;
+        return (
+          <CoursePage
+            onOpenCourse={(id) => openCourse(id, "COURSE")}
+            onSelectLesson={(id) => openLesson(id, "COURSE")}
+          />
+        );
+
+      case "COURSE_DETAIL": {
+        /*
+          知らない id が入っても落とさない。いま学ぶコースへ倒す
+          （覚えていた場所が古い、サーバー側で消えた、など）。
+        */
+        const opened =
+          courses.find((entry) => entry.id === detailCourseId) ?? course;
+
+        return (
+          <CourseDetailPage
+            course={opened}
+            onSelectLesson={(id) => openLesson(id, "COURSE_DETAIL")}
+            onBack={() => setScreen(nextScreen("COURSE_DETAIL", "OPEN_COURSE"))}
+          />
+        );
+      }
 
       case "RECORD":
         return (
@@ -147,9 +204,12 @@ export function App() {
             key={lesson.id}
             lesson={lesson}
             onFinish={() => setScreen(nextScreen("LESSON", "BACK_TO_HOME"))}
-            onExit={() => setScreen(nextScreen("LESSON", "OPEN_COURSE"))}
+            /* 1つ戻る先は、そのレッスンが入っているコースの中身 */
+            onExit={() => setScreen(nextScreen("LESSON", "OPEN_COURSE_DETAIL"))}
             // 完了画面から、そのまま次のレッスンへ入れるようにする
             onSelectLesson={(id) => openLesson(id, "LESSON")}
+            // コース完走の締めくくりから、コース一覧へ
+            onOpenCourseCatalog={() => setScreen(nextScreen("LESSON", "OPEN_COURSE"))}
           />
         );
       }

@@ -10,7 +10,7 @@
    落ちたときに数え漏れる
 4. AI を呼ぶ
 5. 返ってきた中身を検証する — 構造化出力でも形は崩れる
-6. 記録する — provider / model / token / latency / エラー種別
+6. 記録する — provider / model / token / latency / 概算費用 / エラー種別
 
 本文（利用者が貼った文章）は、既定では保存しない。
 """
@@ -30,6 +30,7 @@ from rest_framework.views import APIView
 from apps.accounts.scope import device_key, readable_keys
 from apps.ai.actions import Action, get_action
 from apps.ai.models_catalog import available_models
+from apps.ai.pricing import estimate_cost_usd
 from apps.ai.providers.base import (
     AIProviderError,
     AIRequest,
@@ -185,6 +186,11 @@ class GenerateView(APIView):
                 "output": result.usage.output_tokens,
             },
             latency_ms=result.usage.latency_ms,
+            estimated_cost_usd=estimate_cost_usd(
+                result.usage.provider,
+                result.usage.input_tokens,
+                result.usage.output_tokens,
+            ),
         )
         session.attempt_count = sequence
         session.current_step = data["step_id"]

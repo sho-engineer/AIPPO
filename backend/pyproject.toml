@@ -18,6 +18,7 @@ dependencies = [
     # パスキー（WebAuthn）。署名を確かめる側。自前で書かない——
     # 署名の検証を1か所でも取り違えると、確かめているつもりで素通りする
     "webauthn>=2.0,<4",
+    "google-genai>=1.0",
 ]
 
 [project.optional-dependencies]
