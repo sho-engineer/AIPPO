@@ -16,6 +16,8 @@ urlpatterns = [
     path("api/lessons/", include("apps.lessons.urls")),
     # どこまで来たか。端末をまたいで同じ数が出るように、サーバーが数える
     path("api/v1/progress/", ProgressView.as_view(), name="progress"),
+    # 学習パス・スタンプ・Credit。特典の判定はすべてサーバー側で行う
+    path("api/v1/rewards/", include("apps.rewards.urls")),
     # AI活用診断の回答。誰が来たかを実証実験で見るために要る
     path("api/profile/", include("apps.profiles.urls")),
     # AIPPO 開発概要 §13 の指定どおり、操作ログはトップレベルに置く
