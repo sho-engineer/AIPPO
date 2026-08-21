@@ -28,7 +28,13 @@ class GenerateRequestSerializer(serializers.Serializer):
     step_id = serializers.CharField(max_length=100)
     action = serializers.CharField(max_length=50)
     input = serializers.DictField(required=False, default=dict)
-    #: 将来のモデル比較コース用。教材データが指定できる。
+    #: 課題の重さ。教材はモデル名ではなくこれを言う（apps/ai/routing.py）。
+    #: 空なら既定の段階。知らない段階も既定へ落として先へ進む
+    #: （教材の書き間違いで、学習が止まらないようにする）。
+    model_tier = serializers.CharField(
+        max_length=40, required=False, allow_blank=True, default=""
+    )
+    #: モデル比較コース用。教材データが名指しできる。
     provider = serializers.CharField(
         max_length=40, required=False, allow_blank=True, default=""
     )

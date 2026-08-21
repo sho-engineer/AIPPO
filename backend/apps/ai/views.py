@@ -38,6 +38,7 @@ from apps.ai.providers.base import (
     AITimeoutError,
 )
 from apps.ai.providers.registry import AIServiceNotConfigured, get_provider
+from apps.ai.routing import resolve
 from apps.ai.serializers import GenerateRequestSerializer, store_raw_input
 from apps.ai.tutor import build_tutor, failure_tutor, limit_tutor
 from apps.catalog.access import LessonNotStartable, require_startable
@@ -116,10 +117,21 @@ class GenerateView(APIView):
         あとで見ると、設定が抜けているだけで利用者の1日の回数が削れる。
         設定が無いのは運営側の落ち度で、利用者に払わせるものではない。
         """
+        """
+        どのモデルへ送るかを決める。
+
+        教材が言うのは「課題の重さ（model_tier）」まで。モデル名は
+        サーバー側で決める（apps/ai/routing.py）。モデル比較コースだけは
+        教材が provider / model を名指しでき、そのときはそのまま通す。
+        """
+        route = resolve(
+            tier=data.get("model_tier") or None,
+            provider=data.get("provider") or None,
+            model=data.get("model") or None,
+        )
+
         try:
-            provider = get_provider(
-                data.get("provider") or None, data.get("model") or None
-            )
+            provider = get_provider(route.provider, route.model)
         except AIServiceNotConfigured as exc:
             logger.error("ai.generate.not_configured detail=%s", exc)
             return Response(
@@ -149,7 +161,7 @@ class GenerateView(APIView):
         ai_request = AIRequest(
             system_prompt=action.system_prompt,
             user_content=action.build(values),
-            model=data.get("model") or None,
+            model=route.model,
             timeout_seconds=settings.AI_REQUEST_TIMEOUT_SECONDS,
             max_output_tokens=settings.AI_MAX_OUTPUT_TOKENS,
         )
