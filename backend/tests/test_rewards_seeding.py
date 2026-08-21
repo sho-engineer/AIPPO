@@ -98,12 +98,10 @@ class TestRecipes:
 
     def test_a_recipe_is_not_created_when_a_lesson_it_needs_is_missing(self):
         """押した先に無いレッスンを案内しない（憲章 原則 I）。"""
-        from apps.rewards.models import Recipe
-        from apps.rewards.seeding import seed_recipes
-
         # 教材をまったく入れずに、パスだけを作った状態
         from apps.catalog.models import Course
-        from apps.rewards.models import LearningPath
+        from apps.rewards.models import LearningPath, Recipe
+        from apps.rewards.seeding import seed_recipes
 
         Course.objects.create(slug="first_step_7days", title="c")
         path = LearningPath.objects.create(slug="p", title="p")
