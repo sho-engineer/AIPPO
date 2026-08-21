@@ -66,6 +66,37 @@ class TestResolve:
         assert resolve(tier="basic").model is None
 
 
+class TestTheTierMapDoesNotFreezeTheProvider:
+    """段階の表に、AI_PROVIDER の値を焼き付けないこと。
+
+    焼き付けると、あとから AI_PROVIDER を変えても表は古いままになる。
+
+        AI_PROVIDER=openai なのに鍵が無い
+          → 表に残っていた mock へ流れる
+          → **偽の答えが、本物のAIの答えとして利用者に出る**
+
+    黙って mock へ倒すのは、この作りがいちばん避けたい失敗
+    （apps/ai/providers/registry.py の AIServiceNotConfigured 参照）。
+    一度これをやったので、ここで釘を刺しておく。
+    """
+
+    def test_changing_the_provider_afterwards_is_respected(self, settings):
+        settings.AI_PROVIDER = "openai"
+
+        assert resolve(tier="basic").provider == "openai"
+
+    def test_the_shipped_map_does_not_name_a_provider_for_normal_tiers(self):
+        """出荷時の設定そのものを見る（上書きしたものではなく）。"""
+        from django.conf import settings as real_settings
+
+        for tier in ("basic", "standard", "advanced"):
+            entry = real_settings.AI_MODEL_TIERS[tier]
+            assert not entry.get("provider"), (
+                f"{tier} に行き先が焼き付いている。"
+                "空にして、呼ばれた時点の AI_PROVIDER を見させること"
+            )
+
+
 class TestExplicitProviderIsNotOverridden:
     """モデル比較コースだけは、教材がモデル名を名指しできる。"""
 

@@ -428,18 +428,32 @@ AI_MAX_OUTPUT_TOKENS = int(os.getenv("AI_MAX_OUTPUT_TOKENS", "600"))
 #
 # 教材データにモデル名を書かないための対応表。モデルを乗り換えるときは、
 # ここだけを直す（教材は1件も触らない）。
-# model が空なら、そのプロバイダの既定モデル（AI_MODEL / AI_MODEL_GEMINI）を使う。
+#
+# **provider を空にしておくこと。** 空なら、呼ばれた時点の AI_PROVIDER を
+# 見る（apps/ai/routing.py）。ここに AI_PROVIDER の値を書き込むと、
+# **読み込んだ瞬間の値で固まる**。あとから AI_PROVIDER を変えても
+# こちらは古いままなので、
+#
+#     AI_PROVIDER=openai なのに鍵が無い
+#       → ここに焼き付いた mock へ流れる
+#       → 偽の答えが、本物のAIの答えとして利用者に出る
+#
+# という、いちばん起こしてはいけない失敗になる（実際に一度やった。
+# tests/test_ai_errors.py の TestNotConfigured が捕まえた）。
+#
+# model も空なら、そのプロバイダの既定モデル（AI_MODEL / AI_MODEL_GEMINI）。
 AI_MODEL_TIERS: dict[str, dict] = {
     # 要約・書き直し・分類など。無料コースの中心はここ
-    "basic": {"provider": AI_PROVIDER, "model": None},
-    "standard": {"provider": AI_PROVIDER, "model": None},
+    "basic": {},
+    "standard": {},
     # より難しい課題。いまは同じ先だが、段階として先に分けておく
-    "advanced": {"provider": AI_PROVIDER, "model": None},
-    "image_standard": {"provider": AI_PROVIDER, "model": None},
-    "image_high": {"provider": AI_PROVIDER, "model": None},
-    # モデル比較コース用。利用者にモデル名を見せる教材だけが使う
-    "comparison_openai": {"provider": "openai", "model": None},
-    "comparison_anthropic": {"provider": "anthropic", "model": None},
+    "advanced": {},
+    "image_standard": {},
+    "image_high": {},
+    # モデル比較コース用。利用者にモデル名を見せる教材だけが使う。
+    # ここだけは、行き先そのものが教えたい中身なので名指しする
+    "comparison_openai": {"provider": "openai"},
+    "comparison_anthropic": {"provider": "anthropic"},
 }
 
 
