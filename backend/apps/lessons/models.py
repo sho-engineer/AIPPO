@@ -132,6 +132,11 @@ class Attempt(models.Model):
     model_name = models.CharField(max_length=100, blank=True)
     token_usage = models.JSONField(default=dict, blank=True)
     latency_ms = models.PositiveIntegerField(null=True, blank=True)
+    #: 概算費用（USD）。単価を設定していないプロバイダは null のまま
+    #: （0円と「分からない」を混同しない。apps/ai/pricing.py 参照）。
+    estimated_cost_usd = models.DecimalField(
+        max_digits=10, decimal_places=6, null=True, blank=True
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
 

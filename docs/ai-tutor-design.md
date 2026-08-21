@@ -326,8 +326,22 @@ JSONのみを返してください。
 ### 利用実績の記録
 
 各プロバイダの呼び出しは `AIUsage`（`provider` / `model` / `input_tokens` /
-`output_tokens` / `latency_ms`）を返す。現状はこれを永続化していない。
-費用の追跡・Credit 消費との連動が必要になった時点で、
-`user_id` / `task_type` / `provider` / `model` / `input_tokens` /
-`output_tokens` / `estimated_cost` / `credit_consumed` / `timestamp` を
-持つ記録先を別途用意する（未着手）。
+`output_tokens` / `latency_ms`）を返し、`apps/lessons/models.py` の
+`Attempt` に1呼び出し=1レコードで永続化している。もともと
+`session`（→ `learner_key`）/ `action`（=task_type）/ `provider` /
+`model_name` / `token_usage` / `latency_ms` / `created_at` を持っていたので、
+足りなかったのは概算費用だけだった。
+
+- `estimated_cost_usd`（`apps/ai/pricing.py` が算出）を追加。単価は
+  `.env` の `AI_PRICE_<PROVIDER>_INPUT_PER_1K` /
+  `_OUTPUT_PER_1K`（USD / 1,000トークン）に運用側が入れる。
+  **単価を設定していないプロバイダは null のまま**（0円と「分からない」を
+  混同しない。コードにモデル単価表を直書きしない——契約や値下げで
+  頻繁に変わるものをデプロイでしか直せない形にしない）
+- Django Admin の「検証サマリー」に、概算費用の合計と
+  **1アクティブ学習者あたりの概算費用**を表示する
+  （無料ユーザーの原価上限 ¥50/人 の目安を確認する用途）
+- `credit_consumed` は、実際に消費できる Credit 残高が無い間は
+  意味を持たない値になるため、Credit 制度を作るときに合わせて足す
+  （未着手）
+- `image_count` は画像生成の教材がまだ無いため未着手

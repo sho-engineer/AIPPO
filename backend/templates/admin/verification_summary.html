@@ -120,6 +120,25 @@
       </div>
       <div class="note">請求額の見積もりに使う</div>
     </div>
+    <div class="aippo-card">
+      <div class="label">概算費用（合計）</div>
+      {% if total_cost_usd %}
+        <div class="value">${{ total_cost_usd }}</div>
+        <div class="note">単価が設定済みの{{ priced_runs }}件ぶんのみ（.env の AI_PRICE_*）</div>
+      {% else %}
+        <div class="value" style="font-size:16px">未設定</div>
+        <div class="note">.env に AI_PRICE_*_INPUT_PER_1K / OUTPUT_PER_1K を入れると出る</div>
+      {% endif %}
+    </div>
+    <div class="aippo-card">
+      <div class="label">1アクティブ学習者あたりの概算費用</div>
+      {% if avg_cost_per_active_learner %}
+        <div class="value">${{ avg_cost_per_active_learner }}</div>
+        <div class="note">無料ユーザーの原価上限の目安に使う</div>
+      {% else %}
+        <div class="value" style="font-size:16px">未設定</div>
+      {% endif %}
+    </div>
   </div>
 </div>
 

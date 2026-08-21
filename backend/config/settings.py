@@ -422,6 +422,31 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 AI_REQUEST_TIMEOUT_SECONDS = float(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "20"))
 AI_MAX_OUTPUT_TOKENS = int(os.getenv("AI_MAX_OUTPUT_TOKENS", "600"))
 
+
+def _ai_price(name: str) -> float | None:
+    """USD / 1,000トークン。未設定なら None（「0円」と区別する）。"""
+    raw = os.getenv(name, "")
+    return float(raw) if raw else None
+
+
+# AI利用料の概算（apps/ai/pricing.py）。プロバイダ単位のみ（モデル単位ではない）。
+# 実際の契約単価を運用側が入れる。入れていないプロバイダは概算を出さない
+# （推測の数字を利用料として見せない）。
+AI_PRICE_PER_1K_TOKENS: dict[str, tuple[float | None, float | None]] = {
+    "gemini": (
+        _ai_price("AI_PRICE_GEMINI_INPUT_PER_1K"),
+        _ai_price("AI_PRICE_GEMINI_OUTPUT_PER_1K"),
+    ),
+    "openai": (
+        _ai_price("AI_PRICE_OPENAI_INPUT_PER_1K"),
+        _ai_price("AI_PRICE_OPENAI_OUTPUT_PER_1K"),
+    ),
+    "anthropic": (
+        _ai_price("AI_PRICE_ANTHROPIC_INPUT_PER_1K"),
+        _ai_price("AI_PRICE_ANTHROPIC_OUTPUT_PER_1K"),
+    ),
+}
+
 # 学習者ひとりが1日に実行できる回数。0以下で「上限なし」。
 # 悪用対策ではなく、ふつうに使っている人の使いすぎを止める目安。
 # 登録済みの人。指定が無ければ従来の名前も見る（設定を書き換えずに移れるように）

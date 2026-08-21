@@ -36,6 +36,8 @@ test-results/
 /.env
 backend/staticfiles/
 test_db.sqlite3
+test_db.sqlite3-shm
+test_db.sqlite3-wal
 
 # サブエージェントの作業場所。リポジトリには入れない
 .claude/worktrees/
