@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -29,6 +29,7 @@ function catalogReply(courses: unknown[]): Response {
 describe("画面の行き来", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    window.history.replaceState(null, "");
     resetCatalog();
   });
 
@@ -159,6 +160,23 @@ describe("画面の行き来", () => {
     }
   });
 
+  it("ブラウザの戻るでも、アプリ内の1つ前の画面へ戻る", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await start(user);
+    await openCourseDetail(user);
+    expect(
+      await screen.findByRole("heading", { name: COURSE.title }),
+    ).toBeInTheDocument();
+
+    act(() => window.history.back());
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "コース" })).toBeInTheDocument(),
+    );
+  });
+
   it("コースの中からレッスンを選べる", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -176,7 +194,7 @@ describe("画面の行き来", () => {
     expect(screen.getByText("Lesson 1")).toBeInTheDocument();
   });
 
-  it("レッスンから一覧へ戻れる（行き止まりにしない）", async () => {
+  it("レッスンの終了ボタンで、実際に開いた1つ前の画面へ戻る", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -184,12 +202,13 @@ describe("画面の行き来", () => {
     await user.click(await screen.findByTestId("continue-lesson"));
     /*
       出口はヘッダーの「×」。前は右上の「レッスン一覧へ」という文字だった。
-      1歩戻る（←）と、レッスンから出る（×）で行き先が違うので分けてある。
+      ホームから直接開いたので、終了先もホームになる。
+      ブラウザバックと上の終了ボタンで、同じ履歴を使う。
     */
     await user.click(await screen.findByTestId("lesson-exit"));
 
     expect(
-      await screen.findByRole("heading", { name: COURSE.title }),
+      await screen.findByRole("heading", { name: "学習の道のり" }),
     ).toBeInTheDocument();
   });
 

@@ -31,6 +31,37 @@
 
 import type { Lesson } from "./types";
 
+export const LESSON_CATEGORIES = [
+  {
+    id: "writing",
+    label: "文章",
+    terms: ["writing", "email", "rewrite", "文章", "メール"],
+  },
+  {
+    id: "summary",
+    label: "要約",
+    terms: ["summarizing", "summary", "documents", "要約", "まとめ"],
+  },
+  {
+    id: "organize",
+    label: "整理",
+    terms: ["organizing", "meeting", "research", "整理", "会議", "調べ"],
+  },
+  {
+    id: "ideas",
+    label: "アイデア",
+    terms: ["ideas", "brainstorm", "アイデア", "発想"],
+  },
+  {
+    id: "planning",
+    label: "計画",
+    terms: ["planning", "plan", "workflow", "recipe", "計画", "手順"],
+  },
+  { id: "image", label: "画像", terms: ["image", "画像"] },
+] as const;
+
+export type LessonCategoryId = (typeof LESSON_CATEGORIES)[number]["id"];
+
 /**
  * 比べるための形にそろえる。
  *
@@ -83,5 +114,20 @@ export function searchLessons(lessons: Lesson[], query: string): Lesson[] {
   return lessons.filter((lesson) => {
     const target = haystack(lesson);
     return terms.every((term) => target.includes(term));
+  });
+}
+
+/** 「何がしたい？」のカテゴリで絞る。タグは複数のカテゴリに属してよい。 */
+export function filterLessonsByCategory(
+  lessons: Lesson[],
+  categoryId: LessonCategoryId | null,
+): Lesson[] {
+  if (categoryId === null) return lessons;
+  const category = LESSON_CATEGORIES.find((entry) => entry.id === categoryId);
+  if (!category) return lessons;
+
+  return lessons.filter((lesson) => {
+    const target = haystack(lesson);
+    return category.terms.some((term) => target.includes(normalize(term)));
   });
 }

@@ -15,7 +15,11 @@
 
 import { describe, expect, it } from "vitest";
 
-import { normalize, searchLessons } from "../src/course/search";
+import {
+  filterLessonsByCategory,
+  normalize,
+  searchLessons,
+} from "../src/course/search";
 import type { Lesson } from "../src/course/types";
 
 function lesson(over: Partial<Lesson> & { id: string }): Lesson {
@@ -57,6 +61,16 @@ const LESSONS = [
 ];
 
 const ids = (query: string) => searchLessons(LESSONS, query).map((l) => l.id);
+
+test("カテゴリのタグから教材を絞れる", () => {
+  expect(filterLessonsByCategory(LESSONS, "writing").map((lesson) => lesson.id)).toEqual([
+    "rewrite_text",
+  ]);
+});
+
+test("カテゴリ未選択なら元の並びを保つ", () => {
+  expect(filterLessonsByCategory(LESSONS, null)).toEqual(LESSONS);
+});
 
 describe("用途の言葉で探す", () => {
   it("タグに当たる", () => {
