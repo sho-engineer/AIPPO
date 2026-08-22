@@ -40,7 +40,7 @@ def _clear_health_cache():
 #: 適用済みのままならそこで「もう着いている」と判定され、途中の欠けは
 #: 見ない。実際に試して確かめた（依存の一部を消しても plan が空のまま
 #: だった）ので、ここでは必ず leaf を未適用にする。
-_CATALOG_LEAF = "0003_course_availability_status_and_more"
+_CATALOG_LEAF = "0004_lesson_thumbnail"
 
 
 @pytest.fixture

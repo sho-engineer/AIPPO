@@ -35,6 +35,12 @@ CATALOG_URL = "/api/v1/catalog/"
 #: 中身は何でもよいが、必須の項目は埋めておく必要がある
 #: （埋め忘れは 400 になり、教材の問題と見分けが付かなくなる）。
 SAMPLE_INPUT: dict[str, dict[str, str]] = {
+    "brainstorm": {
+        "topic": "社内の交流を増やす企画",
+        "audience": "同じ部署の人",
+        "constraints": "費用をかけない",
+        "count": "5個",
+    },
     "rewrite": {
         "original_text": "明日の打ち合わせの資料を確認していただきたいです。",
         "audience": "上司",
@@ -68,6 +74,12 @@ SAMPLE_INPUT: dict[str, dict[str, str]] = {
     "improve": {
         "original_text": "先日の件ですが、追ってご連絡差し上げます。",
         "improvement": "もっと短く",
+    },
+    "organize": {
+        "original_text": "A案は早い。B案は安い。A案の保守費は未確認。",
+        "purpose": "比較材料にする",
+        "categories": "分かったこと・未確認",
+        "format": "見出しと箇条書き",
     },
 }
 

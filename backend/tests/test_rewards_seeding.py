@@ -69,9 +69,9 @@ class TestSeedCatalogAlsoSeedsRewards:
         call_command("seed_catalog", verbosity=0)
 
         assert LearningPath.objects.filter(slug="first_step_7days").count() == 1
-        assert LearningPathLesson.objects.count() == 9
-        assert StampDefinition.objects.count() == 9
-        assert PathRewardMilestone.objects.count() == 3
+        assert LearningPathLesson.objects.count() == 18
+        assert StampDefinition.objects.count() == 15
+        assert PathRewardMilestone.objects.count() == 5
         assert AiTaskPricing.objects.count() == 6
 
 
@@ -127,7 +127,7 @@ class TestSeedRewardsCommand:
 
         call_command("seed_rewards", verbosity=0)
 
-        assert StampDefinition.objects.count() == 9
+        assert StampDefinition.objects.count() == 15
 
     def test_it_does_not_crash_when_there_is_no_catalog_yet(self):
         """コースがまだ無い環境で呼ばれても、落ちずに知らせるだけ。"""

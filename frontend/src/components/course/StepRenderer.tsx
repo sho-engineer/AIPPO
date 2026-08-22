@@ -39,6 +39,7 @@ import { buildAiInput } from "../../course/engine";
 import { lookupLesson } from "../../course/live";
 import { recommendLessons } from "../../course/recommend";
 import { startableLessons } from "../../course/availability";
+import { lessonThumbnail } from "../../course/lessonThumbnail";
 import { promptCards, promptText } from "../../course/promptSummary";
 import type { Course, Lesson } from "../../course/types";
 import type { useCourseLesson } from "../../course/useCourseLesson";
@@ -148,6 +149,7 @@ export function StepRenderer({
           before={lesson.beforeExample}
           after={lesson.afterExample}
           skills={lesson.learnedSkills ?? lesson.outcomes}
+          thumbnail={lessonThumbnail(lesson)}
         />
       );
 
@@ -466,4 +468,3 @@ export function StepRenderer({
 
 // 依頼内容の組み立ては course/promptSummary.ts へ移した。
 // 送る前の確認と、あとで取っておく帳面で、同じ組み立てを使うため。
-

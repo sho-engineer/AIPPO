@@ -153,6 +153,8 @@ class SignUpView(APIView):
         migration = self._claim(user, learner_key)
         emails.send_verification(user)
         emails.send_welcome(user)
+        if learner_key is not None:
+            record_migration_event(learner_key, LearningEventType.SIGNUP_COMPLETED)
 
         return Response(
             {
@@ -249,6 +251,7 @@ class SignInView(APIView):
             except Exception as exc:  # noqa: BLE001
                 # 結びつけに失敗してもログインは通す
                 logger.error("accounts.signin.link_failed error=%s", type(exc).__name__)
+            record_migration_event(learner_key, LearningEventType.LOGIN_COMPLETED)
 
         return Response({"user": describe_user(user)})
 

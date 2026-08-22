@@ -96,7 +96,7 @@ def _compose(headline: str, pairs: list[tuple[str, str]], body: str = "") -> str
 
 REWRITE = Action(
     id="rewrite",
-    lesson_ids=("rewrite_text", "final_challenge"),
+    lesson_ids=("rewrite_text", "work_email_chat", "final_challenge"),
     system_prompt=BASE_RULES
     + """
 やること: 与えられた文章を、指定された相手・表現・長さに合わせて書き直す。
@@ -128,7 +128,12 @@ REWRITE = Action(
 
 SUMMARIZE = Action(
     id="summarize",
-    lesson_ids=("summarize_text", "final_challenge"),
+    lesson_ids=(
+        "summarize_text",
+        "extract_needed_info",
+        "transcription_use",
+        "final_challenge",
+    ),
     system_prompt=BASE_RULES
     + """
 やること: 与えられた文章を、指定された目的・形式・長さでまとめる。
@@ -242,7 +247,7 @@ COMPARE = Action(
 
 PLAN = Action(
     id="plan",
-    lesson_ids=("make_plan", "final_challenge"),
+    lesson_ids=("make_plan", "make_document_outline", "final_challenge"),
     system_prompt=BASE_RULES
     + """
 やること: 与えられた目標を、実行できる小さな手順に分ける。
@@ -297,6 +302,70 @@ PLAN = Action(
     tutor_message="期限と使える時間を伝えると、計画の粒が変わります。明日から始められる大きさか見てみましょう。",
 )
 
+# --- アイデアを広げる ----------------------------------------------------
+
+BRAINSTORM = Action(
+    id="brainstorm",
+    lesson_ids=("brainstorm_ideas", "organize_research", "final_challenge"),
+    system_prompt=BASE_RULES
+    + """
+やること: 与えられたテーマについて、指定された数と条件で異なる案を出す。
+同じ案の言い換えで数を水増ししない。案は実行可能な短い箇条書きにする。
+""",
+    schema=TEXT_SCHEMA,
+    fields=(
+        ActionField("topic", "考えたいテーマ", max_length=1000),
+        ActionField("audience", "対象"),
+        ActionField("constraints", "条件", required=False, max_length=500),
+        ActionField("count", "案の数"),
+        ActionField("instruction", "追加の条件", required=False),
+    ),
+    body_field="topic",
+    build=lambda v: _compose(
+        "次のテーマのアイデアを広げてください。",
+        [
+            ("対象", v["audience"]),
+            ("条件", v.get("constraints", "")),
+            ("案の数", v["count"]),
+            ("追加の条件", v.get("instruction", "")),
+        ],
+        v["topic"],
+    ),
+    tutor_message="数と条件を伝えると、使える案に近づきます。似た案ばかりになっていないか見てみましょう。",
+)
+
+# --- 情報を整理する ------------------------------------------------------
+
+ORGANIZE = Action(
+    id="organize",
+    lesson_ids=("organize_information", "organize_meeting", "organize_research"),
+    system_prompt=BASE_RULES
+    + """
+やること: 与えられた情報を、指定された見出しと用途に合わせて整理する。
+元の情報に無い担当者・期限・結論を補わない。不明な項目は「記載なし」とする。
+""",
+    schema=TEXT_SCHEMA,
+    fields=(
+        ActionField("original_text", "整理したい情報", max_length=5000),
+        ActionField("purpose", "使う目的"),
+        ActionField("categories", "分ける見出し", max_length=500),
+        ActionField("format", "出力形式"),
+        ActionField("instruction", "追加の条件", required=False),
+    ),
+    body_field="original_text",
+    build=lambda v: _compose(
+        "次の情報を整理してください。",
+        [
+            ("使う目的", v["purpose"]),
+            ("分ける見出し", v["categories"]),
+            ("出力形式", v["format"]),
+            ("追加の条件", v.get("instruction", "")),
+        ],
+        v["original_text"],
+    ),
+    tutor_message="見出しを先に決めると、抜けている情報にも気づきやすくなります。勝手に補われた内容がないか確認しましょう。",
+)
+
 # --- Lesson 6: 回答を改善する --------------------------------------------
 
 #: AI を使うレッスン。改善はどのレッスンからも呼べる。
@@ -308,6 +377,14 @@ AI_LESSON_IDS = (
     "make_plan",
     "improve_answer",
     "final_challenge",
+    "brainstorm_ideas",
+    "organize_information",
+    "organize_meeting",
+    "work_email_chat",
+    "extract_needed_info",
+    "organize_research",
+    "make_document_outline",
+    "transcription_use",
 )
 
 IMPROVE = Action(
@@ -347,7 +424,16 @@ IMPROVE = Action(
 
 ACTIONS: dict[str, Action] = {
     action.id: action
-    for action in (REWRITE, SUMMARIZE, EXPLAIN, COMPARE, PLAN, IMPROVE)
+    for action in (
+        REWRITE,
+        SUMMARIZE,
+        EXPLAIN,
+        COMPARE,
+        PLAN,
+        BRAINSTORM,
+        ORGANIZE,
+        IMPROVE,
+    )
 }
 
 

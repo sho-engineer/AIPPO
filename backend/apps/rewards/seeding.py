@@ -121,6 +121,7 @@ RECIPES: tuple[tuple[str, str, str, str, tuple[str, ...]], ...] = (
 #: 空の骨組みで、Learning Path 案（「仕事で使える画像生成」など）とは
 #: 範囲が1対1で対応しない。中身を作るときに、その内容に合わせて足す。
 FOUNDATION_SLUG = "first_step_7days"
+PRACTICAL_SLUG = "ai_practical"
 
 
 def seed_ai_task_pricing() -> int:
@@ -158,8 +159,22 @@ def seed_foundation_path() -> LearningPath | None:
             "badge_name": "AIの最初の一歩 Complete",
         },
     )
+    LearningPath.objects.filter(pk=path.pk).update(
+        title=course.title,
+        description=course.description,
+        short_description=course.description[:200],
+        status=course.status,
+        availability_status=course.availability_status,
+        sort_order=course.sort_order,
+    )
+    path.refresh_from_db()
 
-    for lesson in course.lessons.all().order_by("sort_order", "number"):
+    expected = set()
+    for lesson in course.lessons.filter(
+        status=PublishStatus.PUBLISHED,
+        availability_status=AvailabilityStatus.AVAILABLE,
+    ).order_by("sort_order", "number"):
+        expected.add(lesson.pk)
         LearningPathLesson.objects.get_or_create(
             learning_path=path,
             lesson=lesson,
@@ -176,6 +191,11 @@ def seed_foundation_path() -> LearningPath | None:
             defaults={"title": lesson.title, "order": lesson.number, "active": True},
         )
 
+    path.path_lessons.exclude(lesson_id__in=expected).delete()
+    path.stamp_definitions.filter(stamp_type=StampType.LESSON).exclude(
+        lesson_id__in=expected
+    ).update(active=False)
+
     for order, (count, credits_, badge) in enumerate(FOUNDATION_MILESTONES):
         PathRewardMilestone.objects.get_or_create(
             learning_path=path,
@@ -187,6 +207,67 @@ def seed_foundation_path() -> LearningPath | None:
             },
         )
 
+    return path
+
+
+def seed_practical_path() -> LearningPath | None:
+    """AI活用コースを、Lessonを複製せず参照でパス化する。"""
+    course = Course.objects.filter(slug=PRACTICAL_SLUG).first()
+    if course is None:
+        return None
+
+    path, _ = LearningPath.objects.update_or_create(
+        slug=PRACTICAL_SLUG,
+        defaults={
+            "title": course.title,
+            "description": course.description,
+            "short_description": course.description[:200],
+            "category": "work",
+            "difficulty": course.difficulty,
+            "access_type": course.access_type,
+            "status": course.status,
+            "availability_status": course.availability_status,
+            "sort_order": course.sort_order,
+            "badge_name": "AI活用コース Complete",
+        },
+    )
+    expected = set()
+    for lesson in course.lessons.filter(status=PublishStatus.PUBLISHED).order_by(
+        "sort_order", "number"
+    ):
+        expected.add(lesson.pk)
+        LearningPathLesson.objects.update_or_create(
+            learning_path=path,
+            lesson=lesson,
+            defaults={
+                "order": lesson.number,
+                "is_required": lesson.availability_status == AvailabilityStatus.AVAILABLE,
+                "stamp_eligible": lesson.availability_status == AvailabilityStatus.AVAILABLE,
+            },
+        )
+        if lesson.availability_status == AvailabilityStatus.AVAILABLE:
+            StampDefinition.objects.update_or_create(
+                learning_path=path,
+                stamp_type=StampType.LESSON,
+                lesson=lesson,
+                defaults={"title": lesson.title, "order": lesson.number, "active": True},
+            )
+    path.path_lessons.exclude(lesson_id__in=expected).delete()
+    PathRewardMilestone.objects.update_or_create(
+        learning_path=path,
+        required_stamp_count=3,
+        defaults={"reward_credits": 1, "order": 0, "active": True},
+    )
+    PathRewardMilestone.objects.update_or_create(
+        learning_path=path,
+        required_stamp_count=6,
+        defaults={
+            "reward_credits": 3,
+            "badge_name": "AI活用コース Complete",
+            "order": 1,
+            "active": True,
+        },
+    )
     return path
 
 
@@ -237,5 +318,11 @@ def seed_rewards() -> tuple[LearningPath | None, int]:
     """初期データを一式そろえる。教材の取り込みが終わったあとに呼ぶ。"""
     pricing_made = seed_ai_task_pricing()
     path = seed_foundation_path()
+    practical = seed_practical_path()
     seed_recipes(path)
+    if practical is not None:
+        for recipe in Recipe.objects.filter(status=PublishStatus.PUBLISHED):
+            RecipeLearningPath.objects.get_or_create(
+                recipe=recipe, learning_path=practical
+            )
     return path, pricing_made

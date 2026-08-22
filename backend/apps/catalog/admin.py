@@ -118,6 +118,7 @@ class LessonAdmin(admin.ModelAdmin):
                     ("course", "number", "sort_order"),
                     ("title", "slug"),
                     "goal",
+                    "thumbnail",
                     ("template", "difficulty", "uses_ai", "mode"),
                 )
             },
