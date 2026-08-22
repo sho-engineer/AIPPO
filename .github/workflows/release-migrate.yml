@@ -96,6 +96,20 @@ jobs:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: python manage.py seed_catalog
 
+      - name: Verify catalog data and report admin readiness
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          python manage.py shell -c '
+          from django.contrib.auth import get_user_model
+          from apps.catalog.models import Lesson
+          lesson_count = Lesson.objects.count()
+          superuser_count = get_user_model().objects.filter(is_superuser=True, is_active=True).count()
+          assert lesson_count > 0, "catalog Lesson is empty"
+          print(f"Lesson query OK: {lesson_count} rows")
+          print(f"Active superusers: {superuser_count}")
+          '
+
       # 当て漏れが無いことを、このジョブ自身で確かめて終わる。
       # 失敗を握りつぶさない — 0 以外で終われば Actions 側が赤くなる。
       - name: Confirm nothing is left unapplied
