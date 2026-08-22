@@ -117,7 +117,7 @@ test.describe("やり方のくわしい説明", () => {
     expect(saved).toContain("rewrite_text");
   });
 
-  test("説明から、直前の完了画面へ戻れる", async ({ page }) => {
+  test("説明から、直前のレッスンへ戻れる", async ({ page }) => {
     await openRewriteLesson(page);
     await runToCompletion(page);
 
@@ -126,7 +126,7 @@ test.describe("やり方のくわしい説明", () => {
       .click();
     await page.getByTestId("recipe-back").click();
 
-    // 上の戻るもブラウザバックも、実際に開いた1つ前へ戻る。
-    await expect(page.getByTestId("completion-view")).toBeVisible();
+    // 上の戻るもブラウザバックも、実際に開いた1つ前のレッスンへ戻る。
+    await expect(page.getByTestId("lesson-header")).toBeVisible();
   });
 });
