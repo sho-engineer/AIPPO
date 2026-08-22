@@ -164,6 +164,7 @@ def lesson_to_dict(lesson: Lesson, *, with_steps: bool = True) -> dict[str, Any]
                 "beforeExample": lesson.before_example,
                 "afterExample": lesson.after_example,
                 "learnedSkills": lesson.learned_skills,
+                "thumbnail": lesson.thumbnail,
                 "mode": lesson.mode,
                 "plannedReleaseDate": (
                     lesson.planned_release_date.isoformat()

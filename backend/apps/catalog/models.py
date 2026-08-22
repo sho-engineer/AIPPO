@@ -227,6 +227,11 @@ class Lesson(models.Model):
         default=list, blank=True, help_text="進捗画面に出す、身についたこと"
     )
     tags = models.JSONField(default=list, blank=True, help_text="診断からの推薦に使う")
+    thumbnail = models.CharField(
+        max_length=200,
+        blank=True,
+        help_text="public/ からの道筋（例: /assets/lessons/rewrite_text.webp）",
+    )
     uses_ai = models.BooleanField(default=True)
     mode = models.CharField(
         max_length=20,

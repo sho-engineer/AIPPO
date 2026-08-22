@@ -44,13 +44,14 @@ import { AppHeader } from "../components/AppShell";
 import { CertificateEntry } from "../components/course/CertificateEntry";
 import { PathRecipes } from "../components/course/PathRecipes";
 import { LessonRow } from "../components/lessons/LessonRow";
+import { LessonDiscoveryCard } from "../components/lessons/LessonDiscoveryCard";
 import { LessonTimeline } from "../components/lessons/LessonTimeline";
 import { PathProgress } from "../components/course/PathProgress";
 import { CertificatePage } from "./CertificatePage";
 import { PoAvatar } from "../po/PoAvatar";
 import { useCertificates } from "../course/certificate";
 import { lookupLesson } from "../course/live";
-import { isComingSoon, startableLessons } from "../course/availability";
+import { startableLessons } from "../course/availability";
 import { loadRecommendations } from "../course/recommend";
 import { useCompletedLessons } from "../course/progress";
 import { useLearningPath } from "../course/learningPath";
@@ -291,19 +292,11 @@ export function CourseDetailPage({
               ここは発見のための見せ方にする。道のり（下の縦一本）とは
               役割が違うので、見た目も分ける。
             */
-            <ul className="mt-2" role="list">
+            <ul className="mt-4 grid grid-cols-1 gap-4 min-[430px]:grid-cols-2" role="list">
               {found.map((lesson) => (
-                <LessonRow
+                <LessonDiscoveryCard
                   key={lesson.id}
                   lesson={lesson}
-                  done={completed.includes(lesson.id)}
-                  firstUp={lesson.id === firstUpId}
-                  bookmarked={bookmarks.has(lesson.id)}
-                  onToggleBookmark={
-                    isComingSoon(lesson) || !canKeep
-                      ? undefined
-                      : () => bookmarks.toggle(lesson.id)
-                  }
                   onSelect={() => onSelectLesson(lesson.id)}
                 />
               ))}

@@ -323,7 +323,7 @@ export function CompletionView({
                              disabled:cursor-not-allowed"
                 >
                   {/* 絵の無いレッスンでは置かない。並びは文字側で崩れない */}
-                  {thumbnail && <LessonThumbnail src={thumbnail} variant="thumb" />}
+                  {thumbnail && <LessonThumbnail src={thumbnail} variant="side" />}
                   <div className="min-w-0 flex-1">
                     <span className="inline-block rounded-badge bg-brand-soft px-2.5 py-1 text-[0.6875rem] font-bold text-brand-dark">
                       Lesson {lesson.number}

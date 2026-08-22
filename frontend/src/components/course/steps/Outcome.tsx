@@ -14,6 +14,7 @@ import {
   IconSparkle,
   IconTarget,
 } from "../../Icons";
+import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 
 // ----------------------------------------------------------- 完成イメージ
 
@@ -29,14 +30,17 @@ export function OutcomePreview({
   before,
   after,
   skills,
+  thumbnail,
 }: {
   minutes?: number;
   before?: string;
   after?: string;
   skills: string[];
+  thumbnail?: string | null;
 }) {
   return (
     <div data-testid="outcome-preview" className="space-y-4">
+      {thumbnail && <LessonThumbnail src={thumbnail} variant="banner" />}
       {/* 見出しの下に、かかる時間とむずかしさ。始める前に知りたい2つ */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-panel bg-surface px-5 py-4 shadow-card">
         {minutes !== undefined && (

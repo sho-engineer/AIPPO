@@ -224,6 +224,7 @@ class Command(BaseCommand):
                 "learned_skills": entry.get("learnedSkills", []),
                 "outcomes": entry.get("outcomes", []),
                 "tags": entry.get("tags", []),
+                "thumbnail": entry.get("thumbnail", ""),
                 "uses_ai": entry.get("usesAi", True),
                 "mode": entry.get("mode", ""),
                 "status": PublishStatus.PUBLISHED,
@@ -320,6 +321,7 @@ class Command(BaseCommand):
                         "estimated_minutes": row.get("estimatedMinutes"),
                         "outcomes": row.get("outcomes", []),
                         "tags": row.get("tags", []),
+                        "thumbnail": row.get("thumbnail", ""),
                         "uses_ai": row.get("usesAi", True),
                         "status": PublishStatus.PUBLISHED,
                         "availability_status": AvailabilityStatus.COMING_SOON,
@@ -335,6 +337,14 @@ class Command(BaseCommand):
                 )
             )
 
+        from apps.catalog.release_seeding import seed_first_release
+
+        start, practical = seed_first_release(only_new=only_new)
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"第1リリース: {start.title} / {practical.title}"
+            )
+        )
         self._seed_rewards()
 
     def _seed_rewards(self) -> None:
