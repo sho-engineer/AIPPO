@@ -75,7 +75,7 @@ ADDED_LESSONS = (
             "constraints": "constraints",
             "count": "count",
         },
-        thumbnail="/assets/lessons/ideas_ten.webp",
+        thumbnail="/assets/final-thumbnails/start_04.webp",
         tags=["ideas", "planning"],
     ),
     _lesson(
@@ -98,7 +98,7 @@ ADDED_LESSONS = (
             "categories": "categories",
             "format": "format",
         },
-        thumbnail="/assets/lessons/summarize_categorize.webp",
+        thumbnail="/assets/final-thumbnails/start_06.webp",
         tags=["organizing", "research"],
     ),
     _lesson(
@@ -122,6 +122,7 @@ ADDED_LESSONS = (
             "format": "format",
         },
         tags=["meeting", "organizing"],
+        thumbnail="/assets/final-thumbnails/practical_03.webp",
     ),
     _lesson(
         "work_email_chat",
@@ -143,7 +144,7 @@ ADDED_LESSONS = (
             "tone": "tone",
             "length": "length",
         },
-        thumbnail="/assets/lessons/rewrite_text.webp",
+        thumbnail="/assets/final-thumbnails/practical_02.webp",
         tags=["writing", "email"],
     ),
     _lesson(
@@ -166,7 +167,7 @@ ADDED_LESSONS = (
             "format": "format",
             "length": "length",
         },
-        thumbnail="/assets/lessons/summarize_text.webp",
+        thumbnail="/assets/final-thumbnails/practical_04.webp",
         tags=["summarizing", "documents"],
     ),
     _lesson(
@@ -190,6 +191,7 @@ ADDED_LESSONS = (
             "format": "format",
         },
         tags=["research", "organizing"],
+        thumbnail="/assets/final-thumbnails/practical_05.webp",
     ),
     _lesson(
         "make_document_outline",
@@ -211,7 +213,7 @@ ADDED_LESSONS = (
             "available_time": "available_time",
             "avoid": "avoid",
         },
-        thumbnail="/assets/lessons/make_plan.webp",
+        thumbnail="/assets/final-thumbnails/practical_10.webp",
         tags=["planning", "documents"],
     ),
     _lesson(
@@ -235,6 +237,7 @@ ADDED_LESSONS = (
             "length": "length",
         },
         tags=["meeting", "summarizing"],
+        thumbnail="/assets/final-thumbnails/start_09.webp",
     ),
 )
 
@@ -328,6 +331,16 @@ def seed_first_release(*, only_new: bool = False) -> tuple[Course, Course]:
         Lesson.objects.filter(slug=slug).update(
             course=start, number=number, title=title, sort_order=number
         )
+    start_thumbnails = {
+        "improve_answer": "/assets/final-thumbnails/practical_01.webp",
+        "rewrite_text": "/assets/final-thumbnails/start_01.webp",
+        "summarize_text": "/assets/final-thumbnails/start_02.webp",
+        "explain_topic": "/assets/final-thumbnails/start_03.webp",
+        "compare_options": "/assets/final-thumbnails/start_05.webp",
+        "make_plan": "/assets/final-thumbnails/start_12.webp",
+    }
+    for slug, thumbnail in start_thumbnails.items():
+        Lesson.objects.filter(slug=slug).update(thumbnail=thumbnail)
     legacy, _ = Course.objects.get_or_create(
         slug="foundation_legacy",
         defaults={
@@ -374,6 +387,7 @@ def seed_first_release(*, only_new: bool = False) -> tuple[Course, Course]:
             "status": PublishStatus.PUBLISHED,
             "availability_status": AvailabilityStatus.COMING_SOON,
             "coming_soon_message": "実務Recipeと一緒に準備しています",
+            "thumbnail": "/assets/final-thumbnails/practical_12.webp",
             "sort_order": 7,
         },
     )
@@ -392,6 +406,7 @@ def seed_first_release(*, only_new: bool = False) -> tuple[Course, Course]:
             "status": PublishStatus.PUBLISHED,
             "availability_status": AvailabilityStatus.COMING_SOON,
             "coming_soon_message": "実務Recipeを準備しています",
+            "thumbnail": "/assets/final-thumbnails/practical_01.webp",
             "sort_order": 8,
         },
     )
@@ -404,7 +419,7 @@ def seed_first_release(*, only_new: bool = False) -> tuple[Course, Course]:
             "goal": "言葉から画像を作る基本を知る",
             "template": LessonTemplate.CUSTOM,
             "estimated_minutes": 8,
-            "thumbnail": "/assets/lessons/image_first.webp",
+            "thumbnail": "/assets/final-thumbnails/practical_09.webp",
             "outcomes": ["画像生成の頼み方を知る"],
             "tags": ["image"],
             "uses_ai": True,

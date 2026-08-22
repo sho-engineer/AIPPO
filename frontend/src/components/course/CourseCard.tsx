@@ -22,6 +22,7 @@ import { IconChevronRight, IconClock } from "../Icons";
 import { IconMark } from "../AppShell";
 import { courseComingSoonNote, isCourseComingSoon } from "../../course/availability";
 import { courseIcon } from "../../course/courseVisual";
+import { courseBanner } from "../../course/courseBanner";
 import type { Course } from "../../course/types";
 
 const DIFFICULTY_LABEL: Record<string, string> = {
@@ -40,6 +41,7 @@ export interface CourseCardProps {
 
 export function CourseCard({ course, completedIds, onOpen }: CourseCardProps) {
   const soon = isCourseComingSoon(course);
+  const banner = courseBanner(course.id);
   const total = course.lessons.length;
   const done = course.lessons.filter((lesson) =>
     completedIds.includes(lesson.id),
@@ -59,8 +61,8 @@ export function CourseCard({ course, completedIds, onOpen }: CourseCardProps) {
         aria-disabled={soon || !onOpen}
         data-testid={`course-${course.id}`}
         data-availability={soon ? "coming_soon" : "available"}
-        className={`flex w-full items-start gap-3 rounded-panel border border-line
-                    bg-surface p-4 text-left shadow-card transition
+        className={`w-full overflow-hidden rounded-panel border border-line
+                    bg-surface text-left shadow-card transition
                     enabled:hover:border-brand-line enabled:active:scale-[0.995]
                     disabled:cursor-not-allowed ${soon ? "opacity-60" : ""}`}
       >
@@ -69,41 +71,56 @@ export function CourseCard({ course, completedIds, onOpen }: CourseCardProps) {
           「どれがどれか」の当たりが付く手がかりが要る。
           前は全部同じ絵で、目で拾えるのは題の文字だけだった。
         */}
-        <IconMark icon={courseIcon(course.id)} className="mt-0.5 h-5 w-5" />
+        {banner && (
+          <img
+            src={banner}
+            alt=""
+            aria-hidden="true"
+            width={1258}
+            height={410}
+            loading="lazy"
+            decoding="async"
+            className="block h-auto w-full border-b border-line object-cover"
+            data-testid="course-banner"
+          />
+        )}
 
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold leading-6">{course.title}</span>
-          <span className="mt-0.5 block text-xs leading-5 text-ink-muted">
-            {course.description}
-          </span>
-
-          <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
-            <span className="flex items-center gap-1">
-              <IconClock className="h-3.5 w-3.5 shrink-0" />
-              {meta.join("・")}
+        <span className="flex items-start gap-3 p-4">
+          <IconMark icon={courseIcon(course.id)} className="mt-0.5 h-5 w-5" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold leading-6">{course.title}</span>
+            <span className="mt-0.5 block text-xs leading-5 text-ink-muted">
+              {course.description}
             </span>
-            {/* 始めた人にだけ、どこまで来たかを添える */}
-            {done > 0 && (
-              <span className="font-bold tabular-nums text-brand-dark">
-                {done} / {total} 完了
+
+            <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
+              <span className="flex items-center gap-1">
+                <IconClock className="h-3.5 w-3.5 shrink-0" />
+                {meta.join("・")}
+              </span>
+              {/* 始めた人にだけ、どこまで来たかを添える */}
+              {done > 0 && (
+                <span className="font-bold tabular-nums text-brand-dark">
+                  {done} / {total} 完了
+                </span>
+              )}
+            </span>
+
+            {/*
+              押せない理由は、その行に書く。
+              「準備中」とだけ書くより、何を待っているのかが分かる。
+            */}
+            {soon && (
+              <span className="mt-1.5 block text-xs leading-5 text-ink-muted">
+                {courseComingSoonNote(course)}
               </span>
             )}
           </span>
 
-          {/*
-            押せない理由は、その行に書く。
-            「準備中」とだけ書くより、何を待っているのかが分かる。
-          */}
-          {soon && (
-            <span className="mt-1.5 block text-xs leading-5 text-ink-muted">
-              {courseComingSoonNote(course)}
-            </span>
+          {!soon && onOpen && (
+            <IconChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-ink-muted" />
           )}
         </span>
-
-        {!soon && onOpen && (
-          <IconChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-ink-muted" />
-        )}
       </button>
     </li>
   );
