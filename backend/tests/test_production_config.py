@@ -235,7 +235,13 @@ class TestHealthEndpoints:
 
         body = client.get(reverse("health-ready")).json()
 
-        assert body["checks"] == {"database": True, "ai": True, "email": True}
+        assert body["checks"] == {
+            "database": True,
+            # migrate 忘れの検知（apps/health/views.py・tests/test_health.py）
+            "migrations": True,
+            "ai": True,
+            "email": True,
+        }
 
     def test_ready_is_503_when_the_ai_is_not_configured(self, settings, client):
         """鍵が無いまま公開しない。

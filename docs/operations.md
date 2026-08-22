@@ -434,7 +434,7 @@ curl -s https://<プロジェクト>.vercel.app/health/ready | python3 -m json.t
 
 ```json
 {"status":"unavailable",
- "checks":{"database":false,"ai":true,"email":true},
+ "checks":{"database":false,"migrations":true,"ai":true,"email":true},
  "ai_provider":"openai"}
 ```
 
@@ -442,9 +442,15 @@ curl -s https://<プロジェクト>.vercel.app/health/ready | python3 -m json.t
 
 | 項目 | `false` のとき見るところ |
 |---|---|
-| `database` | Neon が起きているか（無料プランは休止する）、`DATABASE_URL` |
+| `database` | Neon が起きているか（無料プランは休止する）、`DATABASE_URL`（**接続できるか**だけを見る） |
+| `migrations` | 本番DBへ `migrate` を当て忘れている（**接続はできるが、表が足りない**。下の 7 を参照） |
 | `ai` | `AI_PROVIDER` に対応する鍵が入っているか |
 | `email` | `EMAIL_HOST` / `DEFAULT_FROM_EMAIL` |
+
+`database` と `migrations` は別の軸で、**`database:true` は「migrate 済み」を意味しない**。
+実際に、本番PostgreSQLへ migrate を当て忘れたまま配置し、`database:true` のまま
+`/api/v1/ai/generate/` が `relation "catalog_lesson" does not exist` で 500 になる事故が起きた
+（`apps/health/views.py` の `_migrations_ok()` はこれを検知するために足した）。
 
 どれが駄目かまでは言うが、理由の詳細は出さない
 （接続先や鍵の有無が分かると、攻撃の下調べに使えるため）。
@@ -477,3 +483,68 @@ Project → **Observability → Logs**（配置ごとなら Deployment → Runti
   「設定は直したのに直らない」の大半はこれ
 - DB を触る前に、必ず 1 のバックアップを取る。
   調べているうちに壊すことがある
+
+---
+
+## 7. Production migration の自動化
+
+### なぜ要るか
+
+`migrate` は Vercel の build ステップに**意図して入れていない**
+（`backend/build.py` 参照）。Preview 環境も本番と同じ `DATABASE_URL` を
+向いている構成のことが多く、デプロイのたびに（Preview も含めて）
+勝手に migrate が走ると事故る。だから今までは「手元から Neon へ直接
+繋いで実行する」（[deploy-vercel.md](./deploy-vercel.md) の 4）を、
+配置のたびに**手で**やる前提だった。
+
+手でやる前提のものは、いつか忘れる。実際に一度、本番へ push した
+あとに migrate を当て忘れ、`/health/ready` は緑のまま
+`relation "catalog_lesson" does not exist` で AI 生成が全滅する事故が
+起きた（6 の表にある `migrations` の項目は、この事故を機に足した）。
+
+### 仕組み
+
+`.github/workflows/release-migrate.yml`。**`main` への push だけ**で動く
+（PR やプレビューでは動かない）。
+
+```
+push: main
+  → PRODUCTION_DATABASE_URL が空/postgresでなければ、ここで止める
+  → showmigrations --plan（当てる前にログへ残す）
+  → migrate --noinput
+  → seed_catalog（何度実行しても同じ結果になる）
+  → migrate --check（当て漏れが無いことを、ジョブ自身が確かめる）
+```
+
+GitHub の **Environment**（`production`）に紐付けてある。これにより:
+
+- **`PRODUCTION_DATABASE_URL` は `production` Environment 専用の secret**
+  として登録する（Settings → Environments → New environment →
+  `production` → Environment secrets）。リポジトリ共通の Secrets に
+  置くと、他のワークフロー（PR 起因のものなど）からも読めてしまう
+- 同じ画面で **Required reviewers** を設定すると、migrate が実行される
+  前に人の承認待ちになる。destructive な migration（列を落とす、
+  等）が紛れていないかを、当てる前に一度人が見る場所として使える
+  （**現状は未設定。運用を始める前に設定すること**）
+
+secret が空のまま実行されると、`config/settings.py` の分岐で
+静かに SQLite（Actions ランナー上の使い捨てファイル）へ落ち、
+何もしないまま緑で終わる——これがいちばん危ない失敗なので、
+ワークフローの最初の関門でここを止めている（空・`sqlite://` 等を弾く）。
+
+並列に push が続いても、`concurrency` で migrate 自体は1本ずつ直列に
+処理する。
+
+### 初回だけ、手で
+
+このワークフローは「次に `main` へ push されたとき」から効く。
+**いま起きている `relation "catalog_lesson" does not exist` そのものは、
+このワークフローを足しただけでは直らない**（`main` への次の push を
+待つか、Actions タブから手動で re-run する必要がある）。今すぐ直すには
+[deploy-vercel.md](./deploy-vercel.md) の 4 の手順を先に1回、手で実行する。
+
+### この仕組みが検知しないもの
+
+- `migrate` 自体が失敗する壊れた migration（それはこのジョブが赤くなって教える）
+- 本番データに対して**意味的に**危険な migration（列の削除など）。
+  ここは Required reviewers による人の目が最後の砦

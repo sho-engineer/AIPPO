@@ -75,6 +75,51 @@ class TestSeedCatalogAlsoSeedsRewards:
         assert AiTaskPricing.objects.count() == 6
 
 
+class TestRecipes:
+    def test_recipes_are_seeded_and_linked_to_the_path(self):
+        from apps.rewards.models import LearningPath, Recipe
+
+        call_command("seed_catalog", verbosity=0)
+        path = LearningPath.objects.get(slug="first_step_7days")
+
+        assert Recipe.objects.count() > 0
+        # 出す先が無いレシピを作らない
+        assert path.recipe_links.count() == Recipe.objects.count()
+
+    def test_every_recipe_knows_which_lessons_it_needs(self):
+        from apps.rewards.models import Recipe
+
+        call_command("seed_catalog", verbosity=0)
+
+        for recipe in Recipe.objects.all():
+            assert recipe.required_lessons.count() > 0, (
+                f"{recipe.slug} が必要なレッスンを持っていない"
+            )
+
+    def test_a_recipe_is_not_created_when_a_lesson_it_needs_is_missing(self):
+        """押した先に無いレッスンを案内しない（憲章 原則 I）。"""
+        # 教材をまったく入れずに、パスだけを作った状態
+        from apps.catalog.models import Course
+        from apps.rewards.models import LearningPath, Recipe
+        from apps.rewards.seeding import seed_recipes
+
+        Course.objects.create(slug="first_step_7days", title="c")
+        path = LearningPath.objects.create(slug="p", title="p")
+
+        seed_recipes(path)
+
+        assert Recipe.objects.count() == 0
+
+    def test_running_twice_does_not_duplicate_recipes(self):
+        from apps.rewards.models import Recipe, RecipeRequiredLesson
+
+        call_command("seed_catalog", verbosity=0)
+        first = (Recipe.objects.count(), RecipeRequiredLesson.objects.count())
+        call_command("seed_catalog", verbosity=0)
+
+        assert (Recipe.objects.count(), RecipeRequiredLesson.objects.count()) == first
+
+
 class TestSeedRewardsCommand:
     def test_it_can_run_on_its_own_after_the_catalog_exists(self):
         call_command("seed_catalog", verbosity=0)

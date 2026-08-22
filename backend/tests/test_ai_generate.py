@@ -227,6 +227,26 @@ class TestRecording:
 
         assert Attempt.objects.get().user_input == REWRITE_INPUT["original_text"]
 
+    def test_the_tier_decides_the_model_without_the_lesson_naming_it(
+        self, api_client, settings
+    ):
+        """教材はモデル名を言わない。段階から、サーバー側が決める。"""
+        settings.AI_MODEL_TIERS = {
+            "basic": {"provider": "mock", "model": "mock-from-tier"}
+        }
+
+        _post(api_client, model_tier="basic")
+
+        assert Attempt.objects.get().model_name == "mock-from-tier"
+
+    def test_an_unknown_tier_does_not_stop_the_learner(self, api_client, settings):
+        """教材の書き間違いで、学習が止まらないこと。"""
+        settings.AI_MODEL_TIERS = {"basic": {"provider": "mock", "model": "mock-1"}}
+
+        response = _post(api_client, model_tier="tier_that_does_not_exist")
+
+        assert response.status_code == 200
+
     def test_estimated_cost_is_null_when_pricing_not_configured(self, api_client):
         """0円と「単価が分からない」を混同しない（apps/ai/pricing.py）。"""
         _post(api_client)

@@ -107,17 +107,27 @@ test.describe("こんな使い方もできます", () => {
     );
   });
 
-  test("押せない「試す」を出さない", async ({ page }) => {
+  test("技がそろっていても、押した先がちゃんとある", async ({ page }) => {
     /*
-      複数レッスンを1つの流れとして実行する画面がまだ無い。
-      全部の技を終えている応用例でも、押せば何か起きるボタンは置かない。
+      前はここで「ボタンを1つも置かない」ことを見ていた。
+      複数レッスンを1つの流れとして実行する画面が無く、置けば
+      **押しても何も起きないボタン**になるためだった。
+
+      いまは行き先がある（pages/RecipePage.tsx）。なので見るものを
+      変える——ボタンが無いことではなく、**押した先が本当にある**こと。
+      守りたいことは同じで、行き止まりを作らない（憲章 原則 I）。
     */
     await openLesson(page, "summarize_text");
     await runToCompletion(page);
 
     const solo = page.getByTestId("applied-tip-meeting_summary_only");
-    const buttons = solo.getByRole("button");
+    // 技はそろっているので、学ぶボタンは出ない
+    await expect(
+      page.getByTestId("applied-tip-learn-meeting_summary_only"),
+    ).toHaveCount(0);
 
-    await expect(buttons).toHaveCount(0);
+    // 出ているボタンは、押すと本当に開く
+    await solo.getByTestId("applied-tip-open-meeting_summary_only").click();
+    await expect(page.getByTestId("recipe-title")).toBeVisible();
   });
 });

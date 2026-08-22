@@ -131,7 +131,7 @@ export function StepShell({
   useEffect(() => setRefused(false), [title]);
 
   return (
-    <div className="mx-auto max-w-2xl px-5 pb-40 pt-2 sm:pb-32">
+    <div className="page pb-40 pt-2 sm:pb-32">
       {/*
         進み具合は細い帯ひとつ。
 
@@ -225,7 +225,7 @@ export function StepShell({
         className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95
                    px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur"
       >
-        <div className="mx-auto max-w-2xl">
+        <div className="mx-auto max-w-page">
           {error && (
             <p
               role="alert"

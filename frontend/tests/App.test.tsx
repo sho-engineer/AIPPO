@@ -71,7 +71,7 @@ describe("画面の行き来", () => {
     await start(user);
 
     expect(
-      await screen.findByRole("heading", { name: "学習の進み具合" }),
+      await screen.findByRole("heading", { name: "学習の道のり" }),
     ).toBeInTheDocument();
   });
 
@@ -219,7 +219,7 @@ describe("画面の行き来", () => {
 
     await user.click(screen.getByRole("button", { name: "ホーム" }));
     expect(
-      await screen.findByRole("heading", { name: "学習の進み具合" }),
+      await screen.findByRole("heading", { name: "学習の道のり" }),
     ).toBeInTheDocument();
   });
 
@@ -233,7 +233,7 @@ describe("画面の行き来", () => {
 
     await user.click(screen.getByRole("button", { name: "ホーム" }));
     expect(
-      await screen.findByRole("heading", { name: "学習の進み具合" }),
+      await screen.findByRole("heading", { name: "学習の道のり" }),
     ).toBeInTheDocument();
   });
 });

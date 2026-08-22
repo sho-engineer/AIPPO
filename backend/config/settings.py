@@ -424,6 +424,39 @@ AI_REQUEST_TIMEOUT_SECONDS = float(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "20")
 AI_MAX_OUTPUT_TOKENS = int(os.getenv("AI_MAX_OUTPUT_TOKENS", "600"))
 
 
+# 課題の重さ（model_tier）→ どのモデルへ送るか（apps/ai/routing.py）。
+#
+# 教材データにモデル名を書かないための対応表。モデルを乗り換えるときは、
+# ここだけを直す（教材は1件も触らない）。
+#
+# **provider を空にしておくこと。** 空なら、呼ばれた時点の AI_PROVIDER を
+# 見る（apps/ai/routing.py）。ここに AI_PROVIDER の値を書き込むと、
+# **読み込んだ瞬間の値で固まる**。あとから AI_PROVIDER を変えても
+# こちらは古いままなので、
+#
+#     AI_PROVIDER=openai なのに鍵が無い
+#       → ここに焼き付いた mock へ流れる
+#       → 偽の答えが、本物のAIの答えとして利用者に出る
+#
+# という、いちばん起こしてはいけない失敗になる（実際に一度やった。
+# tests/test_ai_errors.py の TestNotConfigured が捕まえた）。
+#
+# model も空なら、そのプロバイダの既定モデル（AI_MODEL / AI_MODEL_GEMINI）。
+AI_MODEL_TIERS: dict[str, dict] = {
+    # 要約・書き直し・分類など。無料コースの中心はここ
+    "basic": {},
+    "standard": {},
+    # より難しい課題。いまは同じ先だが、段階として先に分けておく
+    "advanced": {},
+    "image_standard": {},
+    "image_high": {},
+    # モデル比較コース用。利用者にモデル名を見せる教材だけが使う。
+    # ここだけは、行き先そのものが教えたい中身なので名指しする
+    "comparison_openai": {"provider": "openai"},
+    "comparison_anthropic": {"provider": "anthropic"},
+}
+
+
 def _ai_price(name: str) -> float | None:
     """USD / 1,000トークン。未設定なら None（「0円」と区別する）。"""
     raw = os.getenv(name, "")

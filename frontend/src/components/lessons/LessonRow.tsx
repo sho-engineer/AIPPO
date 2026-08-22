@@ -10,13 +10,17 @@
  */
 
 import { IconBookmark, IconCheck } from "../Icons";
-import { IconMark } from "../AppShell";
 import { lookOf } from "../../course/presentation";
 import {
   comingSoonNote,
   hasComingSoonDetail,
   isComingSoon,
 } from "../../course/availability";
+import {
+  LessonThumbnail,
+  LessonThumbnailPlaceholder,
+} from "./LessonThumbnail";
+import { lessonThumbnail } from "../../course/lessonThumbnail";
 import type { Lesson } from "../../course/types";
 
 export function LessonRow({
@@ -48,6 +52,7 @@ export function LessonRow({
   const soon = isComingSoon(lesson);
   const prefix = testIdPrefix ?? "";
   const look = lookOf(lesson.id);
+  const thumbnail = lessonThumbnail(lesson);
 
   const meta = [
     lesson.estimatedMinutes !== undefined ? `${lesson.estimatedMinutes}分` : null,
@@ -80,24 +85,35 @@ export function LessonRow({
           「文字の一覧」になる。小さな線画を1つ置くだけで、
           縦に流し読みするときの手がかりになる（大きな絵は置かない）。
         */}
+        {/*
+          「Day 1」と書く。数字だけだと、通し番号なのか日数なのかが
+          この行だけでは決められない。ホームの道のりが Day で
+          数えているので、同じ言い方にそろえる。
+
+          用途の線画はここには置かない。すぐ右の絵が同じ役目をするので、
+          並べると同じ印が2つ続くことになる。絵の無い教材では、
+          その線画が絵の場所のほうに出る（LessonThumbnailPlaceholder）。
+        */}
         <span
           aria-hidden="true"
-          className="flex w-14 shrink-0 items-center gap-1.5 self-center"
+          className="w-10 shrink-0 self-center whitespace-nowrap text-[0.6875rem]
+                     tabular-nums text-ink-muted"
         >
-          {/*
-            「Day 1」と書く。数字だけだと、通し番号なのか日数なのかが
-            この行だけでは決められない。ホームの道のりが Day で
-            数えているので、同じ言い方にそろえる。
-          */}
-          <span className="whitespace-nowrap text-[0.6875rem] tabular-nums text-ink-muted">
-            Day {lesson.number}
-          </span>
-          <IconMark
-            icon={look.icon}
-            tone={look.tone === "plain" ? "brand" : look.tone}
-            className="h-4 w-4"
-          />
+          Day {lesson.number}
         </span>
+
+        {/*
+          レッスンの絵。無い教材では置かない——枠だけ残すと、
+          読み込みに失敗しているように見える。
+
+          近日公開の行は、行ごと薄くしている（親の opacity）。
+          絵にもそれがそのまま乗るので、ここでは何もしない。
+        */}
+        {thumbnail ? (
+          <LessonThumbnail src={thumbnail} variant="thumb" className="self-center" />
+        ) : (
+          <LessonThumbnailPlaceholder icon={look.icon} className="self-center" />
+        )}
 
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-2">

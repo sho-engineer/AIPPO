@@ -31,6 +31,7 @@ import { useEffect, useState } from "react";
 import { AppHeader, Card, IconMark } from "../components/AppShell";
 import { AuthDialog } from "../components/auth/AuthDialog";
 import { AccountPanel } from "../components/settings/AccountPanel";
+import { CreditPanel } from "../components/rewards/CreditPanel";
 import { LegalMenu, LegalView } from "../components/legal/LegalView";
 import {
   LEGAL_DOCUMENTS,
@@ -73,6 +74,7 @@ import { APP_VERSION } from "../content/ui";
 /** 下位画面の名前。一覧は null。 */
 type Panel =
   | "account"
+  | "credit"
   | "notification"
   | "sound"
   | "privacy"
@@ -127,6 +129,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
   const title = {
     account: "アカウント設定",
+    credit: "Credit",
     notification: "通知設定",
     sound: "音",
     privacy: "学習データ・プライバシー",
@@ -137,7 +140,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     <>
       <AppHeader onBack={back} centered />
 
-      <main className="mx-auto max-w-2xl px-5 pb-28">
+      <main className="page">
         {/* 押した結果は、画面の上に短く出す。読み上げにも届ける */}
         {notice && (
           <p
@@ -169,6 +172,12 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
             {panel === "account" && (
               <AccountPanel
+                onOpenAuth={() => setAuthOpen(true)}
+                onNotice={setNotice}
+              />
+            )}
+            {panel === "credit" && (
+              <CreditPanel
                 onOpenAuth={() => setAuthOpen(true)}
                 onNotice={setNotice}
               />
@@ -233,6 +242,19 @@ function MainMenu({
             title="アカウント設定"
             description="登録・ログイン・パスワード・退会"
             onClick={() => onOpen("account")}
+          />
+          {/*
+            Credit。上の帯には出さない。
+
+            常時大きく出すと、学習より残高のほうが目的に見えてくる。
+            見たい人が見に来られる場所に置くだけにする。
+          */}
+          <SettingsRow
+            icon={IconSparkle}
+            tone="sky"
+            title="Credit"
+            description="いまの残高と、これまでの動き"
+            onClick={() => onOpen("credit")}
           />
           {/*
             AI設定は選ばせない。

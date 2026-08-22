@@ -89,7 +89,7 @@ export function CertificatePage({ certificates, onBack }: CertificatePageProps) 
     <>
       <AppHeader onBack={onBack} centered />
 
-      <main className="mx-auto max-w-2xl px-4 pb-24 pt-2" data-testid="certificate-page">
+      <main className="page" data-testid="certificate-page">
         <h1 className="text-xl font-bold">修了証</h1>
         <p className="mt-1.5 text-sm leading-7 text-ink-muted">
           コースのレッスンをすべて終えると、ここに残ります。

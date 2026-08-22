@@ -16,6 +16,8 @@ import { SaveProgressCard } from "../../auth/SaveProgressCard";
 import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
 import { AppliedTips } from "../AppliedTips";
+import { LessonThumbnail } from "../../lessons/LessonThumbnail";
+import { lessonThumbnailById } from "../../../course/lessonThumbnail";
 import { CourseStampRow, MilestoneLegend } from "../CourseStamps";
 import { PoAvatar } from "../../../po/PoAvatar";
 import { appliedTipsFor } from "../../../course/appliedTips";
@@ -74,6 +76,7 @@ export function CompletionView({
   completedIds,
   onSelectLesson,
   onOpenCourseCatalog,
+  onOpenRecipe,
 }: {
   /** スタンプの絵と、節目の中身を決めるのに使う。 */
   course: Course;
@@ -97,6 +100,8 @@ export function CompletionView({
   onSelectLesson?: (lessonId: string) => void;
   /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
   onOpenCourseCatalog?: () => void;
+  /** 「やり方をくわしく見る」を押したとき。 */
+  onOpenRecipe?: (tipId: string) => void;
 }) {
   /*
     このレッスンで、新しく超えた節目。
@@ -234,6 +239,7 @@ export function CompletionView({
           completedIds.includes(lessonId) ? completedIds : [...completedIds, lessonId]
         }
         onSelectLesson={onSelectLesson}
+        onOpenRecipe={onOpenRecipe}
       />
 
       {/*
@@ -298,18 +304,26 @@ export function CompletionView({
           </div>
 
           <ul className="mt-3 grid gap-3 sm:grid-cols-2" role="list">
-            {next.map((lesson) => (
+            {next.map((lesson) => {
+              const thumbnail = lessonThumbnailById(lesson.id);
+              return (
               <li key={lesson.id}>
                 <button
                   type="button"
                   disabled={!onSelectLesson}
                   onClick={() => onSelectLesson?.(lesson.id)}
                   data-testid={`next-${lesson.id}`}
-                  className="flex w-full items-center gap-3 rounded-panel bg-surface p-4
-                             text-left shadow-card transition
+                  /*
+                    `h-full` を付ける。横に2枚並ぶ幅（sm 以上）では、
+                    ねらいの行数が違うと下端がそろわない。
+                  */
+                  className="flex h-full w-full items-center gap-3 rounded-panel bg-surface
+                             p-4 text-left shadow-card transition
                              enabled:hover:-translate-y-0.5 enabled:hover:shadow-raised
                              disabled:cursor-not-allowed"
                 >
+                  {/* 絵の無いレッスンでは置かない。並びは文字側で崩れない */}
+                  {thumbnail && <LessonThumbnail src={thumbnail} variant="thumb" />}
                   <div className="min-w-0 flex-1">
                     <span className="inline-block rounded-badge bg-brand-soft px-2.5 py-1 text-[0.6875rem] font-bold text-brand-dark">
                       Lesson {lesson.number}
@@ -336,7 +350,8 @@ export function CompletionView({
                   </span>
                 </button>
               </li>
-            ))}
+              );
+            })}
           </ul>
         </section>
       )}

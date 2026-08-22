@@ -11,12 +11,14 @@
  * 「これは組み合わせ」と分けて考える意味が薄く、見た目を2種類
  * 作ると、その違いを覚える負担のほうが大きくなる。
  *
- * 押せるのは「まだ終えていない技を学ぶ」ときだけ
- * ------------------------------------------------
- * すでに全部の技を終えている組み合わせに「試す」ボタンを置きたい
- * ところだが、複数レッスンを1つの流れとして実行する画面がまだ無い。
- * 無い機能への導線は、押しても何も起きないボタンになる
- * （憲章 原則 I）。いまは「使えます」の印だけにする。
+ * どのカードからも、くわしい説明へ行ける
+ * --------------------------------------
+ * 以前は、技が全部そろっているカードに押せる場所が無かった
+ * （受け止める画面が無く、押しても何も起きないボタンになるため）。
+ * いまは `pages/RecipePage.tsx` があるので、手順と例を見に行ける。
+ *
+ * 出すのはやり方の案内であって、複数レッスンを1つの流れとして自動で
+ * 走らせる機能ではない。「実行する」とは言わない（憲章 原則 I）。
  */
 
 import { IconArrow, IconCheckCircle, IconChevronRight } from "../Icons";
@@ -29,6 +31,8 @@ export interface AppliedTipsProps {
   /** 終えたレッスンの id。 */
   completedIds: string[];
   onSelectLesson?: (lessonId: string) => void;
+  /** くわしい説明をひらく。渡さなければ、その導線は出さない。 */
+  onOpenRecipe?: (tipId: string) => void;
 }
 
 export function AppliedTips({
@@ -36,6 +40,7 @@ export function AppliedTips({
   lessonTitle,
   completedIds,
   onSelectLesson,
+  onOpenRecipe,
 }: AppliedTipsProps) {
   if (tips.length === 0) return null;
 
@@ -53,6 +58,7 @@ export function AppliedTips({
             lessonTitle={lessonTitle}
             completedIds={completedIds}
             onSelectLesson={onSelectLesson}
+            onOpenRecipe={onOpenRecipe}
           />
         ))}
       </ul>
@@ -65,11 +71,13 @@ function AppliedTipCard({
   lessonTitle,
   completedIds,
   onSelectLesson,
+  onOpenRecipe,
 }: {
   tip: AppliedTip;
   lessonTitle: (lessonId: string) => string | null;
   completedIds: string[];
   onSelectLesson?: (lessonId: string) => void;
+  onOpenRecipe?: (tipId: string) => void;
 }) {
   /*
     足りない技を1つ見つける。
@@ -116,14 +124,27 @@ function AppliedTipCard({
           <IconChevronRight className="h-4 w-4 shrink-0" />
         </button>
       ) : (
-        /*
-          全部の技をすでに終えている。押せる先が無いので、
-          ボタンにはせず印だけにする（無い機能への導線を作らない）。
-        */
         <p className="mt-3 flex items-center gap-1.5 text-xs font-bold text-brand-dark">
           <IconCheckCircle className="h-3.5 w-3.5 shrink-0" />
           いまの技で使えます
         </p>
+      )}
+
+      {/*
+        くわしい説明へ。技がそろっていてもいなくても出す。
+        まだのときこそ「何ができるようになるか」を先に見せたい。
+      */}
+      {onOpenRecipe && (
+        <button
+          type="button"
+          onClick={() => onOpenRecipe(tip.id)}
+          data-testid={`applied-tip-open-${tip.id}`}
+          className="mt-2 flex w-full items-center justify-between gap-2 text-left
+                     text-xs font-bold text-brand-dark underline underline-offset-4"
+        >
+          やり方をくわしく見る
+          <IconChevronRight className="h-4 w-4 shrink-0" />
+        </button>
       )}
     </li>
   );

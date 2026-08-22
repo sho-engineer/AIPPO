@@ -62,7 +62,7 @@ export function CoursePage({ onOpenCourse, onSelectLesson }: CoursePageProps) {
     <>
       <AppHeader />
 
-      <main className="mx-auto max-w-2xl px-4 pb-24 pt-4">
+      <main className="page">
         <h1 className="text-xl font-bold">コース</h1>
 
         {/* 案内役として小さく。ここの主役はコースのほう */}
