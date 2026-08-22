@@ -29,13 +29,30 @@ export interface LessonThumbnailProps {
   /**
    * 出し方。
    *   banner … カードの上に横いっぱい
+   *   side   … カードの左に、横幅の 38% ほど
    *   thumb  … 行の左に小さく
    */
-  variant?: "banner" | "thumb";
+  variant?: LessonThumbnailVariant;
   className?: string;
   /** 近日公開の教材では、本文と同じだけ薄くする。 */
   dimmed?: boolean;
 }
+
+export type LessonThumbnailVariant = "banner" | "side" | "thumb";
+
+/**
+ * 大きさは3段だけ。呼び出し側で幅を書かない。
+ *
+ * side は「今日のレッスン」専用。横いっぱいの絵にすると、390px の画面で
+ * カード1枚が1画面の大半を占めてしまう（実際にそうなっていた）。
+ * 38% にすると、隣に題・ねらい・所要時間を置いてもまだ読める。
+ * 上限を付けてあるのは、広い画面で絵だけが伸び続けないようにするため。
+ */
+const SIZE: Record<LessonThumbnailVariant, string> = {
+  banner: "w-full",
+  side: "w-[38%] max-w-[10rem] shrink-0",
+  thumb: "w-20 shrink-0 sm:w-24",
+};
 
 export function LessonThumbnail({
   src,
@@ -43,11 +60,7 @@ export function LessonThumbnail({
   className = "",
   dimmed = false,
 }: LessonThumbnailProps) {
-  const size =
-    variant === "banner"
-      ? "w-full"
-      : // 行の左に置くぶん。4:3 のまま、幅で決める
-        "w-20 shrink-0 sm:w-24";
+  const size = SIZE[variant];
 
   return (
     <img
@@ -65,7 +78,7 @@ export function LessonThumbnail({
         どちらも `width`/`height` を渡してあるので、読み込みの前後で
         高さは変わらない（あとから他の要素が飛ばない）。
       */
-      loading={variant === "banner" ? "eager" : "lazy"}
+      loading={variant === "thumb" ? "lazy" : "eager"}
       decoding="async"
       data-testid="lesson-thumbnail"
       className={`aspect-[4/3] ${size} rounded-card object-cover
@@ -94,10 +107,10 @@ export function LessonThumbnailPlaceholder({
   className = "",
 }: {
   icon: (props: { className?: string }) => JSX.Element;
-  variant?: "banner" | "thumb";
+  variant?: LessonThumbnailVariant;
   className?: string;
 }) {
-  const size = variant === "banner" ? "w-full" : "w-20 shrink-0 sm:w-24";
+  const size = SIZE[variant];
 
   return (
     <span

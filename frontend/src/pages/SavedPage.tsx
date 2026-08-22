@@ -69,7 +69,7 @@ export function SavedPage({
     <>
       <AppHeader onOpenAccount={onOpenAccount} />
 
-      <main className="mx-auto max-w-2xl px-5 pb-28">
+      <main className="page">
         <h1 className="mt-4 text-xl font-bold sm:text-2xl">保存したもの</h1>
         <p className="mt-2 text-sm leading-7 text-ink-muted">
           あとで見る印を付けた教材と、自分のプロンプト帳です。

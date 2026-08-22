@@ -140,6 +140,8 @@ export function App() {
           <HomePage
             onSelectLesson={(id) => openLesson(id, "HOME")}
             onOpenCourse={() => setScreen(nextScreen("HOME", "OPEN_COURSE"))}
+            // 「道のりを見る」から、いま学んでいるコースの中身へ直行する
+            onOpenPath={(id) => openCourse(id, "HOME")}
             onOpenRecord={() => setScreen(nextScreen("HOME", "OPEN_RECORD"))}
             onOpenAccount={() => setScreen(nextScreen("HOME", "OPEN_SETTINGS"))}
           />
@@ -232,6 +234,7 @@ export function App() {
             <HomePage
               onSelectLesson={(id) => openLesson(id, "HOME")}
               onOpenCourse={() => setScreen("COURSE")}
+              onOpenPath={(id) => openCourse(id, "HOME")}
               onOpenRecord={() => setScreen("RECORD")}
               onOpenAccount={() => setScreen("SETTINGS")}
             />
@@ -263,7 +266,7 @@ export function App() {
   return (
     <>
       {social.result && (
-        <div className="mx-auto max-w-2xl px-5 pt-4">
+        <div className="mx-auto max-w-page px-5 pt-4">
           <p
             role="status"
             data-testid="social-result"

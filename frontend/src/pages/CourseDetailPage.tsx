@@ -9,10 +9,19 @@
  * 9本のレッスンが並ぶので、実際に見せていたのは1つのコースの中身だった。
  * コースが7つに増えた時点で、名前と中身が食い違っていた。
  *
- * 並べ方は**縦一列の目次**にする。1件ずつを白い角丸カードで囲わない。
- * 9件を同じ形のカードで積むと、内容ではなく「カードの列」が目に入り、
- * どれも同じ重さに見える。番号・題・ねらい・時間を桁でそろえた行に
- * すれば、視線がまっすぐ下へ流れ、比べるのも探すのも速い。
+ * 並べ方は**縦一本の道のり**にする（LessonTimeline）。1件ずつを白い
+ * 角丸カードで囲わない。9件を同じ形のカードで積むと、内容ではなく
+ * 「カードの列」が目に入り、どれも同じ重さに見える。Day・節・題を
+ * 桁でそろえて線でつなげば、視線がまっすぐ下へ流れ、
+ * **どこまで来て次はどれか**が一目で分かる。
+ *
+ * 一覧に絵は置かない
+ * ------------------
+ * ここは「順番に進む」場所であって、「探す」場所ではない。小さく並べた
+ * 絵は中身が読めず、題が絵の中にも外にも出て同じ言葉を二度読ませる。
+ * 絵は**探すため**の道具として、下の検索結果・あとで見る・ホームの
+ * 今日の1本・完了画面の「次におすすめ」が持つ。同じレッスンには
+ * どこでも同じ絵が出る（course/lessonThumbnail.ts）。
  *
  * やめたもの
  * ----------
@@ -20,8 +29,8 @@
  *   絵のほうが題より強くなる
  * - 「おすすめ」pill … 最初にやる1本は、一覧の先頭に置いて
  *   「まずはここから」と書けば伝わる
- * - 「近日公開」の青い pill ＋ 錠前 … 押せないものほど静かに置く。
- *   薄い文字と opacity と cursor で伝える
+ * - 「近日公開」の青い pill … 押せないものほど静かに置く。薄い文字と
+ *   節の色で伝える（節に添える錠前は 12px。札にはしない）
  * - 「初級」pill … 全件が初級なので、1件ずつに書く意味が無い
  *
  * ここに出すのは**自分のこと**だけ。
@@ -35,6 +44,8 @@ import { AppHeader } from "../components/AppShell";
 import { CertificateEntry } from "../components/course/CertificateEntry";
 import { PathRecipes } from "../components/course/PathRecipes";
 import { LessonRow } from "../components/lessons/LessonRow";
+import { LessonTimeline } from "../components/lessons/LessonTimeline";
+import { PathProgress } from "../components/course/PathProgress";
 import { CertificatePage } from "./CertificatePage";
 import { PoAvatar } from "../po/PoAvatar";
 import { useCertificates } from "../course/certificate";
@@ -113,7 +124,8 @@ export function CourseDetailPage({
     )?.id ?? startable.find((lesson) => !completed.includes(lesson.id))?.id;
 
   // 探している最中は、絞り込んだものだけを並べる。
-  // 空のときは全件（＝いつもの目次）に戻る
+  // 空のときは全件（＝いつもの道のり）に戻る
+  const searching = query.trim() !== "";
   const found = searchLessons(course.lessons, query);
 
   // 目印の付いた教材。id の並び順ではなく、一覧と同じ順に出す——
@@ -129,9 +141,24 @@ export function CourseDetailPage({
     <>
       <AppHeader onBack={onBack} centered />
 
-      <main className="mx-auto max-w-2xl px-4 pb-24 pt-4">
+      <main className="page">
         <h1 className="text-xl font-bold">{course.title}</h1>
         <p className="mt-1.5 text-sm leading-7 text-ink-muted">{course.description}</p>
+
+        {/*
+          スタンプと、次の節目までの予告。**上に小さく**置く。
+
+          集める楽しさは残しつつ、扉の絵にはしない。この画面の主役は
+          下の道のりで、ここはその手前に添える1かたまり。
+        */}
+        <div className="mt-4">
+          <PathProgress
+            course={course}
+            done={completed.length}
+            total={startable.length}
+            heading="スタンプ"
+          />
+        </div>
 
         {/*
           できるようになったこと。
@@ -161,7 +188,7 @@ export function CourseDetailPage({
           探している最中は隠す。絞り込んだ結果の下に別の一覧が続くと、
           どちらが検索結果なのか分からなくなる。
         */}
-        {query.trim() === "" && savedLessons.length > 0 && (
+        {!searching && savedLessons.length > 0 && (
           <section className="mt-7" aria-labelledby="saved-heading">
             <h2 id="saved-heading" className="section-title">
               あとで見る
@@ -256,7 +283,14 @@ export function CourseDetailPage({
                 すべての教材を見る
               </button>
             </div>
-          ) : (
+          ) : searching ? (
+            /*
+              探している最中は、**絵のある行**で出す。
+
+              探すときに見ているのは順番ではなく「どれが目当てか」なので、
+              ここは発見のための見せ方にする。道のり（下の縦一本）とは
+              役割が違うので、見た目も分ける。
+            */
             <ul className="mt-2" role="list">
               {found.map((lesson) => (
                 <LessonRow
@@ -274,6 +308,16 @@ export function CourseDetailPage({
                 />
               ))}
             </ul>
+          ) : (
+            /* 探していないときは、順番どおりの道のり */
+            <LessonTimeline
+              lessons={found}
+              completed={completed}
+              currentId={firstUpId ?? null}
+              bookmarked={(id) => bookmarks.has(id)}
+              onToggleBookmark={canKeep ? (id) => bookmarks.toggle(id) : undefined}
+              onSelect={onSelectLesson}
+            />
           )}
 
         </section>

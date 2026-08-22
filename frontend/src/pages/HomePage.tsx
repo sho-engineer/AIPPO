@@ -6,16 +6,31 @@
  *
  * 順番は上から:
  *
- *   1. ポーのあいさつ
- *   2. 今日のレッスン（題・ねらい・始めるボタン・所要時間）
- *   3. 学習の進み具合
- *   4. 7日間の道のり
- *   5. おすすめコース
- *   6. カテゴリから探す
+ *   1. ポーのひとこと（小さく・横並び）
+ *   2. 続けた日数と終えた本数（1行）
+ *   3. 今日のレッスン ← **この画面の主役**
+ *   4. 学習の道のりの進み具合 ＋「道のりを見る」
+ *   5. 見返しどき・飛ばした解説
+ *   6. おすすめコース
+ *   7. カテゴリから探す
  *
- * 以前はこれが逆だった。円グラフ・継続日数・試した回数を先に見せ、
- * 「次にやること」は横スクロールのカードの中に埋もれていた。
- * 数字を眺めに来る人はいない。学びに来ている。
+ * 何をやめたか
+ * ------------
+ * - 大きなポー（`PoHero`）… 見出し2行＋大きな絵＋吹き出しで、開いた
+ *   直後の1画面をほぼ使い切っていた。ポーは案内役であって扉の絵ではない
+ * - 全レッスンの一覧（7日間の道のり）… ホームで一覧まで見せると、
+ *   「次に何をするか」と「全体の順番」を同じ画面が二重に持つことになる。
+ *   順番はコースの道のり（CourseDetailPage）が持ち、ここからは
+ *   進み具合と入口だけを出す
+ * - 「学習の進み具合」という独立した節 … 見出し・丸の列・節目の予告・
+ *   2つの数字で、今日の1本より背が高かった。数字は上の1行へ、
+ *   丸と予告は道のりのカードへ分けた
+ *
+ * 役割を分ける
+ * ------------
+ * ホーム＝「次に何をするか」。道のりの画面＝「全体の順番と現在地」。
+ * どちらか一方を見れば足りる状態にしない代わりに、同じものを
+ * 両方には置かない。
  *
  * 出すのは**自分のこと**だけ。順位も、他人との比較も出さない
  * （比べさせると、遅い人ほど続かなくなる）。
@@ -31,36 +46,35 @@
 import { useEffect, useState } from "react";
 
 import { AppHeader, IconMark } from "../components/AppShell";
-import { PoHero } from "../components/aippo/PoHero";
+import { HomeStats } from "../components/aippo/HomeStats";
+import { PoGreeting } from "../components/aippo/PoGreeting";
 import { PrimaryButton } from "../components/aippo/PrimaryButton";
 import { ReviewPrompt } from "../components/ReviewPrompt";
 import { ReviewCards } from "../components/course/ReviewCards";
+import { PathProgress } from "../components/course/PathProgress";
 import {
   IconArrow,
-  IconBars,
-  IconStreak,
   IconBookmark,
-  IconCalendar,
-  IconCheck,
   IconChevronRight,
   IconClock,
   IconSparkle,
 } from "../components/Icons";
 import { useCourse } from "../course/live";
-import { isComingSoon, startableLessons } from "../course/availability";
+import { startableLessons } from "../course/availability";
 import { CATEGORIES, lookOf } from "../course/presentation";
-import { CourseStampRow, NextMilestoneHint } from "../components/course/CourseStamps";
 import { LessonThumbnail } from "../components/lessons/LessonThumbnail";
 import { lessonThumbnail } from "../course/lessonThumbnail";
 import { recommendationsForHome } from "../course/recommend";
 import { useCompletedLessons } from "../course/progress";
 import { readStreak, touchStreak } from "../lib/draft";
-import type { Course, Lesson } from "../course/types";
+import type { Lesson } from "../course/types";
 
 export interface HomePageProps {
   onSelectLesson: (lessonId: string) => void;
   /** コース一覧タブへ。 */
   onOpenCourse: () => void;
+  /** いま学んでいるコースの道のりへ。一覧を経由させない。 */
+  onOpenPath: (courseId: string) => void;
   /** 学習記録タブへ。 */
   onOpenRecord: () => void;
   onOpenAccount: () => void;
@@ -110,116 +124,26 @@ function SectionHeading({
 // ---------------------------------------------------------- 今日のつづき
 
 /**
- * 7日間の道のり。
- *
- * 丸を並べるのではなく、**1行に1回**の一覧にする。
- * 丸だけでは何の回か分からず、番号を数えないと自分の位置が読めない。
- * 題まで出せば、次に何をするのかが目で分かる。
- *
- * 桁をそろえる
- * ------------
- * 左から「Day n」「題」「状態」の3列。Day と状態の幅を固定して、
- * 題を残り全部にする。固定しないと、題の長さで Day の位置が動き、
- * 縦に読み下せなくなる（9行あるので、そこが効く）。
- */
-function DayTrack({
-  lessons,
-  completed,
-  currentId,
-  onSelectLesson,
-}: {
-  lessons: Lesson[];
-  completed: string[];
-  currentId: string | null;
-  onSelectLesson: (id: string) => void;
-}) {
-  return (
-    <section aria-labelledby="roadmap-heading">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 id="roadmap-heading" className="flex items-center gap-2 text-base font-bold">
-          <IconMark icon={IconCalendar} className="h-[1.125rem] w-[1.125rem]" />
-          7日間の道のり
-        </h2>
-        {/*
-          「7日間」なのに回数が違うことがある（診断や最終課題が入る）。
-          数は数えて出す。書き込むと、教材を足したときに合わなくなる。
-        */}
-        <span className="shrink-0 text-xs text-ink-muted">
-          全{lessons.length}レッスン
-        </span>
-      </div>
-
-      <ol className="mt-2" role="list" data-testid="day-track">
-        {lessons.map((lesson) => {
-          const done = completed.includes(lesson.id);
-          const current = lesson.id === currentId;
-          const soon = isComingSoon(lesson);
-
-          return (
-            <li key={lesson.id}>
-              <button
-                type="button"
-                onClick={() => onSelectLesson(lesson.id)}
-                disabled={soon}
-                aria-disabled={soon}
-                data-testid={`day-${lesson.id}`}
-                className={`row row-tap items-center gap-3 disabled:cursor-not-allowed
-                            ${soon ? "opacity-55" : ""}`}
-              >
-                {/* 左の列は幅を固定する。題の長さで位置を動かさない */}
-                <span
-                  className={`w-12 shrink-0 text-xs tabular-nums
-                              ${current ? "font-bold text-brand-dark" : "text-ink-muted"}`}
-                >
-                  Day {lesson.number}
-                </span>
-
-                {/*
-                  印も幅を固定する。終わった回だけチェックが入るので、
-                  幅を空けておかないと題の頭が行ごとにずれる。
-                */}
-                <span className="flex w-4 shrink-0 justify-center" aria-hidden="true">
-                  {done ? (
-                    <IconCheck className="h-4 w-4 text-brand" />
-                  ) : current ? (
-                    <span className="h-2 w-2 rounded-full bg-brand" />
-                  ) : (
-                    <span className="h-2 w-2 rounded-full border border-line" />
-                  )}
-                </span>
-
-                <span
-                  className={`min-w-0 flex-1 truncate text-sm leading-6 ${current ? "font-bold" : ""}`}
-                >
-                  {lesson.title}
-                </span>
-
-                {/* 状態は右端。色だけでなく文字でも言う */}
-                <span className="w-12 shrink-0 text-right text-xs">
-                  {done ? (
-                    <span className="text-ink-muted">完了</span>
-                  ) : current ? (
-                    <span className="font-bold text-brand-dark">今日</span>
-                  ) : soon ? (
-                    <span className="text-ink-muted">準備中</span>
-                  ) : null}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
-  );
-}
-
-/**
  * 今日のレッスン。この画面の主役。
  *
  * 出すのは**レッスンの**名前とねらい。コース名ではない。
  * コース名（7日でAIの最初の一歩）はどの日も同じで、今日やることを
  * 何も言っていない。開いた人が知りたいのは「次に何をするか」で、
  * それはレッスンの題とねらいにしか書かれていない。
+ *
+ * 高さを抑える
+ * ------------
+ * 前は絵を横いっぱいに敷いていた。390px の画面で、このカード1枚が
+ * ほぼ1画面ぶんの高さになり、下に何があるのか分からなくなっていた。
+ * 絵は左に 38%、題とねらいは右。ボタンだけを下いっぱいに置く。
+ *
+ * 絵は**引き伸ばさない**（4:3 のまま。LessonThumbnail が保証する）。
+ * ポーが歪んだり切れたりしてはいけない。
+ *
+ * 「今日はここから」は札にしない
+ * ------------------------------
+ * 小さな前置きの1行に留める。囲って色を付けると、肝心の題より
+ * 前置きのほうが強くなる。
  *
  * 所要時間はボタンの隣に置く。「8分なら今できる」と決められるように、
  * 押す直前に見える場所へ置く。
@@ -249,18 +173,29 @@ function TodayCard({
         {started ? "今日のつづき" : "今日はここから"}
       </p>
 
-      <h2 id="next-heading" className="mt-1.5 text-xl font-bold leading-8">
-        {lesson.title}
-      </h2>
-      <p className="mt-1 text-sm leading-7 text-ink-muted">{lesson.goal}</p>
+      <div className="mt-2 flex items-start gap-3">
+        {/*
+          今日やる1本の絵。絵の無いレッスンでは、この場所ごと出さない
+          （枠だけ残すと、読み込みに失敗しているように見える）。
+          文字の側は flex-1 なので、絵が無ければ横いっぱいに広がる。
+        */}
+        {thumbnail && <LessonThumbnail src={thumbnail} variant="side" />}
 
-      {/*
-        今日やる1本の絵。絵の無いレッスンでは、この場所ごと出さない
-        （枠だけ残すと、読み込みに失敗しているように見える）。
-      */}
-      {thumbnail && <LessonThumbnail src={thumbnail} className="mt-4" />}
+        <div className="min-w-0 flex-1">
+          <h2 id="next-heading" className="text-lg font-bold leading-7">
+            {lesson.title}
+          </h2>
+          {/*
+            ねらいは2行まで。3行入ると、絵より文字のほうが背が高くなり、
+            カードの高さが教材ごとにばらつく。
+          */}
+          <p className="mt-1 line-clamp-2 text-xs leading-6 text-ink-muted">
+            {lesson.goal}
+          </p>
+        </div>
+      </div>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-3 flex items-center gap-3">
         <PrimaryButton
           testId="continue-lesson"
           onClick={onStart}
@@ -280,86 +215,12 @@ function TodayCard({
   );
 }
 
-// ------------------------------------------------------------------ 進み具合
-
-function Progress({
-  course,
-  done,
-  total,
-  days,
-  realTaskCount,
-  onOpenRecord,
-}: {
-  course: Course;
-  done: number;
-  total: number;
-  days: number;
-  realTaskCount: number;
-  onOpenRecord: () => void;
-}) {
-  return (
-    <section aria-labelledby="progress-heading" data-testid="progress-summary">
-      <SectionHeading
-        icon={IconBars}
-        id="progress-heading"
-        action={{ label: "詳細を見る", onClick: onOpenRecord }}
-      >
-        学習の進み具合
-      </SectionHeading>
-
-      {/*
-        丸を並べたスタンプで進み具合を見せる。ただの棒より、
-        1本ごとに埋まっていく実感が強い。「詳しくは完了画面で」に
-        なるので、節目の一覧まではここに出さない
-        （巨大なゲーミフィケーション画面にはしない）。
-      */}
-      <div className="mt-3">
-        <CourseStampRow course={course} done={done} total={total} />
-        <NextMilestoneHint course={course} done={done} />
-      </div>
-
-      {/*
-        左右に1つずつ。支給デザインは右が「学習時間」だが、
-        滞在時間は測っていないので、実際に数えている日数を置く。
-      */}
-      <div className="mt-2 flex items-baseline justify-between gap-3 text-xs">
-        <p className="text-ink-muted">
-          <span className="text-sm font-bold tabular-nums text-ink">
-            {done} / {total}
-          </span>{" "}
-          レッスン完了
-        </p>
-        {/*
-          続けた日数。炎の印を添える。
-          数字だけだと、進み具合の分子と見分けが付かない。
-        */}
-        <p className="flex items-center gap-1 text-ink-muted">
-          <IconStreak className="h-4 w-4 shrink-0 text-caution" aria-hidden="true" />
-          {days > 0 ? (
-            <>
-              続けて{" "}
-              <span className="text-sm font-bold tabular-nums text-ink">{days}</span> 日
-            </>
-          ) : (
-            "今日がはじめの1日"
-          )}
-        </p>
-      </div>
-
-      {realTaskCount > 0 && (
-        <p className="mt-1 text-xs text-ink-muted">
-          自分の課題で{realTaskCount}回ためしました
-        </p>
-      )}
-    </section>
-  );
-}
-
 // ------------------------------------------------------------------ 本体
 
 export function HomePage({
   onSelectLesson,
   onOpenCourse,
+  onOpenPath,
   onOpenRecord,
   onOpenAccount,
 }: HomePageProps) {
@@ -403,31 +264,35 @@ export function HomePage({
     <>
       <AppHeader onOpenAccount={onOpenAccount} />
 
-      <main className="mx-auto max-w-2xl px-5 pb-28 pt-2">
+      <main className="page">
         {/*
-          ポーは学習ガイドであって、チャットボットではない。
-          あいさつは1回だけ、短く。誰にでも当てはまる励ましは書かない。
+          ポーは学習ガイドであって、チャットボットでも扉の絵でもない。
+          ひとことだけ、横に小さく。誰にでも当てはまる励ましは書かない。
         */}
-        <PoHero
-          title={
-            <>
-              こんにちは！
-              <br />
-              ポーです
-            </>
-          }
+        <PoGreeting
           emotion="talking"
           message={
             completed.length === 0
-              ? "一緒に学んで、使える力を少しずつつけていきましょう！"
+              ? "一緒に、少しずつ進めていきましょう！"
               : nextLesson
                 ? `おかえりなさい。次は「${nextLesson.title}」です。`
                 : "ここまでの教材はすべて終わりました。"
           }
         />
 
+        {/* 続けた日数と終えた本数。1行に収める */}
+        <div className="mt-3">
+          <HomeStats
+            days={streak.days}
+            done={completed.length}
+            total={startable.length}
+            tries={streak.realTaskCount}
+            onOpenRecord={onOpenRecord}
+          />
+        </div>
+
         {nextLesson && (
-          <div className="mt-5">
+          <div className="mt-4">
             <TodayCard
               lesson={nextLesson}
               started={completed.length > 0}
@@ -437,41 +302,36 @@ export function HomePage({
         )}
 
         {/*
+          学習の道のりの進み具合と、その入口。
+
+          一覧そのものはここに出さない。「全体の順番と現在地」は
+          道のりの画面が持ち、ホームは「次に何をするか」に徹する。
+        */}
+        <div className="mt-4">
+          <PathProgress
+            course={course}
+            done={completed.length}
+            total={startable.length}
+            showCourseTitle
+            onOpenPath={() => onOpenPath(course.id)}
+          />
+        </div>
+
+        {/*
           そろそろ見返しどきのもの。無ければ何も出ない。
           余白は ReviewPrompt 自身が持つ。ここで囲うと、
           出すものが無い日にも空の余白だけが残る。
         */}
         <ReviewPrompt onSelectLesson={onSelectLesson} />
 
-        <div className="mt-7">
-          <Progress
-            course={course}
-            done={completed.length}
-            total={startable.length}
-            days={streak.days}
-            realTaskCount={streak.realTaskCount}
-            onOpenRecord={onOpenRecord}
-          />
-        </div>
-
         {/*
           飛ばした解説。無い日は何も出ない。
 
-          道のりの前に置く。「次へ進む」より前に「戻れる場所」を出すのは、
+          おすすめの前に置く。「次へ進む」より前に「戻れる場所」を出すのは、
           穴が空いたまま先へ進んでほしくないため。ただし押し付けない——
           出すのは節ひとつで、開かなければそのまま下へ流れる。
         */}
         <ReviewCards course={course} />
-
-        {/* ── 7日間の道のり ── */}
-        <div className="mt-7">
-          <DayTrack
-            lessons={course.lessons}
-            completed={completed}
-            currentId={nextLesson?.id ?? null}
-            onSelectLesson={onSelectLesson}
-          />
-        </div>
 
         {/* ── おすすめコース ── */}
         {others.length > 0 && (

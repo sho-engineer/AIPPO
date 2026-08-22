@@ -52,6 +52,9 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
   HOME: {
     SELECT_LESSON: "LESSON",
     OPEN_COURSE: "COURSE",
+    // ホームの「学習の道のり」から、いま学んでいるコースの道のりへ。
+    // 一覧を経由させない——どのコースを見たいかは、もう決まっている
+    OPEN_COURSE_DETAIL: "COURSE_DETAIL",
     OPEN_RECORD: "RECORD",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",

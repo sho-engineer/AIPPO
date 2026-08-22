@@ -74,11 +74,11 @@ export type AppHeaderProps = {
 export function AppHeader({ onBack, action, centered, onOpenAccount }: AppHeaderProps) {
   return (
     <header
-      className="sticky top-0 z-20 border-b border-line bg-canvas/95 px-4
+      className="sticky top-0 z-20 border-b border-line bg-canvas/95 px-5
                  pt-[env(safe-area-inset-top)] backdrop-blur"
       data-testid="app-header"
     >
-      <div className="relative mx-auto flex h-14 max-w-2xl items-center gap-2">
+      <div className="relative mx-auto flex h-14 max-w-page items-center gap-2">
         {onBack && (
           <button
             type="button"
@@ -201,7 +201,7 @@ export function BottomTabBar({
       className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95
                  px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur"
     >
-      <ul className="mx-auto flex max-w-2xl" role="list">
+      <ul className="mx-auto flex max-w-page" role="list">
         {TABS.map((tab) => {
           const active = tab.key === current;
           return (

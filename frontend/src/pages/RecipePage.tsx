@@ -47,7 +47,7 @@ export function RecipePage({
     <>
       <AppHeader onBack={onBack} centered />
 
-      <main className="mx-auto max-w-2xl px-5 pb-28 pt-2">
+      <main className="page">
         <p className="text-xs font-bold text-ink-muted">こんな使い方もできます</p>
         <h1 className="mt-1 text-xl font-bold leading-8" data-testid="recipe-title">
           {tip.title}

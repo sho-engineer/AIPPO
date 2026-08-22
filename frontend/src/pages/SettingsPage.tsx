@@ -140,7 +140,7 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
     <>
       <AppHeader onBack={back} centered />
 
-      <main className="mx-auto max-w-2xl px-5 pb-28">
+      <main className="page">
         {/* 押した結果は、画面の上に短く出す。読み上げにも届ける */}
         {notice && (
           <p

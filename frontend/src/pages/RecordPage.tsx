@@ -157,7 +157,7 @@ export function RecordPage({ onSelectLesson, onOpenCourse }: RecordPageProps) {
     <>
       <AppHeader />
 
-      <main className="mx-auto max-w-2xl px-4 pb-24 pt-4">
+      <main className="page">
         <h1 className="text-xl font-bold">学習履歴</h1>
         <p className="mt-1.5 text-sm leading-7 text-ink-muted">
           作ったものは、ここからいつでも取り出せます。

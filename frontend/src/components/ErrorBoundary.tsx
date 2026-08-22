@@ -46,7 +46,7 @@ export class ErrorBoundary extends Component<Props, State> {
     return (
       <main
         data-testid="crash-view"
-        className="mx-auto max-w-2xl px-6 py-16 pb-48 sm:pb-16"
+        className="mx-auto max-w-page px-6 py-16 pb-48 sm:pb-16"
       >
         <h1 className="text-xl font-bold">{CRASH.title}</h1>
         <p className="mt-3 text-sm leading-7">{CRASH.body}</p>
