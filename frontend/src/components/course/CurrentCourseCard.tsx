@@ -60,7 +60,12 @@ export function CurrentCourseCard({
         中の「つづきから」が入れ子のボタンになって押せなくなる。
       */}
       {banner && (
-        <button type="button" onClick={onOpen} className="block w-full">
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label={`${course.title}を開く`}
+          className="block w-full"
+        >
           <img
             src={banner}
             alt=""
