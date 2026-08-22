@@ -298,6 +298,14 @@ class TestOpenAIProvider:
         assert client.captured["options"]["timeout"] == 7
         assert client.captured["max_output_tokens"] == 123
 
+    def test_gpt5_uses_low_latency_reasoning_effort(self, settings):
+        settings.AI_REASONING_EFFORT = "minimal"
+        client = _FakeOpenAI(_FakeResponse('{"result": "x"}'))
+
+        self._provider(client).generate_structured(REQUEST, SCHEMA)
+
+        assert client.captured["reasoning"] == {"effort": "minimal"}
+
     def test_timeout_is_translated(self):
         import openai
 
