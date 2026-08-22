@@ -55,7 +55,7 @@ class TestFirstReleaseCatalog:
 
     def test_thumbnail_reference_is_served_from_the_catalog(self, released):
         lesson = Lesson.objects.get(slug="brainstorm_ideas")
-        assert lesson.thumbnail == "/assets/lessons/ideas_ten.webp"
+        assert lesson.thumbnail == "/assets/final-thumbnails/start_04.webp"
         assert course_to_dict(lesson.course)["lessons"][5]["thumbnail"]
 
     def test_both_courses_have_reusable_learning_paths(self, released):

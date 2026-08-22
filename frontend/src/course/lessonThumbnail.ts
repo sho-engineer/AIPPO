@@ -46,18 +46,32 @@ export const LESSON_THUMBNAIL_HEIGHT = 576;
  * 絵があるからといって始められるわけではないし、その逆でもない。
  */
 const BY_LESSON_ID: Record<string, string> = {
-  // 「7日でAIの最初の一歩」で、いま始められるもの
-  rewrite_text: "/assets/lessons/rewrite_text.webp",
-  summarize_text: "/assets/lessons/summarize_text.webp",
-  explain_topic: "/assets/lessons/explain_topic.webp",
-  compare_options: "/assets/lessons/compare_options.webp",
-  make_plan: "/assets/lessons/make_plan.webp",
+  // AIスタートコース
+  improve_answer: "/assets/final-thumbnails/practical_01.webp",
+  rewrite_text: "/assets/final-thumbnails/start_01.webp",
+  summarize_text: "/assets/final-thumbnails/start_02.webp",
+  explain_topic: "/assets/final-thumbnails/start_03.webp",
+  brainstorm_ideas: "/assets/final-thumbnails/start_04.webp",
+  compare_options: "/assets/final-thumbnails/start_05.webp",
+  organize_information: "/assets/final-thumbnails/start_06.webp",
+  make_plan: "/assets/final-thumbnails/start_12.webp",
+
+  // AI活用コース
+  organize_meeting: "/assets/final-thumbnails/practical_03.webp",
+  work_email_chat: "/assets/final-thumbnails/practical_02.webp",
+  extract_needed_info: "/assets/final-thumbnails/practical_04.webp",
+  organize_research: "/assets/final-thumbnails/practical_05.webp",
+  make_document_outline: "/assets/final-thumbnails/practical_10.webp",
+  transcription_use: "/assets/final-thumbnails/start_09.webp",
+  combine_ai_skills: "/assets/final-thumbnails/practical_12.webp",
+  practical_recipe: "/assets/final-thumbnails/practical_01.webp",
+  image_generation: "/assets/final-thumbnails/practical_09.webp",
 
   // これから増えるコースのぶん（近日公開。絵だけ先にある）
-  ideas_ten: "/assets/lessons/ideas_ten.webp",
+  ideas_ten: "/assets/final-thumbnails/start_04.webp",
   summarize_categorize: "/assets/lessons/summarize_categorize.webp",
   summarize_three_lines: "/assets/lessons/summarize_three_lines.webp",
-  image_first: "/assets/lessons/image_first.webp",
+  image_first: "/assets/final-thumbnails/start_07.webp",
   image_style: "/assets/lessons/image_style.webp",
 };
 

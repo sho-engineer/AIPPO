@@ -27,6 +27,7 @@
 import { IconChevronRight, IconClock } from "../Icons";
 import { courseIcon } from "../../course/courseVisual";
 import { courseProgress } from "../../course/courseProgress";
+import { courseBanner } from "../../course/courseBanner";
 import type { Course } from "../../course/types";
 
 export interface CurrentCourseCardProps {
@@ -46,10 +47,11 @@ export function CurrentCourseCard({
 }: CurrentCourseCardProps) {
   const progress = courseProgress(course, completedIds);
   const Icon = courseIcon(course.id);
+  const banner = courseBanner(course.id);
 
   return (
     <section
-      className="rounded-panel border border-brand-line bg-surface p-4 shadow-card"
+      className="overflow-hidden rounded-panel border border-brand-line bg-surface shadow-card"
       aria-labelledby="current-course-title"
       data-testid={`current-course-${course.id}`}
     >
@@ -57,29 +59,46 @@ export function CurrentCourseCard({
         題そのものを押せるようにする。カード全体を1つのボタンにすると、
         中の「つづきから」が入れ子のボタンになって押せなくなる。
       */}
-      <button
-        type="button"
-        onClick={onOpen}
-        data-testid="current-course-open"
-        className="flex w-full items-start gap-3 text-left"
-      >
-        <span
-          aria-hidden="true"
-          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center
-                     rounded-card bg-brand-soft text-brand"
+      {banner && (
+        <button type="button" onClick={onOpen} className="block w-full">
+          <img
+            src={banner}
+            alt=""
+            aria-hidden="true"
+            width={1258}
+            height={410}
+            loading="eager"
+            decoding="async"
+            className="block h-auto w-full border-b border-brand-line object-cover"
+            data-testid="course-banner"
+          />
+        </button>
+      )}
+
+      <div className="p-4">
+        <button
+          type="button"
+          onClick={onOpen}
+          data-testid="current-course-open"
+          className="flex w-full items-start gap-3 text-left"
         >
-          <Icon className="h-5 w-5" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span id="current-course-title" className="block text-base font-bold leading-6">
-            {course.title}
+          <span
+            aria-hidden="true"
+            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center
+                       rounded-card bg-brand-soft text-brand"
+          >
+            <Icon className="h-5 w-5" />
           </span>
-        </span>
-        <IconChevronRight className="mt-1 h-5 w-5 shrink-0 text-ink-muted" />
-      </button>
+          <span className="min-w-0 flex-1">
+            <span id="current-course-title" className="block text-base font-bold leading-6">
+              {course.title}
+            </span>
+          </span>
+          <IconChevronRight className="mt-1 h-5 w-5 shrink-0 text-ink-muted" />
+        </button>
 
       {/* どこまで来たか。帯と数字を並べる（片方だけだと読み取りにくい） */}
-      <div className="mt-3 flex items-center gap-3">
+        <div className="mt-3 flex items-center gap-3">
         <div
           className="h-2 flex-1 overflow-hidden rounded-full bg-brand-line"
           role="progressbar"
@@ -99,9 +118,9 @@ export function CurrentCourseCard({
         >
           {progress.done} / {progress.total}
         </span>
-      </div>
+        </div>
 
-      {progress.next ? (
+        {progress.next ? (
         <>
           <p className="mt-3 text-sm leading-6">
             <span className="text-ink-muted">次：</span>
@@ -130,7 +149,7 @@ export function CurrentCourseCard({
             </button>
           </div>
         </>
-      ) : (
+        ) : (
         /*
           全部終えている。ここで「つづきから」を出すと、押した先が無い。
           終えたことを言って、コースの中（見返し）へ行けるようにする。
@@ -138,7 +157,8 @@ export function CurrentCourseCard({
         <p className="mt-3 text-sm leading-6 text-ink-muted">
           このコースは全部終えました。見返すこともできます。
         </p>
-      )}
+        )}
+      </div>
     </section>
   );
 }

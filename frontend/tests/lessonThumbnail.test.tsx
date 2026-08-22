@@ -32,7 +32,7 @@ const lessonOf = (id: string): Lesson =>
 describe("どの絵を出すか", () => {
   it("id から引ける", () => {
     expect(lessonThumbnail(lessonOf("rewrite_text"))).toBe(
-      "/assets/lessons/rewrite_text.webp",
+      "/assets/final-thumbnails/start_01.webp",
     );
   });
 
