@@ -9,18 +9,6 @@
 呼び出し側（apps/ai/actions.py）で必ず検証する。
 
 ログに本文を残さない。落ちた理由の種別だけを記録する。
-
-例外の種別だけでは足りない
---------------------------
-`openai.APIError` は「鍵が無効」「モデル名が違う」「使えないモデル」
-「quota切れ」「rate limit」を**すべて同じ例外クラスの下位クラス**で表す
-（`AuthenticationError` / `NotFoundError` / `RateLimitError` など、
-どれも `APIStatusError` の子）。`type(exc).__name__` はその区別を
-そのまま持っているので、ログには HTTP status と、OpenAI 自身が
-返す短い分類コード（`exc.code` — 例: `invalid_api_key` /
-`model_not_found` / `insufficient_quota`）も一緒に残す。
-どちらも本文や鍵の値ではなく、OpenAI が「これは秘密ではない」前提で
-用意している分類用の短い文字列（SDK の `_exceptions.py` 参照）。
 """
 
 from __future__ import annotations
@@ -83,12 +71,7 @@ class OpenAIProvider(AIProvider):
             logger.warning("ai.openai.timeout timeout=%ss", timeout)
             raise AITimeoutError("AI request timed out") from exc
         except openai.APIError as exc:
-            logger.warning(
-                "ai.openai.error type=%s status=%s code=%s",
-                type(exc).__name__,
-                getattr(exc, "status_code", None),
-                getattr(exc, "code", None),
-            )
+            logger.warning("ai.openai.error type=%s", type(exc).__name__)
             raise AIProviderError("AI request failed") from exc
 
     @staticmethod

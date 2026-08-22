@@ -225,20 +225,6 @@ class _FakeResponse:
         self.usage = type("U", (), {"input_tokens": 11, "output_tokens": 22})()
 
 
-class _FakeHttpxResponse:
-    """`openai.APIStatusError` の下位クラスが要求する最低限の形。
-
-    本物の httpx2.Response は要らない。`status_code` を読み、
-    `request_id` のために `headers.get(...)` を呼ぶだけなので、
-    その2つだけを持つ。
-    """
-
-    def __init__(self, status_code: int) -> None:
-        self.status_code = status_code
-        self.request = None
-        self.headers: dict = {}
-
-
 class TestOpenAIProvider:
     def _provider(self, client):
         from apps.ai.providers.openai_provider import OpenAIProvider
@@ -291,34 +277,6 @@ class TestOpenAIProvider:
 
         with pytest.raises(AIProviderError):
             self._provider(client).generate_structured(REQUEST, SCHEMA)
-
-    def test_api_error_logs_status_and_code_for_diagnosis(self, caplog):
-        """例外の種類だけでは、鍵無効・モデル名違い・quota切れ・rate limit
-        を見分けられない（`openai.APIError` の下位クラスは全部これ）。
-
-        本番で「502になる」までは分かっても、どの理由かは
-        ログのこの1行でしか区別できない。HTTP status と、OpenAI自身が
-        用意している短い分類コード（`code`）の両方が残ることを確かめる
-        ——本文や鍵の値は載せない。
-        """
-        import openai
-
-        response = _FakeHttpxResponse(status_code=429)
-        error = openai.RateLimitError(
-            "Rate limit reached",
-            response=response,
-            body={"code": "rate_limit_exceeded", "type": "rate_limit_error"},
-        )
-        client = _FakeOpenAI(error=error)
-
-        with caplog.at_level("WARNING"):
-            with pytest.raises(AIProviderError):
-                self._provider(client).generate_structured(REQUEST, SCHEMA)
-
-        [record] = [r for r in caplog.records if r.message.startswith("ai.openai.error")]
-        assert "type=RateLimitError" in record.message
-        assert "status=429" in record.message
-        assert "code=rate_limit_exceeded" in record.message
 
     def test_malformed_json_is_translated(self):
         client = _FakeOpenAI(_FakeResponse("これはJSONではない"))
