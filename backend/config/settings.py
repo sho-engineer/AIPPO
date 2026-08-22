@@ -422,6 +422,9 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 # 1回の呼び出しの上限。長くすると待ち時間も費用も伸びる。
 AI_REQUEST_TIMEOUT_SECONDS = float(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "20"))
 AI_MAX_OUTPUT_TOKENS = int(os.getenv("AI_MAX_OUTPUT_TOKENS", "600"))
+# 教材の短い文章処理では深い推論より応答速度を優先する。
+# GPT-5 系は未指定だと medium になり、画面の20秒上限を超えやすい。
+AI_REASONING_EFFORT = os.getenv("AI_REASONING_EFFORT", "minimal")
 
 
 # 課題の重さ（model_tier）→ どのモデルへ送るか（apps/ai/routing.py）。

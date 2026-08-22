@@ -71,14 +71,17 @@ class OpenAIProvider(AIProvider):
         timeout = request.timeout_seconds or settings.AI_REQUEST_TIMEOUT_SECONDS
         client = self._get_client().with_options(timeout=timeout, max_retries=0)
 
+        model = request.model or self._model
         kwargs: dict = {
-            "model": request.model or self._model,
+            "model": model,
             "instructions": request.system_prompt,
             "input": request.user_content,
             "max_output_tokens": max_output_tokens
             or request.max_output_tokens
             or settings.AI_MAX_OUTPUT_TOKENS,
         }
+        if model.startswith("gpt-5") and settings.AI_REASONING_EFFORT:
+            kwargs["reasoning"] = {"effort": settings.AI_REASONING_EFFORT}
         if text_format is not None:
             kwargs["text"] = {"format": text_format}
 
