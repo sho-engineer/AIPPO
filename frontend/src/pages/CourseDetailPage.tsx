@@ -57,7 +57,12 @@ import { useCompletedLessons } from "../course/progress";
 import { useLearningPath } from "../course/learningPath";
 import { useBookmarks } from "../course/bookmarks";
 import { useKeeping } from "../course/keeping";
-import { searchLessons } from "../course/search";
+import {
+  filterLessonsByCategory,
+  LESSON_CATEGORIES,
+  searchLessons,
+  type LessonCategoryId,
+} from "../course/search";
 import type { Course, Lesson } from "../course/types";
 
 export interface CourseDetailPageProps {
@@ -92,6 +97,7 @@ export function CourseDetailPage({
   const certificates = useCertificates();
   const [recommended, setRecommended] = useState<string[]>([]);
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<LessonCategoryId | null>(null);
   // 修了証は下位画面として開く。設定と同じで、1画面には1つの目的だけ置く
   const [showingCertificates, setShowingCertificates] = useState(false);
 
@@ -126,8 +132,11 @@ export function CourseDetailPage({
 
   // 探している最中は、絞り込んだものだけを並べる。
   // 空のときは全件（＝いつもの道のり）に戻る
-  const searching = query.trim() !== "";
-  const found = searchLessons(course.lessons, query);
+  const searching = query.trim() !== "" || category !== null;
+  const found = searchLessons(
+    filterLessonsByCategory(course.lessons, category),
+    query,
+  );
 
   // 目印の付いた教材。id の並び順ではなく、一覧と同じ順に出す——
   // 上下2か所で順番が違うと、同じものを探し直すことになる
@@ -252,6 +261,30 @@ export function CourseDetailPage({
               className="w-full border-b border-line bg-transparent px-1 py-2 text-sm
                          placeholder:text-ink-muted focus:border-brand focus:outline-none"
             />
+            <div
+              className="mt-3 flex gap-2 overflow-x-auto pb-1"
+              role="group"
+              aria-label="やりたいことから絞る"
+            >
+              {LESSON_CATEGORIES.map((entry) => {
+                const selected = category === entry.id;
+                return (
+                  <button
+                    key={entry.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setCategory(selected ? null : entry.id)}
+                    className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+                      selected
+                        ? "border-brand bg-brand text-white"
+                        : "border-line bg-white text-ink-muted hover:border-brand"
+                    }`}
+                  >
+                    {entry.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/*
@@ -270,13 +303,17 @@ export function CourseDetailPage({
             */
             <div className="mt-4" role="status">
               <p className="text-sm leading-7 text-ink-muted">
-                「{query}」に当てはまる教材はありませんでした。
+                {query.trim() ? `「${query}」に` : "選んだカテゴリに"}
+                当てはまる教材はありませんでした。
                 <br />
                 別の言い方でも探せます。
               </p>
               <button
                 type="button"
-                onClick={() => setQuery("")}
+                onClick={() => {
+                  setQuery("");
+                  setCategory(null);
+                }}
                 data-testid="lesson-search-clear"
                 className="-my-2 mt-1 py-2 text-sm font-bold text-brand
                            transition hover:text-brand-dark"

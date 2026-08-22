@@ -17,7 +17,7 @@
  * 途中だから、抜け道を並べると気が散る（戻る道は画面の中に用意してある）。
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { BottomTabBar, type TabKey } from "./components/AppShell";
 import { CoursePage } from "./pages/CoursePage";
@@ -57,14 +57,51 @@ const SCREEN_OF_TAB: Partial<Record<TabKey, Screen>> = {
   more: "SETTINGS",
 };
 
+interface AippoHistoryState {
+  aippo: true;
+  depth: number;
+  screen: Screen;
+  lessonId: string;
+  courseId: string;
+  recipeId: string | null;
+}
+
+function isAippoHistoryState(value: unknown): value is AippoHistoryState {
+  if (typeof value !== "object" || value === null) return false;
+  const state = value as Partial<AippoHistoryState>;
+  return state.aippo === true && typeof state.screen === "string";
+}
+
+const BACK_FALLBACK: Record<Screen, Screen> = {
+  TOP: "TOP",
+  HOME: "TOP",
+  COURSE: "HOME",
+  COURSE_DETAIL: "COURSE",
+  LESSON: "COURSE_DETAIL",
+  RECIPE: "COURSE_DETAIL",
+  RECORD: "HOME",
+  SAVED: "HOME",
+  SETTINGS: "HOME",
+};
+
 export function App() {
   // 教材はサーバーから届いたら差し替わる。届くまでは同梱の分で動く
   const course = useCourse();
-  const restored = loadPlace();
-  const [screen, setScreen] = useState<Screen>(restored?.screen ?? "TOP");
-  const [lessonId, setLessonId] = useState<string>(
-    restored?.lessonId ?? course.lessons[0].id,
-  );
+  const [initial] = useState(() => {
+    const browser = window.history.state;
+    if (isAippoHistoryState(browser)) return browser;
+    const restored = loadPlace();
+    return {
+      aippo: true as const,
+      depth: 0,
+      screen: restored?.screen ?? "TOP",
+      lessonId: restored?.lessonId ?? course.lessons[0].id,
+      courseId: restored?.courseId ?? course.id,
+      recipeId: null,
+    };
+  });
+  const [screen, setScreen] = useState<Screen>(initial.screen);
+  const [lessonId, setLessonId] = useState<string>(initial.lessonId);
   /*
     いま中を見ているコース。
 
@@ -72,7 +109,7 @@ export function App() {
     せっかく選んだところからやり直しになる。
   */
   const [detailCourseId, setDetailCourseId] = useState<string>(
-    restored?.courseId ?? course.id,
+    initial.courseId,
   );
   /*
     いま開いている「こんな使い方もできます」。
@@ -80,7 +117,7 @@ export function App() {
     覚え直さない（savePlace に入れない）。読み込み直したときに
     説明だけが出ていると、どのレッスンから来たのかが分からなくなる。
   */
-  const [recipeId, setRecipeId] = useState<string | null>(null);
+  const [recipeId, setRecipeId] = useState<string | null>(initial.recipeId);
   const courses = useCourses();
   const completed = useCompletedLessons();
 
@@ -89,9 +126,82 @@ export function App() {
     [screen, lessonId, detailCourseId],
   );
 
+  const navigate = useCallback(
+    (
+      next: Screen,
+      values: {
+        lessonId?: string;
+        courseId?: string;
+        recipeId?: string | null;
+      } = {},
+    ) => {
+      const state: AippoHistoryState = {
+        aippo: true,
+        depth: isAippoHistoryState(window.history.state)
+          ? window.history.state.depth + 1
+          : 1,
+        screen: next,
+        lessonId: values.lessonId ?? lessonId,
+        courseId: values.courseId ?? detailCourseId,
+        recipeId: values.recipeId === undefined ? recipeId : values.recipeId,
+      };
+      window.history.pushState(state, "");
+      setLessonId(state.lessonId);
+      setDetailCourseId(state.courseId);
+      setRecipeId(state.recipeId);
+      setScreen(state.screen);
+    },
+    [detailCourseId, lessonId, recipeId],
+  );
+
+  const goBack = useCallback(
+    (fallback: Screen) => {
+      const state = window.history.state;
+      if (isAippoHistoryState(state) && state.depth > 0) {
+        window.history.back();
+        return;
+      }
+      navigate(fallback);
+    },
+    [navigate],
+  );
+
+  useEffect(() => {
+    const current: AippoHistoryState = {
+      aippo: true,
+      depth: 0,
+      screen,
+      lessonId,
+      courseId: detailCourseId,
+      recipeId,
+    };
+    if (!isAippoHistoryState(window.history.state)) {
+      if (screen === "TOP") {
+        window.history.replaceState(current, "");
+      } else {
+        window.history.replaceState(
+          { ...current, screen: BACK_FALLBACK[screen] },
+          "",
+        );
+        window.history.pushState({ ...current, depth: 1 }, "");
+      }
+    }
+
+    const onPopState = (event: PopStateEvent) => {
+      if (!isAippoHistoryState(event.state)) return;
+      setScreen(event.state.screen);
+      setLessonId(event.state.lessonId);
+      setDetailCourseId(event.state.courseId);
+      setRecipeId(event.state.recipeId);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+    // The first render establishes the browser-history root exactly once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const openCourse = (id: string, from: Screen) => {
-    setDetailCourseId(id);
-    setScreen(nextScreen(from, "OPEN_COURSE_DETAIL"));
+    navigate(nextScreen(from, "OPEN_COURSE_DETAIL"), { courseId: id });
   };
 
   const openLesson = (id: string, from: Screen) => {
@@ -114,10 +224,10 @@ export function App() {
     const owner = courses.find((entry) =>
       entry.lessons.some((item) => item.id === id),
     );
-    if (owner) setDetailCourseId(owner.id);
-
-    setLessonId(id);
-    setScreen(nextScreen(from, "SELECT_LESSON"));
+    navigate(nextScreen(from, "SELECT_LESSON"), {
+      lessonId: id,
+      courseId: owner?.id,
+    });
   };
 
   const tab = TAB_OF[screen];
@@ -133,17 +243,17 @@ export function App() {
   const body = (() => {
     switch (screen) {
       case "TOP":
-        return <TopPage onStart={() => setScreen(nextScreen("TOP", "START"))} />;
+        return <TopPage onStart={() => navigate(nextScreen("TOP", "START"))} />;
 
       case "HOME":
         return (
           <HomePage
             onSelectLesson={(id) => openLesson(id, "HOME")}
-            onOpenCourse={() => setScreen(nextScreen("HOME", "OPEN_COURSE"))}
+            onOpenCourse={() => navigate(nextScreen("HOME", "OPEN_COURSE"))}
             // 「道のりを見る」から、いま学んでいるコースの中身へ直行する
             onOpenPath={(id) => openCourse(id, "HOME")}
-            onOpenRecord={() => setScreen(nextScreen("HOME", "OPEN_RECORD"))}
-            onOpenAccount={() => setScreen(nextScreen("HOME", "OPEN_SETTINGS"))}
+            onOpenRecord={() => navigate(nextScreen("HOME", "OPEN_RECORD"))}
+            onOpenAccount={() => navigate(nextScreen("HOME", "OPEN_SETTINGS"))}
           />
         );
 
@@ -167,11 +277,10 @@ export function App() {
           <CourseDetailPage
             course={opened}
             onSelectLesson={(id) => openLesson(id, "COURSE_DETAIL")}
-            onBack={() => setScreen(nextScreen("COURSE_DETAIL", "OPEN_COURSE"))}
+            onBack={() => goBack("COURSE")}
             // 「作れるようになるもの」から、やり方の説明へ
             onOpenRecipe={(recipeId) => {
-              setRecipeId(recipeId);
-              setScreen(nextScreen("COURSE_DETAIL", "OPEN_RECIPE"));
+              navigate(nextScreen("COURSE_DETAIL", "OPEN_RECIPE"), { recipeId });
             }}
           />
         );
@@ -185,7 +294,7 @@ export function App() {
           （覚えていた場所が古い、教材の入れ替えで消えた、など）。
         */
         if (!tip) {
-          setScreen("HOME");
+          navigate("HOME", { recipeId: null });
           return null;
         }
 
@@ -195,7 +304,7 @@ export function App() {
             lessonTitle={(id) => lookupLesson(id)?.title ?? null}
             completedIds={completed}
             onSelectLesson={(id) => openLesson(id, "RECIPE")}
-            onBack={() => setScreen(nextScreen("RECIPE", "BACK_TO_HOME"))}
+            onBack={() => goBack("HOME")}
           />
         );
       }
@@ -204,7 +313,7 @@ export function App() {
         return (
           <RecordPage
             onSelectLesson={(id) => openLesson(id, "RECORD")}
-            onOpenCourse={() => setScreen(nextScreen("RECORD", "OPEN_COURSE"))}
+            onOpenCourse={() => navigate(nextScreen("RECORD", "OPEN_COURSE"))}
           />
         );
 
@@ -212,13 +321,13 @@ export function App() {
         return (
           <SavedPage
             onSelectLesson={(id) => openLesson(id, "SAVED")}
-            onOpenCourse={() => setScreen(nextScreen("SAVED", "OPEN_COURSE"))}
-            onOpenAccount={() => setScreen(nextScreen("SAVED", "OPEN_SETTINGS"))}
+            onOpenCourse={() => navigate(nextScreen("SAVED", "OPEN_COURSE"))}
+            onOpenAccount={() => navigate(nextScreen("SAVED", "OPEN_SETTINGS"))}
           />
         );
 
       case "SETTINGS":
-        return <SettingsPage onBack={() => setScreen("HOME")} />;
+        return <SettingsPage onBack={() => goBack("HOME")} />;
 
       case "LESSON": {
         // 知らない id が入っても画面を落とさない。先頭のレッスンへ倒す
@@ -233,10 +342,10 @@ export function App() {
           return (
             <HomePage
               onSelectLesson={(id) => openLesson(id, "HOME")}
-              onOpenCourse={() => setScreen("COURSE")}
+              onOpenCourse={() => navigate("COURSE")}
               onOpenPath={(id) => openCourse(id, "HOME")}
-              onOpenRecord={() => setScreen("RECORD")}
-              onOpenAccount={() => setScreen("SETTINGS")}
+              onOpenRecord={() => navigate("RECORD")}
+              onOpenAccount={() => navigate("SETTINGS")}
             />
           );
         }
@@ -245,17 +354,16 @@ export function App() {
           <LessonRunner
             key={lesson.id}
             lesson={lesson}
-            onFinish={() => setScreen(nextScreen("LESSON", "BACK_TO_HOME"))}
+            onFinish={() => navigate(nextScreen("LESSON", "BACK_TO_HOME"))}
             /* 1つ戻る先は、そのレッスンが入っているコースの中身 */
-            onExit={() => setScreen(nextScreen("LESSON", "OPEN_COURSE_DETAIL"))}
+            onExit={() => goBack("COURSE_DETAIL")}
             // 完了画面から、そのまま次のレッスンへ入れるようにする
             onSelectLesson={(id) => openLesson(id, "LESSON")}
             // コース完走の締めくくりから、コース一覧へ
-            onOpenCourseCatalog={() => setScreen(nextScreen("LESSON", "OPEN_COURSE"))}
+            onOpenCourseCatalog={() => navigate(nextScreen("LESSON", "OPEN_COURSE"))}
             // 「やり方をくわしく見る」から、使い方の説明へ
             onOpenRecipe={(tipId) => {
-              setRecipeId(tipId);
-              setScreen(nextScreen("LESSON", "OPEN_RECIPE"));
+              navigate(nextScreen("LESSON", "OPEN_RECIPE"), { recipeId: tipId });
             }}
           />
         );
@@ -284,7 +392,7 @@ export function App() {
       {tab && (
         <BottomTabBar
           current={tab}
-          onSelect={(key) => setScreen(SCREEN_OF_TAB[key] ?? screen)}
+          onSelect={(key) => navigate(SCREEN_OF_TAB[key] ?? screen)}
         />
       )}
     </>
