@@ -60,7 +60,12 @@ class OpenAIProvider(AIProvider):
             self._client = OpenAI(api_key=settings.OPENAI_API_KEY or None)
         return self._client
 
-    def _call(self, request: AIRequest, text_format: dict | None):
+    def _call(
+        self,
+        request: AIRequest,
+        text_format: dict | None,
+        max_output_tokens: int | None = None,
+    ):
         import openai
 
         timeout = request.timeout_seconds or settings.AI_REQUEST_TIMEOUT_SECONDS
@@ -70,9 +75,9 @@ class OpenAIProvider(AIProvider):
             "model": request.model or self._model,
             "instructions": request.system_prompt,
             "input": request.user_content,
-            "max_output_tokens": (
-                request.max_output_tokens or settings.AI_MAX_OUTPUT_TOKENS
-            ),
+            "max_output_tokens": max_output_tokens
+            or request.max_output_tokens
+            or settings.AI_MAX_OUTPUT_TOKENS,
         }
         if text_format is not None:
             kwargs["text"] = {"format": text_format}
@@ -92,15 +97,29 @@ class OpenAIProvider(AIProvider):
             raise AIProviderError("AI request failed") from exc
 
     @staticmethod
-    def _usage(response, started: float, model: str) -> AIUsage:
-        usage = getattr(response, "usage", None)
+    def _usage(responses, started: float, model: str) -> AIUsage:
+        if not isinstance(responses, (list, tuple)):
+            responses = [responses]
+        last_response = responses[-1]
         return AIUsage(
             provider="openai",
-            model=getattr(response, "model", "") or model,
-            input_tokens=getattr(usage, "input_tokens", 0) or 0,
-            output_tokens=getattr(usage, "output_tokens", 0) or 0,
+            model=getattr(last_response, "model", "") or model,
+            input_tokens=sum(
+                getattr(getattr(response, "usage", None), "input_tokens", 0) or 0
+                for response in responses
+            ),
+            output_tokens=sum(
+                getattr(getattr(response, "usage", None), "output_tokens", 0) or 0
+                for response in responses
+            ),
             latency_ms=int((time.monotonic() - started) * 1000),
         )
+
+    @staticmethod
+    def _incomplete_reason(response) -> str | None:
+        if getattr(response, "status", None) != "incomplete":
+            return None
+        return getattr(getattr(response, "incomplete_details", None), "reason", None)
 
     @staticmethod
     def _text_of(response) -> str:
@@ -145,16 +164,26 @@ class OpenAIProvider(AIProvider):
 
     def generate_structured(self, request: AIRequest, response_schema: dict) -> AIResult:
         started = time.monotonic()
-        response = self._call(
-            request,
-            text_format={
-                "type": "json_schema",
-                "name": "aippo_result",
-                # strict を付けないと、必須項目が欠けたまま返ることがある
-                "strict": True,
-                "schema": response_schema,
-            },
-        )
+        text_format = {
+            "type": "json_schema",
+            "name": "aippo_result",
+            # strict を付けないと、必須項目が欠けたまま返ることがある
+            "strict": True,
+            "schema": response_schema,
+        }
+        initial_cap = request.max_output_tokens or settings.AI_MAX_OUTPUT_TOKENS
+        response = self._call(request, text_format, max_output_tokens=initial_cap)
+        responses = [response]
+
+        reason = self._incomplete_reason(response)
+        if reason in ("max_output_tokens", "max_tokens"):
+            retry_cap = max(initial_cap * 4, 2400)
+            logger.warning(
+                "ai.openai.incomplete reason=%s retry_tokens=%s", reason, retry_cap
+            )
+            response = self._call(request, text_format, max_output_tokens=retry_cap)
+            responses.append(response)
+
         self._raise_if_refused(response)
 
         raw = self._text_of(response)
@@ -170,5 +199,5 @@ class OpenAIProvider(AIProvider):
         return AIResult(
             text=payload.get("result", "") if isinstance(payload.get("result"), str) else "",
             data=payload,
-            usage=self._usage(response, started, request.model or self._model),
+            usage=self._usage(responses, started, request.model or self._model),
         )

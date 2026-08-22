@@ -200,10 +200,12 @@ class _FakeOpenAI:
     本物を叩かずに、例外の翻訳と利用実績の取り出しだけを確かめたい。
     """
 
-    def __init__(self, response=None, error=None) -> None:
+    def __init__(self, response=None, error=None, responses=None) -> None:
         self._response = response
+        self._responses = list(responses or [])
         self._error = error
         self.captured: dict = {}
+        self.calls: list[dict] = []
         self.responses = self
 
     def with_options(self, **kwargs):
@@ -212,17 +214,39 @@ class _FakeOpenAI:
 
     def create(self, **kwargs):
         self.captured.update(kwargs)
+        self.calls.append(kwargs)
         if self._error is not None:
             raise self._error
+        if self._responses:
+            return self._responses.pop(0)
         return self._response
 
 
 class _FakeResponse:
-    def __init__(self, text: str, model: str = "gpt-5-nano") -> None:
+    def __init__(
+        self,
+        text: str,
+        model: str = "gpt-5-nano",
+        *,
+        status: str = "completed",
+        incomplete_reason: str | None = None,
+        input_tokens: int = 11,
+        output_tokens: int = 22,
+    ) -> None:
         self.output_text = text
         self.model = model
+        self.status = status
+        self.incomplete_details = (
+            type("Incomplete", (), {"reason": incomplete_reason})()
+            if incomplete_reason
+            else None
+        )
         self.output = []
-        self.usage = type("U", (), {"input_tokens": 11, "output_tokens": 22})()
+        self.usage = type(
+            "U",
+            (),
+            {"input_tokens": input_tokens, "output_tokens": output_tokens},
+        )()
 
 
 class _FakeHttpxResponse:
@@ -325,6 +349,37 @@ class TestOpenAIProvider:
 
         with pytest.raises(AIMalformedError):
             self._provider(client).generate_structured(REQUEST, SCHEMA)
+
+    def test_incomplete_max_tokens_retries_once_with_a_larger_cap(self, settings):
+        """推論トークンで上限を使い切ると、HTTP 200でも本文が空になる。
+
+        その空文字列を単なる壊れたJSONとして502にせず、上限を増やして
+        1回だけ取り直す。2回分の利用量も原価記録から落とさない。
+        """
+        settings.AI_MAX_OUTPUT_TOKENS = 600
+        client = _FakeOpenAI(
+            responses=[
+                _FakeResponse(
+                    "",
+                    status="incomplete",
+                    incomplete_reason="max_output_tokens",
+                    input_tokens=10,
+                    output_tokens=600,
+                ),
+                _FakeResponse(
+                    '{"result": "書き直した文章"}',
+                    input_tokens=10,
+                    output_tokens=30,
+                ),
+            ]
+        )
+
+        result = self._provider(client).generate_structured(REQUEST, SCHEMA)
+
+        assert result.data["result"] == "書き直した文章"
+        assert [call["max_output_tokens"] for call in client.calls] == [600, 2400]
+        assert result.usage.input_tokens == 20
+        assert result.usage.output_tokens == 630
 
     def test_empty_text_is_translated(self):
         client = _FakeOpenAI(_FakeResponse("   "))
