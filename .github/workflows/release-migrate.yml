@@ -1,0 +1,104 @@
+name: Release — apply migrations to production
+
+# main への push（＝リリース）だけで動く。
+#
+# Vercel の build ステップ（backend/build.py）には意図して入れていない。
+# Preview 環境も本番と同じ DATABASE_URL を向いている構成のことが多く、
+# デプロイのたびに（Preview も含めて）勝手に migrate が走ると事故る
+# （build.py のコメント参照）。ここは push: main だけで発火するので、
+# PR のたびには走らない。
+on:
+  push:
+    branches: [main]
+
+# 同時に2つ走らせない。並列 deploy が続けて main へ入っても、
+# migrate 自体は1本ずつ直列に処理する（Postgres 側でも DDL が
+# ぶつかる可能性を減らす）。
+concurrency:
+  group: production-migrate
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Apply migrations (production DB)
+    runs-on: ubuntu-latest
+    # "production" という名前の GitHub Environment に紐付けてある。
+    #
+    # これ自体はただの名前だが、リポジトリの Settings → Environments →
+    # production で **Required reviewers** を設定すると、ここで人の
+    # 承認待ちになる（誰かが Approve するまで migrate が実行されない）。
+    # destructive な migration が紛れていないかを、当てる前に人が
+    # 一度見る場所として使う。secrets（PRODUCTION_DATABASE_URL）も
+    # この Environment 専用に登録する
+    #（Settings → Environments → production → Environment secrets）。
+    # リポジトリ共通の Secrets に置くと、preview 用のワークフローからも
+    # 読めてしまう。
+    environment: production
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev]"
+
+      # secrets が空のまま先へ進むと、config/settings.py の分岐で
+      # 静かに SQLite（Actions ランナー上の使い捨てファイル）へ落ちる。
+      # そのまま migrate も migrate --check も「成功」してジョブは緑になる
+      # ——本番には何も起きていないのに気づけない、いちばん危ない失敗。
+      # ここで止め、postgres 系の URL であることも軽く見ておく
+      # （sqlite:// を貼り間違えて渡したときも同じ事故になるため）。
+      - name: Require a production DATABASE_URL
+        env:
+          URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "::error::PRODUCTION_DATABASE_URL が未設定です。" \
+              "Settings → Environments → production → secrets へ追加してください。" \
+              "空のまま実行すると SQLite へ静かに切り替わり、" \
+              "何もせず成功したように見えてしまいます。"
+            exit 1
+          fi
+          case "$URL" in
+            postgres://*|postgresql://*) ;;
+            *)
+              echo "::error::PRODUCTION_DATABASE_URL が postgres:// / postgresql:// で始まっていません。"
+              exit 1
+              ;;
+          esac
+
+      # 何を当てようとしているかを、当てる前にログへ残す。
+      # 接続文字列そのものは出さない（DATABASE_URL は環境変数のみで渡し、
+      # コマンドの引数にもログにも書かない）。
+      - name: Show pending migrations
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: python manage.py showmigrations --plan
+
+      - name: Apply migrations
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: python manage.py migrate --noinput
+
+      # 教材・学習パス・スタンプ定義・AI単価の初期データ。
+      # 何度実行しても同じ結果になる（apps/rewards/seeding.py）ので、
+      # 既に入っている本番でそのまま実行してよい。
+      - name: Seed the catalog (idempotent)
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: python manage.py seed_catalog
+
+      # 当て漏れが無いことを、このジョブ自身で確かめて終わる。
+      # 失敗を握りつぶさない — 0 以外で終われば Actions 側が赤くなる。
+      - name: Confirm nothing is left unapplied
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+        run: python manage.py migrate --check

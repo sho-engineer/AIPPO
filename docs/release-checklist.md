@@ -230,3 +230,4 @@ AI設定・学習設定・言語設定・外部連携・サブスクリプショ
 | 確認メールが届かない | `docs/operations.md` の 4 |
 | 管理画面が 404 | `DJANGO_ADMIN_ALLOWED_IPS` に自分のIPが入っているか |
 | 自動削除が動かない | `CRON_SECRET`。`docs/operations.md` の 3 |
+| `/health/ready` は緑なのに AI生成が 500（`relation "..." does not exist`） | migrate を当て忘れ。`database:true` は「migrate 済み」を意味しない——`docs/operations.md` の 6・7 |
