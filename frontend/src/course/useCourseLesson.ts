@@ -66,6 +66,13 @@ export interface CourseLessonApi {
   canBack: boolean;
   isSubmitting: boolean;
   error: string | null;
+  /**
+   * 失敗の種類。`error` の文だけでは、押し直せば直る失敗（"failed"）と、
+   * 押しても意味が無い失敗（"limit"）を画面側が区別できない
+   * ——結果、上限に達しても「AIに送る」を出し続けてしまっていた。
+   * `error` が null のときは常に null。
+   */
+  errorKind: AiRequestError["kind"] | null;
   findings: PrivacyFinding[];
   hintIndex: number;
   realTaskSkipped: boolean;
@@ -137,6 +144,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
   const [po, setPo] = useState<PoMessage>(() => poOf(lesson.steps[0]));
   const [isSubmitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<AiRequestError["kind"] | null>(null);
   const [findings, setFindings] = useState<PrivacyFinding[]>([]);
   const [hintIndex, setHintIndex] = useState(0);
   const [realTaskSkipped, setRealTaskSkipped] = useState(false);
@@ -211,6 +219,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     (key: string, value: string) => {
       setValues((current) => ({ ...current, [key]: value }));
       setError(null);
+      setErrorKind(null);
       void sendLearningEvent({
         lessonId: lesson.id,
         eventType: value.length > 0 && key.endsWith("_text") ? "text_entered" : "option_selected",
@@ -229,6 +238,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       setPo(poOf(target));
       setHintIndex(0);
       setError(null);
+      setErrorKind(null);
       setFindings([]);
     },
     [lesson],
@@ -360,6 +370,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
 
       setSubmitting(true);
       setError(null);
+      setErrorKind(null);
       setFindings([]);
       setPo({
         message: step.poMessage,
@@ -411,9 +422,14 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
             : new AiRequestError("うまく届かなかったようです。", "failed");
         // 入力は消さない。同じことをもう一度書かせない（要件 §6.8）
         setError(failure.detail);
+        setErrorKind(failure.kind);
         setPo({
           message: failure.detail,
-          emotion: "warning",
+          /*
+            上限に達しただけなのに、押しても直らない「失敗」として
+            出さない。ここまでよく練習した、という事実は変わらない。
+          */
+          emotion: failure.kind === "limit" ? "celebrate" : "warning",
           action: failure.kind === "limit" ? "wait" : "retry",
         });
         return "busy" as const;
@@ -515,6 +531,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     canBack: canGoBack(lesson, stepId),
     isSubmitting,
     error,
+    errorKind,
     findings,
     hintIndex,
     realTaskSkipped,

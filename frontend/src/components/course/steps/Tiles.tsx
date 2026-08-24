@@ -48,6 +48,10 @@ export function ChoiceTiles({
         絵を添えて色を散らす。6つを同じ見た目で並べると、
         どれも同じに見えて選ぶ手が止まる。
         選んだことは、枠・地色・右のチェックの3つで示す（色だけにしない）。
+
+        チェックの場所は選ぶ前から確保する。以前は選択時にしか
+        描画しておらず、選ぶたびに隣の文字列の実効幅が縮んで
+        折り返しが動いていた（`aippo/ChoiceButton.tsx` と同じ不具合）。
       */}
       <ul
         /*
@@ -89,9 +93,10 @@ export function ChoiceTiles({
                   size="sm"
                 />
                 <span className="min-w-0 flex-1 text-left leading-6">{option.label}</span>
-                {active && (
-                  <IconCheckCircle className="h-5 w-5 shrink-0 text-brand" />
-                )}
+                <IconCheckCircle
+                  className={`h-5 w-5 shrink-0 text-brand transition-opacity
+                              ${active ? "opacity-100" : "opacity-0"}`}
+                />
               </button>
             </li>
           );

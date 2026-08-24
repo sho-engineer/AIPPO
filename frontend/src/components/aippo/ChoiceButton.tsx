@@ -10,6 +10,14 @@
  * 選ぶと、枠が青くなり・地がうすい青になり・右にチェックが出る。
  * 3つとも変える。色の差が見えない人には、チェックの有無だけが手がかりになる。
  *
+ * チェックの場所は、選ぶ前から空けておく
+ * --------------------------------------
+ * 以前はチェックの `<span>` を選択時にしか描画していなかった。
+ * すると選んだ瞬間に隣のテキスト列の実効幅が縮み、折り返し位置が
+ * 動いていた（「自分がやることを知る」のような2行の札で特に目立つ）。
+ * 選ぶ前と後でテキストの位置・幅・行数・カードの高さが変わらないように、
+ * チェックの場所は常に描画し、見えるかどうかだけを切り替える。
+ *
  * ラジオボタンではなく、押しボタンにする
  * --------------------------------------
  * 「1つ選ぶ」は radio のほうが素直に見えるが、このアプリの選択肢は
@@ -84,16 +92,21 @@ export function ChoiceButton({
         )}
       </span>
 
-      {/* 選ばれた印。色が見えなくても、これで分かる */}
-      {selected && (
-        <span
-          aria-hidden="true"
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full
-                     bg-brand text-white"
-        >
-          <IconCheck className="h-3 w-3" />
-        </span>
-      )}
+      {/*
+        選ばれた印。色が見えなくても、これで分かる。
+
+        場所は選ぶ前から確保する（`opacity-0`）。無いところに急に
+        20px の場所ができると、隣の文字列の折り返しが選択のたびに
+        動いてしまう。
+      */}
+      <span
+        aria-hidden="true"
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full
+                    bg-brand text-white transition-opacity
+                    ${selected ? "opacity-100" : "opacity-0"}`}
+      >
+        <IconCheck className="h-3 w-3" />
+      </span>
     </button>
   );
 }

@@ -313,6 +313,39 @@ class TestPasswordReset:
         assert response.status_code == 200
         assert len(mail.outbox) == 1
 
+    def test_send_failure_is_logged_but_not_leaked_in_the_response(
+        self, client, monkeypatch, caplog
+    ):
+        """SMTP が壊れていて、実は届かなかったとき。
+
+        以前は `send_password_reset` の戻り値（成功/失敗）を見ずに捨てて
+        いたので、登録済みの相手でも送信が失敗しているのに「送信しました」
+        がそのまま返っていた。問い合わせが来るまで誰も気づけない。
+
+        直したのは応答ではなく可観測性。応答は変えない
+        ——変えると、登録の有無が応答の違いから漏れる
+        （このテストは同じ応答のままであることも確かめる）。
+        失敗した事実は、ログにだけはっきり残す。
+        """
+        client.post(SIGNUP, GOOD, content_type="application/json")
+
+        import apps.accounts.views as accounts_views
+
+        monkeypatch.setattr(accounts_views.emails, "send_password_reset", lambda user: False)
+
+        with caplog.at_level("ERROR"):
+            response = client.post(
+                "/api/v1/accounts/password/reset/",
+                {"email": GOOD["email"]},
+                content_type="application/json",
+            )
+
+        # 応答は「成功したとき」と見分けが付かない
+        assert response.status_code == 200
+        assert response.json()["sent"] is True
+        # 失敗の事実はログに残る
+        assert "accounts.password_reset.send_failed" in caplog.text
+
     def test_says_the_same_thing_for_an_unknown_email(self, client):
         response = client.post(
             "/api/v1/accounts/password/reset/",

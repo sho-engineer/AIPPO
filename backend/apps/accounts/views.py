@@ -369,9 +369,37 @@ class PasswordResetRequestView(APIView):
         except TooManyAttempts as exc:
             return _too_many(exc)
 
+        """
+        応答は登録の有無に関わらず同じにする（上のとおり）。
+
+        だからといって、実際に送れたかどうかを見ずに捨ててよいわけではない。
+        `send_password_reset` は成功/失敗を bool で返す。以前はこれを
+        受け取らずに捨てていたため、SMTP の設定が壊れていて
+        本当に送れていない登録済みユーザーにも「送信しました」がそのまま
+        返っていた——問い合わせが来るまで、運営側も気づけない状態だった。
+
+        戻り値は**応答には出さない**（出すと登録の有無が漏れる）。
+        ログにだけ残す。`accounts.email.failed` は emails.py 側でも
+        記録されるが、ここで「re用途で失敗した」という1行を足しておくと、
+        Sentry 等で `password_reset` 単位に絞って見張れる。
+        """
+        """
+        応答は登録の有無に関わらず同じにする（上のとおり）。
+
+        だからといって、実際に送れたかどうかを見ずに捨ててよいわけではない。
+        `send_password_reset` は成功/失敗を bool で返す。以前はこれを
+        受け取らずに捨てていたため、SMTP の設定が壊れていて
+        本当に送れていない登録済みユーザーにも「送信しました」がそのまま
+        返っていた——問い合わせが来るまで、運営側も気づけない状態だった。
+
+        戻り値は**応答には出さない**（出すと登録の有無が漏れる）。
+        ログにだけ残す。`accounts.email.failed` は emails.py 側でも
+        記録されるが、ここで「re用途で失敗した」という1行を足しておくと、
+        Sentry 等で `password_reset` 単位に絞って見張れる。
+        """
         user = User.objects.filter(email__iexact=email).first()
-        if user is not None:
-            emails.send_password_reset(user)
+        if user is not None and not emails.send_password_reset(user):
+            logger.error("accounts.password_reset.send_failed")
 
         return Response(
             {

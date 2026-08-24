@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconBook } from "../components/Icons";
 import { PrivacyDialog } from "../components/course/PrivacyDialog";
 import { LessonHeader } from "../components/course/LessonHeader";
+import { LessonPaused } from "../components/course/LessonPaused";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
 import { useCourse } from "../course/live";
@@ -317,6 +318,12 @@ export function LessonRunner({
 
   const blockingIssue = api.issue?.blocking ? api.issue : null;
 
+  /*
+    今日の実行上限に当たった。押し直せば直る失敗とは扱いを分ける
+    （`components/course/LessonPaused.tsx` 参照）。
+  */
+  const pausedForToday = step.type === "ai_generate" && api.errorKind === "limit";
+
   return (
     <>
       {/*
@@ -344,6 +351,10 @@ export function LessonRunner({
 
       <main className="min-h-screen">
 
+      {pausedForToday ? (
+        <LessonPaused po={api.po} onExit={onExit} />
+      ) : (
+        <>
       <StepShell
         {...(step.type === "outcome_preview"
           ? {
@@ -390,8 +401,14 @@ export function LessonRunner({
           解説の回は、カード本文とポーの台詞が同じ文になる（教材データが
           同じ文字を持っている）。同じことを2回言うと、2つ別のことが
           書いてあるのかと読んでしまう。ここだけ吹き出しを下げる。
+
+          失敗しているときも下げる。失敗の文はポーの吹き出しと下の
+          エラー欄の両方に同じ `failure.detail` が乗っていた——
+          「失敗は下のボタンのそばに1度だけ出す」という設計（下の
+          StepShell の error）が、吹き出し側を消し忘れていたぶんだけ
+          崩れていた。
         */
-        showPo={step.type !== "concept_card"}
+        showPo={step.type !== "concept_card" && !api.error}
       >
         {body}
       </StepShell>
@@ -409,6 +426,8 @@ export function LessonRunner({
             step.type === "real_task" ? api.continueAnyway() : void confirmAndSend()
           }
         />
+      )}
+        </>
       )}
       </main>
     </>

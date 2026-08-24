@@ -273,6 +273,84 @@ describe("失敗しても続けられる", () => {
   });
 });
 
+describe("今日の上限に達したとき", () => {
+  /*
+    前は違った。上限に達しても「AI送信中」の画面
+    （`止まっています` + 押し直せる「AIに送る」）がそのまま出続け、
+    ポーの吹き出しにだけ上限の知らせが乗っていた——
+    3つの矛盾するメッセージが同時に画面へ出ていた。
+
+    上限は押し直しても直らない。押せる送信ボタンを残さず、
+    専用の画面（`components/course/LessonPaused.tsx`）へ切り替わる
+    ことを確かめる。
+  */
+  it("送信中の画面ではなく、専用の『今日はここまで』画面が出る", async () => {
+    const user = userEvent.setup();
+    const { AiRequestError } = await import("../src/api/ai");
+    generate = vi
+      .fn()
+      .mockRejectedValue(
+        new AiRequestError(
+          "今日はたくさん練習しましたね。続きは、また明日ここから試してみてください。",
+          "limit",
+        ),
+      );
+
+    renderLesson();
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action")); // 送信へ（自動送信・失敗）
+
+    expect(await screen.findByTestId("lesson-paused")).toHaveTextContent(
+      "今日はたくさん練習しましたね",
+    );
+
+    // 押しても必ずまた上限に当たるだけのボタンを残さない
+    expect(screen.queryByTestId("primary-action")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("step-error")).not.toBeInTheDocument();
+
+    // 同じ文言が2か所（吹き出しと画面本文）に重複して出ない
+    expect(
+      screen.getAllByText(/今日はたくさん練習しましたね/).length,
+    ).toBe(1);
+  });
+
+  it("『ホームへ戻る』で、渡された行き先が呼ばれる", async () => {
+    const user = userEvent.setup();
+    const { AiRequestError } = await import("../src/api/ai");
+    generate = vi
+      .fn()
+      .mockRejectedValue(new AiRequestError("今日はここまでです。", "limit"));
+    const onExit = vi.fn();
+    const lesson = getLesson("rewrite_text")!;
+
+    render(<LessonRunner lesson={lesson} onFinish={vi.fn()} onExit={onExit} />);
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action"));
+    await screen.findByTestId("lesson-paused");
+
+    await user.click(screen.getByTestId("lesson-paused-exit"));
+
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("押し直せば直る失敗（limit以外）では、いつも通り送信中の画面が出る", async () => {
+    // 「上限だけを特別扱いする」の裏取り。他の失敗まで巻き込んでいない
+    const user = userEvent.setup();
+    const { AiRequestError } = await import("../src/api/ai");
+    generate = vi
+      .fn()
+      .mockRejectedValue(new AiRequestError("うまく届かなかったようです。", "failed"));
+
+    renderLesson();
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action"));
+
+    expect(await screen.findByTestId("step-error")).toBeInTheDocument();
+    expect(screen.queryByTestId("lesson-paused")).not.toBeInTheDocument();
+    expect(screen.getByTestId("primary-action")).toBeEnabled();
+  });
+});
+
 describe("送信前の確認（機密チェック）", () => {
   /*
     ここでは確認ダイアログそのものを確かめる。
