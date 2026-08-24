@@ -41,6 +41,7 @@ import { AUTH_COPY } from "../../content/ui";
 import { PRIVACY, TERMS, findLegalDocument, type LegalDocument } from "../../content/legal";
 import { LegalView } from "../legal/LegalView";
 import { PasskeyPanel } from "./PasskeyPanel";
+import { ResendCountdown } from "./ResendCountdown";
 import { SocialButtons } from "./SocialButtons";
 import { IconCaution } from "../Icons";
 
@@ -73,6 +74,12 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [sent, setSent] = useState(false);
+  /*
+    次に送れるまでの残り秒数。0なら押せる。
+    秒数はサーバーが決める（送れたときは retry_after、
+    断られたときは Retry-After）。ここには書き写さない。
+  */
+  const [resendIn, setResendIn] = useState(0);
   /*
     規約を読んでいる最中。外部のページへ飛ばさない。
     飛ばすと、戻ってきたときに入力が消えている。
@@ -136,6 +143,7 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
               code: "PASSWORD_MISMATCH",
               detail: AUTH_COPY.passwordMismatch,
               fieldErrors: { password_confirm: AUTH_COPY.passwordMismatch },
+              retryAfter: 0,
             }),
           );
           return;
@@ -158,11 +166,16 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
         onDone?.("ログインしました。続きから始められます。");
         onClose();
       } else {
-        await requestPasswordReset(email);
+        const result = await requestPasswordReset(email);
         // 登録の有無にかかわらず同じ文にする
         setSent(true);
+        setResendIn(result.retry_after ?? 0);
       }
     } catch (error) {
+      if (error instanceof ApiError && error.retryAfter > 0) {
+        // 待つ時間が分かっているなら、押し直させずに数える
+        setResendIn(error.retryAfter);
+      }
       setFailure(
         error instanceof ApiError
           ? error
@@ -171,6 +184,7 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
               code: "UNKNOWN",
               detail: "うまくいきませんでした。もう一度お試しください。",
               fieldErrors: {},
+              retryAfter: 0,
             }),
       );
     } finally {
@@ -235,6 +249,14 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
           >
             {AUTH_COPY.resetSent}
           </p>
+        )}
+
+        {/*
+          次に送れるまでの残り。押せなくするのは親切のためで、
+          守りではない（実際に止めているのはサーバー）。
+        */}
+        {view === "reset" && (
+          <ResendCountdown seconds={resendIn} onFinished={() => setResendIn(0)} />
         )}
 
         {/*
@@ -406,7 +428,7 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
 
           <button
             type="submit"
-            disabled={busy || signUpBlocked}
+            disabled={busy || signUpBlocked || (view === "reset" && resendIn > 0)}
             data-testid="auth-submit"
             className="min-h-[3rem] w-full rounded-cta bg-brand px-6 py-3 text-base
                        font-bold text-white shadow-raised transition hover:brightness-110

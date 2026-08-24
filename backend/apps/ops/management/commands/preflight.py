@@ -65,6 +65,7 @@ class Command(BaseCommand):
         results += self._catalog()
         results += self._mail()
         results += self._ai()
+        results += self._social()
         results += self._operations()
         results += self._operator(public=public)
 
@@ -304,6 +305,79 @@ class Command(BaseCommand):
             )
         else:
             out.append(Result("ok", "エラー監視 (Sentry)"))
+
+        return out
+
+    # ------------------------------------------------ 外部サービスのログイン
+
+    def _social(self) -> list[Result]:
+        """Google / LINE の戻り先を、**そのまま貼れる形で**出す。
+
+        なぜここまでするか
+        ------------------
+        `redirect_uri_mismatch` は、向こうの管理画面に登録した文字列と、
+        こちらが送っている文字列が1文字でも違えば出る。そして
+        **エラーの文面からは、何がどう違うかが一切分からない。**
+        突き合わせようにも、こちらが何を送っているかを見る手段が
+        今まで無かった（ログにも出ていない）。
+
+        `BACKEND_URL` が空のときが特に危ない
+        ------------------------------------
+        そのときの戻り先は「要求が届いたときの Host」から組み立てられる
+        （apps/accounts/social.py の `redirect_uri`）。手元では正しく動く。
+        だが Vercel は配置ごとに違うホスト名を割り当てるので、
+        **プレビュー配置からログインすると毎回ちがう戻り先が送られ、
+        必ず mismatch になる。** 本番のホスト名で来たときだけ通る、
+        という再現しにくい壊れ方をする。
+
+        だから空のときは「決まっていない」ことを警告として出し、
+        入っているときは**実際に送る文字列そのもの**を出す。
+        """
+        from apps.accounts.social import all_providers
+
+        out: list[Result] = []
+        base = (getattr(settings, "BACKEND_URL", "") or "").strip().rstrip("/")
+        configured = [p for p in all_providers().values() if p.configured]
+
+        if not configured:
+            # 鍵が無い先はボタンごと出ないので、困りごとは起きない
+            return [Result("ok", "外部ログインは未設定（ボタンを出しません）")]
+
+        names = "・".join(p.label for p in configured)
+
+        if not base:
+            out.append(
+                Result(
+                    "ng",
+                    f"BACKEND_URL が空（{names} が壊れます）",
+                    "戻り先が要求ごとに変わります。"
+                    "プレビュー配置からのログインは必ず redirect_uri_mismatch になります。"
+                    "BACKEND_URL に本番URL（例 https://aippo.vercel.app）を入れてください",
+                )
+            )
+            return out
+
+        for provider in configured:
+            uri = f"{base}/api/v1/accounts/social/{provider.name}/callback/"
+            out.append(
+                Result(
+                    "ok",
+                    f"{provider.label} の戻り先",
+                    f"この文字列をそのまま登録してください → {uri}",
+                )
+            )
+
+        # 画面の場所と食い違っていると、戻ったあとに行き先を見失う
+        front = (getattr(settings, "FRONTEND_URL", "") or "").strip().rstrip("/")
+        if front and base != front:
+            out.append(
+                Result(
+                    "warn",
+                    "BACKEND_URL と FRONTEND_URL が違う",
+                    f"api={base} / 画面={front}。"
+                    "同じドメインに同居する構成なら、揃っているのが普通です",
+                )
+            )
 
         return out
 

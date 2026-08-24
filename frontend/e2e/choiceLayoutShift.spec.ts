@@ -41,6 +41,35 @@ test.describe("選択肢のレイアウト", () => {
     const choice = page.locator("[aria-pressed]").first();
     await expect(choice).toBeVisible();
 
+    /*
+      測る前に、入ってくる動きが終わるのを待つ。
+
+      設問は横から差し込まれる（course/motion.ts の slide-in。
+      translateX 16px → 0）。動いている最中に測ると、**選ぶ前だけが
+      16px までずれた値**になり、選んだあと（動き終わり）と比べて
+      「ずれた」と誤って読める。実際にそうなった——選ぶ前が
+      87〜91 とばらつき、選んだあとは必ず 83 だった。
+
+      待つのは Web Animations の終わりそのもの。時間で待つと、
+      遅い環境で足りなくなる。
+    */
+    await page.evaluate(() =>
+      Promise.all(
+        document
+          .getAnimations()
+          /*
+            終わらない動きは待たない。ポーは呼吸するようにずっと浮いて
+            いる（float / twinkle。iterations は Infinity）ので、
+            全部を待つとここで永久に止まる。
+          */
+          .filter((animation) => {
+            const timing = animation.effect?.getTiming();
+            return timing?.iterations !== Infinity;
+          })
+          .map((animation) => animation.finished.catch(() => {})),
+      ),
+    );
+
     // 文字の列（アイコンとチェックのあいだの span）の位置を先に測る
     const label = choice.locator("span.min-w-0.flex-1");
     const before = await label.boundingBox();

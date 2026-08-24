@@ -104,7 +104,7 @@ export function changePassword(
  */
 export function requestPasswordReset(
   email: string,
-): Promise<{ sent: boolean; detail: string }> {
+): Promise<{ sent: boolean; detail: string; retry_after?: number }> {
   return sendJson(`${BASE}/password/reset/`, { email: email.trim() });
 }
 

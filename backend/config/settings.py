@@ -379,6 +379,17 @@ AUTH_THROTTLE_PASSWORD_RESET_WINDOW = int(
     os.getenv("AUTH_THROTTLE_PASSWORD_RESET_WINDOW", "3600")
 )
 
+# 続けて送るまでの間隔（秒）。0で間隔なし。
+#
+# 上の窓ごとの回数とは別の軸。窓の数えは「1時間に5回」のような総量を
+# 押さえるが、**続いた2回のあいだ**は押さえない。窓が切り替わる瞬間を
+# またげば、続けて2通送れてしまう。
+#
+# 再設定の案内は他人の受信箱へ届くので、総量とは別に間隔も要る。
+# 画面側も残り秒数を出して押せなくするが（要件 P0-5）、そちらは
+# 手元でいくらでも外せるので、**数えるのはここ**。
+AUTH_COOLDOWN_PASSWORD_RESET = int(os.getenv("AUTH_COOLDOWN_PASSWORD_RESET", "60"))
+
 # 登録には宛先という概念が無い（毎回ちがうメールアドレス）ので接続元だけ。
 AUTH_THROTTLE_SIGNUP_MAX_SOURCE = int(os.getenv("AUTH_THROTTLE_SIGNUP_MAX_SOURCE", "10"))
 AUTH_THROTTLE_SIGNUP_MAX_TARGET = 0

@@ -73,29 +73,56 @@ export function PoHero({
         <PoFace emotion={emotion} message={message} className="h-auto w-full" />
       </div>
 
-      {/* 文字の側は、ポーの幅ぶんだけ空ける。空けないと見出しに重なる */}
-      <div className={compact ? "pr-28" : "pr-32 sm:pr-36"}>
-        {eyebrow && <div className="mb-1">{eyebrow}</div>}
+      {/*
+        見出しの側。**ポーの背丈ぶんの高さを最低限そこに確保する。**
 
-        {/*
-          折り返しはブラウザ任せにする。
+        なぜ min-h が要るか
+        -------------------
+        ポーは絶対配置で、しかも DOM では吹き出しより**前**にいる。
+        重なった場所では、あとから通常の流れで置かれる吹き出し
+        （不透明な bg-surface を持つ）が上に描かれる。つまり
+        **ポーが吹き出しの下に隠れる**。
 
-          break-keep を掛けると、句読点の無い日本語は切れる場所を失って
-          **折り返さずに画面からはみ出す**（実際に診断の設問で起きた）。
-          不自然な切れ方より、読めなくなるほうがずっと悪い。
-        */}
-        <h1 className="text-xl font-bold leading-[1.5] sm:text-2xl">
-          {title}
-        </h1>
+        実測（390px・完了画面）:
+          ポー   top 106 / bottom 218
+          吹き出し top 200 / bottom 270
+          → 60 × 18px 重なり、elementFromPoint は po-hero-message を返した
 
-        {description && (
-          <p className="mt-2 text-sm leading-7 text-ink-muted">
-            {description}
-          </p>
-        )}
+        題が長い画面（レッスンの導入など）では吹き出しが自然に下へ回るので
+        起きない。**題が短い画面だけで起きる**ぶん、見落としやすかった。
+
+        z-index でポーを前に出すのは違う。今度は吹き出しの文字が
+        読めなくなる。重ね順を入れ替えるのではなく、**重ならない高さを
+        確保する**のが正しい。ポーは正方形なので、背丈は幅と同じ。
+
+          通常 : 幅 144px、上へ 8px はみ出す → 136px。pt-2 の 8px を引いて 128px
+          compact: 幅 112px、同じく → 104px → 96px
+      */}
+      <div className={compact ? "min-h-24" : "min-h-32"}>
+        {/* 文字の側は、ポーの幅ぶんだけ空ける。空けないと見出しに重なる */}
+        <div className={compact ? "pr-28" : "pr-32 sm:pr-36"}>
+          {eyebrow && <div className="mb-1">{eyebrow}</div>}
+
+          {/*
+            折り返しはブラウザ任せにする。
+
+            break-keep を掛けると、句読点の無い日本語は切れる場所を失って
+            **折り返さずに画面からはみ出す**（実際に診断の設問で起きた）。
+            不自然な切れ方より、読めなくなるほうがずっと悪い。
+          */}
+          <h1 className="text-xl font-bold leading-[1.5] sm:text-2xl">
+            {title}
+          </h1>
+
+          {description && (
+            <p className="mt-2 text-sm leading-7 text-ink-muted">
+              {description}
+            </p>
+          )}
+        </div>
+
+        {meta && <div className="mt-3">{meta}</div>}
       </div>
-
-      {meta && <div className="mt-3">{meta}</div>}
 
       {message && (
         /*

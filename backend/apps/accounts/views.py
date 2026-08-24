@@ -53,7 +53,7 @@ from apps.accounts.serializers import (
     SignUpSerializer,
     describe_user,
 )
-from apps.accounts.throttle import TooManyAttempts
+from apps.accounts.throttle import TooManyAttempts, cooldown_seconds
 from apps.accounts.throttle import clear as clear_attempts
 from apps.accounts.throttle import consume as consume_attempt
 from apps.lessons.models import LearningEventType, LearningSession
@@ -401,10 +401,21 @@ class PasswordResetRequestView(APIView):
         if user is not None and not emails.send_password_reset(user):
             logger.error("accounts.password_reset.send_failed")
 
+        """
+        次に送れるようになるまでの秒数も返す。
+
+        画面はこれで「再送は60秒後にできます」を出す（要件 P0-5）。
+        クライアント側に秒数を書き写すと、サーバーの設定を変えたときに
+        画面だけ古い数字を出し続ける。**決めるのは1か所**にする。
+
+        登録の有無では変わらない値なので、これを返しても
+        どのメールが登録済みかは分からない。
+        """
         return Response(
             {
                 "sent": True,
                 "detail": "登録があれば、再設定の案内をお送りしました。",
+                "retry_after": cooldown_seconds("password_reset"),
             }
         )
 

@@ -96,6 +96,8 @@ AI_PROVIDER=gemini              ← 既定。または openai / anthropic
 GEMINI_API_KEY=<鍵>             ← または OPENAI_API_KEY / ANTHROPIC_API_KEY
                                  ← 本番でユーザーの入力を扱うなら Gemini は Paid Tier の鍵
 
+BACKEND_URL=https://<あなたの>.vercel.app   ← 外部ログインを使うなら必須
+
 CRON_SECRET=<下のコマンドで作る>
 DJANGO_ADMIN_PATH=<推測されない名前>/
 DJANGO_ADMIN_ALLOWED_IPS=<あなたのIP>
@@ -111,6 +113,19 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 `VITE_API_BASE_URL` を**空文字**にするのが要。ここを空にしないと
 `https://<あなたの>.vercel.app:8000` へ投げてしまい、画面は出るのに
 一切通信できない状態になる。
+
+`BACKEND_URL` は Google / LINE ログインを使うときに必須。
+**空だと戻り先が要求ごとに変わる**ので、Vercel のように配置ごとに
+違うホスト名が付く環境では、プレビューからのログインが必ず
+`redirect_uri_mismatch` で落ちる（本番のホスト名で来たときだけ通る、
+という再現しにくい壊れ方をする）。
+
+向こうの管理画面に登録する文字列は、次で確定できる。
+
+```bash
+cd backend && python manage.py preflight
+# → 「Google の戻り先」の行に、そのまま貼れる URL が出る
+```
 
 ### 3. データベースを繋ぐ
 
