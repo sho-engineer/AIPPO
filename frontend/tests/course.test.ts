@@ -317,7 +317,14 @@ describe("入力済みのまとめ", () => {
     for (const entry of summary) {
       expect(entry.value).not.toMatch(/^[a-z_]+$/);
     }
-    expect(summary.map((entry) => entry.value)).toContain("文章を書くことが多い");
+    /*
+      札に書いてある言葉がそのまま出ること。
+
+      文言は短くしたので（折り返し対策で「文章を書くことが多い」→
+      「文章を書く」）、ここも合わせる。見ているのは**記号ではなく
+      人の言葉が出るか**で、文言そのものではない。
+    */
+    expect(summary.map((entry) => entry.value)).toContain("文章を書く");
   });
 
   it("自分で書いた言葉は、そのまま出す", () => {

@@ -64,7 +64,7 @@ OBSERVATION_OPTIONS: list[dict[str, Any]] = [
     {"value": "短くなった", "label": "短くなった"},
     {"value": "丁寧になった", "label": "丁寧になった"},
     {"value": "要点が先に来た", "label": "要点が先に来た"},
-    {"value": "相手に合った表現になった", "label": "相手に合った表現になった"},
+    {"value": "相手に合った表現になった", "label": "相手に合った表現"},
     {"value": "よく分からない", "label": "よく分からない"},
 ]
 
@@ -199,7 +199,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "key": "real_task_choice",
             "options": [
                 {"value": "自分で入力する", "label": "自分で入力する"},
-                {"value": "貼り付ける", "label": "クリップボードから貼り付ける"},
+                {"value": "貼り付ける", "label": "貼り付ける"},
                 {"value": "別のサンプルを試す", "label": "別のサンプルを試す"},
             ],
         },

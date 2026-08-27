@@ -48,13 +48,13 @@ const LESSON_0: Lesson = {
       key: "work_kind",
       required: true,
       options: [
-        { value: "writing", label: "文章を書くことが多い" },
-        { value: "reading", label: "長い文章を読むことが多い" },
-        { value: "researching", label: "分からないことを調べる" },
+        { value: "writing", label: "文章を書く" },
+        { value: "reading", label: "長い文章を読む" },
+        { value: "researching", label: "調べて理解する" },
         { value: "ideas", label: "アイデアを考える" },
-        { value: "comparing", label: "複数の選択肢を比較する" },
+        { value: "comparing", label: "選択肢を比較する" },
         { value: "planning", label: "計画を作る" },
-        { value: "organizing", label: "仕事の作業を整理する" },
+        { value: "organizing", label: "作業を整理する" },
       ],
     },
     {
@@ -83,7 +83,7 @@ const LESSON_0: Lesson = {
       options: [
         { value: "writing", label: "文章を書く・直す" },
         { value: "summarizing", label: "長い資料をまとめる" },
-        { value: "explaining", label: "分からないことを調べる・説明する" },
+        { value: "explaining", label: "調べる・説明する" },
         { value: "comparing", label: "選択肢を比べる" },
         { value: "planning", label: "段取りを決める" },
       ],
@@ -265,7 +265,7 @@ const LESSON_2: Lesson = {
     quickKey: "purpose",
     quickOptions: [
       { value: "人に共有するため", label: "人に共有する" },
-      { value: "自分がやることを知るため", label: "自分がやることを知る" },
+      { value: "自分がやることを知るため", label: "自分の作業を知る" },
       { value: "内容をつかむため", label: "内容をざっとつかむ" },
     ],
     quickDefaults: { format: "重要な点を3つ", length: "3行で" },
@@ -315,7 +315,7 @@ const LESSON_2: Lesson = {
         options: [
           { value: "内容をつかむため", label: "内容をつかむため" },
           { value: "人に共有するため", label: "人に共有するため" },
-          { value: "自分がやることを知るため", label: "自分がやることを知るため" },
+          { value: "自分がやることを知るため", label: "自分の作業のため" },
           { value: "", label: "そのほか", free: true },
         ],
       },
@@ -378,7 +378,7 @@ const LESSON_3: Lesson = {
     quickKey: "audience",
     quickOptions: [
       { value: "初心者向け", label: "はじめて聞く人" },
-      { value: "小学生向け", label: "小学生でも分かるように" },
+      { value: "小学生向け", label: "小学生にも分かる" },
       { value: "その分野の人向け", label: "その分野の人" },
     ],
     quickDefaults: {
@@ -388,7 +388,7 @@ const LESSON_3: Lesson = {
     },
     working: "分かる言い方に置きかえています。",
     observationOptions: [
-      { value: "やさしい言葉になった", label: "やさしい言葉になった" },
+      { value: "やさしい言葉になった", label: "やさしくなった" },
       { value: "例えが入った", label: "例えが入った" },
       { value: "具体例が入った", label: "具体例が入った" },
       { value: "短くなった", label: "短くなった" },
@@ -501,9 +501,9 @@ const LESSON_4: Lesson = {
     quickDefaults: { criteria: "費用と時間と使いやすさ", as_table: "文章でよい" },
     working: "基準ごとに並べています。",
     observationOptions: [
-      { value: "基準ごとに整理された", label: "基準ごとに整理された" },
+      { value: "基準ごとに整理された", label: "基準ごとに整理" },
       { value: "違いが分かった", label: "違いが分かった" },
-      { value: "確認が必要な点が出た", label: "確認が必要な点が出た" },
+      { value: "確認が必要な点が出た", label: "要確認の点が出た" },
       { value: "決め手が見えた", label: "決め手が見えた" },
       { value: "よく分からない", label: "よく分からない" },
     ],
@@ -615,7 +615,7 @@ const LESSON_5: Lesson = {
     working: "実行できる大きさに分けています。",
     observationOptions: [
       { value: "手順に分かれた", label: "手順に分かれた" },
-      { value: "始められる大きさになった", label: "始められる大きさになった" },
+      { value: "始められる大きさになった", label: "始められる大きさ" },
       { value: "順番が決まった", label: "順番が決まった" },
       { value: "時間の目安がついた", label: "時間の目安がついた" },
       { value: "よく分からない", label: "よく分からない" },
@@ -719,15 +719,15 @@ const LESSON_6: Lesson = {
     quickKey: "improvement_direction",
     quickOptions: [
       { value: "短くする", label: "短くする" },
-      { value: "具体例を追加する", label: "具体例を追加する" },
-      { value: "足りない情報を質問する", label: "足りない情報を質問してもらう" },
+      { value: "具体例を追加する", label: "具体例を追加" },
+      { value: "足りない情報を質問する", label: "追加質問する" },
     ],
     quickDefaults: {},
     working: "指定された方向だけを直しています。",
     observationOptions: [
       { value: "短くなった", label: "短くなった" },
       { value: "分かりやすくなった", label: "分かりやすくなった" },
-      { value: "頼んだところだけ変わった", label: "頼んだところだけ変わった" },
+      { value: "頼んだところだけ変わった", label: "頼んだ所だけ変化" },
       { value: "質問が返ってきた", label: "質問が返ってきた" },
       { value: "よく分からない", label: "よく分からない" },
     ],
@@ -769,11 +769,11 @@ const LESSON_6: Lesson = {
         options: [
           { value: "短くする", label: "短くする" },
           { value: "詳しくする", label: "詳しくする" },
-          { value: "具体例を追加する", label: "具体例を追加する" },
+          { value: "具体例を追加する", label: "具体例を追加" },
           { value: "表にする", label: "表にする" },
           { value: "別案を出す", label: "別案を出す" },
-          { value: "足りない情報を質問する", label: "足りない情報を質問してもらう" },
-          { value: "厳しい視点でレビューする", label: "厳しい視点で見てもらう" },
+          { value: "足りない情報を質問する", label: "追加質問する" },
+          { value: "厳しい視点でレビューする", label: "厳しく評価する" },
           { value: "", label: "そのほか", free: true },
         ],
       },
@@ -861,7 +861,7 @@ const LESSON_7: Lesson = {
         { value: "APIキー", label: "APIキー" },
         { value: "顧客情報", label: "顧客情報" },
         { value: "未公開資料", label: "未公開資料" },
-        { value: "クレジットカード番号", label: "クレジットカード番号" },
+        { value: "クレジットカード番号", label: "カード番号" },
         { value: "個人住所", label: "個人住所" },
       ],
       meta: {
@@ -888,7 +888,7 @@ const LESSON_7: Lesson = {
       options: [
         { value: "自分", label: "自分" },
         { value: "AI", label: "AI" },
-        { value: "AIが自信を持って言えばAI", label: "AIが自信を持って言えばAI" },
+        { value: "AIが自信を持って言えばAI", label: "自信ありげならAI" },
       ],
       meta: {
         answer: ["自分"],
@@ -970,7 +970,7 @@ const FINAL: Lesson = {
       options: [
         { value: "rewrite", label: "文章を書く・直す" },
         { value: "summarize", label: "長い文章をまとめる" },
-        { value: "explain", label: "分からないことを説明してもらう" },
+        { value: "explain", label: "説明してもらう" },
         { value: "compare", label: "選択肢を比べる" },
         { value: "plan", label: "計画を作る" },
       ],
