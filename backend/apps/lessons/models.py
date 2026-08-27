@@ -364,3 +364,72 @@ class Bookmark(models.Model):
 
     def __str__(self) -> str:
         return f"{self.lesson_id} ({self.learner_key})"
+
+
+class SavedArtifact(models.Model):
+    """取っておいた成果物。
+
+    「作ったもの」（`views_history` が `Attempt` から組み立てるもの）とは
+    別に、**本人が取っておくと決めたもの**をここに持つ。
+
+    なぜ本文を写すのか
+    ------------------
+    `Attempt` への参照だけにすると、`prune_data` が古いセッションを
+    消したときに一緒に消える。取っておくと言った以上、元が消えても
+    残らなければ意味がない。だから本文を写す。
+
+    二重保存の防ぎ方
+    ----------------
+    同じ教材で、同じ出力を、何度でも取っておけるようにはしない。
+    やり直すと似た文が並び、あとから探せなくなる。
+    弾く単位は **(鍵, 教材, 出力のハッシュ)**。
+
+      - 同じ条件で作り直した物 … 同じ出力になるので増えない
+      - 違う条件で作った物     … 別物として残る
+
+    「教材ごとに1つ」にしなかったのは、条件を変えて作り分けたものが
+    上書きで消えるため。消えるほうが取り違えやすい。
+
+    取っておけるのは登録した人だけ
+    ------------------------------
+    ゲストの鍵は7日で切れる（`apps/accounts/scope.py` の `can_keep`）。
+    残らないものを取っておかせて黙って消すより、**取っておくには
+    登録が要る**とその場で言うほうがよい。目印・修了証と同じ線。
+
+    学ぶこと自体は止めない。ゲストのままでも教材は最後まで通るし、
+    作ったものは「作ったもの」の一覧から取り出せる。
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    learner_key = models.UUIDField(db_index=True)
+    #: 教材表とは外部キーで繋がない（教材を消しても記録が消えないように）
+    lesson_id = models.CharField(max_length=100)
+    title = models.CharField(
+        max_length=120, help_text="既定は「{教材名}で作ったもの」。あとから直せる"
+    )
+    #: AIが作ったもの。元の `Attempt` が消えても、ここは残る
+    output = models.TextField()
+    #: そのとき指定した条件。なぜその結果になったかが後から分かる
+    conditions = models.JSONField(default=dict, blank=True)
+    #: 使ったAI技の slug。図鑑から「この技で作ったもの」を辿るため
+    skills = models.JSONField(default=list, blank=True)
+    #: `output` の sha256。二重保存を弾くためだけに使う
+    output_hash = models.CharField(max_length=64)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["learner_key", "lesson_id", "output_hash"],
+                name="uniq_saved_artifact",
+            )
+        ]
+        indexes = [models.Index(fields=["learner_key", "-created_at"])]
+        verbose_name = "取っておいた成果物"
+        verbose_name_plural = "取っておいた成果物"
+
+    def __str__(self) -> str:
+        return self.title

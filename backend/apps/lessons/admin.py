@@ -16,6 +16,7 @@ from apps.lessons.models import (
     Attempt,
     LearningEvent,
     LearningSession,
+    SavedArtifact,
     SkillProgress,
     Survey,
 )
@@ -283,3 +284,24 @@ class VerificationSummaryAdmin(admin.ModelAdmin):
 admin.site.site_header = "AIPPO 管理"
 admin.site.site_title = "AIPPO"
 admin.site.index_title = "実証実験のデータ"
+
+
+@admin.register(SavedArtifact)
+class SavedArtifactAdmin(admin.ModelAdmin):
+    """見るだけ。本人の書いたものを、運営が書き換えない。
+
+    中身は学習者が仕事で使う文章なので、一覧に本文そのものは出さない
+    （見えるところを最小にする。開いた記録は操作記録に残る）。
+    """
+
+    list_display = ("created_at", "title", "lesson_id")
+    list_filter = ("lesson_id",)
+    search_fields = ("title", "lesson_id")
+    readonly_fields = [f.name for f in SavedArtifact._meta.fields]
+    date_hierarchy = "created_at"
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False

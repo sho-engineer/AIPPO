@@ -37,6 +37,8 @@ import {
   IconClock,
   IconSparkle,
 } from "../components/Icons";
+import { KeepArtifactButton } from "../components/course/KeepArtifactButton";
+import { KeptArtifacts } from "../components/records/KeptArtifacts";
 import { lookupLesson } from "../course/live";
 
 export interface RecordPageProps {
@@ -75,9 +77,12 @@ function lessonTitle(lessonId: string): string {
 function ArtifactCard({
   artifact,
   onOpenLesson,
+  onKept,
 }: {
   artifact: Artifact;
   onOpenLesson: () => void;
+  /** 取っておけたとき。上の一覧を取り直す */
+  onKept: () => void;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -131,15 +136,29 @@ function ArtifactCard({
         )}
       </p>
 
-      <button
-        type="button"
-        onClick={copy}
-        data-testid={`artifact-copy-${artifact.id}`}
-        className="mt-2 rounded-badge border border-line px-3 py-1.5 text-xs
-                   text-ink-muted transition hover:border-brand hover:text-brand-dark"
-      >
-        {copied ? "コピーしました" : "コピー"}
-      </button>
+      {/*
+        いま貼るのと、あとで出すのは別のこと。両方を並べて置く。
+        ここは自動でたまる一覧なので、試した回数ぶん並ぶ。
+        残したい1つだけを、上の「取っておいたもの」へ移せるようにする。
+      */}
+      <div className="mt-2 flex items-start gap-2">
+        <KeepArtifactButton
+          lessonId={artifact.lesson_id}
+          output={artifact.output}
+          conditions={artifact.conditions}
+          onKept={onKept}
+        />
+        <button
+          type="button"
+          onClick={copy}
+          data-testid={`artifact-copy-${artifact.id}`}
+          className="min-h-[2.75rem] rounded-badge border border-line px-3 py-1.5
+                     text-xs text-ink-muted transition hover:border-brand
+                     hover:text-brand-dark"
+        >
+          {copied ? "コピーしました" : "コピー"}
+        </button>
+      </div>
     </li>
   );
 }
@@ -151,6 +170,8 @@ export function RecordPage({
 }: RecordPageProps) {
   const [history, setHistory] = useState<History | null>(null);
   const [failed, setFailed] = useState(false);
+  /* 取っておいた直後に、上の一覧を取り直すための合図 */
+  const [keptAt, setKeptAt] = useState(0);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -268,6 +289,16 @@ export function RecordPage({
           </div>
         )}
 
+        {/*
+          取っておいたもの。自動でたまる「作ったもの」より上に置く。
+          探しに来た人が、目的の1つに先に当たるようにする。
+        */}
+        <KeptArtifacts
+          onSelectLesson={onSelectLesson}
+          reloadKey={keptAt}
+          lessonTitle={lessonTitle}
+        />
+
         {/* ── 作ったもの ── */}
         <section className="mt-7" aria-labelledby="artifacts-heading">
           <h2 id="artifacts-heading" className="section-title">
@@ -312,6 +343,7 @@ export function RecordPage({
                   key={artifact.id}
                   artifact={artifact}
                   onOpenLesson={() => onSelectLesson(artifact.lesson_id)}
+                  onKept={() => setKeptAt((count) => count + 1)}
                 />
               ))}
             </ul>

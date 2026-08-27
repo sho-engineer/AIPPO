@@ -37,6 +37,8 @@ export interface StubOptions {
   passkey?: boolean;
   /** AI技図鑑の中身。既定は「1つも覚えていない」。 */
   skillDex?: unknown;
+  /** 取っておいた成果物。既定は「ゲストなので使えない」。 */
+  saved?: unknown;
 }
 
 export interface TutorBody {
@@ -52,6 +54,8 @@ export interface StubHandle {
   auth: { url: string; body: unknown }[];
   /** 完了時アンケートへ送られた答え。 */
   surveys: { lessonId: string; answers: Record<string, string> }[];
+  /** 取っておかれた成果物。 */
+  saved: Record<string, unknown>[];
 }
 
 const DEFAULT_TUTOR: TutorBody = {
@@ -74,7 +78,13 @@ export async function stubApi(
   page: Page,
   options: StubOptions = {},
 ): Promise<StubHandle> {
-  const handle: StubHandle = { calls: [], events: [], auth: [], surveys: [] };
+  const handle: StubHandle = {
+    calls: [],
+    events: [],
+    auth: [],
+    surveys: [],
+    saved: [],
+  };
   let callCount = 0;
   let signedIn = options.signedIn ?? false;
 
@@ -330,6 +340,62 @@ export async function stubApi(
         sessions: [],
         ai_quota: { limit: null, used: 0, remaining: null },
       }),
+    });
+  });
+
+  /*
+    取っておいた成果物。
+
+    既定はゲスト（`requires_account`）。取っておけるのは登録した人
+    だけなので、既定を「使える」にすると、その線が検査から消える。
+    **上のまとめ塞ぎより後に置くこと。**
+  */
+  await page.route("**/api/lessons/saved/**", async (route: Route) => {
+    const method = route.request().method();
+    if (method === "POST") {
+      if (!signedIn) {
+        await route.fulfill({
+          status: 403,
+          contentType: "application/json",
+          body: JSON.stringify({
+            errors: { requires_account: ["取っておくには、登録が必要です"] },
+          }),
+        });
+        return;
+      }
+      const body = route.request().postDataJSON() as {
+        lesson_id: string;
+        output: string;
+      };
+      const artifact = {
+        id: "saved-1",
+        lesson_id: body.lesson_id,
+        title: `${body.lesson_id}で作ったもの`,
+        output: body.output,
+        conditions: {},
+        skills: [],
+        created_at: "2026-08-20T10:00:00+09:00",
+      };
+      handle.saved.push(artifact);
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ artifact, already_saved: false }),
+      });
+      return;
+    }
+    if (method === "DELETE") {
+      handle.saved.length = 0;
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        options.saved ??
+          (signedIn ? { items: handle.saved } : { items: [], requires_account: true }),
+      ),
     });
   });
 

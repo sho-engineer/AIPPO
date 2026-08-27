@@ -7,6 +7,7 @@ from apps.lessons.views import (
     SessionStateView,
     SurveyView,
 )
+from apps.lessons.views_artifacts import SavedArtifactDetailView, SavedArtifactView
 from apps.lessons.views_bookmarks import BookmarkView
 from apps.lessons.views_certificate import CertificateView
 from apps.lessons.views_history import HistoryView
@@ -31,6 +32,13 @@ urlpatterns = [
     path("history/", HistoryView.as_view(), name="lesson-history"),
     # 見返しどきの教材。忘れる前にもう一度
     path("review/", ReviewView.as_view(), name="lesson-review"),
+    # 取っておいた成果物。こちらも <str:lesson_id> より前
+    path("saved/", SavedArtifactView.as_view(), name="lesson-saved"),
+    path(
+        "saved/<str:artifact_id>/",
+        SavedArtifactDetailView.as_view(),
+        name="lesson-saved-detail",
+    ),
     # あとで見返したい教材の目印。こちらも <str:lesson_id> より前
     path("bookmarks/", BookmarkView.as_view(), name="lesson-bookmarks"),
     # コースを終えた印。history / review と同じ「教材1本によらない」経路

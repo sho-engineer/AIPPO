@@ -495,7 +495,7 @@ class DeleteLearningDataView(APIView):
         keys = learner_keys_for(request.user)
         deleted, _ = LearningSession.objects.filter(learner_key__in=keys).delete()
 
-        from apps.lessons.models import SkillProgress
+        from apps.lessons.models import SavedArtifact, SkillProgress
         from apps.profiles.models import LearnerProfile
         from apps.rewards.models import XpEvent
 
@@ -503,6 +503,7 @@ class DeleteLearningDataView(APIView):
         SkillProgress.objects.filter(learner_key__in=keys).delete()
         # 学んだ量も学習の記録。「消した」と言った以上、ここも消す
         XpEvent.objects.filter(learner_key__in=keys).delete()
+        SavedArtifact.objects.filter(learner_key__in=keys).delete()
 
         # 「本当に消えたのか」とあとから聞かれたときに、答えられるようにする。
         # 消した本人の記憶しか残らないのは、答えとして弱い
@@ -528,7 +529,7 @@ class DeleteAccountView(APIView):
         user = request.user
         keys = learner_keys_for(user)
 
-        from apps.lessons.models import SkillProgress
+        from apps.lessons.models import SavedArtifact, SkillProgress
         from apps.profiles.models import LearnerProfile
         from apps.rewards.models import XpEvent
 
@@ -536,6 +537,7 @@ class DeleteAccountView(APIView):
         LearnerProfile.objects.filter(learner_key__in=keys).delete()
         SkillProgress.objects.filter(learner_key__in=keys).delete()
         XpEvent.objects.filter(learner_key__in=keys).delete()
+        SavedArtifact.objects.filter(learner_key__in=keys).delete()
 
         # 消す**前**に残す。消したあとでは user.pk が無くなり、
         # 「誰のアカウントが消えたか」を書けなくなる

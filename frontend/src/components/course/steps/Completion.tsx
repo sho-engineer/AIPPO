@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 
 import { Card, CardHeading, IconBadge } from "../../AppShell";
 import { SaveProgressCard } from "../../auth/SaveProgressCard";
+import { KeepArtifactButton } from "../KeepArtifactButton";
 import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
 import { AppliedTips } from "../AppliedTips";
@@ -144,7 +145,14 @@ export function CompletionView({
               <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7">
                 {outcomeText}
               </p>
-              <div className="mt-3 flex justify-end">
+              {/*
+                いま貼るのと、あとで出すのは別のこと。両方を並べて置く。
+                取っておくには登録が要るが、ボタンは出しておき、
+                押したときに理由を返す（先に消すと、そういう場所が
+                あること自体が伝わらない）。
+              */}
+              <div className="mt-3 flex items-start justify-end gap-2">
+                <KeepArtifactButton lessonId={lessonId} output={outcomeText} />
                 <CopyButton text={outcomeText} />
               </div>
             </div>
