@@ -18,6 +18,7 @@ import uuid
 import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import LearnerIdentity
 from apps.catalog.models import Course, Lesson
@@ -445,3 +446,100 @@ class TestRenamingOldSkillKeys:
         slugs = {seed.slug for seed in AI_SKILLS}
         for new in module.RENAMES.values():
             assert new in slugs, f"{new} という技は図鑑に無い"
+
+
+class TestCourseCheckpoints:
+    """コースの節目。
+
+    毎回だと節目にならず、遠すぎると途中で切れる。1本10分なので
+    3本ごと——1回の学習で届く距離にしてある。
+    """
+
+    def _finish(self, client, lesson_slug: str) -> None:
+        response = client.post(
+            "/api/learning-events/",
+            {
+                "lesson_id": lesson_slug,
+                "step": "COMPLETE",
+                "event_type": LearningEventType.LESSON_COMPLETED,
+                "input_length": 0,
+                "hint_count": 0,
+                "retry_count": 0,
+                "completed": True,
+            },
+            format="json",
+        )
+        assert response.status_code == 204
+
+    def test_it_arrives_after_three(self, api_client):
+        course, _ = Course.objects.get_or_create(slug="c1", defaults={"title": "c1"})
+        for number, slug in enumerate(["a", "b", "c"], start=1):
+            Lesson.objects.create(
+                course=course, slug=slug, number=number, title=slug, goal="g"
+            )
+
+        for slug in ["a", "b"]:
+            self._finish(api_client, slug)
+        keys = list(
+            LearningSession.objects.values_list("learner_key", flat=True).distinct()
+        )
+        assert not XpEvent.objects.filter(kind=XpKind.COURSE_CHECKPOINT).exists()
+
+        self._finish(api_client, "c")
+
+        checkpoint = XpEvent.objects.get(kind=XpKind.COURSE_CHECKPOINT)
+        assert checkpoint.source_id == "c1:3"
+        assert xp_module.total_xp(keys) == 20 * 3 + 30
+
+    def test_redoing_a_lesson_does_not_add_another(self, api_client):
+        course, _ = Course.objects.get_or_create(slug="c1", defaults={"title": "c1"})
+        for number, slug in enumerate(["a", "b", "c"], start=1):
+            Lesson.objects.create(
+                course=course, slug=slug, number=number, title=slug, goal="g"
+            )
+
+        for slug in ["a", "b", "c", "c"]:
+            self._finish(api_client, slug)
+
+        assert XpEvent.objects.filter(kind=XpKind.COURSE_CHECKPOINT).count() == 1
+
+    def test_lessons_of_another_course_do_not_count(self, api_client):
+        one = Course.objects.create(slug="c1", title="c1")
+        two = Course.objects.create(slug="c2", title="c2")
+        Lesson.objects.create(course=one, slug="a", number=1, title="a", goal="g")
+        Lesson.objects.create(course=one, slug="b", number=2, title="b", goal="g")
+        Lesson.objects.create(course=two, slug="x", number=1, title="x", goal="g")
+
+        for slug in ["a", "b", "x"]:
+            self._finish(api_client, slug)
+
+        assert not XpEvent.objects.filter(kind=XpKind.COURSE_CHECKPOINT).exists()
+
+    def test_a_lesson_outside_the_catalog_does_not_crash(self, api_client):
+        """旧いid や、まだ教材を入れていない環境でも落とさない。"""
+        self._finish(api_client, "rewrite_text_001")
+
+        assert not XpEvent.objects.filter(kind=XpKind.COURSE_CHECKPOINT).exists()
+
+    def test_it_counts_every_device(self, api_client):
+        """いまの端末だけで数えると、節目がいつまでも来ない。"""
+        course = Course.objects.create(slug="c1", title="c1")
+        for number, slug in enumerate(["a", "b", "c"], start=1):
+            Lesson.objects.create(
+                course=course, slug=slug, number=number, title=slug, goal="g"
+            )
+
+        user = User.objects.create_user(username="a@example.com", password="x" * 12)
+        other = uuid.uuid4()
+        LearnerIdentity.objects.create(user=user, learner_key=other)
+        for slug in ["a", "b"]:
+            LearningSession.objects.create(
+                learner_key=other,
+                lesson_id=slug,
+                completed_at=timezone.now(),
+            )
+
+        api_client.force_authenticate(user=user)
+        self._finish(api_client, "c")
+
+        assert XpEvent.objects.filter(kind=XpKind.COURSE_CHECKPOINT).count() == 1

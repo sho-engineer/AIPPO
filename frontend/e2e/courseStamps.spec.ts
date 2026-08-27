@@ -98,34 +98,42 @@ test.describe("節目に届いた回", () => {
     await stubApi(page);
   });
 
-  test("Poが反応する", async ({ page }) => {
+  test("ここまでで何ができるようになったかが出る", async ({ page }) => {
     // 2本すでに終えている。rewrite_text を終えると3本目＝節目
     await seedCompleted(page, ["diagnosis", "explain_topic"]);
     await openRewriteLesson(page);
     await runToCompletion(page);
 
-    const card = page.getByTestId("milestone-reached");
+    const card = page.getByTestId("course-checkpoint");
     await expect(card).toBeVisible();
     await expect(card).toContainText("3個目のスタンプ");
     await expect(card).toContainText("近日公開");
 
+    // 数と特典の話だけで終わらせない。積み上がったことを出す
+    await expect(page.getByTestId("checkpoint-outcomes")).toContainText(
+      "読む相手を伝えられる",
+    );
+
     /*
       「近日公開」は、獲得済みでないことを言う唯一の言葉。
-      吹き出しは2行で切れる作りなので、ここだけは
-      **文字として存在すること**では足りない——見えている必要がある。
 
       `toContainText` は DOM の文字を見るだけで、CSS の
       `overflow: hidden` で切れて見えなくなっていても通ってしまう。
       実際に一度、この言葉だけが切れて見えなくなっていた
       （実機のスクリーンショットで見つけた）。scrollHeight が
       clientHeight に収まっているかで、切れていないことを確かめる。
+
+      いまは吹き出しの外の1行に置いてあるが、**置き場所が変わっても
+      切れていないこと**を見張り続ける。
     */
     const clipped = await card.evaluate((el) => {
-      const bubble = el.querySelector("p");
-      if (!bubble) return true;
-      return bubble.scrollHeight > bubble.clientHeight + 1;
+      const line = [...el.querySelectorAll("p")].find((node) =>
+        (node.textContent ?? "").includes("近日公開"),
+      );
+      if (!line) return true;
+      return line.scrollHeight > line.clientHeight + 1;
     });
-    expect(clipped, "吹き出しの文字が、枠からはみ出て隠れている").toBe(false);
+    expect(clipped, "「近日公開」が、枠からはみ出て隠れている").toBe(false);
   });
 });
 

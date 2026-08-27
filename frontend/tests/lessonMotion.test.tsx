@@ -160,3 +160,56 @@ describe("完了の祝い", () => {
     );
   });
 });
+
+describe("進み具合の帯の区切り", () => {
+  /**
+   * 19歩の一本道に見えると、始めた人はまず「あと16回も押すのか」と
+   * 思う。実際の中身は4つのまとまりで、どれも数歩で終わる。
+   * その形を帯の割れ目と、区切りの名前で出す。
+   *
+   * **分数は1つのまま。** 「2 / 4」と「3 / 19」が並ぶと、どちらを
+   * 見ればよいのか決められなくなる（前に3段で同じことを言って
+   * 読まれなくなった件と同じ轍）。
+   */
+  const MISSIONS = [
+    { key: "outcome" as const, label: "完成イメージ", steps: 1 },
+    { key: "try" as const, label: "お試し", steps: 5 },
+    { key: "own" as const, label: "自分で試す", steps: 4 },
+  ];
+
+  it("いまいる区切りの名前を出す", () => {
+    render(
+      <LessonProgress current={3} total={10} missions={MISSIONS} currentMission={2} />,
+    );
+
+    expect(screen.getByTestId("lesson-mission")).toHaveTextContent("お試し");
+  });
+
+  it("分数は1つだけ", () => {
+    render(
+      <LessonProgress current={3} total={10} missions={MISSIONS} currentMission={2} />,
+    );
+
+    const text = screen.getByTestId("lesson-progress").textContent ?? "";
+    expect(text.match(/\//g) ?? []).toHaveLength(1);
+    expect(text).toContain("3 / 10");
+  });
+
+  it("読み上げにも、いまの区切りが伝わる", () => {
+    render(
+      <LessonProgress current={3} total={10} missions={MISSIONS} currentMission={2} />,
+    );
+
+    expect(screen.getByTestId("lesson-progress")).toHaveAttribute(
+      "aria-valuetext",
+      "10歩のうち3歩目。いまは「お試し」",
+    );
+  });
+
+  it("区切りが無くても、いままでどおり出る", () => {
+    // 区切りを持たない呼び出し側が残っていても、帯だけは必ず出す
+    render(<LessonProgress current={3} total={10} />);
+
+    expect(screen.getByTestId("lesson-progress")).toHaveTextContent("3 / 10");
+  });
+});

@@ -23,6 +23,7 @@ import {
 import { PoHero } from "../aippo/PoHero";
 import { PrimaryButton } from "../aippo/PrimaryButton";
 import { LessonProgress } from "./LessonProgress";
+import type { Mission } from "../../course/missions";
 import { StepTransition } from "./StepTransition";
 import type { LessonPhase, PoMessage } from "../../course/types";
 
@@ -32,6 +33,9 @@ export interface StepShellProps {
   eyebrow?: { icon: Icon; label: string };
   instruction?: string;
   progress: { current: number; total: number };
+  /** レッスンの中の区切り。帯を割り、いまいる区切りの名前を出す。 */
+  missions?: Mission[];
+  currentMission?: number;
   /**
    * いまどの区切りか。
    *
@@ -105,6 +109,8 @@ export function StepShell({
   eyebrow,
   instruction,
   progress,
+  missions,
+  currentMission,
   phase,
   po,
   summary,
@@ -140,11 +146,17 @@ export function StepShell({
         分かるのか決められず、結局どれも読まれない。上が説明で埋まって
         本文が下へ押し出される問題もあった。
 
-        phase は受け取るが、ここでは描かない。区切りの名前は
-        見出しと本文で伝わる（読み上げ向けに data 属性で残す）。
+        いまは帯を区切りで割り、その名前を左に小さく出す
+        （`LessonProgress`）。分数は1つのまま——「2 / 4」と「3 / 19」を
+        並べると、どちらを見ればよいのか決められなくなる。
       */}
       <div className="pt-1" data-phase={phase ?? undefined}>
-        <LessonProgress current={progress.current} total={progress.total} />
+        <LessonProgress
+          current={progress.current}
+          total={progress.total}
+          missions={missions}
+          currentMission={currentMission}
+        />
       </div>
 
       {/* 入力済みの内容。折りたたんでおく（要件 §6.4） */}

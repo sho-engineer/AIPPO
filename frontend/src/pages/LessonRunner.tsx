@@ -369,6 +369,8 @@ export function LessonRunner({
             }
           : { title: step.title, instruction: step.instruction })}
         progress={api.progress}
+        missions={api.missions.missions}
+        currentMission={api.missions.current}
         phase={step.phase}
         po={api.po}
         summary={api.summary}

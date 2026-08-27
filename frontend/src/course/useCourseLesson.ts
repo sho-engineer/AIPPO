@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { generate, AiRequestError, type AiUsage } from "../api/ai";
 import { sendLearningEvent } from "../api/lesson";
+import { missionStateOf, type MissionState } from "./missions";
 import { rememberForReview } from "./review";
 import {
   clearDraft,
@@ -61,6 +62,8 @@ export interface CourseLessonApi {
   po: PoMessage;
   runs: RunRecord[];
   progress: { current: number; total: number };
+  /** レッスンの中の区切り（ミッション）と、いまどこにいるか。 */
+  missions: MissionState;
   summary: { stepId: string; label: string; value: string }[];
   issue: StepIssue | null;
   canBack: boolean;
@@ -526,6 +529,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     po,
     runs,
     progress: progressOf(lesson, stepId),
+    missions: missionStateOf(lesson, progressOf(lesson, stepId).current - 1),
     summary: summaryOf(lesson, stepId, values),
     issue: checkStep(step, values),
     canBack: canGoBack(lesson, stepId),

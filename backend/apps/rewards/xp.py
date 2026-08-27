@@ -126,3 +126,61 @@ def award(learner_key: uuid.UUID, kind: str, source_id: str) -> XpEvent | None:
             )
     except IntegrityError:
         return None
+
+
+#: 何本ごとに節目を置くか。
+#:
+#: 毎回だと節目にならず、遠すぎると途中で切れる。1本10分の教材なので、
+#: 3本＝30分ほど。1回の学習で届く距離にしてある。
+CHECKPOINT_EVERY = 3
+
+
+def award_course_checkpoint(
+    learner_key: uuid.UUID, learner_keys: list[uuid.UUID], lesson_slug: str
+) -> int | None:
+    """コースの節目に届いていたら、そのぶんのXPを足す。
+
+    返すのは、届いた節目の本数（3・6・9…）。届いていなければ None。
+
+    数え方
+    ------
+    数えるのは**そのコースで終えた本数**で、読める鍵ぜんぶから数える。
+    いまの端末だけで数えると、別の端末で進めた分が抜けて、節目が
+    いつまでも来ない。
+
+    二重に足さない
+    --------------
+    `source_id` は「コース:本数」。同じ節目には1回しか付かないので、
+    やり直しても増えない（XpEvent の unique constraint）。
+    """
+    from apps.catalog.models import Lesson
+    from apps.lessons.models import LearningSession
+
+    lesson = Lesson.objects.filter(slug=lesson_slug).select_related("course").first()
+    if lesson is None:
+        # 教材表に無い（旧いid・まだ入れていない環境）。節目は数えない
+        return None
+
+    slugs = set(
+        Lesson.objects.filter(course=lesson.course).values_list("slug", flat=True)
+    )
+    done = (
+        LearningSession.objects.filter(
+            learner_key__in=learner_keys,
+            lesson_id__in=slugs,
+            completed_at__isnull=False,
+        )
+        .values_list("lesson_id", flat=True)
+        .distinct()
+        .count()
+    )
+
+    if done == 0 or done % CHECKPOINT_EVERY != 0:
+        return None
+
+    event = award(
+        learner_key,
+        XpKind.COURSE_CHECKPOINT,
+        f"{lesson.course.slug}:{done}",
+    )
+    return done if event is not None else None

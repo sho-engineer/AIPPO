@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 
 import { Card, CardHeading, IconBadge } from "../../AppShell";
 import { SaveProgressCard } from "../../auth/SaveProgressCard";
+import { CourseCheckpoint } from "../CourseCheckpoint";
 import { KeepArtifactButton } from "../KeepArtifactButton";
 import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
@@ -20,7 +21,6 @@ import { AppliedTips } from "../AppliedTips";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 import { lessonThumbnailById } from "../../../course/lessonThumbnail";
 import { CourseStampRow, MilestoneLegend } from "../CourseStamps";
-import { PoAvatar } from "../../../po/PoAvatar";
 import { appliedTipsFor } from "../../../course/appliedTips";
 import { lookupLesson } from "../../../course/live";
 import { milestonesCrossed, milestonesFor } from "../../../course/milestones";
@@ -115,6 +115,17 @@ export function CompletionView({
   */
   const crossed = milestonesCrossed(course, done - 1, done);
   const courseComplete = done >= total && total > 0;
+
+  /*
+    節目のまとめに、**いま終えた1本**を必ず含める。
+
+    `completedIds` はサーバーと端末から取った一覧で、この画面を
+    出している時点ではまだ今回の分が入っていないことがある。
+    そのまま渡すと、節目を起こした当の1本だけが抜けたまとめが出る。
+  */
+  const doneSoFar = completedIds.includes(lessonId)
+    ? completedIds
+    : [...completedIds, lessonId];
   return (
     /*
       `relative` は紙吹雪の親。紙はこの枠の中だけで散り、
@@ -196,23 +207,20 @@ export function CompletionView({
         毎レッスンで祝うと、19歩ぶんの手応えの重さが均されて、
         逆に薄くなる。節目にだけ乗せるほうが効く。
       */}
+      {/*
+        コースの節目。**ここまでで何ができるようになったか**をまとめる。
+
+        前はスタンプの数と特典の予告だけを出していた。数と、まだ
+        使えない特典の話しか無く、積み上がったことが見えなかった。
+        積み上がっていることは、積み上げた本人がいちばん気づきにくい。
+      */}
       {crossed.length > 0 && !courseComplete && (
-        <Card testId="milestone-reached">
-          {/*
-            吹き出しは compact（2行ぶんで切れる）。
-            「近日公開」は、獲得済みでないことを言う唯一の言葉なので、
-            ここが切れて見えなくなると、そのまま獲得の報告に見えてしまう。
-            必ず収まる短さにする——長い言い回しにしない。
-          */}
-          <PoAvatar
-            po={{
-              message: `${crossed[0].atCount}個目のスタンプ、できた！ ${crossed[0].label}（近日公開）`,
-              emotion: "celebrate",
-              action: "wait",
-            }}
-            compact
-          />
-        </Card>
+        <CourseCheckpoint
+          course={course}
+          completedIds={doneSoFar}
+          atCount={crossed[0].atCount}
+          rewardLabel={crossed[0].label}
+        />
       )}
 
       {/*

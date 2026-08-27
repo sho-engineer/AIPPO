@@ -222,11 +222,10 @@ class LearningEventView(_SessionMixin, APIView):
         session.current_step = "COMPLETE"
         session.save(update_fields=["completed_at", "current_step", "updated_at"])
 
-        self._award_skills_and_xp(session)
+        self._award_skills_and_xp(request, session)
         self._award_stamps_and_rewards(request, session)
 
-    @staticmethod
-    def _award_skills_and_xp(session: LearningSession) -> None:
+    def _award_skills_and_xp(self, request: Request, session: LearningSession) -> None:
         """このレッスンで習得できるAI技を付け、XPを足す。
 
         前はレッスンに関係なく固定の4つを付けていた。どのレッスンを
@@ -246,6 +245,16 @@ class LearningEventView(_SessionMixin, APIView):
         xp.award(session.learner_key, XpKind.LESSON_COMPLETED, session.lesson_id)
         for slug in acquired:
             xp.award(session.learner_key, XpKind.AI_SKILL_ACQUIRED, slug)
+
+        """
+        コースの節目。
+
+        数えるのは読める鍵ぜんぶから——いまの端末だけで数えると、
+        別の端末で進めた分が抜けて、節目がいつまでも来ない。
+        """
+        xp.award_course_checkpoint(
+            session.learner_key, readable_keys(request), session.lesson_id
+        )
 
     @staticmethod
     def _award_stamps_and_rewards(request: Request, session: LearningSession) -> None:
