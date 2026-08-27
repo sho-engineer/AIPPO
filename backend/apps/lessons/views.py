@@ -44,9 +44,6 @@ logger = logging.getLogger(__name__)
 
 REWRITE_LESSON_ID = "rewrite_text_001"
 
-#: レッスン完了時に記録する習得スキル（§3 step 8）。
-REWRITE_SKILLS = ("state_audience", "state_tone", "state_length", "review_output")
-
 
 class _SessionMixin:
     """いまの人の、進行中セッションを解決する。
@@ -225,14 +222,30 @@ class LearningEventView(_SessionMixin, APIView):
         session.current_step = "COMPLETE"
         session.save(update_fields=["completed_at", "current_step", "updated_at"])
 
-        for skill_key in REWRITE_SKILLS:
-            SkillProgress.objects.get_or_create(
-                learner_key=session.learner_key,
-                skill_key=skill_key,
-                defaults={"lesson_id": session.lesson_id},
-            )
-
+        self._award_skills_and_xp(session)
         self._award_stamps_and_rewards(request, session)
+
+    @staticmethod
+    def _award_skills_and_xp(session: LearningSession) -> None:
+        """このレッスンで習得できるAI技を付け、XPを足す。
+
+        前はレッスンに関係なく固定の4つを付けていた。どのレッスンを
+        終えても同じ4つが付くので、図鑑は最初の1本で埋まり、そのあとは
+        何本やっても増えない——**していないことを習得したことにしていた**。
+        いまは `AiSkillLesson`（教材ごとの対応）から引く。
+
+        XPは、レッスン1本と、そこで新しく付いた技のぶん。
+        やり直しても二重には増えない（XpEvent の unique constraint）。
+        """
+        from apps.rewards import xp
+        from apps.rewards.models import XpKind
+        from apps.rewards.skills import award_lesson_skills
+
+        acquired = award_lesson_skills(session.learner_key, session.lesson_id)
+
+        xp.award(session.learner_key, XpKind.LESSON_COMPLETED, session.lesson_id)
+        for slug in acquired:
+            xp.award(session.learner_key, XpKind.AI_SKILL_ACQUIRED, slug)
 
     @staticmethod
     def _award_stamps_and_rewards(request: Request, session: LearningSession) -> None:
@@ -336,6 +349,8 @@ class ProgressView(APIView):
                     .values_list("skill_key", flat=True)
                     .distinct()
                 ),
+                # 学んだ量。ここに載せておくと、ホームが1回で出せる
+                "xp": self._xp(keys),
                 # ログイン中かどうかで、画面の言い方を変えられるようにする
                 "signed_in": bool(
                     getattr(request, "user", None)
@@ -343,6 +358,23 @@ class ProgressView(APIView):
                 ),
             }
         )
+
+    @staticmethod
+    def _xp(keys: list) -> dict[str, object]:
+        """学んだ量と、いまの呼び名。
+
+        合計はいつも `XpEvent` の SUM。残高のカラムは持たない
+        （2か所に持つと必ずずれる）。
+        """
+        from apps.rewards import xp as xp_module
+
+        level = xp_module.level_for(xp_module.total_xp(keys))
+        return {
+            "total": level.total,
+            "level": level.name,
+            "next_level": level.next_name,
+            "to_next": level.to_next,
+        }
 
 
 class SurveyView(_SessionMixin, APIView):

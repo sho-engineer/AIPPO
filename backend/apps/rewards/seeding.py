@@ -40,6 +40,7 @@ from apps.rewards.models import (
     StampDefinition,
     StampType,
 )
+from apps.rewards.skills import seed_ai_skills
 
 #: Foundation コースの節目。数は運用側が管理画面から変えられる（ここは初期値）。
 #: (required_stamp_count, reward_credits, badge_name)
@@ -317,6 +318,8 @@ def seed_recipes(path: LearningPath | None) -> int:
 def seed_rewards() -> tuple[LearningPath | None, int]:
     """初期データを一式そろえる。教材の取り込みが終わったあとに呼ぶ。"""
     pricing_made = seed_ai_task_pricing()
+    # 図鑑の中身。教材が入ってから呼ぶ（技とレッスンを繋ぐため）
+    seed_ai_skills()
     path = seed_foundation_path()
     practical = seed_practical_path()
     seed_recipes(path)

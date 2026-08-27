@@ -301,3 +301,87 @@ class LearningPathView(APIView):
             )
 
         return Response({"paths": paths}, status=status.HTTP_200_OK)
+
+
+class SkillDexView(APIView):
+    """GET /api/v1/rewards/skills/
+
+    AI技図鑑。**いま何ができるか**を並べる。
+
+    出すのは自分のことだけ。誰が何個持っているか、順位、平均——
+    どれも出さない（憲章）。集めた数を人と比べさせない。
+
+    まだ取っていない技も出す。ただし「どのレッスンで取れるか」が
+    書けるものだけ（`AiSkillLesson` がある技だけ）。行き先の無い枠を
+    並べると、押しても何も無い項目になる。
+    """
+
+    def get(self, request: Request) -> Response:
+        from apps.lessons.models import SkillProgress
+        from apps.rewards import xp as xp_module
+        from apps.rewards.models import AiSkill
+        from apps.rewards.skills import SKILL_COMBOS
+
+        keys = readable_keys(request)
+        acquired_at = dict(
+            SkillProgress.objects.filter(learner_key__in=keys)
+            .values_list("skill_key", "acquired_at")
+        )
+
+        skills = (
+            AiSkill.objects.filter(lesson_links__isnull=False)
+            .prefetch_related("lesson_links__lesson__course")
+            .distinct()
+        )
+
+        rows = []
+        for skill in skills:
+            when = acquired_at.get(skill.slug)
+            rows.append(
+                {
+                    "slug": skill.slug,
+                    "name": skill.name,
+                    "one_line": skill.one_line,
+                    "description": skill.description,
+                    "example": skill.example,
+                    "acquired": when is not None,
+                    "acquired_at": when.isoformat() if when else None,
+                    "lessons": [
+                        {
+                            "slug": link.lesson.slug,
+                            "title": link.lesson.title,
+                            "course_slug": link.lesson.course.slug,
+                        }
+                        for link in skill.lesson_links.all()
+                    ],
+                }
+            )
+
+        have = {row["slug"] for row in rows if row["acquired"]}
+        total = xp_module.total_xp(keys)
+        level = xp_module.level_for(total)
+
+        return Response(
+            {
+                "skills": rows,
+                "acquired_count": len(have),
+                "total_count": len(rows),
+                # 組み合わせは見せ方。持ち物として数えない（表も作っていない）
+                "combos": [
+                    {
+                        "skills": list(combo),
+                        "name": name,
+                        "one_line": one_line,
+                        "complete": set(combo) <= have,
+                    }
+                    for combo, name, one_line in SKILL_COMBOS
+                ],
+                "xp": {
+                    "total": level.total,
+                    "level": level.name,
+                    "next_level": level.next_name,
+                    "to_next": level.to_next,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )

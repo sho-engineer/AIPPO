@@ -406,3 +406,136 @@ class AiTaskPricing(models.Model):
 
     def __str__(self) -> str:
         return f"{self.task_type}: {self.credit_cost}"
+
+
+class AiSkill(models.Model):
+    """AI技。図鑑に並ぶ1つぶん。
+
+    名前は**一般用語にする**。図鑑で覚えた言葉が、外の記事や他の道具で
+    そのまま通じないと、学んだ意味が半分になる。AIPPO だけの造語は作らない。
+
+    枠だけ先に並べない
+    ------------------
+    「12 / 48」のように集める余地を見せたくなるが、**中身の無い枠**を
+    並べると、押しても何も無い項目ができる。ここに入れるのは
+    「いまあるレッスンのどれかで実際に習得できるもの」だけにする
+    （`lessons` が空の技は図鑑に出さない。下の `obtainable` 参照）。
+    """
+
+    slug = models.SlugField(
+        max_length=60,
+        unique=True,
+        help_text="一般用語の英語。図鑑の並びと、獲得記録の照合に使う",
+    )
+    name = models.CharField(max_length=60, help_text="表示名（日本語）")
+    one_line = models.CharField(max_length=80, help_text="一覧に出す1行")
+    description = models.TextField(blank=True, help_text="もう少し詳しく")
+    example = models.CharField(
+        max_length=200, blank=True, help_text="「取引先向けに丁寧にして」のような実例"
+    )
+    order = models.PositiveIntegerField(default=0)
+
+    lessons = models.ManyToManyField(
+        Lesson,
+        through="AiSkillLesson",
+        related_name="ai_skills",
+        blank=True,
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("order", "slug")
+        verbose_name = "AI技"
+        verbose_name_plural = "AI技"
+
+    def __str__(self) -> str:
+        return f"{self.name}（{self.slug}）"
+
+
+class AiSkillLesson(models.Model):
+    """この技を、どのレッスンで習得できるか。
+
+    1つの技を複数のレッスンで扱ってよい（最初に終えたところで獲得になる）。
+    Lesson 側には何も足さない——教材の行は増やさず、参照だけをここへ持つ。
+    """
+
+    skill = models.ForeignKey(
+        AiSkill, related_name="lesson_links", on_delete=models.CASCADE
+    )
+    lesson = models.ForeignKey(
+        Lesson, related_name="skill_links", on_delete=models.CASCADE
+    )
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ("order", "id")
+        constraints = [
+            models.UniqueConstraint(fields=["skill", "lesson"], name="uniq_skill_lesson")
+        ]
+        verbose_name = "AI技のレッスン"
+        verbose_name_plural = "AI技のレッスン"
+
+    def __str__(self) -> str:
+        return f"{self.skill.slug} / {self.lesson.slug}"
+
+
+class XpKind(models.TextChoices):
+    """XPが増えたきっかけ。"""
+
+    LESSON_COMPLETED = "lesson_completed", "レッスン完了"
+    AI_SKILL_ACQUIRED = "ai_skill_acquired", "AI技の習得"
+    COURSE_CHECKPOINT = "course_checkpoint", "コースの節目"
+
+
+class XpEvent(models.Model):
+    """XPが増えた出来事を、1件ずつ残す。
+
+    Credit とは別物
+    ---------------
+    ==========  ==========================  ========================
+                XP                          Credit
+    ==========  ==========================  ========================
+    何を表すか  学んだ量                    使える残高
+    減るか      **減らない**                使うと減る
+    出どころ    学習だけ                    節目の特典
+    誰が持つか  ゲストも持つ                account が要る
+    ==========  ==========================  ========================
+
+    **XPは絶対に減らさない。** 減る仕組みを入れると「失う恐怖で
+    続けさせる」設計になる。順位も他人との比較も出さない方針と揃える。
+
+    合計は SUM で出す。残高のカラムは作らない——2か所に持つと必ずずれる
+    （Credit で同じ判断をしている。`CreditWallet` は ledger 経由でしか
+    書き換えない、という縛りとセット）。
+
+    ゲストも持つ
+    ------------
+    置き場所はスタンプと同じ `learner_key`。登録していない人にも
+    手応えが要る（登録なしで最後まで進める、という方針と揃える）。
+    登録時の引き継ぎは、他の学習記録と同じ経路に載る
+    （`apps.accounts.migration`）。
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    learner_key = models.UUIDField(db_index=True)
+    kind = models.CharField(max_length=30, choices=XpKind.choices)
+    #: 何に対してのXPか。lesson.slug / ai_skill.slug / course.slug
+    source_id = models.CharField(max_length=100)
+    amount = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        constraints = [
+            # 同じ出来事では1回だけ。レッスンをやり直しても二重に増えない
+            models.UniqueConstraint(
+                fields=["learner_key", "kind", "source_id"], name="uniq_xp_source"
+            )
+        ]
+        verbose_name = "XPの増加"
+        verbose_name_plural = "XPの増加"
+
+    def __str__(self) -> str:
+        return f"{self.kind} {self.source_id} +{self.amount}"

@@ -114,6 +114,12 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
     profiles = LearnerProfile.objects.filter(learner_key__in=keys)
     skills = SkillProgress.objects.filter(learner_key__in=keys)
 
+    # 学んだ量も、鍵ごと消えるものと一緒に消す。
+    # 残しても、鍵が無くなれば誰の分か分からない記録になるだけ
+    from apps.rewards.models import XpEvent
+
+    xp_events = XpEvent.objects.filter(learner_key__in=keys)
+
     # 試行回数は、いちばん長い窓を過ぎたら用が無い。
     # 余裕を持って1日ぶん残す（時計のずれで消しすぎないように）
     throttle_cutoff = timezone.now() - timedelta(days=1)
@@ -137,6 +143,7 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
         "学習セッション": sessions.count(),
         "診断の回答": profiles.count(),
         "身につけたこと": skills.count(),
+        "XPの記録": xp_events.count(),
         "試行回数": throttles.count(),
         "AI実行回数": counters.count(),
         "操作記録": audit_logs.count(),
@@ -147,6 +154,7 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
         sessions.delete()
         profiles.delete()
         skills.delete()
+        xp_events.delete()
         throttles.delete()
         counters.delete()
         audit_logs.delete()
