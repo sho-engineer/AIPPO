@@ -31,13 +31,25 @@ import { useCallback, useEffect, useState } from "react";
 
 import { fetchHistory, type Artifact, type History } from "../api/history";
 import { AppHeader } from "../components/AppShell";
-import { IconCheck, IconClock, IconSparkle } from "../components/Icons";
+import {
+  IconCheck,
+  IconChevronRight,
+  IconClock,
+  IconSparkle,
+} from "../components/Icons";
 import { lookupLesson } from "../course/live";
 
 export interface RecordPageProps {
   onSelectLesson: (lessonId: string) => void;
   /** 何も無いときの行き先。 */
   onOpenCourse: () => void;
+  /**
+   * AI技図鑑へ。
+   *
+   * ここは「何を学んだか」の画面で、図鑑は「何ができるか」の画面。
+   * 見に来る動機が続いているので、隣に置く。
+   */
+  onOpenSkills: () => void;
 }
 
 /** 「8月18日 15:03」の形。年は今年なら出さない（読む量を減らす）。 */
@@ -132,13 +144,29 @@ function ArtifactCard({
   );
 }
 
-export function RecordPage({ onSelectLesson, onOpenCourse }: RecordPageProps) {
+export function RecordPage({
+  onSelectLesson,
+  onOpenCourse,
+  onOpenSkills,
+}: RecordPageProps) {
   const [history, setHistory] = useState<History | null>(null);
   const [failed, setFailed] = useState(false);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
-      setHistory(await fetchHistory(signal));
+      /*
+        形が違うものが返ることがある（前段のプロキシ、設定違いの
+        エンドポイント、古い版のサーバー）。そのまま入れると
+        `artifacts.length` で落ち、**画面ごと真っ白**になる。
+        200 が返っている以上「読み込めませんでした」でもないので、
+        足りない配列は空として扱い、画面は出す。
+      */
+      const body = await fetchHistory(signal);
+      setHistory({
+        artifacts: Array.isArray(body?.artifacts) ? body.artifacts : [],
+        sessions: Array.isArray(body?.sessions) ? body.sessions : [],
+        ai_quota: body?.ai_quota ?? { limit: null, used: 0, remaining: null },
+      });
       setFailed(false);
     } catch {
       setFailed(true);
@@ -162,6 +190,35 @@ export function RecordPage({ onSelectLesson, onOpenCourse }: RecordPageProps) {
         <p className="mt-1.5 text-sm leading-7 text-ink-muted">
           作ったものは、ここからいつでも取り出せます。
         </p>
+
+        {/*
+          何ができるようになったか。
+
+          この画面は「何を学んだか」を出す場所で、できることの一覧は
+          別に要る。本数だけを積み上げても、身についた実感にはならない。
+        */}
+        <button
+          type="button"
+          onClick={onOpenSkills}
+          data-testid="record-open-skills"
+          className="mt-5 flex w-full items-center gap-3 rounded-card border border-line
+                     bg-surface px-4 py-3 text-left transition hover:bg-canvas"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-card
+                       bg-brand-soft text-brand"
+          >
+            <IconSparkle className="h-[1.125rem] w-[1.125rem]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold leading-6">AI技を見る</span>
+            <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
+              いま自分にできることの一覧
+            </span>
+          </span>
+          <IconChevronRight className="h-4 w-4 shrink-0 text-ink-muted" />
+        </button>
 
         {/* ── 今日あと何回使えるか ── */}
         {/*

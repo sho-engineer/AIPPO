@@ -60,7 +60,8 @@ beforeEach(() => {
 describe("作ったもの", () => {
   it("並び、本文が読める", async () => {
     serve(FULL);
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
 
     expect(await screen.findByTestId("artifact-a1")).toHaveTextContent(
       "ご確認をお願いいたします。",
@@ -70,7 +71,8 @@ describe("作ったもの", () => {
   it("何を指定したかが一緒に出る", async () => {
     // 条件が無いと、なぜその結果になったのかが分からず学びに繋がらない
     serve(FULL);
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
 
     const card = await screen.findByTestId("artifact-a1");
 
@@ -87,7 +89,8 @@ describe("作ったもの", () => {
       value: { writeText: write },
     });
 
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
     await userEvent.click(await screen.findByTestId("artifact-copy-a1"));
 
     expect(write).toHaveBeenCalledWith(ARTIFACT.output);
@@ -104,7 +107,8 @@ describe("作ったもの", () => {
       },
     });
 
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
     await userEvent.click(await screen.findByTestId("artifact-copy-a1"));
 
     expect(screen.getByTestId("artifact-a1")).toBeInTheDocument();
@@ -114,7 +118,8 @@ describe("作ったもの", () => {
     // 見返して「もう一度」と思ったときに、探し直させない
     serve(FULL);
     const open = vi.fn();
-    render(<RecordPage onSelectLesson={open} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={open} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
 
     await userEvent.click(await screen.findByTestId("record-session-rewrite_text"));
 
@@ -124,7 +129,8 @@ describe("作ったもの", () => {
   it("切られたものは、切られたと分かる", async () => {
     // 黙って切ると、続きがあるのに終わったと思われる
     serve({ ...FULL, artifacts: [{ ...ARTIFACT, truncated: true }] });
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
 
     expect(await screen.findByTestId("artifact-a1")).toHaveTextContent(
       "長いため、ここまでを保存しています",
@@ -135,7 +141,8 @@ describe("作ったもの", () => {
 describe("今日つかえる回数", () => {
   it("上限に当たる前に、残りが見える", async () => {
     serve(FULL);
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
 
     const quota = await screen.findByTestId("ai-quota");
 
@@ -146,7 +153,8 @@ describe("今日つかえる回数", () => {
   it("上限を外しているときは、数を出さない", async () => {
     // 0 を出すと「残り0回」と読めてしまい、逆の意味になる
     serve({ ...FULL, ai_quota: { limit: null, used: 0, remaining: null } });
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
 
     await screen.findByTestId("artifact-a1");
 
@@ -159,7 +167,8 @@ describe("まだ何も無いとき", () => {
 
   it("次に何をすればよいか伝える", async () => {
     serve(empty);
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
 
     expect(
       await screen.findByText(/レッスンでAIに何か作ってもらうと/),
@@ -179,7 +188,8 @@ describe("まだ何も無いとき", () => {
     const user = userEvent.setup();
     const openCourse = vi.fn();
     serve(empty);
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={openCourse} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={openCourse}
+            onOpenSkills={() => {}} />);
 
     await user.click(await screen.findByTestId("record-empty-start"));
 
@@ -191,7 +201,8 @@ describe("読み込めなかったとき", () => {
   it("黙って空にせず、そう伝える", async () => {
     // 空と区別が付かないと、「作ったものが消えた」と思われる
     serve(null, false);
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
 
     await waitFor(() =>
       expect(screen.getByTestId("record-error")).toBeInTheDocument(),
@@ -211,7 +222,8 @@ describe("読み込めなかったとき", () => {
       return { ok: true, status: 200, json: async () => FULL } as Response;
     });
 
-    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<RecordPage onSelectLesson={() => {}} onOpenCourse={() => {}}
+            onOpenSkills={() => {}} />);
     await screen.findByTestId("record-error");
 
     online = true;
@@ -219,5 +231,37 @@ describe("読み込めなかったとき", () => {
 
     expect(await screen.findByTestId("artifact-a1")).toBeInTheDocument();
     expect(screen.queryByTestId("record-error")).not.toBeInTheDocument();
+  });
+});
+
+describe("形が違う応答が返ったとき", () => {
+  /**
+   * 前段のプロキシや設定違いのエンドポイントが、200 のまま
+   * 別の形を返すことがある。そのまま `artifacts.length` を読むと
+   * **画面ごと真っ白**になり、押せる場所が1つも無くなる。
+   *
+   * 200 が返っている以上「読み込めませんでした」でもない。
+   * 足りない配列は空として扱い、画面は出す。
+   */
+  it("画面が真っ白にならない", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => ({ session: null }),
+        }) as Response,
+    );
+
+    render(
+      <RecordPage
+        onSelectLesson={() => {}}
+        onOpenCourse={() => {}}
+        onOpenSkills={() => {}}
+      />,
+    );
+
+    // 「作ったものはまだありません」まで出る（落ちない）
+    expect(await screen.findByTestId("record-empty")).toBeInTheDocument();
   });
 });

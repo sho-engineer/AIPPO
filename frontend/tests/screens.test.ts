@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SCREENS, canTransition, nextScreen } from "../src/app/screens";
 
 describe("画面遷移", () => {
-  it("9画面（コースは一覧と中身の2段）", () => {
+  it("10画面（コースは一覧と中身の2段）", () => {
     expect(SCREENS).toEqual([
       "TOP",
       "HOME",
@@ -12,9 +12,22 @@ describe("画面遷移", () => {
       "LESSON",
       "RECIPE",
       "RECORD",
+      "SKILLS",
       "SAVED",
       "SETTINGS",
     ]);
+  });
+
+  it("AI技図鑑から、その技を習得できるレッスンへ入れる", () => {
+    /*
+      読んで終わりにしない。取れていない技の隣に、取れる教材への
+      行き先を必ず置く（使い方の説明と同じ考え方）。
+    */
+    expect(nextScreen("SKILLS", "SELECT_LESSON")).toBe("LESSON");
+  });
+
+  it("AI技図鑑は、行き止まりにしない", () => {
+    expect(canTransition("SKILLS", "BACK_TO_HOME")).toBe(true);
   });
 
   it("完了画面から、使い方のくわしい説明へ行ける", () => {
@@ -135,4 +148,19 @@ describe("画面遷移", () => {
     expect(nextScreen("TOP", "BACK_TO_TOP")).toBe("TOP");
     expect(canTransition("LESSON", "START")).toBe(false);
   });
+});
+
+describe("AI技図鑑への行き方", () => {
+  /*
+    「何を学んだか」（学習記録）の隣に「何ができるか」（図鑑）を置く。
+    ここが抜けていると、押しても画面が変わらないボタンになる——
+    落ちないので、押した人には壊れているのか自分の勘違いなのか
+    分からない。
+  */
+  it.each(["HOME", "COURSE", "RECORD", "SAVED", "SETTINGS"] as const)(
+    "%s から開ける",
+    (from) => {
+      expect(nextScreen(from, "OPEN_SKILLS")).toBe("SKILLS");
+    },
+  );
 });

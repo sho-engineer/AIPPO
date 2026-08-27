@@ -29,6 +29,8 @@ export const SCREENS = [
   // 「こんな使い方もできます」のくわしい説明。完了画面から来る
   "RECIPE",
   "RECORD",
+  // AI技図鑑。「何ができるようになったか」を見る場所
+  "SKILLS",
   "SAVED",
   "SETTINGS",
 ] as const;
@@ -43,6 +45,7 @@ export type ScreenEvent =
   | "OPEN_COURSE_DETAIL"
   | "OPEN_RECIPE"
   | "OPEN_RECORD"
+  | "OPEN_SKILLS"
   | "OPEN_SAVED"
   | "OPEN_SETTINGS"
   | "BACK_TO_TOP";
@@ -56,6 +59,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     // 一覧を経由させない——どのコースを見たいかは、もう決まっている
     OPEN_COURSE_DETAIL: "COURSE_DETAIL",
     OPEN_RECORD: "RECORD",
+    OPEN_SKILLS: "SKILLS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
@@ -67,6 +71,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_COURSE_DETAIL: "COURSE_DETAIL",
     BACK_TO_HOME: "HOME",
     OPEN_RECORD: "RECORD",
+    OPEN_SKILLS: "SKILLS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
@@ -79,6 +84,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_RECIPE: "RECIPE",
     BACK_TO_HOME: "HOME",
     OPEN_RECORD: "RECORD",
+    OPEN_SKILLS: "SKILLS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
@@ -104,6 +110,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     BACK_TO_HOME: "HOME",
     OPEN_COURSE: "COURSE",
     OPEN_RECORD: "RECORD",
+    OPEN_SKILLS: "SKILLS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
@@ -113,6 +120,23 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     SELECT_LESSON: "LESSON",
     BACK_TO_HOME: "HOME",
     OPEN_COURSE: "COURSE",
+    // 「何を学んだか」の隣に「何ができるか」を置く
+    OPEN_SKILLS: "SKILLS",
+    OPEN_SAVED: "SAVED",
+    OPEN_SETTINGS: "SETTINGS",
+    BACK_TO_TOP: "TOP",
+  },
+  /*
+    AI技図鑑。ここから「習得する」で教材へ入れる。
+
+    読んで終わりにしない——取れていない技の隣に、取れる教材への
+    行き先を必ず置く。
+  */
+  SKILLS: {
+    SELECT_LESSON: "LESSON",
+    BACK_TO_HOME: "HOME",
+    OPEN_COURSE: "COURSE",
+    OPEN_RECORD: "RECORD",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
@@ -123,6 +147,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     BACK_TO_HOME: "HOME",
     OPEN_COURSE: "COURSE",
     OPEN_RECORD: "RECORD",
+    OPEN_SKILLS: "SKILLS",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
   },
@@ -131,6 +156,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     BACK_TO_HOME: "HOME",
     OPEN_COURSE: "COURSE",
     OPEN_RECORD: "RECORD",
+    OPEN_SKILLS: "SKILLS",
     OPEN_SAVED: "SAVED",
     BACK_TO_TOP: "TOP",
   },

@@ -36,6 +36,7 @@ import { RecipePage } from "./pages/RecipePage";
 import { appliedTipById } from "./course/appliedTips";
 import { useCompletedLessons } from "./course/progress";
 import { SavedPage } from "./pages/SavedPage";
+import { SkillDexPage } from "./pages/SkillDexPage";
 
 /** 下タブのどれが光っているか。 */
 const TAB_OF: Partial<Record<Screen, TabKey>> = {
@@ -44,6 +45,8 @@ const TAB_OF: Partial<Record<Screen, TabKey>> = {
   // コースの中身も「コース」の中。下タブの光る場所は動かさない
   COURSE_DETAIL: "course",
   RECORD: "record",
+  // 図鑑も「自分の記録」の仲間。学習記録から入る
+  SKILLS: "record",
   SAVED: "saved",
   SETTINGS: "more",
 };
@@ -80,6 +83,7 @@ const BACK_FALLBACK: Record<Screen, Screen> = {
   LESSON: "COURSE_DETAIL",
   RECIPE: "COURSE_DETAIL",
   RECORD: "HOME",
+  SKILLS: "RECORD",
   SAVED: "HOME",
   SETTINGS: "HOME",
 };
@@ -253,6 +257,7 @@ export function App() {
             // 「道のりを見る」から、いま学んでいるコースの中身へ直行する
             onOpenPath={(id) => openCourse(id, "HOME")}
             onOpenRecord={() => navigate(nextScreen("HOME", "OPEN_RECORD"))}
+            onOpenSkills={() => navigate(nextScreen("HOME", "OPEN_SKILLS"))}
             onOpenAccount={() => navigate(nextScreen("HOME", "OPEN_SETTINGS"))}
           />
         );
@@ -309,11 +314,20 @@ export function App() {
         );
       }
 
+      case "SKILLS":
+        return (
+          <SkillDexPage
+            onSelectLesson={(id) => openLesson(id, "SKILLS")}
+            onOpenCourse={() => navigate(nextScreen("SKILLS", "OPEN_COURSE"))}
+          />
+        );
+
       case "RECORD":
         return (
           <RecordPage
             onSelectLesson={(id) => openLesson(id, "RECORD")}
             onOpenCourse={() => navigate(nextScreen("RECORD", "OPEN_COURSE"))}
+            onOpenSkills={() => navigate(nextScreen("RECORD", "OPEN_SKILLS"))}
           />
         );
 
@@ -345,6 +359,7 @@ export function App() {
               onOpenCourse={() => navigate("COURSE")}
               onOpenPath={(id) => openCourse(id, "HOME")}
               onOpenRecord={() => navigate("RECORD")}
+              onOpenSkills={() => navigate("SKILLS")}
               onOpenAccount={() => navigate("SETTINGS")}
             />
           );

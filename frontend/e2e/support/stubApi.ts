@@ -35,6 +35,8 @@ export interface StubOptions {
   social?: { name: string; label: string; start_url: string }[];
   /** パスキーを使える端末として振る舞うか。既定は使えない。 */
   passkey?: boolean;
+  /** AI技図鑑の中身。既定は「1つも覚えていない」。 */
+  skillDex?: unknown;
 }
 
 export interface TutorBody {
@@ -236,7 +238,30 @@ export async function stubApi(
         in_progress_count: 0,
         skills: [],
         signed_in: signedIn,
+        xp: { total: 0, level: "AI Starter", next_level: "AI Beginner", to_next: 100 },
       }),
+    });
+  });
+
+  /*
+    AI技図鑑。既定は「1つも覚えていない」。
+
+    ここを塞いでいないと、開発機に立っているバックエンドの中身で
+    検査の結果が変わる。
+  */
+  await page.route("**/api/v1/rewards/skills/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        options.skillDex ?? {
+          skills: [],
+          acquired_count: 0,
+          total_count: 0,
+          combos: [],
+          xp: { total: 0, level: "AI Starter", next_level: "AI Beginner", to_next: 100 },
+        },
+      ),
     });
   });
 
@@ -288,6 +313,25 @@ export async function stubApi(
       });
     });
   }
+
+  /*
+    学習の記録。
+
+    **上のまとめ塞ぎ（api/lessons/**）より後に置くこと。** 先に置くと
+    飲まれて `{"session": null}` が返り、学習記録の画面が
+    「作ったもの」を数えられなくなる。
+  */
+  await page.route("**/api/lessons/history/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        artifacts: [],
+        sessions: [],
+        ai_quota: { limit: null, used: 0, remaining: null },
+      }),
+    });
+  });
 
   // 完了時アンケート。送り先の教材と、答えの中身を控える。
   //
