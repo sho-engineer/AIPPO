@@ -69,19 +69,27 @@ function renderDialog(ui: React.ReactElement) {
   return render(<AuthProvider>{ui}</AuthProvider>);
 }
 
+/**
+ * 登録の1枚目で、メールアドレスを入れて2枚目へ進む。
+ *
+ * 登録は2枚になっている。1枚目で道を選び（Google / パスキー / メール）、
+ * 選んだ道に要るものだけを2枚目で聞く。
+ */
+async function toPasswordStep(
+  user: ReturnType<typeof userEvent.setup>,
+  email = "a@example.com",
+) {
+  await user.type(screen.getByLabelText("メールアドレス"), email);
+  await user.click(screen.getByTestId("auth-submit"));
+  await screen.findByLabelText("パスワード（確認）");
+}
+
 describe("登録・ログインの画面", () => {
-  it("同意していないうちは登録を送らない", async () => {
+  it("メールアドレスが空のうちは、次へ進めない", async () => {
     const user = userEvent.setup();
     const send = stubFetch({});
 
     renderDialog(<AuthDialog onClose={() => {}} />);
-
-    await user.type(screen.getByLabelText("メールアドレス"), "a@example.com");
-    await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
-    await user.type(
-      screen.getByLabelText("パスワード（確認）"),
-      "aippo-strong-pass-9",
-    );
 
     expect(screen.getByTestId("auth-submit")).toBeDisabled();
 
@@ -91,7 +99,7 @@ describe("登録・ログインの画面", () => {
     expect(calls.some((url) => url.includes("/signup/"))).toBe(false);
   });
 
-  it("同意したら登録を送り、引き継いだ件数を伝える", async () => {
+  it("登録を送り、引き継いだ件数を伝える", async () => {
     const user = userEvent.setup();
     stubFetch({
       "/signup/": () =>
@@ -110,13 +118,12 @@ describe("登録・ログインの画面", () => {
 
     renderDialog(<AuthDialog onClose={() => {}} onDone={done} />);
 
-    await user.type(screen.getByLabelText("メールアドレス"), "a@example.com");
+    await toPasswordStep(user);
     await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
     await user.type(
       screen.getByLabelText("パスワード（確認）"),
       "aippo-strong-pass-9",
     );
-    await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByTestId("auth-submit"));
 
     await waitFor(() => expect(done).toHaveBeenCalled());
@@ -220,8 +227,7 @@ describe("パスワードの確認欄", () => {
         }),
     });
     renderDialog(<AuthDialog onClose={() => {}} />);
-    await user.type(screen.getByLabelText("メールアドレス"), "a@example.com");
-    await user.click(screen.getByRole("checkbox"));
+    await toPasswordStep(user);
     return { user, send };
   }
 
@@ -332,31 +338,154 @@ describe("パスワードの確認欄", () => {
   });
 });
 
-describe("登録のしかたの並び", () => {
+describe("登録の入口", () => {
   /**
-   * 押せる条件を、ボタンより先に出す。
+   * 先に道を選ばせ、そのあとで、その道に要るものだけを聞く。
    *
-   * 前はパスキーの入口が一番上にあった。押せる条件（メールと同意）は
-   * その下にあるので、開いた人がまず見るのは**押せないボタン**で、
-   * 何をすれば押せるのかはボタンの下の小さな字にしかなかった。
+   * 前は1枚だった。メール・名前・同意・パスワード2つ・パスキー・Google が
+   * 同時に見えていて、**Google で登録する人にもパスワード欄が見えていた**。
+   * 自分に要らないものを数えてから始めることになる。
    */
-  it("メールと同意が、登録のしかたより先に来る", async () => {
+  it("1枚目にパスワード欄を出さない", async () => {
+    stubFetch({});
+    renderDialog(<AuthDialog onClose={() => {}} />);
+
+    expect(screen.queryByLabelText("パスワード")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("パスワード（確認）")).not.toBeInTheDocument();
+    // 呼ばれたい名前も、道が決まってから聞く（Google なら聞かない）
+    expect(screen.queryByLabelText(/呼ばれたい名前/)).not.toBeInTheDocument();
+  });
+
+  it("メールで続けると、パスワードだけを聞かれる", async () => {
+    const user = userEvent.setup();
+    stubFetch({});
+    renderDialog(<AuthDialog onClose={() => {}} />);
+
+    await toPasswordStep(user, "learner@example.com");
+
+    expect(screen.getByLabelText("パスワード")).toBeInTheDocument();
+    // 打ったメールアドレスは、もう一度打たせない
+    expect(screen.queryByLabelText("メールアドレス")).not.toBeInTheDocument();
+    expect(screen.getByTestId("auth-chosen-email")).toHaveTextContent(
+      "learner@example.com",
+    );
+  });
+
+  it("「変更する」で1枚目に戻れ、打った値が残っている", async () => {
+    const user = userEvent.setup();
+    stubFetch({});
+    renderDialog(<AuthDialog onClose={() => {}} />);
+
+    await toPasswordStep(user, "learner@example.com");
+    await user.click(screen.getByTestId("auth-change-email"));
+
+    expect(screen.getByLabelText("メールアドレス")).toHaveValue(
+      "learner@example.com",
+    );
+  });
+
+  it("使われているメールアドレスの指摘は、その欄が見える画面で出す", async () => {
+    /*
+      パスワードの画面のまま出すと、直せない指摘だけが画面に残る。
+      戻して、指摘とその欄を同じ画面に置く。
+    */
+    const user = userEvent.setup();
+    stubFetch({
+      "/signup/": () =>
+        reply(400, {
+          code: "INVALID_INPUT",
+          errors: { email: ["このメールアドレスはすでに使われています。"] },
+        }),
+    });
+    renderDialog(<AuthDialog onClose={() => {}} />);
+
+    await toPasswordStep(user, "taken@example.com");
+    await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
+    await user.type(
+      screen.getByLabelText("パスワード（確認）"),
+      "aippo-strong-pass-9",
+    );
+    await user.click(screen.getByTestId("auth-submit"));
+
+    const field = await screen.findByLabelText("メールアドレス");
+    expect(field).toHaveValue("taken@example.com");
+    expect(
+      screen.getByText("このメールアドレスはすでに使われています。"),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("同意の取り方", () => {
+  /**
+   * **どの登録方式でも同じにする。**
+   *
+   * 前は Google だけ「押したら同意」で、パスキーとパスワードには
+   * チェック欄があった。同じ登録なのに求められるものが違い、
+   * しかもチェック欄は Google のボタンを素通りしていた——
+   * 厳しく見えて、実際には守っていない形だった。
+   */
+  it("押す前に、同意の一文が見えている", async () => {
+    stubFetch({});
     renderDialog(<AuthDialog onClose={() => {}} />);
 
     const dialog = screen.getByTestId("auth-dialog");
     const text = dialog.textContent ?? "";
 
-    expect(text.indexOf("メールアドレス")).toBeLessThan(
-      text.indexOf("登録のしかたを選ぶ"),
+    expect(screen.getByTestId("auth-consent")).toHaveTextContent(
+      "利用規約とプライバシーポリシーに同意したことになります",
     );
-    expect(text.indexOf("利用規約")).toBeLessThan(text.indexOf("登録のしかたを選ぶ"));
+    // 規約とポリシーは、この画面の中で読める
+    expect(screen.getByTestId("auth-read-terms")).toBeInTheDocument();
+    expect(screen.getByTestId("auth-read-privacy")).toBeInTheDocument();
+    expect(text).not.toContain("同意がないと登録できません");
   });
 
-  it("2つの道が、どちらも名前で分かる", async () => {
+  it("2枚目でも、同じ一文が見えている", async () => {
+    const user = userEvent.setup();
+    stubFetch({});
     renderDialog(<AuthDialog onClose={() => {}} />);
 
-    expect(screen.getByText("パスキーで登録（おすすめ）")).toBeInTheDocument();
-    expect(screen.getByText("パスワードで登録")).toBeInTheDocument();
+    await toPasswordStep(user);
+
+    expect(screen.getByTestId("auth-consent")).toBeInTheDocument();
+  });
+
+  it("登録の送信には、同意が必ず入る", async () => {
+    const user = userEvent.setup();
+    const send = stubFetch({
+      "/signup/": () =>
+        reply(201, {
+          user: {
+            email: "a@example.com",
+            display_name: "",
+            email_verified: false,
+            terms_version: "2026-08-03",
+            joined_at: "2026-08-01T00:00:00+09:00",
+          },
+          migration: { linked: false, sessions: 0, already_linked: false },
+        }),
+    });
+    renderDialog(<AuthDialog onClose={() => {}} />);
+
+    await toPasswordStep(user);
+    await user.type(screen.getByLabelText("パスワード"), "aippo-strong-pass-9");
+    await user.type(
+      screen.getByLabelText("パスワード（確認）"),
+      "aippo-strong-pass-9",
+    );
+    await user.click(screen.getByTestId("auth-submit"));
+
+    await waitFor(() => {
+      const signup = send.mock.calls.find((call) =>
+        String(call[0]).includes("/signup/"),
+      );
+      expect(signup).toBeTruthy();
+      const body = JSON.parse(
+        String((signup?.[1] as RequestInit | undefined)?.body ?? "{}"),
+      );
+      expect(body.accept_terms).toBe(true);
+      expect(body.accept_privacy).toBe(true);
+    });
   });
 });
 

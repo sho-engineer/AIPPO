@@ -26,6 +26,15 @@ export interface StubOptions {
   failOnCall?: number;
   /** ポーの発言。 */
   tutor?: Partial<TutorBody>;
+  /**
+   * 外部ログインの並び。既定は「設定なし」で、ボタンは1つも出ない。
+   *
+   * 実際の環境では鍵を入れた先だけが出る。既定を空にしておかないと、
+   * 設定していないボタンが出る状態を検査が見逃す。
+   */
+  social?: { name: string; label: string; start_url: string }[];
+  /** パスキーを使える端末として振る舞うか。既定は使えない。 */
+  passkey?: boolean;
 }
 
 export interface TutorBody {
@@ -149,6 +158,30 @@ export async function stubApi(
             }
           : { authenticated: false },
       ),
+    });
+  });
+
+  /*
+    外部ログインとパスキー。
+
+    どちらも「設定が入っていない先は出さない」作りなので、
+    既定では空・使えないを返す。実APIには絶対に行かせない
+    （行かせると、開発機に立っているバックエンドの設定で
+    検査の結果が変わる）。
+  */
+  await page.route("**/api/v1/accounts/social/providers/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ providers: options.social ?? [] }),
+    });
+  });
+
+  await page.route("**/api/v1/accounts/passkey/support/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ available: options.passkey ?? false }),
     });
   });
 

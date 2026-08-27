@@ -13,7 +13,7 @@
  * 「続けると同意したことになります」と書く。あとから聞けない。
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { fetchSocialProviders, type SocialProvider } from "../../api/accounts";
 import { SOCIAL_COPY } from "../../content/ui";
@@ -33,8 +33,30 @@ const LOOK: Record<string, string> = {
   line: "border-[#06C755] bg-[#06C755] text-ink hover:brightness-105",
 };
 
-export function SocialButtons({ disabled }: { disabled?: boolean }) {
+export interface SocialButtonsProps {
+  disabled?: boolean;
+  /**
+   * 区切り線と同意の一文を、自分では出さない。
+   *
+   * 登録の入口では、この3つ（Google・パスキー・メール）が並ぶ。
+   * 同意の一文はどの道でも同じものなので、置き場所は1つにする。
+   * ここでも出すと、同じ文が2回見えることになる。
+   */
+  bare?: boolean;
+  /**
+   * 何件出したかを、置いた側へ返す。
+   *
+   * 上に何も出ないときに「または」の線だけが残るのを避けるため。
+   * 設定が入っていない環境では、ここは 0 件になる。
+   */
+  onCount?: (count: number) => void;
+}
+
+export function SocialButtons({ disabled, bare = false, onCount }: SocialButtonsProps) {
   const [providers, setProviders] = useState<SocialProvider[]>([]);
+  /* 呼び出し側が毎回作り直す関数でも、取り直しにいかないようにする */
+  const report = useRef(onCount);
+  report.current = onCount;
 
   useEffect(() => {
     let alive = true;
@@ -46,10 +68,14 @@ export function SocialButtons({ disabled }: { disabled?: boolean }) {
           登録の画面ごと真っ白になる。連携は「あると嬉しい」ものなので、
           読めなければ黙って出さない。
         */
-        if (alive) setProviders(Array.isArray(body?.providers) ? body.providers : []);
+        if (!alive) return;
+        const found = Array.isArray(body?.providers) ? body.providers : [];
+        setProviders(found);
+        report.current?.(found.length);
       })
       .catch(() => {
         // 取れなければ出さない。メールでの登録は使えるので、行き止まりにならない
+        if (alive) report.current?.(0);
       });
     return () => {
       alive = false;
@@ -60,11 +86,13 @@ export function SocialButtons({ disabled }: { disabled?: boolean }) {
 
   return (
     <div data-testid="social-buttons">
-      <div className="my-5 flex items-center gap-3">
-        <span className="h-px flex-1 bg-line" />
-        <span className="text-xs text-ink-muted">{SOCIAL_COPY.divider}</span>
-        <span className="h-px flex-1 bg-line" />
-      </div>
+      {!bare && (
+        <div className="my-5 flex items-center gap-3">
+          <span className="h-px flex-1 bg-line" />
+          <span className="text-xs text-ink-muted">{SOCIAL_COPY.divider}</span>
+          <span className="h-px flex-1 bg-line" />
+        </div>
+      )}
 
       <div className="space-y-2">
         {providers.map((provider) => (
@@ -88,9 +116,11 @@ export function SocialButtons({ disabled }: { disabled?: boolean }) {
         ))}
       </div>
 
-      <p className="mt-3 text-center text-xs leading-6 text-ink-muted">
-        {SOCIAL_COPY.consentNote}
-      </p>
+      {!bare && (
+        <p className="mt-3 text-center text-xs leading-6 text-ink-muted">
+          {SOCIAL_COPY.consentNote}
+        </p>
+      )}
     </div>
   );
 }
