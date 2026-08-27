@@ -33,6 +33,10 @@ SOUND = {
     # env だけ置いても、起動時に読み終わった settings は変わらない
     "EMAIL_HOST": "smtp.example.com",
     "DEFAULT_FROM_EMAIL": "noreply@example.com",
+    # パスキーは、署名に混ぜるドメインが画面のアドレスと合っていないと
+    # ブラウザ側で止まる。整っている本番は https のはず
+    "PASSKEY_RP_ID": "aippo.example.com",
+    "PASSKEY_ORIGINS": ["https://aippo.example.com"],
 }
 
 SOUND_ENV = {
@@ -298,3 +302,63 @@ class TestSocialLoginRedirectUri:
         text, _ = run()
 
         assert not any("BACKEND_URL" in line for line in ng_lines(text)), text
+
+
+@pytest.mark.django_db
+class TestPasskeyDomain:
+    """パスキーの署名に混ぜるドメイン。
+
+    いま開いているアドレスと食い違うとブラウザ側で止まるが、画面に出るのは
+    「この画面のアドレスでは、パスキーを作れません」だけで、**何がどう
+    食い違っているかは分からない**。判断の材料をここで出す。
+    """
+
+    def test_shows_the_domain_in_use(self, sound, monkeypatch):
+        monkeypatch.setattr(
+            "django.conf.settings.PASSKEY_RP_ID", "aippo.example.com", raising=False
+        )
+        monkeypatch.setattr(
+            "django.conf.settings.PASSKEY_ORIGINS",
+            ["https://aippo.example.com"],
+            raising=False,
+        )
+
+        text, _ = run()
+
+        assert "aippo.example.com" in text
+
+    def test_empty_domain_is_ng(self, sound, monkeypatch):
+        """空だと、パスキーの登録が必ず失敗する。"""
+        monkeypatch.setattr("django.conf.settings.PASSKEY_RP_ID", "", raising=False)
+
+        text, _ = run()
+
+        assert any("パスキー" in line for line in ng_lines(text)), text
+
+    def test_plain_http_origin_is_ng(self, sound, monkeypatch):
+        """localhost 以外の HTTP は、そもそもパスキーが動かない。"""
+        monkeypatch.setattr(
+            "django.conf.settings.PASSKEY_RP_ID", "aippo.example.com", raising=False
+        )
+        monkeypatch.setattr(
+            "django.conf.settings.PASSKEY_ORIGINS",
+            ["http://aippo.example.com"],
+            raising=False,
+        )
+
+        text, _ = run()
+
+        assert any("HTTPS" in line for line in ng_lines(text)), text
+
+    def test_localhost_over_http_is_fine(self, sound, monkeypatch):
+        """手元の開発を止めない。localhost だけは HTTP でも使える。"""
+        monkeypatch.setattr("django.conf.settings.PASSKEY_RP_ID", "localhost", raising=False)
+        monkeypatch.setattr(
+            "django.conf.settings.PASSKEY_ORIGINS",
+            ["http://localhost:5173"],
+            raising=False,
+        )
+
+        text, _ = run()
+
+        assert not any("HTTPS" in line for line in ng_lines(text)), text

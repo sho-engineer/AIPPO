@@ -66,6 +66,7 @@ class Command(BaseCommand):
         results += self._mail()
         results += self._ai()
         results += self._social()
+        results += self._passkey()
         results += self._operations()
         results += self._operator(public=public)
 
@@ -305,6 +306,67 @@ class Command(BaseCommand):
             )
         else:
             out.append(Result("ok", "エラー監視 (Sentry)"))
+
+        return out
+
+    # ------------------------------------------------------------ パスキー
+
+    def _passkey(self) -> list[Result]:
+        """署名に混ぜるドメインが、画面のアドレスと合っているか。
+
+        なぜ見るか
+        ----------
+        パスキーは、いま開いているアドレスと、サーバーが署名に混ぜる
+        ドメイン（`PASSKEY_RP_ID`）が食い違うとブラウザ側で止まる。
+        そのとき画面に出るのは「この画面のアドレスでは、パスキーを
+        作れません」で、**何がどう食い違っているかは分からない**。
+
+        既定は `FRONTEND_URL` のホスト名から取る。つまり
+        `FRONTEND_URL` が本番のURLと違っていると、パスキーだけが
+        静かに使えなくなる（他の機能は動くので気づきにくい）。
+
+        ここでは「いま何をドメインとして使うことになっているか」を
+        そのまま出す。合っているかを決められるのは、本番のURLを
+        知っている人だけなので、判断の材料を渡す。
+        """
+        rp_id = (getattr(settings, "PASSKEY_RP_ID", "") or "").strip()
+        origins = list(getattr(settings, "PASSKEY_ORIGINS", []) or [])
+
+        if not rp_id:
+            return [
+                Result(
+                    "ng",
+                    "パスキーのドメインが決まっていない",
+                    "FRONTEND_URL か PASSKEY_RP_ID を入れてください。"
+                    "空のままだとパスキーの登録が必ず失敗します",
+                )
+            ]
+
+        out = [Result("ok", "パスキーのドメイン", f"RP ID = {rp_id}")]
+
+        # localhost だけは HTTP でも使える。それ以外は HTTPS が要る
+        insecure = [
+            origin
+            for origin in origins
+            if origin.startswith("http://") and "localhost" not in origin
+        ]
+        if insecure:
+            out.append(
+                Result(
+                    "ng",
+                    "パスキーの送り元が HTTPS でない",
+                    f"{', '.join(insecure)}。localhost 以外は HTTPS が要ります",
+                )
+            )
+
+        if not origins:
+            out.append(
+                Result(
+                    "warn",
+                    "パスキーの送り元が空",
+                    "FRONTEND_URL / CORS_ALLOWED_ORIGINS から決まります",
+                )
+            )
 
         return out
 

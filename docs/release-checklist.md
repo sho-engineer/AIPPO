@@ -177,6 +177,9 @@ NG が0件になるまで直す。
 - [ ] トップが開き、レッスンを**登録せずに**最後まで進められる
 - [ ] AIの返事が返る（`mock` でないこと。同じ文が返り続けないか見る）
 - [ ] 登録すると**確認メールが実際に届く**（迷惑メール入りも見る）
+      先に1通だけ試せる: `python manage.py send_test_email you@example.com`
+      （「送信しました」の表示は、届いたことの証明にならない。再設定の
+      案内は登録の有無を漏らさないため、失敗しても同じ応答を返す）
 - [ ] 確認メールのリンクを押すと、確認済みになる
 - [ ] パスワード再設定のメールも届く
 - [ ] ログアウト → ログインで、進捗が残っている
@@ -244,5 +247,8 @@ AI設定・学習設定・言語設定・外部連携・サブスクリプショ
 | 400 DisallowedHost | `DJANGO_ALLOWED_HOSTS` |
 | 確認メールが届かない | `docs/operations.md` の 4 |
 | 管理画面が 404 | `DJANGO_ADMIN_ALLOWED_IPS` に自分のIPが入っているか |
+| Googleログインが `redirect_uri_mismatch` | `BACKEND_URL` が空。`preflight` の「Google の戻り先」の行を Google Console に登録する |
+| パスキーが「この画面のアドレスでは作れません」 | `FRONTEND_URL` が本番URLと違う。`preflight` の「パスキーのドメイン」を見る |
+| 再設定メールが届かない | `python manage.py send_test_email` で1通試す。`docs/operations.md` の 4 |
 | 自動削除が動かない | `CRON_SECRET`。`docs/operations.md` の 3 |
 | `/health/ready` は緑なのに AI生成が 500（`relation "..." does not exist`） | migrate を当て忘れ。`database:true` は「migrate 済み」を意味しない——`docs/operations.md` の 6・7 |
