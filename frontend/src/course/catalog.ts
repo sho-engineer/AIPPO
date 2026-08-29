@@ -324,23 +324,27 @@ const LESSON_2: Lesson = {
       { value: "やることが分かった", label: "やることが分かった" },
       { value: "よく分からない", label: "よく分からない" },
     ],
+    /*
+      骨格が続けて出す解説は**1枚だけ**にしてある。
+
+      覚える技は3つ（要約・出力形式の指定・コンテキスト）で、残り2つは
+      それを実際に使う場面の直前へ移した（下の realTaskSteps）。
+      **技は、使う直前に出す。**
+
+      「足された話に気をつける」は解説から外した。技ではなく確かめ方の
+      話で、**同じことを下の reviewPoints が言っている**（結果を見る
+      画面で毎回出る）。解説でも言うと、1レッスンに4枚並ぶことになる。
+    */
     conceptCards: [
       {
-        title: "目的で残る情報が変わる",
-        body: "「共有用」と「自分の作業用」では、残すべきところが違います。",
+        title: "要約",
+        body: "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
         visual: "three_points",
-        points: ["共有する", "作業を知る", "内容をつかむ"],
-      },
-      {
-        title: "形を指定する",
-        body: "「3行で」「重要な点を3つ」と言うと、そのまま貼って使えます。",
-        visual: "highlight",
-        highlight: "重要な点を3つ",
-      },
-      {
-        title: "足された話に気をつける",
-        body: "元の文章に無いことが混ざることがあります。数字は必ず確かめます。",
-        visual: "text",
+        points: ["目的", "決定事項", "次の行動"],
+        reviewExample: {
+          body: "何を残すかは、そのあと何に使うかで決まります。",
+          points: ["共有する", "作業を知る", "内容をつかむ"],
+        },
       },
     ],
     reviewPoints: [
@@ -350,27 +354,44 @@ const LESSON_2: Lesson = {
     ],
     realTaskLabel: "手元にある長い文章を、ひとつ入れてみましょう。",
     realTaskPlaceholder: "例）今日届いた長いメールの本文",
+    /*
+      自分の文章を入れたあとの並び。
+
+          【出力形式の指定】 → どんな形で欲しいか
+          → 【コンテキスト】 → 何のためにまとめるか → 送る
+
+      形を先に聞く。直前の比較で見たのが「3つの箇条書きで」の効果
+      なので、そこから続けて自分の文章の形を決めるのが素直な順になる。
+
+      解説を2枚続けて出さない。**あいだに必ず手を動かす画面が入る。**
+      技を出す位置も、覚えてもらう場面のすぐ手前にしてある。
+    */
     realTaskSteps: [
       {
-        id: "real_purpose",
-        type: "single_choice",
-        title: "何のためにまとめますか",
-        poMessage: "目的が変わると、残す情報が変わります。",
-        poEmotion: "question",
-        key: "purpose",
-        required: true,
-        options: [
-          { value: "内容をつかむため", label: "内容をつかむため" },
-          { value: "人に共有するため", label: "人に共有するため" },
-          { value: "自分がやることを知るため", label: "自分の作業のため" },
-          { value: "", label: "そのほか", free: true },
-        ],
+        id: "concept_output_format",
+        type: "concept_card",
+        phase: "own",
+        title: "出力形式の指定",
+        poMessage: "何を答えるかだけでなく、どう答えるかも指定できます。",
+        poEmotion: "neutral",
+        // 解説は必ず飛ばせる。読みたくない人を足止めしない
+        skippable: true,
+        card: {
+          title: "出力形式の指定",
+          body: "同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できます。",
+          visual: "three_points",
+          points: ["3行で", "箇条書きで", "表で"],
+          reviewExample: {
+            body: "そのまま貼って使える形を言うと、直す手間が減ります。",
+            points: ["重要な点を3つ", "次にやることだけ", "見出しを付けて"],
+          },
+        },
       },
       {
         id: "real_format",
         type: "single_choice",
         title: "どんな形で欲しいですか",
-        poMessage: "これで最後の質問です。",
+        poMessage: "そのまま使える形を選んでください。",
         poEmotion: "question",
         key: "format",
         required: true,
@@ -379,6 +400,40 @@ const LESSON_2: Lesson = {
           { value: "重要な点を3つ", label: "重要な点を3つ" },
           { value: "次にやることを抽出", label: "次にやることを抽出" },
           { value: "初心者向けに説明", label: "初心者向けに説明" },
+          { value: "", label: "そのほか", free: true },
+        ],
+      },
+      {
+        id: "concept_context",
+        type: "concept_card",
+        phase: "own",
+        title: "コンテキスト",
+        poMessage: "背景を伝えるほど、目的に合った答えになります。",
+        poEmotion: "hint",
+        skippable: true,
+        card: {
+          title: "コンテキスト",
+          body: "目的・相手・場面という背景を渡すと、要点の絞り方が変わります。",
+          visual: "three_points",
+          points: ["目的", "相手", "場面"],
+          reviewExample: {
+            body: "「共有用」と「自分の作業用」では、残すべきところが違います。",
+            points: ["共有する", "作業を知る", "内容をつかむ"],
+          },
+        },
+      },
+      {
+        id: "real_purpose",
+        type: "single_choice",
+        title: "何のためにまとめますか",
+        poMessage: "これで最後の質問です。目的が変わると、残す情報が変わります。",
+        poEmotion: "question",
+        key: "purpose",
+        required: true,
+        options: [
+          { value: "内容をつかむため", label: "内容をつかむため" },
+          { value: "人に共有するため", label: "人に共有するため" },
+          { value: "自分がやることを知るため", label: "自分の作業のため" },
           { value: "", label: "そのほか", free: true },
         ],
       },

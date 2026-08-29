@@ -65,6 +65,41 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
     },
   },
+
+  /*
+    Day2「長い文章を短くまとめる」。
+
+    出る順は、レッスンの流れそのまま。
+      完成イメージ → まず要約してみる → 要約とは
+      → 条件を足して再実行 → まとめ方で変わる
+      → 自分の文章 → 出力形式の指定 → 形を選ぶ
+      → コンテキスト → 目的を足す
+
+    Day1 と同じ決まりで置く。比べる図は一度試して条件を足したあと、
+    解説の絵は使う直前、そして解説の絵を続けて2枚出さない。
+  */
+  summarize_text: {
+    outcome_preview: {
+      src: "/assets/teaching/day2_overview.webp",
+      alt: "Day2「長い文章を短くまとめる」の全体図。長くて要点の見つけにくい文章をAIで短い要約に変える流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+    },
+    concept_1: {
+      src: "/assets/teaching/skill_04_summarization.webp",
+      alt: "AI技「要約」の図。長い文章から、目的・決定事項・次の行動といった要点だけを取り出すことを示したもの。全部を削るのではなく、大事な情報を残す。",
+    },
+    compare_results: {
+      src: "/assets/teaching/compare_03_summary_format.webp",
+      alt: "まとめ方を指定すると要約が変わることの図。ただ「要約して」と頼んだ場合と、「重要なポイントを3つの箇条書きで」と足した場合を並べ、長さと出力形式が変わることを示したもの。",
+    },
+    concept_output_format: {
+      src: "/assets/teaching/skill_05_output_format.webp",
+      alt: "AI技「出力形式の指定」の図。同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できることを示したもの。",
+    },
+    concept_context: {
+      src: "/assets/teaching/skill_06_context.webp",
+      alt: "AI技「コンテキスト」の図。ただ「まとめて」と頼んだ場合と、目的・相手・場面という背景を渡した場合を並べ、背景を伝えるほど目的に合った回答になることを示したもの。",
+    },
+  },
 };
 
 /** このステップに出す絵。無ければ null（呼ぶ側は絵の場所ごと出さない）。 */

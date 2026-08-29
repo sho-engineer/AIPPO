@@ -19,6 +19,7 @@ import { getLesson } from "../src/course/catalog";
 import { teachingImage } from "../src/course/teachingImages";
 
 const DAY1 = "rewrite_text";
+const DAY2 = "summarize_text";
 
 describe("出し方", () => {
   it("幅は親いっぱい、比は 3:2 のまま、切り取らない", () => {
@@ -124,8 +125,87 @@ describe("Day1 のどこに出るか", () => {
   });
 });
 
+describe("Day2 のどこに出るか", () => {
+  const lesson = getLesson(DAY2)!;
+  const order = lesson.steps.map((step) => step.id);
+  const at = (stepId: string) => order.indexOf(stepId);
+
+  it("5枚が、それぞれの画面に割り当たっている", () => {
+    const placed = order.filter((id) => teachingImage(DAY2, id) !== null);
+
+    expect(placed).toEqual([
+      "outcome_preview",
+      "concept_1",
+      "compare_results",
+      "concept_output_format",
+      "concept_context",
+    ]);
+  });
+
+  it("比べる図は、一度試して条件を足したあとに出る", () => {
+    expect(at("compare_results")).toBeGreaterThan(at("quick_try"));
+    expect(at("compare_results")).toBeGreaterThan(at("add_condition"));
+    expect(at("compare_results")).toBeGreaterThan(at("generate_improved"));
+  });
+
+  it("解説の絵と比べる図を、続けて出さない", () => {
+    const between = order.slice(at("concept_1") + 1, at("compare_results"));
+    expect(between).toContain("add_condition");
+  });
+
+  it("解説の絵を続けて2枚出さない", () => {
+    const withImage = order
+      .map((id, index) => ({ id, index }))
+      .filter((entry) => teachingImage(DAY2, entry.id) !== null);
+
+    for (let i = 0; i < withImage.length - 1; i += 1) {
+      expect(
+        withImage[i + 1].index - withImage[i].index,
+        `${withImage[i].id} と ${withImage[i + 1].id} が隣り合っている`,
+      ).toBeGreaterThan(1);
+    }
+  });
+
+  it("出力形式の指定は、形を選ぶ直前に出る", () => {
+    expect(at("real_format") - at("concept_output_format")).toBe(1);
+  });
+
+  it("コンテキストは、目的を足す直前に出る", () => {
+    expect(at("real_purpose") - at("concept_context")).toBe(1);
+  });
+
+  it("出力形式の指定を、コンテキストより先に出す", () => {
+    // 直前の比較で見たのが「3つの箇条書きで」の効果なので、そこから続ける
+    expect(at("concept_output_format")).toBeLessThan(at("concept_context"));
+  });
+
+  it("画像だけの画面を増やしていない", () => {
+    for (const id of ["outcome_preview", "compare_results"]) {
+      expect(order).toContain(id);
+    }
+    expect(order).toHaveLength(19);
+  });
+});
+
 describe("本文と重ねない", () => {
   const card = getLesson(DAY1)!.steps.find((step) => step.id === "concept_tone")!.card!;
+  const day2Card = getLesson(DAY2)!.steps.find(
+    (step) => step.id === "concept_context",
+  )!.card!;
+
+  it("Day2 も同じで、絵があるときは図を出さない", () => {
+    render(
+      <ConceptCardView
+        card={day2Card}
+        image={teachingImage(DAY2, "concept_context")}
+        headingShown
+      />,
+    );
+
+    expect(screen.getByTestId("teaching-image")).toBeInTheDocument();
+    // 絵の中に「目的・相手・場面」が入っている
+    expect(screen.queryByText("場面")).not.toBeInTheDocument();
+  });
 
   it("絵があるときは、同じことを図でもう一度出さない", () => {
     render(
