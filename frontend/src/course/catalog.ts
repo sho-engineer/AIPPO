@@ -158,6 +158,13 @@ const LESSON_1: Lesson = {
     quickOptions: AUDIENCE_OPTIONS,
     quickDefaults: { tone: "ていねいに", length: "3行くらい" },
     working: "文章を書き直してもらっています。",
+    /*
+      骨格が続けて出す解説は**1枚だけ**にしてある。
+
+      3枚続けると、手を動かす前に解説を3画面読むことになる。
+      残り2枚（トーン指定・反復）は、それを実際に使う場面の直前へ
+      移した（下の realTaskSteps）。**技は、使う直前に出す。**
+    */
     conceptCards: [
       {
         title: "誰向けかを伝える",
@@ -172,26 +179,6 @@ const LESSON_1: Lesson = {
           after: "お忙しいところすみませんが。",
         },
       },
-      {
-        title: "どうしたいかを言う",
-        body: "「短く」「丁寧に」のように、望む形を一言そえると結果が寄ります。",
-        visual: "three_points",
-        points: ["短く", "丁寧に", "要点を先に"],
-        reviewExample: {
-          body: "望む形は、長さ・言い方・並べ方のどれでも指定できます。",
-          points: ["3行で", "やわらかく", "箇条書きで"],
-        },
-      },
-      {
-        title: "一度で決めない",
-        body: "条件を一つずつ足すほうが、はじめから細かく書くより近づきます。",
-        visual: "simple_flow",
-        points: ["まず送る", "結果を見る", "条件を足す"],
-        reviewExample: {
-          body: "一度で完璧を狙わず、足りないところだけ言い足します。",
-          points: ["長すぎた", "「半分に」と足す", "また見る"],
-        },
-      },
     ],
     reviewPoints: [
       "元の意味が変わっていないか",
@@ -200,6 +187,17 @@ const LESSON_1: Lesson = {
     ],
     realTaskLabel: "いま実際に直したい文章を、ひとつ入れてみましょう。",
     realTaskPlaceholder: "例）お客様へ送るお知らせの文章",
+    /*
+      自分の文章を入れたあとの並び。
+
+          誰が読むか → 【トーン指定】 → どう変えたいか
+          → 【反復】 → 送る
+
+      解説を2枚続けて出さない。**あいだに必ず手を動かす画面が入る。**
+      技を出す位置も、覚えてもらう場面のすぐ手前にしてある
+      ——トーン指定はトーンを選ぶ直前、反復は送る直前。
+      「一度で完璧を目指さなくていい」は、送る前がいちばん効く。
+    */
     realTaskSteps: [
       {
         id: "real_audience",
@@ -216,6 +214,26 @@ const LESSON_1: Lesson = {
         ],
       },
       {
+        id: "concept_tone",
+        type: "concept_card",
+        phase: "own",
+        title: "トーン指定",
+        poMessage: "同じ内容でも、言い方は変えられます。",
+        poEmotion: "neutral",
+        // 解説は必ず飛ばせる。読みたくない人を足止めしない
+        skippable: true,
+        card: {
+          title: "トーン指定",
+          body: "同じ内容でも、丁寧・やわらかい・カジュアルで伝わり方が変わります。",
+          visual: "three_points",
+          points: ["丁寧", "やわらかい", "カジュアル"],
+          reviewExample: {
+            body: "望む形は、長さ・言い方・並べ方のどれでも指定できます。",
+            points: ["3行で", "やわらかく", "箇条書きで"],
+          },
+        },
+      },
+      {
         id: "real_tone",
         type: "single_choice",
         title: "どう変えたいですか",
@@ -230,6 +248,25 @@ const LESSON_1: Lesson = {
           { value: "やさしい言葉で", label: "やさしい言葉で" },
           { value: "", label: "そのほか", free: true },
         ],
+      },
+      {
+        id: "concept_iteration",
+        type: "concept_card",
+        phase: "own",
+        title: "反復（Iteration）",
+        poMessage: "一度で完璧を目指さなくて大丈夫です。",
+        poEmotion: "hint",
+        skippable: true,
+        card: {
+          title: "反復（Iteration）",
+          body: "結果を見てから足すほうが、はじめから細かく書くより近づきます。",
+          visual: "simple_flow",
+          points: ["まず送る", "結果を見る", "条件を足す"],
+          reviewExample: {
+            body: "一度で完璧を狙わず、足りないところだけ言い足します。",
+            points: ["長すぎた", "「半分に」と足す", "また見る"],
+          },
+        },
       },
     ],
     takeaway: "相手と、どうしたいかを伝えると、結果が変わることを確かめられましたね。",

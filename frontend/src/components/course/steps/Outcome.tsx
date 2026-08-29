@@ -5,7 +5,7 @@
  * **今日つくるものを1枚で見せる。**
  *
  *     [レッスン名]        … StepShell の見出しが出す
- *     [1枚の絵]
+ *     [1枚の絵]           … 教材として作った1枚（切り取らない）
  *     ポー「今日はこれをやってみよう！」
  *     [はじめる]           … StepShell のボタンが出す
  *
@@ -39,6 +39,8 @@ import {
   IconTarget,
 } from "../../Icons";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
+import { TeachingImage } from "../../lessons/TeachingImage";
+import type { TeachingImageEntry } from "../../../course/teachingImages";
 
 // ----------------------------------------------------------- 完成イメージ
 
@@ -50,6 +52,7 @@ export function OutcomePreview({
   skills,
   outcomes,
   flow,
+  overview,
   thumbnail,
 }: {
   minutes?: number;
@@ -63,6 +66,14 @@ export function OutcomePreview({
   outcomes?: string[];
   /** レッスンの流れ。区切りの名前が順に並ぶ。 */
   flow?: string[];
+  /**
+   * このレッスンのために作った1枚。無ければ null。
+   *
+   * **切り取らない。** 1枚で説明が完結しているので、端が欠けると
+   * 図の一部（矢印の先や、まとめの帯）が消える。
+   */
+  overview?: TeachingImageEntry | null;
+  /** 専用の1枚が無いときに代わりに出す、一覧と同じ絵。 */
   thumbnail?: string | null;
 }) {
   const hasDetail =
@@ -80,8 +91,15 @@ export function OutcomePreview({
         教材として作った絵で、アプリの画面を写したものではない
         （course/lessonOverview.ts）。専用の1枚がまだ無いレッスンでは
         一覧と同じ絵で代える——絵の場所を空けて待たない。
+
+        代わりの絵だけは 4:3 を切り取って出す（一覧と同じ見え方に
+        そろえるため）。専用の1枚は切り取らない。
       */}
-      {thumbnail && <LessonThumbnail src={thumbnail} variant="banner" />}
+      {overview ? (
+        <TeachingImage src={overview.src} alt={overview.alt} />
+      ) : (
+        thumbnail && <LessonThumbnail src={thumbnail} variant="banner" />
+      )}
 
       {/* 始める前に知りたいのは、かかる時間とむずかしさの2つだけ */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-panel bg-surface px-5 py-4 shadow-card">

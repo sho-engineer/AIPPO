@@ -39,7 +39,9 @@ import { buildAiInput } from "../../course/engine";
 import { lookupLesson } from "../../course/live";
 import { recommendLessons } from "../../course/recommend";
 import { startableLessons } from "../../course/availability";
-import { lessonOverviewImage } from "../../course/lessonOverview";
+import { lessonOverview, lessonOverviewFallback } from "../../course/lessonOverview";
+import { teachingImage } from "../../course/teachingImages";
+import { TeachingImage } from "../lessons/TeachingImage";
 import { missionStateOf } from "../../course/missions";
 import { promptCards, promptText } from "../../course/promptSummary";
 import type { Course, Lesson } from "../../course/types";
@@ -73,6 +75,14 @@ export function StepRenderer({
 }: StepRendererProps) {
   const { step, values, runs } = api;
   const completedCount = completedIds.length;
+  /*
+    この画面に添える教材の絵。
+
+    どのレッスンのどの画面に出すかは1か所の表が持つ
+    （course/teachingImages.ts）。無い組み合わせでは null で、
+    そのときは絵の場所ごと出さない。
+  */
+  const picture = teachingImage(lesson.id, step.id);
   /*
     次に勧める教材。
 
@@ -158,7 +168,8 @@ export function StepRenderer({
           skills={lesson.learnedSkills ?? []}
           outcomes={lesson.outcomes}
           flow={missionStateOf(lesson, 0).missions.map((mission) => mission.label)}
-          thumbnail={lessonOverviewImage(lesson)}
+          overview={lessonOverview(lesson)}
+          thumbnail={lessonOverviewFallback(lesson)}
         />
       );
 
@@ -171,6 +182,7 @@ export function StepRenderer({
         <ConceptCardView
           card={step.card}
           headingShown={step.card.title === step.title}
+          image={picture}
         />
       ) : null;
 
@@ -354,6 +366,16 @@ export function StepRenderer({
         return (
           <div>
             <StepDone label="AIが書き直しました" trigger={runs.length} />
+            {/*
+              条件を足す前と後を、自分の結果で見比べたところ。
+              その直後に、同じことを図で1枚置く——**先には出さない。**
+              先に出すと、答えを見てから確かめる作業になる。
+            */}
+            {picture && (
+              <div className="mb-4">
+                <TeachingImage src={picture.src} alt={picture.alt} />
+              </div>
+            )}
             <ThreeWayCompare
               original={runs[0].inputText}
               first={runs[0].outputText}

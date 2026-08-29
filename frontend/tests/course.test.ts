@@ -112,11 +112,61 @@ describe("教材データ", () => {
       expect(kinds.indexOf("observation")).toBeLessThan(
         kinds.indexOf("concept_card"),
       );
-      // 解説のあとは、すぐ操作へ戻る
-      const lastCard = kinds.lastIndexOf("concept_card");
-      expect(kinds[lastCard + 1], `${lesson.title} が解説の後に操作へ戻らない`).toBe(
-        "condition_choice",
+      // 骨格が続けて出す解説のあとは、条件を足す画面へ戻る
+      const skeletonCards = kinds.indexOf("condition_choice") - 1;
+      expect(kinds[skeletonCards], `${lesson.title} の解説が条件の直前に無い`).toBe(
+        "concept_card",
       );
+    }
+  });
+
+
+  it("解説が続いたら、そのあとは必ず操作へ戻る", () => {
+    /*
+      読むだけの画面が続いたあと、また読む画面が来ると講義になる。
+      解説の連続が切れたところで、必ず手を動かす画面が来ること。
+
+      解説そのものが続くのは止めない（骨格は3枚まで並べられる）。
+      見るのは**連続の終わり**だけ。
+    */
+    const reading = new Set(["concept_card", "reflection", "completion"]);
+
+    for (const lesson of COURSE.lessons) {
+      const kinds = lesson.steps.map((step) => step.type);
+      for (let index = 0; index < kinds.length; index += 1) {
+        if (kinds[index] !== "concept_card") continue;
+        if (kinds[index + 1] === "concept_card") continue; // まだ連続の途中
+
+        const next = kinds[index + 1];
+        expect(
+          next !== undefined && !reading.has(next),
+          `${lesson.title}/${lesson.steps[index].id} の後が「${next}」で、操作へ戻っていない`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("AI技の解説を、続けて2枚出さない", () => {
+    /*
+      新しい技を2つ続けて説明すると、どちらも身に付かないまま
+      次へ行く。技は**使う直前**に1つずつ出す。
+
+      骨格が最初に出す解説（concept_1〜3）は別。あれは同じ場面を
+      3通りに言い換えたもので、新しい技を並べているのではない。
+    */
+    const fromSkeleton = (id: string) => /^concept_[123]$/.test(id);
+
+    for (const lesson of COURSE.lessons) {
+      for (let index = 0; index < lesson.steps.length - 1; index += 1) {
+        const here = lesson.steps[index];
+        const next = lesson.steps[index + 1];
+        if (here.type !== "concept_card" || next.type !== "concept_card") continue;
+
+        expect(
+          fromSkeleton(here.id) && fromSkeleton(next.id),
+          `${lesson.title} で解説が続いている（${here.id} → ${next.id}）`,
+        ).toBe(true);
+      }
     }
   });
 

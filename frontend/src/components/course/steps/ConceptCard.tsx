@@ -5,6 +5,8 @@
  * 先に読ませない——読んでから試すと、読んだことの確認作業になる。
  */
 
+import { TeachingImage } from "../../lessons/TeachingImage";
+import type { TeachingImageEntry } from "../../../course/teachingImages";
 import type { ConceptCard } from "../../../course/types";
 
 // --------------------------------------------------------- ミニ解説カード
@@ -19,6 +21,7 @@ import type { ConceptCard } from "../../../course/types";
 export function ConceptCardView({
   card,
   headingShown = false,
+  image = null,
 }: {
   card: ConceptCard;
   /**
@@ -28,6 +31,15 @@ export function ConceptCardView({
    * 書くと、1画面に同じ言葉が2回並ぶ。実際そうなっていた。
    */
   headingShown?: boolean;
+  /**
+   * この技のために作った1枚。無ければ null。
+   *
+   * ある回は、**絵の中に説明が全部入っている**。だから下の図
+   * （before/after・三点・流れ）は出さない。同じことを2度見せると、
+   * どちらを読めばよいのか分からなくなる。本文の1行だけは残す
+   * ——読み上げと、絵が読み込めなかったときのために。
+   */
+  image?: TeachingImageEntry | null;
 }) {
   return (
     /*
@@ -42,7 +54,13 @@ export function ConceptCardView({
       )}
       <p className={`text-sm leading-7 ${headingShown ? "" : "mt-2"}`}>{card.body}</p>
 
-      {card.visual === "before_after" && card.before && card.after && (
+      {image && (
+        <div className="mt-4">
+          <TeachingImage src={image.src} alt={image.alt} />
+        </div>
+      )}
+
+      {!image && card.visual === "before_after" && card.before && card.after && (
         <div className="mt-4 space-y-2">
           <p className="rounded-card bg-canvas px-4 py-2 text-sm leading-7 text-ink-muted">
             <span aria-hidden="true">− </span>
@@ -55,13 +73,13 @@ export function ConceptCardView({
         </div>
       )}
 
-      {card.visual === "highlight" && card.highlight && (
+      {!image && card.visual === "highlight" && card.highlight && (
         <p className="mt-4 rounded-card bg-brand-soft px-4 py-3 text-center text-base font-bold text-brand-dark">
           {card.highlight}
         </p>
       )}
 
-      {card.visual === "three_points" && card.points && (
+      {!image && card.visual === "three_points" && card.points && (
         <ul className="mt-4 grid gap-2 sm:grid-cols-3" role="list">
           {card.points.map((point) => (
             <li
@@ -74,7 +92,7 @@ export function ConceptCardView({
         </ul>
       )}
 
-      {card.visual === "simple_flow" && card.points && (
+      {!image && card.visual === "simple_flow" && card.points && (
         <ol className="mt-4 flex flex-wrap items-center gap-2" role="list">
           {card.points.map((point, index) => (
             <li key={point} className="flex items-center gap-2">
