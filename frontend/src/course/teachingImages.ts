@@ -138,6 +138,54 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       alt: "AI技「追加質問」の図。AIの答えに「もっと簡単に」「具体例を出して」と聞き返しながら、分かるまで深掘りしていく流れを示したもの。",
     },
   },
+
+  /*
+    Day4「アイデアを広げる」。
+
+    出る順は、レッスンの流れそのまま。
+      完成イメージ → まず案を出してもらう → 発散
+      → 数と方向性を足して再実行 → 案の広がりを見比べる
+      → 自分のテーマ → ロール指定 → 立場を選ぶ
+      → 追加質問 → 聞き返しを足す → 反復 → 送る
+
+    このレッスンだけ絵が6枚ある。うち3枚は前の日と同じ1枚を使い回す
+    ——**同じ技には同じ絵**。別の絵を用意すると、同じものだと
+    気づけないまま4つ目・5つ目の技として数えられる。
+
+    Day1〜3 と同じ決まりで置く。比べる図は一度試して条件を足した
+    あと、解説の絵は使う直前、そして解説の絵を続けて2枚出さない。
+
+    この教材の本文はサーバーだけが持っている（apps/catalog/
+    release_seeding.py）。並びを見張るのは backend/tests/
+    test_day4_brainstorm.py のほう——画面側の教材データに
+    brainstorm_ideas は無いので、ここの検査からは順を確かめられない。
+  */
+  brainstorm_ideas: {
+    outcome_preview: {
+      src: "/assets/teaching/day4_overview.webp",
+      alt: "Day4「アイデアを広げる」の全体図。1つのアイデアからAIで複数の案を生み出す流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+    },
+    concept_1: {
+      src: "/assets/teaching/skill_09_divergence.webp",
+      alt: "AI技「発散」の図。1つのアイデアをAIに渡すと複数方向のアイデアに広がることを示したもの。最初から正解を探さず、まず選択肢を増やす。",
+    },
+    compare_results: {
+      src: "/assets/teaching/compare_07_divergence.webp",
+      alt: "数と方向性を指定すると案が広がることの図。ただ「アイデアを考えて」と頼んだ場合と、「方向性が違う案を10個」と足した場合を並べ、案の数と方向の幅が変わることを示したもの。",
+    },
+    concept_role: {
+      src: "/assets/teaching/skill_07_role.webp",
+      alt: "AI技「ロール指定」の図。「あなたは先生です」と伝えると初心者向けの説明に、「あなたはIT担当者です」と伝えると実務的な説明になることを示したもの。",
+    },
+    concept_followup: {
+      src: "/assets/teaching/skill_08_followup_question.webp",
+      alt: "AI技「追加質問」の図。AIの答えに「もっと簡単に」「具体例を出して」と聞き返しながら、分かるまで深掘りしていく流れを示したもの。",
+    },
+    concept_iteration: {
+      src: "/assets/teaching/skill_03_iteration.webp",
+      alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
+    },
+  },
 };
 
 /**

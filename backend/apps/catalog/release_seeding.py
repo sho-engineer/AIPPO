@@ -13,6 +13,7 @@ from apps.catalog.models import (
     AvailabilityStatus,
     Course,
     Lesson,
+    LessonStep,
     LessonTemplate,
     PublishStatus,
 )
@@ -80,7 +81,18 @@ def _lesson(
     thumbnail: str = "",
     minutes: int = 8,
     tags: list[str] | None = None,
+    content: dict[str, Any] | None = None,
+    step_rows: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    """1本ぶんの取り込み内容。
+
+    `content` を渡さない教材は、`_upsert_lesson` の共通の言い回しで通る。
+    骨格が同じで本文だけ違う教材を何本も並べるための省き方で、
+    **本気で書いた教材はここを埋める**（下の brainstorm_ideas）。
+
+    `step_rows` は骨格が作らないステップ。教材だけの問いを
+    「自分の課題」の直後へ差し込んだり、骨格の一歩を上書きしたりする。
+    """
     return {
         "slug": slug,
         "title": title,
@@ -95,14 +107,181 @@ def _lesson(
         "thumbnail": thumbnail,
         "minutes": minutes,
         "tags": tags or [],
+        "content": content or {},
+        "step_rows": step_rows or [],
     }
+
+
+#: Day4「アイデアを広げる」で、自分のテーマに入ったあとに聞くこと。
+#:
+#: 技は、使う直前に出す
+#: ------------------
+#: 覚える技は4つ（発散・ロール指定・追加質問・反復）ある。骨格が続けて
+#: 出せる解説は3枚までで、しかも**3枚続けると手を動かす前に解説を
+#: 3画面読む**ことになる。だから発散だけを骨格に置き、残りは
+#: それを実際に使う場面の直前へ移した。
+#:
+#: 解説を2枚続けて出さない。あいだに必ず手を動かす画面が入る:
+#:
+#:     【ロール指定】→ 立場を選ぶ → 【追加質問】→ 聞き返しを足す
+#:     → 【反復】→ 送る
+#:
+#: 反復のあとに問いを置いていないのは、「一度で完璧を目指さなくていい」が
+#: **送る直前にいちばん効く**ため（Day1 と同じ置き方）。
+_BRAINSTORM_STEPS: list[dict[str, Any]] = [
+    {
+        # 骨格は「自分の文章」と言う。この回で入れるのは文章ではなく
+        # **案を出したいテーマ**なので、言い換える。画面が文章と言い、
+        # 教材の絵がアイデアと言う、というずれを残さない。
+        #
+        # 上書きは空でない項目だけが当たる（expand.py の `_assemble`）ので、
+        # ここに書いていない注意書きや入力欄はそのまま残る。
+        "placement": "override",
+        "step_key": "real_task_intro",
+        "title": "次は、自分のテーマで試してみましょう",
+    },
+    {
+        "placement": "override",
+        "step_key": "real_task",
+        "title": "自分のテーマ",
+    },
+    {
+        "placement": "override",
+        "step_key": "compare_results",
+        "instruction": "最初の案・条件を足したあと、を見比べます。",
+        "po_message": "数と方向を伝えると、案の幅そのものが変わります。",
+    },
+    {
+        # 骨格の「条件を一つ足す」は文章を直す言い回し（もっと短く・
+        # もっと丁寧に）で、アイデアの束には当たらない。この回だけ
+        # 差し替えて、**数と方向性**を足す一歩にする。
+        "placement": "override",
+        "step_key": "add_condition",
+        "title": "案の数と方向性を足してみましょう",
+        "instruction": "一度に一つだけ選ぶのがコツです。",
+        "po_message": "数を増やすより、方向を散らすほうが効きます。",
+        "po_emotion": "hint",
+        "options": [
+            {"value": "方向性が違う案を10個出して", "label": "方向を散らして10個"},
+            {"value": "費用をかけない案を増やして", "label": "費用をかけない案"},
+            {"value": "すぐ試せる小さい案にして", "label": "すぐ試せる小さい案"},
+            {"value": "ふだん出ないような案も混ぜて", "label": "変わった案も混ぜる"},
+            {"value": "", "label": "自分で条件を追加", "free": True},
+        ],
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "concept_role",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "ロール指定",
+        "po_message": "どんな立場で考えてほしいかを伝えられます。",
+        "po_emotion": "neutral",
+        # 解説は必ず飛ばせる。読みたくない人を足止めしない
+        "is_skippable": True,
+        "card": {
+            "title": "ロール指定",
+            "body": (
+                "「企画担当として」「現場の人として」と立場を伝えると、"
+                "出てくる案が変わります。"
+            ),
+            "visual": "three_points",
+            "points": ["企画担当", "現場の人", "はじめて来た人"],
+            "reviewExample": {
+                "body": "同じテーマでも、誰の目で見るかで気づくことが変わります。",
+                "points": ["企画なら仕掛けから", "現場なら手間から", "新人なら分かりにくさから"],
+            },
+        },
+    },
+    {
+        # 専用の `role` に置く。**`constraints` を流用しない。**
+        # あちらは最初のお試しで既定値が入る欄で、そこへ立場を重ねると
+        # 選ばなくても値が入っている状態になり、必須にしても素通りできる。
+        "placement": "after_real_task",
+        "step_key": "real_role",
+        "step_type": "single_choice",
+        "phase": "own",
+        "title": "どんな立場で考えてもらいますか",
+        "po_message": "立場を伝えると、出てくる案の向きが変わります。",
+        "po_emotion": "question",
+        "input_key": "role",
+        "is_required": True,
+        "options": [
+            {"value": "企画担当として、仕掛けから考える", "label": "企画担当として"},
+            {"value": "現場の人として、手間から考える", "label": "現場の人として"},
+            {
+                "value": "はじめて来た人として、分かりにくさから考える",
+                "label": "はじめて来た人として",
+            },
+            {"value": "", "label": "そのほか", "free": True},
+        ],
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "concept_followup",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "追加質問",
+        "po_message": "出てきた案に、そのまま聞き返して大丈夫です。",
+        "po_emotion": "hint",
+        "is_skippable": True,
+        "card": {
+            "title": "追加質問",
+            "body": "一度で決めなくても、聞き返しながら案を絞っていけます。",
+            "visual": "simple_flow",
+            "points": ["案を読む", "気になる所を言う", "もう一度もらう"],
+            "reviewExample": {
+                "body": "「もっと安く」「一つ詳しく」の一言で十分です。",
+                "points": ["もっと安く", "一つ詳しく", "似た案は減らして"],
+            },
+        },
+    },
+    {
+        # 答えなくても進める（required にしない）。聞き返しは送る前に
+        # 添える形なので、無ければ依頼文に出ない（`_line` が空を落とす）。
+        "placement": "after_real_task",
+        "step_key": "real_followup",
+        "step_type": "single_choice",
+        "phase": "own",
+        "title": "追加でお願いしたいことはありますか",
+        "po_message": "無ければ「追加はしない」で進めます。",
+        "po_emotion": "question",
+        "input_key": "followup",
+        "options": [
+            {"value": "もっと費用のかからない案にして", "label": "もっと安く"},
+            {"value": "気になる案を一つ詳しくして", "label": "一つ詳しく"},
+            {"value": "似ている案は減らして", "label": "似た案は減らす"},
+            {"value": "", "label": "追加はしない"},
+        ],
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "concept_iteration",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "反復（Iteration）",
+        "po_message": "一度で完璧を目指さなくて大丈夫です。",
+        "po_emotion": "hint",
+        "is_skippable": True,
+        "card": {
+            "title": "反復（Iteration）",
+            "body": "結果を見てから足すほうが、はじめから細かく書くより近づきます。",
+            "visual": "simple_flow",
+            "points": ["まず送る", "案を見る", "条件を足す"],
+            "reviewExample": {
+                "body": "使えそうな案が一つ出れば、そこから広げ直せます。",
+                "points": ["いいものを選ぶ", "その方向で増やす", "また選ぶ"],
+            },
+        },
+    },
+]
 
 
 ADDED_LESSONS = (
     _lesson(
         "brainstorm_ideas",
         "アイデアを広げる",
-        "数と条件を伝えて、使えるアイデアを広げられるようになる",
+        "数と方向性を伝えて、自分では出ない案まで広げられるようになる",
         "brainstorm",
         "topic",
         "社内の交流を増やす小さな企画",
@@ -112,15 +291,74 @@ ADDED_LESSONS = (
             {"value": "会社全体", "label": "会社全体"},
             {"value": "お客様", "label": "お客様"},
         ],
+        # 立場（role）はここに入れない。入れると、あとで必ず答える
+        # 質問に既定値が先に入り、選ばずに進めてしまう。
         {"constraints": "費用をかけず、30分以内", "count": "5個"},
         {
             "source_text": "topic",
             "audience": "audience",
+            "role": "role",
             "constraints": "constraints",
             "count": "count",
+            "followup": "instruction",
         },
         thumbnail="/assets/final-thumbnails/start_04.webp",
         tags=["ideas", "planning"],
+        minutes=8,
+        content={
+            "outcome_title": "1つのアイデアから、複数の案を広げる",
+            "outcome_description": "数と方向性を伝えて、自分だけでは出ない案まで出します。",
+            "before_example": "社内の交流を増やす小さな企画",
+            "after_example": (
+                "・昼休みの15分お茶会\n"
+                "・部署をまたいだ雑談チャンネル\n"
+                "・仕事の道具を紹介し合う会\n"
+                "・入社月が同じ人の集まり\n"
+                "・失敗談を共有する短い会"
+            ),
+            "learned_skills": ["発散", "ロール指定", "追加質問", "反復"],
+            "outcomes": [
+                "自分だけでは思いつかない案を出せる",
+                "アイデアを複数の方向へ広げられる",
+            ],
+            "quick_title": "誰に向けた企画にしますか？",
+            "quick_instruction": "ひとつ選ぶと、すぐにAIが案を出します。",
+            "working": "いろいろな方向の案を出しています。",
+            "observation_options": [
+                {"value": "案が増えた", "label": "案が増えた"},
+                {"value": "方向がばらけた", "label": "方向がばらけた"},
+                {"value": "自分では出ない案があった", "label": "自分では出ない案"},
+                {"value": "似た案が多い", "label": "似た案が多い"},
+                {"value": "よく分からない", "label": "よく分からない"},
+            ],
+            # 骨格が続けて出す解説は1枚だけ。残り3つは使う直前へ移した
+            # （上の _BRAINSTORM_STEPS）。
+            "concept_cards": [
+                {
+                    "title": "発散",
+                    "body": "最初から正解を探さず、まず選択肢を増やします。",
+                    "visual": "three_points",
+                    "points": ["数を出す", "方向を散らす", "選ぶのは後"],
+                    "reviewExample": {
+                        "body": "選ぶ前に広げておくと、選べる幅そのものが変わります。",
+                        "points": ["10個出す", "違う方向で", "そこから選ぶ"],
+                    },
+                },
+            ],
+            "review_points": [
+                "似た案の言い換えになっていないか",
+                "自分では出なかった方向があるか",
+                "そのまま試せる大きさか",
+            ],
+            "real_task_label": "いま案を出したいことを、ひとつ入れてみましょう。",
+            "real_task_placeholder": "例）チームの朝会をもう少し役に立つものにしたい",
+            "takeaway": (
+                "数と方向を伝えると、自分だけでは出ない案まで届くことを"
+                "確かめられましたね。"
+            ),
+            "next_suggestion": "次は「選択肢を比較する」で、広げた案から選んでみましょう。",
+        },
+        step_rows=_BRAINSTORM_STEPS,
     ),
     _lesson(
         "organize_information",
@@ -287,6 +525,13 @@ ADDED_LESSONS = (
 
 
 def _upsert_lesson(course: Course, number: int, entry: dict[str, Any]) -> Lesson:
+    """1本を DB へ。`content` を書いた教材は、共通の言い回しをそこで上書きする。
+
+    共通の言い回しは「骨格が同じで本文だけ違う教材」を並べるための
+    埋め草で、そのままでは全レッスンが同じ解説を出す。書いた教材は
+    `content` を持ち、こちらが後から当たる。
+    """
+    content: dict[str, Any] = entry.get("content") or {}
     lesson, _ = Lesson.objects.update_or_create(
         slug=entry["slug"],
         defaults={
@@ -339,12 +584,43 @@ def _upsert_lesson(course: Course, number: int, entry: dict[str, Any]) -> Lesson
             "status": PublishStatus.PUBLISHED,
             "availability_status": AvailabilityStatus.AVAILABLE,
             "sort_order": number,
+            **content,
         },
     )
     if lesson.published_at is None:
         lesson.mark_published()
         lesson.save(update_fields=["published_at"])
+
+    _sync_step_rows(lesson, entry.get("step_rows") or [])
     return lesson
+
+
+def _sync_step_rows(lesson: Lesson, rows: list[dict[str, Any]]) -> None:
+    """骨格が作らないステップを、この教材の行として置き直す。
+
+    毎回まるごと入れ替える。差分で当てると、行を1つ減らしたときに
+    前の実行で作った行が残り、**教材から消したはずの画面が出続ける。**
+    """
+    lesson.steps.all().delete()
+    for order, row in enumerate(rows):
+        LessonStep.objects.create(
+            lesson=lesson,
+            sort_order=order,
+            placement=row["placement"],
+            step_key=row["step_key"],
+            step_type=row.get("step_type", ""),
+            phase=row.get("phase", ""),
+            title=row.get("title", ""),
+            instruction=row.get("instruction", ""),
+            po_message=row.get("po_message", ""),
+            po_emotion=row.get("po_emotion", ""),
+            input_key=row.get("input_key", ""),
+            options=row.get("options", []),
+            card=row.get("card", {}),
+            meta=row.get("meta", {}),
+            is_required=row.get("is_required"),
+            is_skippable=row.get("is_skippable"),
+        )
 
 
 def seed_first_release(*, only_new: bool = False) -> tuple[Course, Course]:

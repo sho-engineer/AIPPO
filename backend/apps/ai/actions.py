@@ -319,6 +319,8 @@ BRAINSTORM = Action(
     fields=(
         ActionField("topic", "考えたいテーマ", max_length=1000),
         ActionField("audience", "対象"),
+        # どんな立場で案を出すか（ロール指定）。教材が聞いたときだけ入る
+        ActionField("role", "考える立場", required=False),
         ActionField("constraints", "条件", required=False, max_length=500),
         ActionField("count", "案の数"),
         ActionField("instruction", "追加の条件", required=False),
@@ -328,6 +330,7 @@ BRAINSTORM = Action(
         "次のテーマのアイデアを広げてください。",
         [
             ("対象", v["audience"]),
+            ("考える立場", v.get("role", "")),
             ("条件", v.get("constraints", "")),
             ("案の数", v["count"]),
             ("追加の条件", v.get("instruction", "")),
