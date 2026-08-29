@@ -49,7 +49,7 @@ export interface LessonRunnerProps {
 /** ステップの種類ごとの「次にやること」。1つに絞る（憲章 原則 I）。 */
 const PRIMARY_LABEL: Record<string, string> = {
   intro: "はじめる",
-  outcome_preview: "まず試してみる",
+  outcome_preview: "はじめる",
   quick_try: "AIに送ってみる",
   observation: "解説を見る",
   concept_card: "次へ",

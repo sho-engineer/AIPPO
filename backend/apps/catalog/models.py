@@ -125,6 +125,18 @@ class Course(models.Model):
     title = models.CharField(max_length=120)
     description = models.TextField(blank=True)
 
+    #: このコースを終えると何ができるようになるか。**1文で書く。**
+    #:
+    #: レッスンごとの成果（Lesson.outcomes）を全部並べると、始める前の
+    #: 人が読むには長すぎる。まとめて1文にしたものをここに置き、
+    #: 1本ずつの詳しい話はレッスンの最初の画面（完成イメージ）が持つ。
+    outcome = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="このコースでできるようになること",
+        help_text="1文で。例: 文章・要約・整理・比較・画像まで、AIの基本が身につきます。",
+    )
+
     difficulty = models.CharField(
         max_length=20,
         choices=Difficulty.choices,
@@ -205,6 +217,31 @@ class Lesson(models.Model):
         max_length=20,
         choices=LessonTemplate.choices,
         default=LessonTemplate.OUTCOME_FIRST,
+    )
+
+    # --- コースの中での位置づけ --------------------------------------------
+    #
+    # コースを「STEP」で束ねる。8本を平らに並べると、どこまでが
+    # 1つのまとまりなのかが読めず、8回ぶんの一本道に見える。
+    #
+    # 束ねる表をコース側に別の行として持たない。持つと、レッスンの
+    # 並び替えと束の並び替えが**別々にずれる**（表の順とレッスンの順が
+    # 食い違った瞬間、どちらが正しいのか誰にも分からなくなる）。
+    # ここに書いておけば、順序はレッスンの並び1つで決まる。
+    #
+    # 束は「同じ key が続くひとかたまり」として読む（expand.course_to_dict）。
+    # 空のときは、そのレッスンはどの束にも入らない。
+    stage_key = models.SlugField(
+        max_length=40,
+        blank=True,
+        verbose_name="STEPの識別子",
+        help_text="同じ値が続くレッスンが1つのSTEPになる（例: ask / think / create）",
+    )
+    stage_title = models.CharField(
+        max_length=60,
+        blank=True,
+        verbose_name="STEPの名前",
+        help_text="そのSTEPの見出し（例: AIに頼んでみる）。同じ stage_key には同じ名前を入れる",
     )
 
     # --- 一覧と完成イメージ ------------------------------------------------

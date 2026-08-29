@@ -16,9 +16,9 @@ import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CourseDetailPage } from "../src/pages/CourseDetailPage";
+import { WorksPage } from "../src/pages/WorksPage";
 import { formatCompletedOn } from "../src/course/certificate";
-import { resetCatalog, useCourse } from "../src/course/live";
+import { resetCatalog } from "../src/course/live";
 
 const CERTIFICATE = {
   course_slug: "first_step_7days",
@@ -60,49 +60,38 @@ afterEach(() => {
 });
 
 /**
- * コースの中身の画面。
+ * マイ成果物の画面。
  *
- * この検査が見ているのは「1つのコースの中の並び」なので、
- * コース一覧（どのコースにするか）ではなく、その次の段を開く。
- * コースはサーバーから届いたものを使う（useCourse）。
+ * 修了証の入り口はここ。コースの画面から移した——あちらは
+ * 「いまどこ・次はこれ」に絞ったので、取ったものを取り出す場所は
+ * 自分が作ったものと同じところに置く。
  */
-function CourseDetail({
-  onSelectLesson = () => {},
-}: {
-  onSelectLesson?: (id: string) => void;
-}) {
-  const course = useCourse();
-  return (
-    <CourseDetailPage
-      course={course}
-      onSelectLesson={onSelectLesson}
-      onBack={() => {}}
-    />
-  );
+function Works() {
+  return <WorksPage onSelectLesson={() => {}} onOpenCourse={() => {}} />;
 }
 
 describe("修了証の入り口", () => {
   it("1枚も無ければ、空の枠を出さない", async () => {
     serve([]);
-    render(<CourseDetail />);
+    render(<Works />);
 
-    // 教材一覧そのものは出ていること（何も描かれないのとは違う）
-    expect(await screen.findByTestId("lesson-rewrite_text")).toBeInTheDocument();
+    // 画面そのものは出ていること（何も描かれないのとは違う）
+    expect(await screen.findByText("マイ成果物")).toBeInTheDocument();
     expect(screen.queryByTestId("open-certificate")).not.toBeInTheDocument();
     expect(screen.queryByText("修了証を見る")).not.toBeInTheDocument();
   });
 
-  it("サーバーに届かなくても、教材一覧は開く", async () => {
+  it("サーバーに届かなくても、画面は開く", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("届かない"));
-    render(<CourseDetail />);
+    render(<Works />);
 
-    expect(await screen.findByTestId("lesson-rewrite_text")).toBeInTheDocument();
+    expect(await screen.findByText("マイ成果物")).toBeInTheDocument();
     expect(screen.queryByTestId("open-certificate")).not.toBeInTheDocument();
   });
 
   it("受け取ったら、件数を添えた行が出る", async () => {
     serve([CERTIFICATE]);
-    render(<CourseDetail />);
+    render(<Works />);
 
     const entry = await screen.findByTestId("open-certificate");
     expect(entry).toHaveTextContent("修了証を見る");
@@ -114,7 +103,7 @@ describe("修了証の中身", () => {
   const open = async () => {
     serve([CERTIFICATE]);
     const user = userEvent.setup();
-    render(<CourseDetail />);
+    render(<Works />);
     await user.click(await screen.findByTestId("open-certificate"));
     return user;
   };
@@ -144,7 +133,7 @@ describe("修了証の中身", () => {
   it("身についたことが空なら、見出しごと出さない", async () => {
     serve([{ ...CERTIFICATE, skills: [] }]);
     const user = userEvent.setup();
-    render(<CourseDetail />);
+    render(<Works />);
     await user.click(await screen.findByTestId("open-certificate"));
 
     expect(await screen.findByTestId("certificate-page")).toBeInTheDocument();
@@ -159,12 +148,12 @@ describe("修了証の中身", () => {
     );
   });
 
-  it("教材一覧へ戻れる（行き止まりにしない）", async () => {
+  it("元の画面へ戻れる（行き止まりにしない）", async () => {
     const user = await open();
 
     await user.click(screen.getByRole("button", { name: "前の画面へ戻る" }));
 
-    expect(await screen.findByTestId("lesson-rewrite_text")).toBeInTheDocument();
+    expect(await screen.findByText("マイ成果物")).toBeInTheDocument();
     expect(screen.queryByTestId("certificate-page")).not.toBeInTheDocument();
   });
 });

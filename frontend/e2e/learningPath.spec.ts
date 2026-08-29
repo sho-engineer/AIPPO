@@ -34,7 +34,7 @@ async function openPath(page: Page): Promise<void> {
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("next-up")).toBeVisible();
   await page.getByTestId("open-path").click();
-  await expect(page.getByTestId("lesson-timeline")).toBeVisible();
+  await expect(page.getByTestId("course-outline")).toBeVisible();
 }
 
 /** 行ごとの、Day・節・題の左端。 */
@@ -42,7 +42,7 @@ async function columns(page: Page) {
   return page.evaluate(() => {
     const rows = Array.from(
       document.querySelectorAll<HTMLButtonElement>(
-        "[data-testid='lesson-timeline'] button[data-testid^='lesson-']",
+        "[data-testid='course-outline'] button[data-testid^='lesson-']",
       ),
     );
     return rows.map((row) => {
@@ -96,7 +96,7 @@ test.describe("コースの道のり", () => {
     const gaps = await page.evaluate(() => {
       const rows = Array.from(
         document.querySelectorAll<HTMLElement>(
-          "[data-testid='lesson-timeline'] button[data-testid^='lesson-']",
+          "[data-testid='course-outline'] button[data-testid^='lesson-']",
         ),
       );
       // 線は節の列の中で、幅1pxの span として引いている
@@ -125,7 +125,7 @@ test.describe("コースの道のり", () => {
     await seedCompleted(page, ["diagnosis", "rewrite_text"]);
     await openPath(page);
 
-    const timeline = page.getByTestId("lesson-timeline");
+    const timeline = page.getByTestId("course-outline");
     await expect(timeline.getByText("はじめる", { exact: true })).toHaveCount(1);
 
     const current = timeline.locator("[data-status='current']");
@@ -138,7 +138,7 @@ test.describe("コースの道のり", () => {
     await seedCompleted(page, ["diagnosis", "rewrite_text"]);
     await openPath(page);
 
-    const timeline = page.getByTestId("lesson-timeline");
+    const timeline = page.getByTestId("course-outline");
     await expect(timeline.locator("[data-status='completed']")).toHaveCount(2);
     await expect(timeline.locator("[data-status='current']")).toHaveCount(1);
     expect(

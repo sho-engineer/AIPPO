@@ -42,12 +42,18 @@ from apps.rewards.models import (
 )
 from apps.rewards.skills import seed_ai_skills
 
-#: Foundation コースの節目。数は運用側が管理画面から変えられる（ここは初期値）。
+#: AIスタートコースの節目。数は運用側が管理画面から変えられる（ここは初期値）。
 #: (required_stamp_count, reward_credits, badge_name)
+#:
+#: 最後の数は**いま開けている本数**に合わせる。開けていないものを
+#: 含めると、全部終えても最後の節目に届かない。画像の2本（STEP 3）を
+#: 開けるときに、ここを 9 へ戻す。
+#:
+#: いま開いているのは、現在地チェック1本＋Day1〜Day6の計7本。
 FOUNDATION_MILESTONES: tuple[tuple[int, int, str], ...] = (
     (3, 1, ""),
     (5, 2, ""),
-    (9, 3, "AIの最初の一歩 Complete"),
+    (7, 3, "AIの最初の一歩 Complete"),
 )
 
 #: AI機能ごとのCredit消費量の初期値。
@@ -207,6 +213,16 @@ def seed_foundation_path() -> LearningPath | None:
                 "order": order,
             },
         )
+    """
+    無くなった節目は消す。
+
+    コースの本数が変わると、前の本数で作った節目が残る。**残すと、
+    全部終えても届かない節目が台紙に居座る**——終わったのに終わって
+    いないと言われるのが、いちばん続かなくなる。
+    """
+    path.milestones.exclude(
+        required_stamp_count__in=[count for count, _, _ in FOUNDATION_MILESTONES]
+    ).delete()
 
     return path
 

@@ -33,14 +33,26 @@ def _clear_health_cache():
     cache.delete("health:migrations_ok")
 
 
-#: catalog app のいちばん最後（leaf）の migration。
-#:
-#: `migration_plan()` は各appの**leaf**が適用済みかどうかで判定する。
-#: 依存の途中（0001 など）だけを未適用にしても、leaf（0003）が
-#: 適用済みのままならそこで「もう着いている」と判定され、途中の欠けは
-#: 見ない。実際に試して確かめた（依存の一部を消しても plan が空のまま
-#: だった）ので、ここでは必ず leaf を未適用にする。
-_CATALOG_LEAF = "0004_lesson_thumbnail"
+def _catalog_leaf() -> str:
+    """catalog app のいちばん最後（leaf）の migration の名前。
+
+    `migration_plan()` は各appの**leaf**が適用済みかどうかで判定する。
+    依存の途中（0001 など）だけを未適用にしても、leaf が適用済みの
+    ままならそこで「もう着いている」と判定され、途中の欠けは見ない。
+    実際に試して確かめた（依存の一部を消しても plan が空のままだった）
+    ので、ここでは必ず leaf を未適用にする。
+
+    名前を書き写さずに、その場で読む。**書き写すと、次に
+    migration を1本足した日から、この検査は何も見ていない状態になる**
+    ——古い名前は leaf ではないので、未適用にしても plan は空のまま。
+    落ちて気づけるだけまだよいが、気づかないほうの壊れ方もありえる。
+    """
+    from django.db.migrations.loader import MigrationLoader
+
+    loader = MigrationLoader(connection)
+    leaves = [name for app, name in loader.graph.leaf_nodes() if app == "catalog"]
+    assert len(leaves) == 1, f"catalog の leaf が1つでない: {leaves}"
+    return leaves[0]
 
 
 @pytest.fixture
@@ -52,9 +64,10 @@ def unapplied_migration():
     （表そのものを落とすテストではない）。
     """
     recorder = MigrationRecorder(connection)
-    recorder.record_unapplied("catalog", _CATALOG_LEAF)
+    leaf = _catalog_leaf()
+    recorder.record_unapplied("catalog", leaf)
     yield
-    recorder.record_applied("catalog", _CATALOG_LEAF)
+    recorder.record_applied("catalog", leaf)
 
 
 @pytest.mark.django_db

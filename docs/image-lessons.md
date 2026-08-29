@@ -112,3 +112,29 @@ ImageProvider       … 足すもの。画像
 理由は文章のレッスン1と同じで、**1本を最後まで通すと、足りない部品が
 すべて洗い出される**ため。5本ぶんのデータを先に書いても、
 1本目で作りが変われば全部書き直しになる。
+
+## いまどこに置いてあるか（2026-08 追記）
+
+AIスタートコースの **STEP 3「AIで作る」** が、この2本にあたる。
+
+| Day | slug | 題 |
+|---|---|---|
+| 7 | `image_generation` | AIで画像を作る |
+| 8 | `image_edit` | 画像を修正する |
+
+どちらも `availability_status = coming_soon` で、**一覧には出るが開けない**
+（`apps/catalog/release_seeding.py`）。
+
+一覧に出しているのは、コースが「文章で終わる」のか「画像まで行く」のかが、
+始める前に知りたいことだから。出さずにおくと、あとから足された別物に見える。
+
+開けるときにやること:
+
+1. この文書の設計どおり `ImageProvider` を足す
+2. 1日あたりの上限を画像側に別枠で持たせる
+3. 2本の `availability_status` を `available` にする
+4. `apps/rewards/seeding.py` の `FOUNDATION_MILESTONES` の最後の数を
+   **7 → 9** に戻す（いま開けている本数に合わせてある。届かない節目を
+   置かないため）。マイグレーション側の写しも一緒に直すこと
+   ——2つが一致することを `tests/test_rewards_seeding.py` が見ている
+5. `tests/test_all_lessons_playable.py` の `NOT_OPEN_YET` から外す

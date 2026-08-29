@@ -69,7 +69,25 @@ export interface LessonTimelineProps {
   /** 目印を付け外しできないとき（ゲスト・近日公開）は渡さない。 */
   onToggleBookmark?: (lessonId: string) => void;
   onSelect: (lessonId: string) => void;
+  /**
+   * 左の列に出す短い言葉。既定は「Day n」。
+   *
+   * 現在地チェックのように Day として数えないものがあるので、
+   * 呼ぶ側が決められるようにしてある。空文字を返せば列は空になる
+   * ——桁だけはそろえたままにする（幅を固定しているのはそのため）。
+   */
+  label?: (lesson: Lesson) => string;
+  /**
+   * この並びの目印。既定は "lesson-timeline"。
+   *
+   * 1画面に道のりが複数出ることがある（STEP ごとに1つ）。同じ目印が
+   * 並ぶと、検査からはどれを指しているのか決められない。
+   */
+  testId?: string;
 }
+
+/** 既定の言い方。数字だけだと通し番号か日数かが読めないので添える。 */
+const dayLabel = (lesson: Lesson) => `Day ${lesson.number}`;
 
 export function statusOf(
   lesson: Lesson,
@@ -96,13 +114,16 @@ export function LessonTimeline({
   bookmarked,
   onToggleBookmark,
   onSelect,
+  label = dayLabel,
+  testId = "lesson-timeline",
 }: LessonTimelineProps) {
   return (
-    <ol className="mt-2" role="list" data-testid="lesson-timeline">
+    <ol className="mt-2" role="list" data-testid={testId}>
       {lessons.map((lesson, index) => (
         <LessonStep
           key={lesson.id}
           lesson={lesson}
+          label={label(lesson)}
           status={statusOf(lesson, completed, currentId)}
           first={index === 0}
           last={index === lessons.length - 1}
@@ -123,6 +144,7 @@ export function LessonTimeline({
 
 function LessonStep({
   lesson,
+  label,
   status,
   first,
   last,
@@ -131,6 +153,7 @@ function LessonStep({
   onSelect,
 }: {
   lesson: Lesson;
+  label: string;
   status: LessonStepStatus;
   first: boolean;
   last: boolean;
@@ -189,15 +212,14 @@ function LessonStep({
       >
         {/*
           Day の列。幅を固定する。
-          「Day 1」と書くのは、数字だけだと通し番号なのか日数なのかが
-          この行だけでは決められないため。
+          何と書くかは呼ぶ側が決める（現在地チェックは Day ではない）。
         */}
         <span
           className={`pt-0.5 text-[0.6875rem] leading-6 tabular-nums
                       ${current ? "font-bold text-brand-dark" : "text-ink-muted"}
                       ${soon ? "opacity-70" : ""}`}
         >
-          Day {lesson.number}
+          {label}
         </span>
 
         {/* 節と、上下をつなぐ線 */}

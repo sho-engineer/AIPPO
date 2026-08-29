@@ -86,8 +86,13 @@ test.describe("ホームのスタンプ", () => {
     await seedCompleted(page, ["diagnosis"]);
     await page.getByRole("button", { name: "はじめる" }).first().click();
 
+    /*
+      本数は決め打ちにしない。ここは通信を差し替えて動かすので、
+      並ぶのは同梱の控えぶん——**サーバーが配る本数とは違う**。
+      見たいのは「終えた数が丸に出ること」なので、そこだけを見る。
+    */
     await expect(
-      page.getByRole("img", { name: "9個中1個のスタンプが埋まっています" }),
+      page.getByRole("img", { name: /\d+個中1個のスタンプが埋まっています/ }),
     ).toBeVisible();
     await expect(page.getByTestId("next-milestone-hint")).toContainText("あと2レッスンで");
   });
@@ -143,16 +148,18 @@ test.describe("コースを完走した回", () => {
   });
 
   test("専用の締めくくりが出て、次のコースへ本当に移れる", async ({ page }) => {
-    // rewrite_text 以外の8本を、先に終えたことにしておく
+    /*
+      rewrite_text 以外を、先に終えたことにしておく。
+
+      並ぶのは同梱の控えぶん（通信を差し替えているため）。
+      「AIへの頼み方」「計画を立てる」はコースの見直しで
+      AI活用コースへ移したので、ここには入らない。
+    */
     await seedCompleted(page, [
       "diagnosis",
       "summarize_text",
       "explain_topic",
       "compare_options",
-      "make_plan",
-      "improve_answer",
-      "use_ai_safely",
-      "final_challenge",
     ]);
     await openRewriteLesson(page);
     await runToCompletion(page);
@@ -173,8 +180,10 @@ test.describe("コースを完走した回", () => {
       結びつけていると、この道から出た人の最後の1本が
       端末にもサーバーにも残らない（LessonRunner.tsx 参照）。
     */
+    // 本数は決め打ちにしない（同梱の控えぶんが並ぶ）。
+    // 見るのは「分母と分子が同じ＝最後の1本が残っている」ことだけ
     await expect(page.getByTestId("current-course-first_step_7days")).toContainText(
-      "9 / 9",
+      /(\d+) \/ \1/,
     );
   });
 });

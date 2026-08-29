@@ -39,7 +39,8 @@ import { buildAiInput } from "../../course/engine";
 import { lookupLesson } from "../../course/live";
 import { recommendLessons } from "../../course/recommend";
 import { startableLessons } from "../../course/availability";
-import { lessonThumbnail } from "../../course/lessonThumbnail";
+import { lessonOverviewImage } from "../../course/lessonOverview";
+import { missionStateOf } from "../../course/missions";
 import { promptCards, promptText } from "../../course/promptSummary";
 import type { Course, Lesson } from "../../course/types";
 import type { useCourseLesson } from "../../course/useCourseLesson";
@@ -144,12 +145,20 @@ export function StepRenderer({
 
     case "outcome_preview":
       return (
+        /*
+          詳しい話は、この画面が持つ（コースの一覧から移した）。
+          流れは教材データが持っている区切りをそのまま出す——
+          ここで別の言葉を作ると、進行中の帯と食い違う。
+        */
         <OutcomePreview
           minutes={lesson.estimatedMinutes}
+          goal={lesson.goal}
           before={lesson.beforeExample}
           after={lesson.afterExample}
-          skills={lesson.learnedSkills ?? lesson.outcomes}
-          thumbnail={lessonThumbnail(lesson)}
+          skills={lesson.learnedSkills ?? []}
+          outcomes={lesson.outcomes}
+          flow={missionStateOf(lesson, 0).missions.map((mission) => mission.label)}
+          thumbnail={lessonOverviewImage(lesson)}
         />
       );
 

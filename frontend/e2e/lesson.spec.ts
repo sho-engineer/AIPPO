@@ -98,10 +98,15 @@ test.describe("レッスンを最後まで進める", () => {
     api = await stubApi(page);
   });
 
-  test("完成イメージから始まる（説明を先に読ませない）", async ({ page }) => {
+  test("1枚の絵から始まる（説明を先に読ませない）", async ({ page }) => {
     await openRewrite(page);
 
     await expect(page.getByTestId("outcome-preview")).toBeVisible();
+    // 詳しい話は畳んである。絵を見る前に読み下させない
+    await expect(page.getByTestId("outcome-before")).not.toBeVisible();
+
+    await page.getByTestId("outcome-detail-toggle").click();
+
     await expect(page.getByTestId("outcome-before")).toBeVisible();
     await expect(page.getByTestId("outcome-after")).toBeVisible();
   });

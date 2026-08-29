@@ -18,11 +18,20 @@
  *     作ったもの       … AIを動かすたびに自動でたまる。いずれ消える
  *
  * 上に置くのは前者。探しに来た人が、目的の1つに先に当たる。
+ *
+ * 修了証もここ
+ * ------------
+ * コースの画面から外した（あちらは「いまどこ・次はこれ」に絞った）。
+ * **行き先ごと消してはいない。** 修了証は自分が取ったもので、
+ * 取り出したくなる場所はここ。1枚も無いうちは行ごと出ない。
  */
 
 import { useState } from "react";
 
 import { AppHeader } from "../components/AppShell";
+import { CertificateEntry } from "../components/course/CertificateEntry";
+import { CertificatePage } from "./CertificatePage";
+import { useCertificates } from "../course/certificate";
 import { KeptArtifacts } from "../components/records/KeptArtifacts";
 import { MadeArtifacts } from "../components/records/MadeArtifacts";
 import { useHistory } from "../components/records/useHistory";
@@ -42,6 +51,18 @@ export function WorksPage({ onSelectLesson, onOpenCourse }: WorksPageProps) {
   const { history, failed, reload } = useHistory();
   /* 取っておいた直後に、上の一覧を取り直すための合図 */
   const [keptAt, setKeptAt] = useState(0);
+  const certificates = useCertificates();
+  // 修了証は下位画面として開く。1画面には1つの目的だけ置く
+  const [showingCertificates, setShowingCertificates] = useState(false);
+
+  if (showingCertificates) {
+    return (
+      <CertificatePage
+        certificates={certificates}
+        onBack={() => setShowingCertificates(false)}
+      />
+    );
+  }
 
   return (
     <>
@@ -76,6 +97,12 @@ export function WorksPage({ onSelectLesson, onOpenCourse }: WorksPageProps) {
             </button>
           </div>
         )}
+
+        {/* 1枚も無ければ、この行ごと出ない */}
+        <CertificateEntry
+          count={certificates.length}
+          onOpen={() => setShowingCertificates(true)}
+        />
 
         <KeptArtifacts
           onSelectLesson={onSelectLesson}

@@ -254,12 +254,30 @@ export type LessonAvailability = "available" | "coming_soon";
  */
 export type Difficulty = "beginner" | "intermediate" | "advanced";
 
+/**
+ * コースの中の STEP。
+ *
+ * 8本を平らに並べると、8回ぶんの一本道に見える。3つに束ねて名前を
+ * 付けると「いま何をしている最中か」が言葉で分かる。
+ *
+ * 束はサーバーが決める（`Lesson.stage_key` が続くひとかたまり）。
+ * 画面はここに来た順にそのまま描く——並べ替えない。
+ */
+export interface CourseStage {
+  key: string;
+  title: string;
+  /** この束に入るレッスンの id。コースの並び順そのまま。 */
+  lessonIds: string[];
+}
+
 export interface Lesson {
   id: string;
-  /** 一覧に出す番号。「Lesson 1」など。 */
+  /** 一覧に出す番号。「Day 1」など。0 は Day として数えない（診断）。 */
   number: number;
   title: string;
   goal: string;
+  /** どの STEP に属するか。属さないものは空か省略。 */
+  stageKey?: string;
 
   /**
    * 一覧やカードに出す絵。`public/` からの道筋。
@@ -312,6 +330,20 @@ export interface Course {
   id: string;
   title: string;
   description: string;
+  /**
+   * 終えると何ができるようになるか。**1文。**
+   *
+   * レッスンごとの成果を全部並べると、始める前の人には長すぎる。
+   * 1本ずつの詳しい話は、レッスンの最初の画面（完成イメージ）が持つ。
+   */
+  outcome?: string;
+  /**
+   * STEP の束。
+   *
+   * 省略されていたら束にしない（古い応答との互換）。そのときは
+   * レッスンが平らに並ぶだけで、画面は壊れない。
+   */
+  stages?: CourseStage[];
   /** 一覧のカードに出す目安。レッスンごとの難易度とは別。 */
   difficulty?: Difficulty;
   /**

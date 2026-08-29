@@ -1,8 +1,18 @@
 /**
- * コース「7日でAIの最初の一歩」の中身。
+ * AIスタートコースの中身（通信が届かないときの控え）。
  *
  * ここはデータであって、画面ではない。
  * レッスンを足すときにコンポーネントを触らなくて済むようにしてある。
+ *
+ * 本文と並べ方を分けてある
+ * ------------------------
+ * 上半分の `LESSON_*` が**本文**で、下の `START_CURRICULUM` が**並べ方**。
+ * 本文は「コードから DB へ移して1文字も変わっていない」ことを確かめる
+ * 正解データ（backend/tests/test_catalog_parity.py）を兼ねているので、
+ * カリキュラムを変えるたびにここを書き換えると、その役目が消える。
+ *
+ * 本当の持ち主はサーバー（`apps/catalog/release_seeding.py`）。
+ * ここはその控えなので、**同じ姿にしておくこと。**
  *
  * 決めごと:
  * - 1画面1タスク。1つのステップで2つのことを判断させない（要件 §6.1）
@@ -11,7 +21,7 @@
  */
 
 import { AUDIENCE_OPTIONS, buildLessonFlow } from "./shared";
-import type { Course, Lesson } from "./types";
+import type { Course, CourseStage, Lesson } from "./types";
 
 // ---------------------------------------------------------------- Lesson 0
 
@@ -1097,26 +1107,100 @@ function withReleaseAvailability(lessons: Lesson[]): Lesson[] {
   }));
 }
 
-export const COURSE: Course = {
-  id: "first_step_7days",
-  title: "7日でAIの最初の一歩",
-  description:
-    "AIに興味はあるけれど何に使えばよいか分からない人が、実際に触りながら使い道を見つけるコースです。",
-  lessons: withReleaseAvailability([
-    LESSON_0,
-    LESSON_1,
-    LESSON_2,
-    LESSON_3,
-    LESSON_4,
-    LESSON_5,
-    LESSON_6,
-    LESSON_7,
-    FINAL,
-  ]),
+/**
+ * AIスタートコースの並び。
+ *
+ * **サーバー側（`apps/catalog/release_seeding.py` の START_CURRICULUM）と
+ * 同じ姿にする。** ここは通信が届かないときの控えなので、控えだけが
+ * 違うカリキュラムを出すと、圏外で見た人と繋がった人で別の教材が並ぶ。
+ *
+ * 上の LESSON_* は教材の**本文**で、こちらは**並べ方**。分けてあるのは、
+ * 本文が「移設で1文字も変わっていない」ことを確かめる正解データ
+ * （backend/tests/test_catalog_parity.py）を兼ねているため。
+ * カリキュラムを変えるたびに本文を書き換えると、その役目が消える。
+ *
+ * ここに無いレッスン（アイデアを広げる・情報を整理して見やすくする・
+ * 画像の2本）は、サーバーだけが持っている。控えの役目は
+ * 「通信できなくても最後まで学べること」で、そこは満たせている。
+ */
+const START_CURRICULUM: { lesson: Lesson; number: number; title: string; stage: string }[] = [
+  // 診断は Day ではない。始める前に自分の現在地を見るもの
+  { lesson: LESSON_0, number: 0, title: "AI活用診断", stage: "orientation" },
+  { lesson: LESSON_1, number: 1, title: "文章を分かりやすくする", stage: "ask" },
+  { lesson: LESSON_2, number: 2, title: "長い文章を短くまとめる", stage: "ask" },
+  { lesson: LESSON_3, number: 3, title: "分からないことを説明してもらう", stage: "ask" },
+  { lesson: LESSON_4, number: 5, title: "選択肢を比較する", stage: "think" },
+];
+
+const STAGE_TITLES: Record<string, string> = {
+  orientation: "現在地チェック",
+  ask: "AIに頼んでみる",
+  think: "AIと考える",
+  create: "AIで作る",
 };
 
+const START_LESSONS = withReleaseAvailability(
+  START_CURRICULUM.map(({ lesson, number, title, stage }) => ({
+    ...lesson,
+    number,
+    title,
+    stageKey: stage,
+  })),
+);
+
+/** 並びから STEP の束を読む。サーバー側の `_stages()` と同じ読み方。 */
+function stagesOf(lessons: Lesson[]): CourseStage[] {
+  const stages: CourseStage[] = [];
+  for (const lesson of lessons) {
+    if (!lesson.stageKey) continue;
+    const last = stages[stages.length - 1];
+    if (last && last.key === lesson.stageKey) {
+      last.lessonIds.push(lesson.id);
+      continue;
+    }
+    stages.push({
+      key: lesson.stageKey,
+      title: STAGE_TITLES[lesson.stageKey] ?? "",
+      lessonIds: [lesson.id],
+    });
+  }
+  return stages;
+}
+
+export const COURSE: Course = {
+  id: "first_step_7days",
+  title: "AIスタートコース",
+  description: "AIを仕事や日常で使う基本を、1日ひとつずつ身につけます。",
+  outcome:
+    "文章・要約・整理・比較・画像まで、AIを仕事や日常で使う基本が身につきます。",
+  stages: stagesOf(START_LESSONS),
+  lessons: START_LESSONS,
+};
+
+/**
+ * AIスタートコースから外したもの。
+ *
+ * **消していない。** 本文も、それで覚えた技も、終えた記録も生きている。
+ * サーバーでは AI活用コース（`improve_answer` / `make_plan`）と
+ * 非公開の旧教材（`use_ai_safely` / `final_challenge`）へ移してある。
+ *
+ * ここに残しておくのは、**学習記録から開けるようにする**ため。
+ * 一覧から外したのと、行き先ごと消すのは別のこと——終えた人が
+ * 自分の記録を押して「ありません」と言われるのがいちばんよくない。
+ */
+export const MOVED_OUT_LESSONS: Lesson[] = withReleaseAvailability([
+  LESSON_6, // improve_answer … AI活用コースへ
+  LESSON_5, // make_plan       … AI活用コースへ
+  LESSON_7, // use_ai_safely   … 非公開
+  FINAL, // final_challenge  … 非公開
+]);
+
 export function getLesson(lessonId: string): Lesson | null {
-  return COURSE.lessons.find((lesson) => lesson.id === lessonId) ?? null;
+  return (
+    COURSE.lessons.find((lesson) => lesson.id === lessonId) ??
+    MOVED_OUT_LESSONS.find((lesson) => lesson.id === lessonId) ??
+    null
+  );
 }
 
 /** AI を使うレッスン。Lesson 0 と 7 は含まない。 */

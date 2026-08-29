@@ -18,11 +18,32 @@ import type { LessonStep } from "../src/course/types";
 const REWRITE = getLesson("rewrite_text")!;
 
 describe("教材データ", () => {
-  it("Lesson 0〜7 と Final Challenge が揃っている", () => {
-    expect(COURSE.lessons.map((lesson) => lesson.number)).toEqual([
-      0, 1, 2, 3, 4, 5, 6, 7, 8,
-    ]);
-    expect(getLesson("final_challenge")).not.toBeNull();
+  it("現在地チェックは Day として数えない", () => {
+    // 診断は始める前に自分の位置を見るもので、コースの1日目ではない。
+    // Day に数えると、受けなかった人の進み具合が最初から欠ける
+    const check = COURSE.lessons.find((lesson) => lesson.id === "diagnosis")!;
+    expect(check.number).toBe(0);
+    expect(check.stageKey).toBe("orientation");
+  });
+
+  it("Day は1から続きの番号で並ぶ", () => {
+    const days = COURSE.lessons.filter((lesson) => lesson.number > 0);
+    expect(days.map((lesson) => lesson.number)).toEqual(
+      [...days.map((lesson) => lesson.number)].sort((a, b) => a - b),
+    );
+    expect(days.every((lesson) => lesson.stageKey)).toBe(true);
+  });
+
+  it("コースから外した教材も、id からは引ける", () => {
+    /*
+      一覧から外したのと、行き先ごと消したのは別のこと。
+      終えた人が学習記録から押したときに「ありません」になると、
+      やったことを取り上げる形になる。
+    */
+    for (const id of ["make_plan", "improve_answer", "final_challenge"]) {
+      expect(getLesson(id), `${id} が引けない`).not.toBeNull();
+      expect(COURSE.lessons.some((lesson) => lesson.id === id)).toBe(false);
+    }
   });
 
   it("id が重複していない", () => {

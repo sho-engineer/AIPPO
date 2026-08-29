@@ -105,7 +105,7 @@ describe("ホームの並び", () => {
     const user = userEvent.setup();
     await openHome(user);
 
-    expect(screen.queryByTestId("lesson-timeline")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("course-outline")).not.toBeInTheDocument();
 
     // 9本ぶんの行がホームに並んでいないこと
     const rows = screen
@@ -121,7 +121,7 @@ describe("ホームの並び", () => {
 
     await user.click(screen.getByTestId("open-path"));
 
-    expect(await screen.findByTestId("lesson-timeline")).toBeInTheDocument();
+    expect(await screen.findByTestId("course-outline")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: COURSE.title }),
     ).toBeInTheDocument();

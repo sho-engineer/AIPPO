@@ -41,11 +41,23 @@ class TestSeedCatalogAlsoSeedsRewards:
         )
 
     def test_every_lesson_of_the_path_gets_a_stamp_definition(self):
+        """開けている教材ぶんのスタンプがあること。
+
+        まだ開けない教材（画像の2本）は入らない。入れると、全部
+        終えてもスタンプが埋まらない台紙になる。
+        """
+        from apps.catalog.models import Lesson
+
         call_command("seed_catalog", verbosity=0)
         path = LearningPath.objects.get(slug="first_step_7days")
 
-        assert path.path_lessons.count() == 9
-        assert path.stamp_definitions.count() == 9
+        opened = Lesson.objects.filter(
+            course__slug="first_step_7days",
+            status="published",
+            availability_status="available",
+        ).count()
+        assert path.path_lessons.count() == opened
+        assert path.stamp_definitions.count() == opened
 
     def test_milestones_are_created(self):
         call_command("seed_catalog", verbosity=0)
@@ -54,7 +66,8 @@ class TestSeedCatalogAlsoSeedsRewards:
         counts = sorted(
             path.milestones.values_list("required_stamp_count", flat=True)
         )
-        assert counts == [3, 5, 9]
+        # 最後の数は、いま開けている本数と同じ。届かない節目を置かない
+        assert counts == [3, 5, 7]
 
     def test_ai_task_pricing_is_created(self):
         call_command("seed_catalog", verbosity=0)
@@ -69,7 +82,8 @@ class TestSeedCatalogAlsoSeedsRewards:
         call_command("seed_catalog", verbosity=0)
 
         assert LearningPath.objects.filter(slug="first_step_7days").count() == 1
-        assert LearningPathLesson.objects.count() == 18
+        # スタートコース7本（開けている分）＋ AI活用コース10本
+        assert LearningPathLesson.objects.count() == 17
         assert StampDefinition.objects.count() == 15
         assert PathRewardMilestone.objects.count() == 5
         assert AiTaskPricing.objects.count() == 6

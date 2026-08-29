@@ -76,14 +76,44 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 describe("成果物ファースト", () => {
-  it("最初に完成イメージを見せる", () => {
+  it("最初の画面は、絵と「はじめる」だけ", async () => {
+    /*
+      絵の上下に長い説明を積まない。積むと、絵を見る前に読み下す
+      ことになり、1枚で伝える意味が消える。
+
+      詳しい話（ねらい・完成イメージ・流れ・覚えるAI技）はこの画面が
+      持っているが、**畳んである**。持ち主がここなのと、最初から
+      広げておくのは別のこと。
+    */
+    const user = userEvent.setup();
     renderLesson();
+
     expect(screen.getByTestId("outcome-preview")).toBeInTheDocument();
-    // Before / After を1組見せる。抽象的な目標だけにしない
-    expect(screen.getByTestId("outcome-before")).toBeInTheDocument();
-    expect(screen.getByTestId("outcome-after")).toBeInTheDocument();
+    expect(screen.getByTestId("outcome-before")).not.toBeVisible();
     // 先に長い説明を読ませない
     expect(screen.queryByTestId("concept-card")).toBeNull();
+
+    await user.click(screen.getByTestId("outcome-detail-toggle"));
+
+    /*
+      開くのを待つ。<details> の開閉は、押した直後ではなく
+      次の順番で効く（jsdom も同じ）。待たずに見ると、
+      押したのに閉じたまま、という形で落ちる。
+    */
+    // Before / After を1組見せる。抽象的な目標だけにしない
+    await waitFor(() => expect(screen.getByTestId("outcome-before")).toBeVisible());
+    expect(screen.getByTestId("outcome-after")).toBeVisible();
+  });
+
+  it("コースの一覧から移した詳しい話が、ここに揃っている", async () => {
+    // 消したのではなく、持ち主のところへ戻した
+    const user = userEvent.setup();
+    renderLesson();
+    await user.click(screen.getByTestId("outcome-detail-toggle"));
+
+    await waitFor(() => expect(screen.getByTestId("outcome-goal")).toBeVisible());
+    expect(screen.getByTestId("outcome-flow")).toBeVisible();
+    expect(screen.getByTestId("outcome-after-lesson")).toBeVisible();
   });
 
   it("最初に選ばせるのは1つだけ", async () => {

@@ -37,7 +37,10 @@ GENERATE_URL = "/api/v1/ai/generate/"
 
 #: 止まることを確かめる相手。どれか1本を近日公開にして試す。
 #: rewrite_text は「開いている側」の対照に使うので選ばない。
-GATED = "improve_answer"
+# スタートコースに残っていて、中身も揃っている1本。
+# 「開けるものを閉じたらどうなるか」を見るので、もともと
+# 近日公開のもの（画像の2本）では確かめにならない。
+GATED = "rewrite_text"
 
 
 @pytest.fixture
@@ -73,23 +76,22 @@ def _use_mock(settings):
 class TestReleaseScope:
     """取り込んだ直後の状態。"""
 
-    def test_every_lesson_is_startable_by_default(self, seeded):
-        """既定では全部が始められる。
+    def test_lessons_with_real_content_are_startable(self, seeded):
+        """中身のある教材は、全部が始められる。
 
-        教材の中身は9本とも揃っている。閉じておくと、
-        画面には出ているのに押せない教材が並ぶだけになる。
+        閉じておくと、画面には出ているのに押せない教材が並ぶだけになる。
 
-        見るのはこのコースの分だけ。「これから増えるコース」は
-        中身がまだ無いので、始められないのが正しい。
+        画像の2本（STEP 3）だけは別。仕組みが無いからではなく、
+        費用の見通しを先に立てるため止めてある（docs/image-lessons.md）。
+        こちらは中身も無いので、閉じているのが正しい。
         """
-        stuck = (
+        stuck = set(
             Lesson.objects.filter(course=seeded)
             .exclude(availability_status=AvailabilityStatus.AVAILABLE)
             .values_list("slug", flat=True)
         )
 
-        assert list(stuck) == []
-        assert seeded.lessons.count() == 9
+        assert stuck == {"image_generation", "image_edit"}
 
     def test_a_gated_lesson_is_still_listed(self, gated):
         """一覧から消してはいけない。出したうえで止めるのが「近日公開」。"""
@@ -155,7 +157,9 @@ class TestCatalogApi:
 
         assert len(lessons) == 9
         for slug, entry in lessons.items():
-            assert entry["availability"] == "available", slug
+            # 画像の2本は、まだ開けない（費用の見通しを立ててから開ける）
+            if entry["availability"] != "available":
+                continue
             assert entry.get("steps"), f"{slug} の中身が空"
 
     def test_coming_soon_lessons_are_listed_without_steps(self, api_client, gated):
@@ -176,12 +180,13 @@ class TestCatalogApi:
         assert coming["title"]
         assert coming["goal"]
 
-        available = lessons["rewrite_text"]
+        # 閉じたのはこの1本だけ。隣は開いたままであること
+        available = lessons["summarize_text"]
         assert available["availability"] == "available"
         assert len(available["steps"]) > 10
 
     def test_unpublished_lessons_never_appear(self, api_client, seeded):
-        lesson = Lesson.objects.get(slug="make_plan")
+        lesson = Lesson.objects.get(slug="explain_topic")
         lesson.status = PublishStatus.DRAFT
         lesson.save()
 
