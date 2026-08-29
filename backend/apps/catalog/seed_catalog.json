@@ -1562,12 +1562,13 @@
       "beforeExample": "紙の書類で回す / 全部データにする",
       "afterExample": "費用：紙は印刷代がかかる／データは初期の手間\n時間：紙は回覧待ち／データは即時\n※ 具体的な金額は確認が必要です",
       "learnedSkills": [
-        "比べる基準を自分で決める",
-        "AIの結論をそのまま信じない"
+        "比較",
+        "評価基準の指定",
+        "出力形式の指定"
       ],
       "outcomes": [
-        "比べる基準を指定できる",
-        "AIの結論をそのまま信じずに確かめられる"
+        "違いを整理できる",
+        "自分の基準で判断材料を作れる"
       ],
       "tags": [
         "comparing"
@@ -1619,7 +1620,6 @@
           "meta": {
             "sampleText": "紙の書類で回す / 全部データにする",
             "defaults": {
-              "criteria": "かかる費用,かかる時間,使いやすさ",
               "as_table": "文章でよい"
             }
           }
@@ -1686,53 +1686,27 @@
           "id": "concept_1",
           "type": "concept_card",
           "phase": "try",
-          "title": "基準は自分で決める",
-          "poMessage": "「何を大事にするか」を先に決めないと、比べた結果を使えません。",
+          "title": "比較",
+          "poMessage": "頭の中で比べず、同じ観点で並べると違いが見えます。",
           "poEmotion": "neutral",
           "skippable": true,
           "card": {
-            "title": "基準は自分で決める",
-            "body": "「何を大事にするか」を先に決めないと、比べた結果を使えません。",
+            "title": "比較",
+            "body": "頭の中で比べず、同じ観点で並べると違いが見えます。",
             "visual": "three_points",
             "points": [
-              "費用",
-              "時間",
-              "使いやすさ"
-            ]
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "AIは決めてくれない",
-          "poMessage": "おすすめは答えではありません。材料を出す係だと思ってください。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "AIは決めてくれない",
-            "body": "おすすめは答えではありません。材料を出す係だと思ってください。",
-            "visual": "simple_flow",
-            "points": [
-              "AIが並べる",
-              "自分が選ぶ",
-              "自分が決める"
-            ]
-          }
-        },
-        {
-          "id": "concept_3",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "数字は必ず確認",
-          "poMessage": "価格・仕様・最新情報は、それらしく書かれても確かめてください。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "数字は必ず確認",
-            "body": "価格・仕様・最新情報は、それらしく書かれても確かめてください。",
-            "visual": "highlight",
-            "highlight": "価格・仕様・最新情報"
+              "候補を並べる",
+              "同じ観点で見る",
+              "違いが見える"
+            ],
+            "reviewExample": {
+              "body": "並べ方が同じだと、どこが違うのかを目で追えます。",
+              "points": [
+                "A・B・C",
+                "価格／機能／簡単さ",
+                "表で見る"
+              ]
+            }
           }
         },
         {
@@ -1747,35 +1721,25 @@
           "required": true,
           "options": [
             {
-              "value": "もっと短く",
-              "label": "もっと短く",
-              "icon": "scissors"
+              "value": "価格・使いやすさ・機能で比較して",
+              "label": "価格・使いやすさ・機能で"
             },
             {
-              "value": "もっと丁寧に",
-              "label": "もっと丁寧に",
-              "icon": "heart"
+              "value": "費用と手間で比較して",
+              "label": "費用と手間で"
             },
             {
-              "value": "やわらかく",
-              "label": "やわらかく",
-              "icon": "smile"
+              "value": "続けやすさで比較して",
+              "label": "続けやすさで"
             },
             {
-              "value": "要点を先に",
-              "label": "要点を先に",
-              "icon": "list-ordered"
-            },
-            {
-              "value": "箇条書きにする",
-              "label": "箇条書きにする",
-              "icon": "list-bullet"
+              "value": "表にまとめて",
+              "label": "表にまとめる"
             },
             {
               "value": "",
-              "label": "自分で条件を追加",
-              "free": true,
-              "icon": "plus"
+              "label": "自分で基準を追加",
+              "free": true
             }
           ],
           "aiAction": {
@@ -1855,6 +1819,33 @@
           }
         },
         {
+          "id": "concept_criteria",
+          "type": "concept_card",
+          "phase": "own",
+          "title": "評価基準の指定",
+          "poMessage": "何を重視するかで、おすすめは変わります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "評価基準の指定",
+            "body": "「価格で」「機能で」と伝えると、おすすめそのものが入れ替わります。",
+            "visual": "three_points",
+            "points": [
+              "価格重視ならA",
+              "機能重視ならC",
+              "基準が変われば答えも変わる"
+            ],
+            "reviewExample": {
+              "body": "決めるのは自分です。AIは基準どおりに並べる係です。",
+              "points": [
+                "基準を決める",
+                "AIが並べる",
+                "自分が選ぶ"
+              ]
+            }
+          }
+        },
+        {
           "id": "real_criteria",
           "type": "multi_choice",
           "title": "どの基準で比べますか",
@@ -1885,6 +1876,33 @@
               "label": "失敗したときの影響"
             }
           ]
+        },
+        {
+          "id": "concept_output_format",
+          "type": "concept_card",
+          "phase": "own",
+          "title": "出力形式の指定",
+          "poMessage": "答え方も指定できます。",
+          "poEmotion": "hint",
+          "skippable": true,
+          "card": {
+            "title": "出力形式の指定",
+            "body": "何を答えるかだけでなく、どう答えるかも指定できます。",
+            "visual": "three_points",
+            "points": [
+              "3行で",
+              "箇条書きで",
+              "表で"
+            ],
+            "reviewExample": {
+              "body": "比べた結果は、表にすると違いを目で追えます。",
+              "points": [
+                "表で並べる",
+                "行が基準",
+                "列が選択肢"
+              ]
+            }
+          }
         },
         {
           "id": "real_as_table",

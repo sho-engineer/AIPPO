@@ -225,7 +225,10 @@ COMPARE = Action(
     },
     fields=(
         ActionField("options_text", "比べたいもの", max_length=2000),
-        ActionField("criteria", "比べる基準", max_length=500),
+        # 最初の1回は基準を決めずに聞く（「どれがおすすめ？」）。
+        # 基準を決めると答えが変わることを、その差で見せる回なので、
+        # ここを必須にすると最初から基準ありになってしまう。
+        ActionField("criteria", "比べる基準", required=False, max_length=500),
         ActionField("priority", "いちばん大事にしたいこと"),
         ActionField("as_table", "表にするか"),
         ActionField("instruction", "追加の条件", required=False),
@@ -234,7 +237,7 @@ COMPARE = Action(
     build=lambda v: _compose(
         "次の選択肢を比べてください。",
         [
-            ("比べる基準", v["criteria"]),
+            ("比べる基準", v.get("criteria", "")),
             ("いちばん大事にしたいこと", v["priority"]),
             ("表にするか", v["as_table"]),
             ("追加の条件", v.get("instruction", "")),

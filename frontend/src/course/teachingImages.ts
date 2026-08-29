@@ -186,6 +186,43 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
     },
   },
+
+  /*
+    Day5「選択肢を比較する」。
+
+    出る順は、レッスンの流れそのまま。
+      完成イメージ → まず「どれがおすすめ？」と聞く → 比較
+      → 評価基準を足して再実行 → おすすめの変わり方を見比べる
+      → 自分の選択肢 → 評価基準の指定 → 基準を選ぶ
+      → 出力形式の指定 → 形を選ぶ
+
+    出力形式の絵は Day2 と同じ1枚を使い回す——**同じ技には同じ絵**。
+
+    Day1〜4 と同じ決まりで置く。比べる図は一度試して条件を足した
+    あと、解説の絵は使う直前、そして解説の絵を続けて2枚出さない。
+  */
+  compare_options: {
+    outcome_preview: {
+      src: "/assets/teaching/day5_overview.webp",
+      alt: "Day5「選択肢を比較する」の全体図。複数の選択肢を同じ基準で比べて比較表にする流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+    },
+    concept_1: {
+      src: "/assets/teaching/skill_10_comparison.webp",
+      alt: "AI技「比較」の図。バラバラの候補をAIに渡すと、価格・簡単さ・機能といった同じ観点で並んだ表になることを示したもの。",
+    },
+    compare_results: {
+      src: "/assets/teaching/compare_08_evaluation.webp",
+      alt: "評価基準でおすすめが変わることの図。基準を決めずに「どれがおすすめ？」と聞いた場合と、価格・使いやすさ・機能を指定した場合を並べ、勧められる選択肢そのものが入れ替わることを示したもの。",
+    },
+    concept_criteria: {
+      src: "/assets/teaching/skill_11_evaluation_criteria.webp",
+      alt: "AI技「評価基準の指定」の図。同じ候補でも、価格重視ならA、機能重視ならCというように、重視するものを変えるとおすすめが変わることを示したもの。",
+    },
+    concept_output_format: {
+      src: "/assets/teaching/skill_05_output_format.webp",
+      alt: "AI技「出力形式の指定」の図。同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できることを示したもの。",
+    },
+  },
 };
 
 /**

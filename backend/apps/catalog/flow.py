@@ -165,7 +165,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "poEmotion": "hint",
             "key": "condition",
             "required": True,
-            "options": CONDITION_OPTIONS,
+            "options": options.get("conditionOptions") or CONDITION_OPTIONS,
             "aiAction": improve_action,
         },
         {

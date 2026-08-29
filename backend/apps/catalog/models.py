@@ -305,6 +305,14 @@ class Lesson(models.Model):
     observation_options = models.JSONField(
         default=list, blank=True, help_text="空なら共通のものを使う"
     )
+    condition_options = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "「条件を一つ足す」の選択肢。空なら共通のものを使う。"
+            "共通のものは文章を直す言い回しなので、文章以外を扱う回では埋める"
+        ),
+    )
     concept_cards = models.JSONField(
         default=list, blank=True, help_text="短い解説。3枚まで（超えた分は捨てる）"
     )

@@ -102,6 +102,7 @@ def _flow_params(lesson: dict[str, Any]) -> dict[str, Any]:
         "quick_defaults": quick.get("meta", {}).get("defaults", {}),
         "working": steps.get("generate_first", {}).get("instruction", ""),
         "observation_options": observe.get("options", []),
+        "condition_options": steps.get("add_condition", {}).get("options", []),
         "concept_cards": cards,
         "review_points": review.get("reviewPoints", []),
         "real_task_label": real_task.get("instruction", ""),

@@ -82,6 +82,14 @@ export interface FlowOptions {
   working: string;
   /** 観察の選択肢。省略すると共通のものを使う。 */
   observationOptions?: StepOption[];
+  /**
+   * 「条件を一つ足す」の選択肢。省略すると共通のものを使う。
+   *
+   * 共通のもの（もっと短く・もっと丁寧に・やわらかく…）は**文章を直す**
+   * 言い回しで、文章以外を扱う回には当たらない。比べる回に「もっと丁寧に」
+   * を出しても、足す条件として意味をなさない。
+   */
+  conditionOptions?: StepOption[];
   /** 短い解説。**3枚まで**。 */
   conceptCards: ConceptCard[];
   /** 結果を見るときの着眼点。 */
@@ -182,7 +190,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       poEmotion: "hint",
       key: "condition",
       required: true,
-      options: CONDITION_OPTIONS,
+      options: options.conditionOptions ?? CONDITION_OPTIONS,
       aiAction: { ...options.aiAction, action: "improve", inputs: {} },
     },
     {
