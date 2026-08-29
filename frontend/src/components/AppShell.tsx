@@ -17,12 +17,12 @@ import { BrandLogo } from "./BrandLogo";
 import {
   IconBell,
   IconBook,
-  IconBookmark,
   IconChevronLeft,
-  IconClock,
+  IconDocument,
   IconHome,
   IconMore,
   IconPerson,
+  IconSparkle,
   type Icon,
 } from "./Icons";
 
@@ -169,21 +169,35 @@ export function AppHeader({ onBack, action, centered, onOpenAccount }: AppHeader
 
 // ------------------------------------------------------------------ 下タブ
 
-export type TabKey = "home" | "course" | "record" | "saved" | "more";
+export type TabKey = "home" | "course" | "skills" | "works" | "more";
 
 /*
   5つとも行き先がある。
 
-  「保存したもの」は目印を付けた教材の置き場で、前は教材一覧の中に
-  節として埋まっていた。支給デザインが独立した行き先にしているのは、
-  取っておいたものを**探さずに**開けるようにするため。埋めておくと、
-  取っておいた人ほど一覧を下まで読むことになる。
+  何を下タブに置くか
+  ------------------
+  役割の違う3つが「学習履歴」1枚に混ざっていた。
+
+      学習記録   … 何を学んだか
+      AI技      … 何ができるか
+      マイ成果物 … 何を作ったか
+
+  下タブに出すのは後ろの2つ。**続ける理由になるのはこちら**で、
+  「どの教材をどこまで」は、それを確かめたくなった人が見に行く。
+
+  外した2つ（学習記録・あとで見る）は、その他の一覧とホームから開ける。
+  タブから消すのと、行き先ごと消すのは別のこと。
+
+  5つを超えない
+  -------------
+  6つ目を足すと、1つあたりの幅が 375px で 62px を切る。字が折り返し、
+  帯の高さが行き先ごとに変わる（§29）。増やすときは、何かを外す。
 */
 const TABS: { key: TabKey; label: string; icon: Icon; ready: boolean }[] = [
   { key: "home", label: "ホーム", icon: IconHome, ready: true },
   { key: "course", label: "コース", icon: IconBook, ready: true },
-  { key: "record", label: "学習記録", icon: IconClock, ready: true },
-  { key: "saved", label: "保存したもの", icon: IconBookmark, ready: true },
+  { key: "skills", label: "AI技", icon: IconSparkle, ready: true },
+  { key: "works", label: "マイ成果物", icon: IconDocument, ready: true },
   { key: "more", label: "その他", icon: IconMore, ready: true },
 ];
 
@@ -191,7 +205,14 @@ export function BottomTabBar({
   current,
   onSelect,
 }: {
-  current: TabKey;
+  /**
+   * いま光らせるタブ。
+   *
+   * 省くと、どれも光らない。下タブに無い画面（学習記録・あとで見る）を
+   * 出しているときのため——**帯ごと消すと戻る道まで消える**が、
+   * どれかを光らせると、そのタブを押したのに別の画面が出ていることになる。
+   */
+  current?: TabKey;
   onSelect: (key: TabKey) => void;
 }) {
   return (
@@ -220,7 +241,7 @@ export function BottomTabBar({
                 onClick={() => onSelect(tab.key)}
                 /*
                   5つ並ぶので、字は小さく・折り返さない。
-                  「保存したもの」は6字あり、折り返すと帯の高さが変わって
+                  「マイ成果物」は5字あり、折り返すと帯の高さが変わって
                   他の4つの位置まで動く（§29）。
                 */
                 className={`relative flex w-full flex-col items-center gap-1 px-0.5 py-1.5

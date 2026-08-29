@@ -3,7 +3,7 @@
  *
  * 中身の出し分けは `tests/keptArtifacts.test.tsx` が見ている。
  * ここで見るのは**導線**——完了画面から取っておけるか、
- * 学習記録に出てくるか、ゲストに理由が返るか。
+ * マイ成果物に出てくるか、ゲストに理由が返るか。
  */
 
 import { expect, test, type Locator, type Page } from "@playwright/test";
@@ -70,7 +70,7 @@ test.describe("作ったものを取っておく", () => {
     expect(api.saved).toHaveLength(1);
   });
 
-  test("取っておいたものが、学習記録に出る", async ({ page }) => {
+  test("取っておいたものが、マイ成果物に出る", async ({ page }) => {
     await stubApi(page, { signedIn: true });
     await finishALesson(page);
 
@@ -81,7 +81,7 @@ test.describe("作ったものを取っておく", () => {
 
     // レッスンの中には下タブが無い。閉じてから移る
     await page.getByRole("button", { name: "レッスンを閉じる" }).click();
-    await page.getByRole("button", { name: "学習記録" }).click();
+    await page.getByRole("button", { name: "マイ成果物" }).click();
 
     await expect(page.getByTestId("kept-list")).toBeVisible();
   });
@@ -101,13 +101,13 @@ test.describe("作ったものを取っておく", () => {
     );
   });
 
-  test("ゲストの学習記録に、消し方の分からない行を残さない", async ({ page }) => {
+  test("ゲストのマイ成果物に、消し方の分からない行を残さない", async ({ page }) => {
     await stubApi(page);
     await page.goto("/");
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
     await page.getByRole("button", { name: "はじめる" }).first().click();
-    await page.getByRole("button", { name: "学習記録" }).click();
+    await page.getByRole("button", { name: "マイ成果物" }).click();
 
     await expect(page.getByTestId("kept-list")).toHaveCount(0);
     await expect(page.getByText("取っておいたもの")).toHaveCount(0);

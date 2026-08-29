@@ -1,165 +1,90 @@
 /**
- * 学習履歴。作ったものを見返す場所。
+ * 学習記録。**何を学んだか**を置く場所。
  *
- * このアプリは「実際の仕事でAIを使えるようになる」ことを約束している。
- * なのに、作った文章はレッスンを閉じた時点で見えなくなっていた。
- * 翌日「先週つくったやつをもう一度」ができない。
- * 約束の真ん中に穴が空いている状態だった。
+ * 3つの画面で言っていることを分ける。
+ *
+ *     学習記録   … 何を学んだか  （この画面）
+ *     AI技      … 何ができるか  （図鑑）
+ *     マイ成果物 … 何を作ったか  （作ったもの・取っておいたもの）
+ *
+ * 前はこの3つが1枚に混ざっていた。作ったものを取りに来た人が、
+ * 教材の一覧と回数の数字を通り過ぎることになる。分けたうえで、
+ * それぞれへの入口をこの画面にも置いてある——分けたせいで
+ * 「前はここにあったもの」が行方不明になるほうが困る。
  *
  * ここで出すのは3つ。
  *
  *   1. 今日あと何回AIを使えるか（上限に当たってから知るのでは遅い）
- *   2. 作ったもの（コピーして、そのまま仕事で使える）
+ *   2. できるようになったこと・作ったものへの入口
  *   3. どの教材をどこまでやったか
  *
- * 「作ったもの」を先に置く。数字を眺めに来る人はいない。
- * 使えるものを取りに来ている。
- *
- * 何も無いときに、行き止まりにしない
- * ----------------------------------
- * 「まだありません」で終える画面を作らない（憲章 原則 I）。
- * ここは初日にいちばん空になる画面で、しかも1本目を終える**前**に
- * 開かれる。「レッスンでAIに何か作ってもらうと、ここに残ります」と
- * 書いてあるのに、そのレッスンへ行く道がこの画面に無かった。
- * やり方を書いて道を置かないのは、書いていないのとあまり変わらない。
- *
- * 読み込めなかったときも同じ。「もう一度お試しください」と書くなら、
- * もう一度を押せる場所をその文の隣に置く。下タブで往復させない。
+ * 読み込めなかったときは、その場でやり直せるようにする。
+ * 「もう一度お試しください」と書くなら、もう一度を押せる場所を
+ * その文の隣に置く。下タブで往復させない。
  */
 
-import { useCallback, useEffect, useState } from "react";
-
-import { fetchHistory, type Artifact, type History } from "../api/history";
 import { AppHeader } from "../components/AppShell";
 import {
   IconCheck,
   IconChevronRight,
   IconClock,
+  IconDocument,
   IconSparkle,
 } from "../components/Icons";
-import { KeepArtifactButton } from "../components/course/KeepArtifactButton";
-import { KeptArtifacts } from "../components/records/KeptArtifacts";
+import { useHistory, when } from "../components/records/useHistory";
 import { lookupLesson } from "../course/live";
 
 export interface RecordPageProps {
   onSelectLesson: (lessonId: string) => void;
   /** 何も無いときの行き先。 */
   onOpenCourse: () => void;
-  /**
-   * AI技図鑑へ。
-   *
-   * ここは「何を学んだか」の画面で、図鑑は「何ができるか」の画面。
-   * 見に来る動機が続いているので、隣に置く。
-   */
+  /** AI技図鑑へ。「何ができるか」。 */
   onOpenSkills: () => void;
-}
-
-/** 「8月18日 15:03」の形。年は今年なら出さない（読む量を減らす）。 */
-function when(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "";
-
-  const now = new Date();
-  const year = date.getFullYear() === now.getFullYear() ? "" : `${date.getFullYear()}年`;
-  const time = `${date.getHours()}:${String(date.getMinutes()).padStart(2, "0")}`;
-  return `${year}${date.getMonth() + 1}月${date.getDate()}日 ${time}`;
+  /** マイ成果物へ。「何を作ったか」。 */
+  onOpenWorks: () => void;
 }
 
 function lessonTitle(lessonId: string): string {
   return lookupLesson(lessonId)?.title ?? lessonId;
 }
 
-/**
- * 作ったもの1件。
- *
- * コピーできるようにする。見えるだけでは仕事に持っていけない。
- */
-function ArtifactCard({
-  artifact,
-  onOpenLesson,
-  onKept,
+/** 隣の画面への入口。役割の違いを1行で言う。 */
+function Doorway({
+  icon: Icon,
+  title,
+  description,
+  onClick,
+  testId,
 }: {
-  artifact: Artifact;
-  onOpenLesson: () => void;
-  /** 取っておけたとき。上の一覧を取り直す */
-  onKept: () => void;
+  icon: typeof IconSparkle;
+  title: string;
+  description: string;
+  onClick: () => void;
+  testId: string;
 }) {
-  const [copied, setCopied] = useState(false);
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(artifact.output);
-      setCopied(true);
-      // 押したことが伝わればよい。戻す時間は短く
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // クリップボードを使えない環境がある（古い端末、許可されていない場合）。
-      // 選んで手でコピーできるので、ここで騒がない
-    }
-  }
-
-  const conditions = Object.entries(artifact.conditions).filter(
-    ([, value]) => typeof value === "string" && value !== "",
-  );
-
   return (
-    <li className="border-b border-line py-4" data-testid={`artifact-${artifact.id}`}>
-      <div className="flex items-baseline justify-between gap-3">
-        <button
-          type="button"
-          onClick={onOpenLesson}
-          className="min-w-0 text-left text-sm font-bold text-brand-dark hover:underline"
-        >
-          {lessonTitle(artifact.lesson_id)}
-        </button>
-        <span className="shrink-0 text-xs tabular-nums text-ink-muted">
-          {when(artifact.created_at)}
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      className="flex w-full items-center gap-3 rounded-card border border-line
+                 bg-surface px-4 py-3 text-left transition hover:bg-canvas"
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-card
+                   bg-brand-soft text-brand"
+      >
+        <Icon className="h-[1.125rem] w-[1.125rem]" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-bold leading-6">{title}</span>
+        <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
+          {description}
         </span>
-      </div>
-
-      {/*
-        条件を先に出す。「なぜこの結果になったか」が分からないと、
-        見返しても学びに繋がらない。
-      */}
-      {conditions.length > 0 && (
-        <p className="mt-1 text-xs leading-6 text-ink-muted">
-          {conditions.map(([, value]) => value).join("・")}
-        </p>
-      )}
-
-      <p className="mt-2 whitespace-pre-wrap rounded-card bg-brand-soft/40 px-3 py-2.5 text-sm leading-7">
-        {artifact.output}
-        {artifact.truncated && (
-          <span className="mt-1 block text-xs text-ink-muted">
-            （長いため、ここまでを保存しています）
-          </span>
-        )}
-      </p>
-
-      {/*
-        いま貼るのと、あとで出すのは別のこと。両方を並べて置く。
-        ここは自動でたまる一覧なので、試した回数ぶん並ぶ。
-        残したい1つだけを、上の「取っておいたもの」へ移せるようにする。
-      */}
-      <div className="mt-2 flex items-start gap-2">
-        <KeepArtifactButton
-          lessonId={artifact.lesson_id}
-          output={artifact.output}
-          conditions={artifact.conditions}
-          onKept={onKept}
-        />
-        <button
-          type="button"
-          onClick={copy}
-          data-testid={`artifact-copy-${artifact.id}`}
-          className="min-h-[2.75rem] rounded-badge border border-line px-3 py-1.5
-                     text-xs text-ink-muted transition hover:border-brand
-                     hover:text-brand-dark"
-        >
-          {copied ? "コピーしました" : "コピー"}
-        </button>
-      </div>
-    </li>
+      </span>
+      <IconChevronRight className="h-4 w-4 shrink-0 text-ink-muted" />
+    </button>
   );
 }
 
@@ -167,39 +92,9 @@ export function RecordPage({
   onSelectLesson,
   onOpenCourse,
   onOpenSkills,
+  onOpenWorks,
 }: RecordPageProps) {
-  const [history, setHistory] = useState<History | null>(null);
-  const [failed, setFailed] = useState(false);
-  /* 取っておいた直後に、上の一覧を取り直すための合図 */
-  const [keptAt, setKeptAt] = useState(0);
-
-  const load = useCallback(async (signal?: AbortSignal) => {
-    try {
-      /*
-        形が違うものが返ることがある（前段のプロキシ、設定違いの
-        エンドポイント、古い版のサーバー）。そのまま入れると
-        `artifacts.length` で落ち、**画面ごと真っ白**になる。
-        200 が返っている以上「読み込めませんでした」でもないので、
-        足りない配列は空として扱い、画面は出す。
-      */
-      const body = await fetchHistory(signal);
-      setHistory({
-        artifacts: Array.isArray(body?.artifacts) ? body.artifacts : [],
-        sessions: Array.isArray(body?.sessions) ? body.sessions : [],
-        ai_quota: body?.ai_quota ?? { limit: null, used: 0, remaining: null },
-      });
-      setFailed(false);
-    } catch {
-      setFailed(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    void load(controller.signal);
-    return () => controller.abort();
-  }, [load]);
-
+  const { history, failed, reload } = useHistory();
   const quota = history?.ai_quota;
 
   return (
@@ -207,39 +102,33 @@ export function RecordPage({
       <AppHeader />
 
       <main className="page">
-        <h1 className="text-xl font-bold">学習履歴</h1>
+        <h1 className="text-xl font-bold">学習記録</h1>
         <p className="mt-1.5 text-sm leading-7 text-ink-muted">
-          作ったものは、ここからいつでも取り出せます。
+          どの教材を、どこまで進めたかの記録です。
         </p>
 
         {/*
-          何ができるようになったか。
+          隣の2つへの入口。
 
-          この画面は「何を学んだか」を出す場所で、できることの一覧は
-          別に要る。本数だけを積み上げても、身についた実感にはならない。
+          分けたぶん、「前はここにあったもの」を探せる道を残す。
+          役割の違いを1行で言い切って、行き先を取り違えないようにする。
         */}
-        <button
-          type="button"
-          onClick={onOpenSkills}
-          data-testid="record-open-skills"
-          className="mt-5 flex w-full items-center gap-3 rounded-card border border-line
-                     bg-surface px-4 py-3 text-left transition hover:bg-canvas"
-        >
-          <span
-            aria-hidden="true"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-card
-                       bg-brand-soft text-brand"
-          >
-            <IconSparkle className="h-[1.125rem] w-[1.125rem]" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-bold leading-6">AI技を見る</span>
-            <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
-              いま自分にできることの一覧
-            </span>
-          </span>
-          <IconChevronRight className="h-4 w-4 shrink-0 text-ink-muted" />
-        </button>
+        <div className="mt-5 space-y-2">
+          <Doorway
+            icon={IconSparkle}
+            title="AI技"
+            description="いま自分にできることの一覧"
+            onClick={onOpenSkills}
+            testId="record-open-skills"
+          />
+          <Doorway
+            icon={IconDocument}
+            title="マイ成果物"
+            description="AIと作ったものを取り出す"
+            onClick={onOpenWorks}
+            testId="record-open-works"
+          />
+        </div>
 
         {/* ── 今日あと何回使えるか ── */}
         {/*
@@ -272,13 +161,9 @@ export function RecordPage({
             className="mt-5 rounded-card bg-caution-soft px-4 py-3 text-sm leading-6 text-caution"
           >
             <p>記録を読み込めませんでした。通信を確かめて、もう一度お試しください。</p>
-            {/*
-              「もう一度」を押せる場所を、その文の隣に置く。
-              下タブで往復させると、同じことを別の手順で覚えることになる。
-            */}
             <button
               type="button"
-              onClick={() => void load()}
+              onClick={reload}
               data-testid="record-retry"
               className="mt-2 min-h-[2.75rem] rounded-cta border border-caution/40 px-5
                          py-2 text-sm font-bold text-caution transition
@@ -289,25 +174,19 @@ export function RecordPage({
           </div>
         )}
 
-        {/*
-          取っておいたもの。自動でたまる「作ったもの」より上に置く。
-          探しに来た人が、目的の1つに先に当たるようにする。
-        */}
-        <KeptArtifacts
-          onSelectLesson={onSelectLesson}
-          reloadKey={keptAt}
-          lessonTitle={lessonTitle}
-        />
-
-        {/* ── 作ったもの ── */}
-        <section className="mt-7" aria-labelledby="artifacts-heading">
-          <h2 id="artifacts-heading" className="section-title">
-            作ったもの
+        {/* ── どこまでやったか ── */}
+        <section className="mt-7" aria-labelledby="sessions-heading">
+          <h2 id="sessions-heading" className="section-title">
+            取り組んだ教材
           </h2>
 
           {history === null && !failed ? (
             <p className="mt-2 text-sm text-ink-muted">読み込んでいます…</p>
-          ) : history && history.artifacts.length === 0 ? (
+          ) : history && history.sessions.length === 0 ? (
+            /*
+              空でも行き止まりにしない（憲章 原則 I）。
+              ここは初日にいちばん空になる画面でもある。
+            */
             <div
               className="mt-3 rounded-panel border border-line bg-surface p-6 text-center
                          shadow-card"
@@ -318,12 +197,11 @@ export function RecordPage({
                 className="mx-auto flex h-12 w-12 items-center justify-center rounded-full
                            bg-brand-soft text-brand"
               >
-                <IconSparkle className="h-6 w-6" />
+                <IconClock className="h-6 w-6" />
               </span>
-              <p className="mt-3 text-sm font-bold">作ったものはまだありません</p>
+              <p className="mt-3 text-sm font-bold">まだ記録がありません</p>
               <p className="mt-1 text-xs leading-6 text-ink-muted">
-                レッスンでAIに何か作ってもらうと、ここに残ります。
-                1本10分ほどで終わります。
+                レッスンを1本進めると、ここに残ります。1本10分ほどで終わります。
               </p>
               <button
                 type="button"
@@ -337,28 +215,8 @@ export function RecordPage({
               </button>
             </div>
           ) : (
-            <ul className="mt-2" role="list" data-testid="artifact-list">
-              {history?.artifacts.map((artifact) => (
-                <ArtifactCard
-                  key={artifact.id}
-                  artifact={artifact}
-                  onOpenLesson={() => onSelectLesson(artifact.lesson_id)}
-                  onKept={() => setKeptAt((count) => count + 1)}
-                />
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/* ── どこまでやったか ── */}
-        {history && history.sessions.length > 0 && (
-          <section className="mt-7" aria-labelledby="sessions-heading">
-            <h2 id="sessions-heading" className="section-title">
-              取り組んだ教材
-            </h2>
-
             <ul className="mt-2" role="list">
-              {history.sessions.map((session) => (
+              {history?.sessions.map((session) => (
                 <li key={session.id}>
                   <button
                     type="button"
@@ -385,8 +243,8 @@ export function RecordPage({
                 </li>
               ))}
             </ul>
-          </section>
-        )}
+          )}
+        </section>
       </main>
     </>
   );

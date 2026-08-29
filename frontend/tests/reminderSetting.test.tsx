@@ -62,7 +62,7 @@ function serve({ me = SIGNED_IN as unknown, patchOk = true } = {}) {
 
 const shell = () => render(
   <AuthProvider>
-    <SettingsPage onBack={() => {}} />
+    <SettingsPage onBack={() => {}} onOpenRecord={() => {}} onOpenSaved={() => {}} />
   </AuthProvider>,
 );
 

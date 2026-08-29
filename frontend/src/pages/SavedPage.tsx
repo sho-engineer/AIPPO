@@ -1,5 +1,11 @@
 /**
- * 保存したもの（下タブの「保存したもの」）。
+ * あとで見る（目印を付けた教材の置き場）。
+
+ * 名前を「保存したもの」から変えてある。「マイ成果物」（AIと作ったもの）
+ * ができたことで、**保存＝どちらのことか**が読めなくなったため。
+ *
+ *     あとで見る   … 何を読みたいか（教材への目印）
+ *     マイ成果物   … 何を作ったか（AIの出力）
  *
  * 目印を付けた教材と、自分のプロンプト帳を並べる。前は教材一覧の中に
  * 節として埋まっていた。取っておいた人ほど一覧を下まで読むことになっていて、
@@ -70,7 +76,12 @@ export function SavedPage({
       <AppHeader onOpenAccount={onOpenAccount} />
 
       <main className="page">
-        <h1 className="mt-4 text-xl font-bold sm:text-2xl">保存したもの</h1>
+        <h1
+          className="mt-4 text-xl font-bold sm:text-2xl"
+          data-testid="saved-page"
+        >
+          あとで見る
+        </h1>
         <p className="mt-2 text-sm leading-7 text-ink-muted">
           あとで見る印を付けた教材と、自分のプロンプト帳です。
         </p>

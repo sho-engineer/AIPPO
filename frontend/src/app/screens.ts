@@ -31,6 +31,8 @@ export const SCREENS = [
   "RECORD",
   // AI技図鑑。「何ができるようになったか」を見る場所
   "SKILLS",
+  // マイ成果物。「何を作ったか」を取り出す場所
+  "WORKS",
   "SAVED",
   "SETTINGS",
 ] as const;
@@ -46,6 +48,7 @@ export type ScreenEvent =
   | "OPEN_RECIPE"
   | "OPEN_RECORD"
   | "OPEN_SKILLS"
+  | "OPEN_WORKS"
   | "OPEN_SAVED"
   | "OPEN_SETTINGS"
   | "BACK_TO_TOP";
@@ -60,6 +63,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_COURSE_DETAIL: "COURSE_DETAIL",
     OPEN_RECORD: "RECORD",
     OPEN_SKILLS: "SKILLS",
+    OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
@@ -72,6 +76,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     BACK_TO_HOME: "HOME",
     OPEN_RECORD: "RECORD",
     OPEN_SKILLS: "SKILLS",
+    OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
@@ -85,6 +90,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     BACK_TO_HOME: "HOME",
     OPEN_RECORD: "RECORD",
     OPEN_SKILLS: "SKILLS",
+    OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
@@ -111,6 +117,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_COURSE: "COURSE",
     OPEN_RECORD: "RECORD",
     OPEN_SKILLS: "SKILLS",
+    OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
@@ -122,6 +129,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_COURSE: "COURSE",
     // 「何を学んだか」の隣に「何ができるか」を置く
     OPEN_SKILLS: "SKILLS",
+    OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
@@ -141,6 +149,22 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
   },
+  /*
+    マイ成果物。作ったものを取り出す場所。
+
+    ここからも教材へ入れる——「これをもう一度」で戻ってくるのが、
+    この画面のいちばん多い使われ方になる。
+  */
+  WORKS: {
+    SELECT_LESSON: "LESSON",
+    BACK_TO_HOME: "HOME",
+    OPEN_COURSE: "COURSE",
+    OPEN_RECORD: "RECORD",
+    OPEN_SKILLS: "SKILLS",
+    OPEN_SAVED: "SAVED",
+    OPEN_SETTINGS: "SETTINGS",
+    BACK_TO_TOP: "TOP",
+  },
   // 取っておいた教材の置き場。ここからそのまま開ける
   SAVED: {
     SELECT_LESSON: "LESSON",
@@ -148,6 +172,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_COURSE: "COURSE",
     OPEN_RECORD: "RECORD",
     OPEN_SKILLS: "SKILLS",
+    OPEN_WORKS: "WORKS",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_TOP: "TOP",
   },
@@ -157,6 +182,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_COURSE: "COURSE",
     OPEN_RECORD: "RECORD",
     OPEN_SKILLS: "SKILLS",
+    OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     BACK_TO_TOP: "TOP",
   },

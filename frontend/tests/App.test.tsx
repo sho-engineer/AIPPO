@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -226,19 +226,37 @@ describe("画面の行き来", () => {
     expect(await screen.findByTestId("po-avatar")).toBeInTheDocument();
   });
 
-  it("下タブから学習記録へ入り、ホームへ戻れる", async () => {
+  it("下タブからマイ成果物へ入り、ホームへ戻れる", async () => {
     const user = userEvent.setup();
     render(<App />);
     await start(user);
 
-    await user.click(await screen.findByRole("button", { name: /学習記録/ }));
+    await user.click(await screen.findByRole("button", { name: /マイ成果物/ }));
     expect(
-      await screen.findByRole("heading", { name: "学習履歴" }),
+      await screen.findByRole("heading", { name: "マイ成果物" }),
     ).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "ホーム" }));
     expect(
       await screen.findByRole("heading", { name: "学習の道のり" }),
+    ).toBeInTheDocument();
+  });
+
+  it("下タブから外した学習記録へも、その他から入れる", async () => {
+    /*
+      タブから消すのと、行き先ごと消すのは別のこと。
+      AI技とマイ成果物を入れるために外したが、探せば必ず
+      見つかる場所を1つ残してある。
+    */
+    const user = userEvent.setup();
+    render(<App />);
+    await start(user);
+
+    await user.click(await screen.findByRole("button", { name: "その他" }));
+    await user.click(await screen.findByRole("button", { name: /学習記録/ }));
+
+    expect(
+      await screen.findByRole("heading", { name: "学習記録" }),
     ).toBeInTheDocument();
   });
 
@@ -254,5 +272,61 @@ describe("画面の行き来", () => {
     expect(
       await screen.findByRole("heading", { name: "学習の道のり" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("下タブの出し入れ", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, "");
+    resetCatalog();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    resetCatalog();
+  });
+
+  const start = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
+  };
+
+  /**
+   * 下タブに無い画面（学習記録・あとで見る）でも、帯そのものは出す。
+   * 帯ごと消すと**戻る道まで消える**。ただしどのタブも光らせない——
+   * 光らせると、そのタブを押したのに別の画面が出ていることになる。
+   */
+  it("学習記録でも、下タブは出ている", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await start(user);
+
+    await user.click(await screen.findByRole("button", { name: "その他" }));
+    await user.click(await screen.findByRole("button", { name: /学習記録/ }));
+
+    await screen.findByRole("heading", { name: "学習記録" });
+    expect(screen.getByTestId("tab-bar")).toBeInTheDocument();
+  });
+
+  it("学習記録では、どのタブも光らない", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await start(user);
+
+    await user.click(await screen.findByRole("button", { name: "その他" }));
+    await user.click(await screen.findByRole("button", { name: /学習記録/ }));
+    await screen.findByRole("heading", { name: "学習記録" });
+
+    const lit = within(screen.getByTestId("tab-bar"))
+      .getAllByRole("button")
+      .filter((tab) => tab.getAttribute("aria-current") === "page");
+    expect(lit).toHaveLength(0);
+  });
+
+  it("タイトル画面には、下タブを出さない", async () => {
+    // 「押す場所は1つ」が売りの画面。抜け道を並べない
+    render(<App />);
+
+    expect(screen.queryByTestId("tab-bar")).not.toBeInTheDocument();
   });
 });

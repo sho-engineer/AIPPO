@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SCREENS, canTransition, nextScreen } from "../src/app/screens";
 
 describe("画面遷移", () => {
-  it("10画面（コースは一覧と中身の2段）", () => {
+  it("11画面（コースは一覧と中身の2段）", () => {
     expect(SCREENS).toEqual([
       "TOP",
       "HOME",
@@ -13,9 +13,15 @@ describe("画面遷移", () => {
       "RECIPE",
       "RECORD",
       "SKILLS",
+      "WORKS",
       "SAVED",
       "SETTINGS",
     ]);
+  });
+
+  it("マイ成果物から、その教材へ戻れる", () => {
+    // 「これをもう一度」が、この画面のいちばん多い使われ方になる
+    expect(nextScreen("WORKS", "SELECT_LESSON")).toBe("LESSON");
   });
 
   it("AI技図鑑から、その技を習得できるレッスンへ入れる", () => {
@@ -163,4 +169,21 @@ describe("AI技図鑑への行き方", () => {
       expect(nextScreen(from, "OPEN_SKILLS")).toBe("SKILLS");
     },
   );
+});
+
+describe("下タブから外した2つ", () => {
+  /*
+    タブから消すのと、行き先ごと消すのは別のこと。
+    AI技とマイ成果物を入れるために外したが、探せば必ず見つかる
+    場所を残す。ここが切れると、押せない機能ができる。
+  */
+  it("学習記録は、その他とホームから開ける", () => {
+    expect(nextScreen("SETTINGS", "OPEN_RECORD")).toBe("RECORD");
+    expect(nextScreen("HOME", "OPEN_RECORD")).toBe("RECORD");
+  });
+
+  it("あとで見るは、その他とホームから開ける", () => {
+    expect(nextScreen("SETTINGS", "OPEN_SAVED")).toBe("SAVED");
+    expect(nextScreen("HOME", "OPEN_SAVED")).toBe("SAVED");
+  });
 });

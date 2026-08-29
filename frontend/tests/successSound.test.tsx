@@ -171,7 +171,7 @@ describe("設定画面", () => {
     );
     render(
       <AuthProvider>
-        <SettingsPage onBack={() => {}} />
+        <SettingsPage onBack={() => {}} onOpenRecord={() => {}} onOpenSaved={() => {}} />
       </AuthProvider>,
     );
     await act(async () => {});

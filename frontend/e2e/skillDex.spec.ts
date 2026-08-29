@@ -58,12 +58,11 @@ async function toHome(page: Page): Promise<void> {
 }
 
 test.describe("AI技図鑑", () => {
-  test("学習記録から開ける", async ({ page }) => {
+  test("下タブから開ける", async ({ page }) => {
     await stubApi(page, { skillDex: DEX });
     await toHome(page);
 
-    await page.getByRole("button", { name: "学習記録" }).click();
-    await page.getByTestId("record-open-skills").click();
+    await page.getByRole("button", { name: "AI技" }).click();
 
     await expect(page.getByTestId("skill-count")).toHaveText("1 / 2");
   });
@@ -72,8 +71,7 @@ test.describe("AI技図鑑", () => {
     await stubApi(page, { skillDex: DEX });
     await toHome(page);
 
-    await page.getByRole("button", { name: "学習記録" }).click();
-    await page.getByTestId("record-open-skills").click();
+    await page.getByRole("button", { name: "AI技" }).click();
     await page.getByTestId("skill-toggle-comparison").click();
     await page.getByTestId("skill-lesson-comparison-compare_options").click();
 
@@ -88,8 +86,7 @@ test.describe("AI技図鑑", () => {
     await stubApi(page, { skillDex: DEX });
     await toHome(page);
 
-    await page.getByRole("button", { name: "学習記録" }).click();
-    await page.getByTestId("record-open-skills").click();
+    await page.getByRole("button", { name: "AI技" }).click();
     await page.getByRole("button", { name: "ホーム" }).click();
 
     await expect(page.getByTestId("next-up")).toBeVisible();

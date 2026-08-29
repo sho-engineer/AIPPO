@@ -37,17 +37,27 @@ import { appliedTipById } from "./course/appliedTips";
 import { useCompletedLessons } from "./course/progress";
 import { SavedPage } from "./pages/SavedPage";
 import { SkillDexPage } from "./pages/SkillDexPage";
+import { WorksPage } from "./pages/WorksPage";
 
-/** 下タブのどれが光っているか。 */
+/**
+ * 下タブを出さない画面。
+ *
+ * タイトルは「押す場所は1つ」が売り、レッスン中は1画面1タスクの途中
+ * （戻る道は画面の中にある）。これ以外では必ず出す——下タブに無い画面
+ * でも、帯ごと消すと戻る道まで消える。
+ */
+const NO_TAB_BAR: Partial<Record<Screen, true>> = { TOP: true, LESSON: true };
+
+/** 下タブのどれが光っているか。無い画面ではどれも光らせない。 */
 const TAB_OF: Partial<Record<Screen, TabKey>> = {
   HOME: "home",
   COURSE: "course",
   // コースの中身も「コース」の中。下タブの光る場所は動かさない
   COURSE_DETAIL: "course",
-  RECORD: "record",
-  // 図鑑も「自分の記録」の仲間。学習記録から入る
-  SKILLS: "record",
-  SAVED: "saved",
+  // 学習記録・あとで見るは、下タブから外した（その他とホームから開ける）。
+  // どのタブも光らせない——光っていないタブを押させないため
+  SKILLS: "skills",
+  WORKS: "works",
   SETTINGS: "more",
 };
 
@@ -55,8 +65,8 @@ const TAB_OF: Partial<Record<Screen, TabKey>> = {
 const SCREEN_OF_TAB: Partial<Record<TabKey, Screen>> = {
   home: "HOME",
   course: "COURSE",
-  record: "RECORD",
-  saved: "SAVED",
+  skills: "SKILLS",
+  works: "WORKS",
   more: "SETTINGS",
 };
 
@@ -83,7 +93,8 @@ const BACK_FALLBACK: Record<Screen, Screen> = {
   LESSON: "COURSE_DETAIL",
   RECIPE: "COURSE_DETAIL",
   RECORD: "HOME",
-  SKILLS: "RECORD",
+  SKILLS: "HOME",
+  WORKS: "HOME",
   SAVED: "HOME",
   SETTINGS: "HOME",
 };
@@ -314,6 +325,14 @@ export function App() {
         );
       }
 
+      case "WORKS":
+        return (
+          <WorksPage
+            onSelectLesson={(id) => openLesson(id, "WORKS")}
+            onOpenCourse={() => navigate(nextScreen("WORKS", "OPEN_COURSE"))}
+          />
+        );
+
       case "SKILLS":
         return (
           <SkillDexPage
@@ -328,6 +347,7 @@ export function App() {
             onSelectLesson={(id) => openLesson(id, "RECORD")}
             onOpenCourse={() => navigate(nextScreen("RECORD", "OPEN_COURSE"))}
             onOpenSkills={() => navigate(nextScreen("RECORD", "OPEN_SKILLS"))}
+            onOpenWorks={() => navigate(nextScreen("RECORD", "OPEN_WORKS"))}
           />
         );
 
@@ -341,7 +361,13 @@ export function App() {
         );
 
       case "SETTINGS":
-        return <SettingsPage onBack={() => goBack("HOME")} />;
+        return (
+          <SettingsPage
+            onBack={() => goBack("HOME")}
+            onOpenRecord={() => navigate(nextScreen("SETTINGS", "OPEN_RECORD"))}
+            onOpenSaved={() => navigate(nextScreen("SETTINGS", "OPEN_SAVED"))}
+          />
+        );
 
       case "LESSON": {
         // 知らない id が入っても画面を落とさない。先頭のレッスンへ倒す
@@ -404,7 +430,7 @@ export function App() {
         </div>
       )}
       {body}
-      {tab && (
+      {!NO_TAB_BAR[screen] && (
         <BottomTabBar
           current={tab}
           onSelect={(key) => navigate(SCREEN_OF_TAB[key] ?? screen)}
