@@ -469,6 +469,16 @@ const LESSON_3: Lesson = {
       inputs: {
         source_text: "topic",
         audience: "audience",
+        /*
+          どんな立場で答えるか（ロール指定）。**`style` を流用しない。**
+
+          `style` は最初のお試しで `quickDefaults` が「例えを使う」で
+          埋めてしまう欄で、そこへ立場を重ねると、**選ばなくても値が
+          入っている状態**になる。`checkStep` は「空かどうか」しか見ない
+          ので、必須にしても素通りできてしまい、「これがロール指定」と
+          教えた直後に立場の無い依頼がAIへ行く。別の欄にして塞ぐ。
+        */
+        role: "role",
         style: "style",
         example: "example",
         length: "length",
@@ -571,18 +581,20 @@ const LESSON_3: Lesson = {
       },
       {
         /*
-          「どう説明してもらうか」を、立場の指定に作り替えた。
-
           直前で「これがロール指定」と言っておきながら、それを使う場面が
-          どこにも無い、という形にしないため。選ぶ言葉をそのまま
-          「説明のしかた」としてAIへ渡す（依頼文に立場が乗る）。
+          どこにも無い、という形にしないための1問。選んだ言葉が
+          「答える立場」としてそのまま依頼文に乗る。
+
+          専用の `role` に置いている（`style` の流用ではない）。理由は
+          上の `inputs` に書いた——`style` は最初のお試しで既定値が
+          入るので、必須にしても素通りできる。
         */
-        id: "real_style",
+        id: "real_role",
         type: "single_choice",
         title: "どんな立場で説明してもらいますか",
         poMessage: "立場を伝えると、説明の寄せ方が変わります。",
         poEmotion: "question",
-        key: "style",
+        key: "role",
         required: true,
         options: [
           { value: "先生として、順を追って教えるように", label: "先生として" },
@@ -676,7 +688,20 @@ const LESSON_4: Lesson = {
       { value: "時間", label: "時間" },
       { value: "使いやすさ", label: "使いやすさ" },
     ],
-    quickDefaults: { criteria: "費用と時間と使いやすさ", as_table: "文章でよい" },
+    /*
+      基準は、あとで出す `real_criteria` の選択肢そのものを並べる
+      （複数選択は「,」でつないだ形で持つ）。
+
+      文にして「費用と時間と使いやすさ」と入れていたが、それだと
+      あとの必須の質問に**選択肢に無い値**が先に入る。札はどれも
+      選ばれていないのに、空ではないので次へ進めてしまい、基準を
+      自分で決めないまま比較へ行けた——このレッスンでいちばん
+      大事なところが飛ばせる状態だった。
+    */
+    quickDefaults: {
+      criteria: "かかる費用,かかる時間,使いやすさ",
+      as_table: "文章でよい",
+    },
     working: "基準ごとに並べています。",
     observationOptions: [
       { value: "基準ごとに整理された", label: "基準ごとに整理" },

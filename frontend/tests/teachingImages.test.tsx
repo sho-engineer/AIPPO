@@ -221,21 +221,29 @@ describe("Day3 のどこに出るか", () => {
   const order = lesson.steps.map((step) => step.id);
   const at = (stepId: string) => order.indexOf(stepId);
 
-  it.todo("5枚が、それぞれの画面に割り当たっている（絵の到着待ち）");
-
-  it("いま置いてある絵は、決めた画面にだけ付く", () => {
+  it("5枚が、それぞれの画面に割り当たっている", () => {
     const placed = order.filter((id) => teachingImage(DAY3, id) !== null);
-    const allowed = [
+
+    expect(placed).toEqual([
       "outcome_preview",
       "concept_1",
       "compare_results",
       "concept_role",
       "concept_followup",
-    ];
+    ]);
+  });
 
-    expect(placed.every((id) => allowed.includes(id))).toBe(true);
-    // 並びは決めた順のまま（足しても順が入れ替わらない）
-    expect(placed).toEqual(allowed.filter((id) => placed.includes(id)));
+  it("解説の絵を続けて2枚出さない", () => {
+    const withImage = order
+      .map((id, index) => ({ id, index }))
+      .filter((entry) => teachingImage(DAY3, entry.id) !== null);
+
+    for (let i = 0; i < withImage.length - 1; i += 1) {
+      expect(
+        withImage[i + 1].index - withImage[i].index,
+        `${withImage[i].id} と ${withImage[i + 1].id} が隣り合っている`,
+      ).toBeGreaterThan(1);
+    }
   });
 
   it("ターゲット指定は、Day1 と同じ1枚を使う", () => {
@@ -273,7 +281,7 @@ describe("Day3 のどこに出るか", () => {
   });
 
   it("ロール指定は、立場を選ぶ直前に出る", () => {
-    expect(at("real_style") - at("concept_role")).toBe(1);
+    expect(at("real_role") - at("concept_role")).toBe(1);
   });
 
   it("追加質問は、聞き返しを足す直前に出る", () => {
@@ -285,13 +293,25 @@ describe("Day3 のどこに出るか", () => {
       「これがロール指定」と言っておきながら使う場面が無い、という
       看板倒れにしない。立場も聞き返しも、実際にAIへ届く。
     */
-    const style = lesson.steps.find((step) => step.id === "real_style")!;
+    const role = lesson.steps.find((step) => step.id === "real_role")!;
     const followup = lesson.steps.find((step) => step.id === "real_followup")!;
-    expect(style.options?.map((one) => one.label)).toContain("先生として");
+    expect(role.options?.map((one) => one.label)).toContain("先生として");
     expect(followup.key).toBe("followup");
 
     const sends = lesson.steps.find((step) => step.id === "generate_real")!;
-    expect(Object.keys(sends.aiAction?.inputs ?? {})).toContain("followup");
+    const inputs = Object.keys(sends.aiAction?.inputs ?? {});
+    expect(inputs).toContain("role");
+    expect(inputs).toContain("followup");
+  });
+
+  it("立場は、選ばないと進めない", () => {
+    /*
+      いちど「これがロール指定」と教えた直後の1問なので、
+      選ばずに素通りできてはいけない。
+    */
+    const role = lesson.steps.find((step) => step.id === "real_role")!;
+    expect(role.required).toBe(true);
+    expect(role.key).toBe("role");
   });
 
   it("聞き返しは、答えなくても進める", () => {

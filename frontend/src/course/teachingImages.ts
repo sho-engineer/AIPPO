@@ -117,23 +117,26 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
     あと、解説の絵は使う直前、そして解説の絵を続けて2枚出さない。
   */
   explain_topic: {
+    outcome_preview: {
+      src: "/assets/teaching/day3_overview.webp",
+      alt: "Day3「分からないことを説明してもらう」の全体図。難しい説明を、自分に合ったレベルの分かりやすい説明に変える流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+    },
     concept_1: {
       src: "/assets/teaching/skill_01_targeting.webp",
       alt: "AI技「ターゲット指定」の図。同じ文章でも、新入社員向けならやさしい文章に、専門家向けなら専門的な文章になることを示したもの。",
     },
-    /*
-      まだ4枚届いていない。**置き場所は決まっている**ので、
-      ファイルが `public/assets/teaching/` に入ったら、ここへ
-      次の4行を戻すだけで出るようになる。
-
-        outcome_preview   day3_overview.webp
-        compare_results   compare_05_explanation_level.webp
-        concept_role      skill_07_role.webp
-        concept_followup  skill_08_followup_question.webp
-
-      先に書いて置かないのは、**指しているファイルが無い行**を残すと
-      画面に壊れた枠が出るため（tests がそれを見張っている）。
-    */
+    compare_results: {
+      src: "/assets/teaching/compare_05_explanation_level.webp",
+      alt: "自分のレベルを伝えると説明が変わることの図。ただ「APIについて説明して」と頼んだ場合と、「IT初心者向けに、身近な例を使って」と足した場合を並べ、言葉の難しさと例の有無が変わることを示したもの。",
+    },
+    concept_role: {
+      src: "/assets/teaching/skill_07_role.webp",
+      alt: "AI技「ロール指定」の図。「あなたは先生です」と伝えると初心者向けの説明に、「あなたはIT担当者です」と伝えると実務的な説明になることを示したもの。",
+    },
+    concept_followup: {
+      src: "/assets/teaching/skill_08_followup_question.webp",
+      alt: "AI技「追加質問」の図。AIの答えに「もっと簡単に」「具体例を出して」と聞き返しながら、分かるまで深掘りしていく流れを示したもの。",
+    },
   },
 };
 

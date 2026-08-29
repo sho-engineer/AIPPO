@@ -60,6 +60,48 @@ describe("教材データ", () => {
     }
   });
 
+  it("先に入っている既定値が、その質問の選択肢に無いことがない", () => {
+    /*
+      最初のお試しは、聞かなかった条件を `quickDefaults` が埋めて
+      成立させている（useCourseLesson が `values` に書く）。その値は
+      あとの画面まで残るので、同じキーを使う質問は**開いた時点で
+      答えが入っている**。
+
+      入っている値がその質問の選択肢のどれかなら、札が選ばれた形で
+      出るので筋は通る。**選択肢に無い値**だと、札はどれも選ばれて
+      いないのに `checkStep`（空かどうかしか見ない）は通ってしまい、
+      必須なのに選ばずに次へ進める。
+
+      Day3 でこれが起きた。「これがロール指定」と教えた直後の質問に
+      `style` を流用したせいで、立場を選ばないまま、立場の無い依頼が
+      AIへ送られていた。看板だけが残る。
+    */
+    for (const lesson of COURSE.lessons) {
+      const quick = lesson.steps.find((step) => step.id === "quick_try");
+      const defaults = (quick?.meta?.defaults ?? {}) as Record<string, string>;
+
+      for (const step of lesson.steps) {
+        if (step.id === "quick_try" || !step.required || !step.key) continue;
+        if (!step.options) continue;
+
+        const filled = defaults[step.key];
+        if (!filled) continue;
+
+        // 複数選べる回は「,」でつないだ形で持つ（Inputs.tsx と同じ読み方）
+        const chosen =
+          step.type === "multi_choice" ? filled.split(",").filter(Boolean) : [filled];
+        const values = step.options.map((one) => one.value);
+
+        for (const one of chosen) {
+          expect(
+            values,
+            `${lesson.title}/${step.id} は「${one}」が先に入るのに、それが選択肢に無い`,
+          ).toContain(one);
+        }
+      }
+    }
+  });
+
   it("宣言された行き先が必ず存在する", () => {
     // 書き間違いがあると、その場で行き止まりになる
     for (const lesson of COURSE.lessons) {

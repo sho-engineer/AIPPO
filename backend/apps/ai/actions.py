@@ -177,6 +177,8 @@ EXPLAIN = Action(
     fields=(
         ActionField("topic", "知りたいこと", max_length=500),
         ActionField("audience", "説明する相手"),
+        # どんな立場で答えるか（ロール指定）。教材が聞いたときだけ入る
+        ActionField("role", "答える立場", required=False),
         ActionField("style", "説明のしかた"),
         ActionField("example", "具体例の有無"),
         ActionField("length", "長さ"),
@@ -187,6 +189,7 @@ EXPLAIN = Action(
         "次のことを説明してください。",
         [
             ("説明する相手", v["audience"]),
+            ("答える立場", v.get("role", "")),
             ("説明のしかた", v["style"]),
             ("具体例", v["example"]),
             ("長さ", v["length"]),

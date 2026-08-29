@@ -1123,6 +1123,7 @@
             "inputs": {
               "source_text": "topic",
               "audience": "audience",
+              "role": "role",
               "style": "style",
               "example": "example",
               "length": "length",
@@ -1151,6 +1152,7 @@
             "inputs": {
               "source_text": "topic",
               "audience": "audience",
+              "role": "role",
               "style": "style",
               "example": "example",
               "length": "length",
@@ -1391,12 +1393,12 @@
           "skippable": true
         },
         {
-          "id": "real_style",
+          "id": "real_role",
           "type": "single_choice",
           "title": "どんな立場で説明してもらいますか",
           "poMessage": "立場を伝えると、説明の寄せ方が変わります。",
           "poEmotion": "question",
-          "key": "style",
+          "key": "role",
           "required": true,
           "options": [
             {
@@ -1484,6 +1486,7 @@
             "inputs": {
               "source_text": "topic",
               "audience": "audience",
+              "role": "role",
               "style": "style",
               "example": "example",
               "length": "length",
@@ -1504,6 +1507,7 @@
             "inputs": {
               "source_text": "topic",
               "audience": "audience",
+              "role": "role",
               "style": "style",
               "example": "example",
               "length": "length",
@@ -1615,7 +1619,7 @@
           "meta": {
             "sampleText": "紙の書類で回す / 全部データにする",
             "defaults": {
-              "criteria": "費用と時間と使いやすさ",
+              "criteria": "かかる費用,かかる時間,使いやすさ",
               "as_table": "文章でよい"
             }
           }
