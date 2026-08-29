@@ -42,6 +42,7 @@ from apps.accounts.migration import (
     record_migration_event,
 )
 from apps.accounts.models import UserProfile, learner_keys_for
+from apps.accounts.scope import device_key
 from apps.accounts.serializers import (
     TERMS_VERSION,
     EmailVerifySerializer,
@@ -56,7 +57,7 @@ from apps.accounts.serializers import (
 from apps.accounts.throttle import TooManyAttempts, cooldown_seconds
 from apps.accounts.throttle import clear as clear_attempts
 from apps.accounts.throttle import consume as consume_attempt
-from apps.lessons.models import LearningEventType, LearningSession
+from apps.lessons.models import LearningEvent, LearningEventType, LearningSession
 from apps.lessons.services.quota import client_ip
 from apps.ops import audit
 
@@ -92,6 +93,30 @@ def _too_many(exc: TooManyAttempts) -> Response:
     )
     response["Retry-After"] = str(exc.retry_after)
     return response
+
+
+
+def _record_account_event(request: Request, event_type: str) -> None:
+    """アカウントまわりの出来事を、操作ログに1行残す。
+
+    レッスンの外で起きるので、セッションは作らない——架空の
+    セッションを作ると、学習の数え上げ（何本進めたか）に中身の無い
+    1本が混ざる。誰のことかは端末の鍵で持つ。
+
+    **本文もメールアドレスも残さない。** 見たいのは「どこで詰まるか」
+    であって、誰が詰まったかではない。
+
+    記録に失敗しても、呼び出し元の処理は続ける。ログのために
+    登録や再設定を落とさない。
+    """
+    try:
+        LearningEvent.objects.create(
+            session=None,
+            learner_key=device_key(request),
+            event_type=event_type,
+        )
+    except Exception:  # noqa: BLE001 - 記録のために本筋を落とさない
+        logger.warning("accounts.event.record_failed type=%s", event_type)
 
 
 class CsrfTokenView(APIView):
@@ -398,8 +423,26 @@ class PasswordResetRequestView(APIView):
         Sentry 等で `password_reset` 単位に絞って見張れる。
         """
         user = User.objects.filter(email__iexact=email).first()
-        if user is not None and not emails.send_password_reset(user):
-            logger.error("accounts.password_reset.send_failed")
+        sent = False
+        if user is not None:
+            sent = emails.send_password_reset(user)
+            if not sent:
+                logger.error("accounts.password_reset.send_failed")
+
+        """
+        実際に送れた回だけ、記録に1行残す（Analytics）。
+
+        画面側の `password_reset_requested`（押した回）と対にする。
+        押した数と送れた数が離れていれば、送り口が壊れている——
+        画面には出せない（登録の有無が漏れる）ので、ここでしか見えない。
+
+        **メールアドレスは残さない。** 誰が押したかではなく、
+        送り口が動いているかを見るための記録。
+        """
+        if sent:
+            _record_account_event(
+                request, LearningEventType.PASSWORD_RESET_SENT
+            )
 
         """
         次に送れるようになるまでの秒数も返す。
@@ -504,6 +547,10 @@ class DeleteLearningDataView(APIView):
         # 学んだ量も学習の記録。「消した」と言った以上、ここも消す
         XpEvent.objects.filter(learner_key__in=keys).delete()
         SavedArtifact.objects.filter(learner_key__in=keys).delete()
+        # セッションに繋がっていない操作ログ（登録・再設定・図鑑）
+        LearningEvent.objects.filter(
+            session__isnull=True, learner_key__in=keys
+        ).delete()
 
         # 「本当に消えたのか」とあとから聞かれたときに、答えられるようにする。
         # 消した本人の記憶しか残らないのは、答えとして弱い
@@ -538,6 +585,10 @@ class DeleteAccountView(APIView):
         SkillProgress.objects.filter(learner_key__in=keys).delete()
         XpEvent.objects.filter(learner_key__in=keys).delete()
         SavedArtifact.objects.filter(learner_key__in=keys).delete()
+        # セッションに繋がっていない操作ログ（登録・再設定・図鑑）
+        LearningEvent.objects.filter(
+            session__isnull=True, learner_key__in=keys
+        ).delete()
 
         # 消す**前**に残す。消したあとでは user.pk が無くなり、
         # 「誰のアカウントが消えたか」を書けなくなる

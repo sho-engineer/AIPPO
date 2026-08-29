@@ -235,7 +235,15 @@ function parseEvent(block: string): { name: string; data: Record<string, unknown
 }
 
 export interface LearningEventInput {
-  lessonId: string;
+  /**
+   * どのレッスンの中の出来事か。
+   *
+   * アカウントまわり（登録・再設定・図鑑を開いた）はレッスンの外で
+   * 起きるので、空でよい。空のときサーバーはセッションを作らない
+   * ——架空のセッションを作ると、学習の数え上げ（何本進めたか）に
+   * 中身の無い1本が混ざる。
+   */
+  lessonId?: string;
   eventType: string;
   step?: string;
   inputLength?: number;
@@ -268,7 +276,7 @@ export async function sendLearningEvent(
       method: "POST",
       keepalive: input.keepalive ?? false,
       body: JSON.stringify({
-        lesson_id: input.lessonId,
+        lesson_id: input.lessonId ?? "",
         event_type: input.eventType,
         step: input.step ?? "",
         input_length: input.inputLength ?? 0,

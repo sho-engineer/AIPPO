@@ -37,6 +37,7 @@ import {
   nextStepId,
   previousStepId,
   progressOf,
+  stepIndex,
   summaryOf,
   type StepIssue,
 } from "./engine";
@@ -237,6 +238,24 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     (nextId: string) => {
       const target = findStep(lesson, nextId);
       if (!target) return;
+
+      /*
+        区切り（ミッション）を1つ終えたか。
+
+        進んだときだけ数える。戻ったときに数えると、行き来した回数が
+        そのまま「終えた区切りの数」になる。
+      */
+      const from = missionStateOf(lesson, stepIndex(lesson, stepId));
+      const to = missionStateOf(lesson, stepIndex(lesson, nextId));
+      if (to.current > from.current) {
+        void sendLearningEvent({
+          lessonId: lesson.id,
+          eventType: "mission_completed",
+          step: stepId,
+          inputLength: from.current,
+        });
+      }
+
       setStepId(nextId);
       setPo(poOf(target));
       setHintIndex(0);
@@ -244,7 +263,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       setErrorKind(null);
       setFindings([]);
     },
-    [lesson],
+    [lesson, stepId],
   );
 
   const goNext = useCallback(() => {

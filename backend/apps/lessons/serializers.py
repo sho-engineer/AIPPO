@@ -34,7 +34,16 @@ class LearningEventSerializer(serializers.Serializer):
     受け取るのは文字数のみ。
     """
 
-    lesson_id = serializers.CharField(max_length=100)
+    """
+    どのレッスンの中の出来事か。
+
+    アカウントまわり（登録・再設定・図鑑を開いた）はレッスンの外で
+    起きるので、空を許す。空のときはセッションを作らない——架空の
+    セッションを作ると、学習の数え上げに中身の無い1本が混ざる。
+    """
+    lesson_id = serializers.CharField(
+        max_length=100, required=False, allow_blank=True, default=""
+    )
     # ステップの id は教材データが決める。選択肢で縛ると、
     # レッスンを1本足すたびに操作ログが 400 で落ちる（実際に落ちた）。
     step = serializers.CharField(max_length=50, required=False, allow_blank=True, default="")

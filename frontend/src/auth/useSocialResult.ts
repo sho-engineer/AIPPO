@@ -17,6 +17,7 @@
 import { useEffect, useState } from "react";
 
 import { SOCIAL_COPY } from "../content/ui";
+import { EVENTS, track } from "../lib/analytics";
 
 export interface SocialResult {
   kind: "ok" | "error";
@@ -36,6 +37,18 @@ export function useSocialResult(): {
     const failure = params.get("social_error");
     const outcome = params.get("social_result");
     if (!failure && !outcome) return;
+
+    /*
+      外部ログインで落ちた回を数える。
+
+      押した人には固定文しか出さない（URL の中身を画面に出さない）ので、
+      **どこで落ちているかは記録にしか残らない**。設定の取り違えは
+      配置のたびに起こりうるので、気づける形にしておく。
+
+      理由の名前は載せない。URL から来た文字列なので、そのまま
+      記録に流すと、そこが差し込みの入口になる。
+    */
+    if (failure) track(EVENTS.googleAuthFailed);
 
     setResult(
       failure

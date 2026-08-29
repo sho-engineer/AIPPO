@@ -194,14 +194,27 @@ class LearningEventView(_SessionMixin, APIView):
             return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
-        session = self.get_or_create_session(request, data["lesson_id"])
 
-        if data["step"]:
+        """
+        レッスンの外で起きたことは、セッションを作らずに残す。
+
+        登録・パスワード再設定・図鑑を開いた——どれもレッスンの中の
+        出来事ではない。架空のセッションを作ると、学習の数え上げ
+        （何本進めたか）に中身の無い1本が混ざる。
+        """
+        session = (
+            self.get_or_create_session(request, data["lesson_id"])
+            if data["lesson_id"]
+            else None
+        )
+
+        if session is not None and data["step"]:
             session.current_step = data["step"]
             session.save(update_fields=["current_step", "updated_at"])
 
         LearningEvent.objects.create(
             session=session,
+            learner_key=device_key(request),
             lesson_id=data["lesson_id"],
             step=data["step"],
             event_type=data["event_type"],
@@ -212,7 +225,7 @@ class LearningEventView(_SessionMixin, APIView):
             duration_ms=data.get("duration_ms"),
         )
 
-        if data["event_type"] == LearningEventType.LESSON_COMPLETED:
+        if session is not None and data["event_type"] == LearningEventType.LESSON_COMPLETED:
             self._complete(request, session)
 
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -242,9 +255,16 @@ class LearningEventView(_SessionMixin, APIView):
 
         acquired = award_lesson_skills(session.learner_key, session.lesson_id)
 
-        xp.award(session.learner_key, XpKind.LESSON_COMPLETED, session.lesson_id)
+        gained = 0
+        event = xp.award(session.learner_key, XpKind.LESSON_COMPLETED, session.lesson_id)
+        if event is not None:
+            gained += event.amount
+
         for slug in acquired:
-            xp.award(session.learner_key, XpKind.AI_SKILL_ACQUIRED, slug)
+            event = xp.award(session.learner_key, XpKind.AI_SKILL_ACQUIRED, slug)
+            if event is not None:
+                gained += event.amount
+            self._log(session, LearningEventType.AI_SKILL_ACQUIRED)
 
         """
         コースの節目。
@@ -252,8 +272,39 @@ class LearningEventView(_SessionMixin, APIView):
         数えるのは読める鍵ぜんぶから——いまの端末だけで数えると、
         別の端末で進めた分が抜けて、節目がいつまでも来ない。
         """
-        xp.award_course_checkpoint(
+        reached = xp.award_course_checkpoint(
             session.learner_key, readable_keys(request), session.lesson_id
+        )
+        if reached is not None:
+            gained += xp.XP_AMOUNTS[XpKind.COURSE_CHECKPOINT]
+            self._log(session, LearningEventType.COURSE_CHECKPOINT_COMPLETED, reached)
+
+        """
+        増えたぶんだけ記録する。
+
+        やり直しでは 0 になるので、そのときは残さない——0 の行が並ぶと、
+        「XPが増えた回数」を数えたときに実際より多く出る。
+        """
+        if gained > 0:
+            self._log(session, LearningEventType.XP_EARNED, gained)
+
+    @staticmethod
+    def _log(session: LearningSession, event_type: str, amount: int = 0) -> None:
+        """サーバー側で決めたことを、操作ログにも残す。
+
+        画面から送らせない。技もXPも節目も、判定はサーバーがしている
+        （設計方針 §36）。画面から送らせると、送られてこなかった回と
+        起きなかった回の区別が付かなくなる。
+
+        本文は入れない。数だけ（`input_length` を数の置き場に使う）。
+        """
+        LearningEvent.objects.create(
+            session=session,
+            learner_key=session.learner_key,
+            lesson_id=session.lesson_id,
+            step="COMPLETE",
+            event_type=event_type,
+            input_length=amount,
         )
 
     @staticmethod

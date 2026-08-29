@@ -25,6 +25,7 @@ import { useState } from "react";
 
 import { ApiError } from "../../api/http";
 import { needsAccount, saveArtifact } from "../../api/artifacts";
+import { EVENTS, track } from "../../lib/analytics";
 import { IconBookmark, IconCheck } from "../Icons";
 
 export interface KeepArtifactButtonProps {
@@ -55,6 +56,8 @@ export function KeepArtifactButton({
 
     try {
       const result = await saveArtifact({ lessonId, output, conditions });
+      // 二度目は数えない。同じ物が増えていないので、保存でもない
+      if (!result.already_saved) track(EVENTS.artifactSaved, { lessonId });
       setState({ kind: "kept", already: result.already_saved });
       onKept?.();
     } catch (error) {

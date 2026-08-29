@@ -36,6 +36,7 @@ from django.utils import timezone
 from apps.accounts.models import AuthThrottle, LearnerIdentity
 from apps.lessons.models import (
     AiUsageCounter,
+    LearningEvent,
     LearningSession,
     SavedArtifact,
     SkillProgress,
@@ -135,6 +136,16 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
     """
     saved = SavedArtifact.objects.filter(learner_key__in=keys)
 
+    """
+    セッションの無い操作ログ（登録・再設定・図鑑を開いた）。
+
+    セッションに連なる分はセッションごと消えるが、こちらは
+    どこにも繋がっていない。忘れると、鍵が消えたあとも残り続ける。
+    """
+    loose_events = LearningEvent.objects.filter(
+        session__isnull=True, learner_key__in=keys
+    )
+
     # 試行回数は、いちばん長い窓を過ぎたら用が無い。
     # 余裕を持って1日ぶん残す（時計のずれで消しすぎないように）
     throttle_cutoff = timezone.now() - timedelta(days=1)
@@ -160,6 +171,7 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
         "身につけたこと": skills.count(),
         "XPの記録": xp_events.count(),
         "取っておいた成果物": saved.count(),
+        "アカウントの操作記録": loose_events.count(),
         "試行回数": throttles.count(),
         "AI実行回数": counters.count(),
         "操作記録": audit_logs.count(),
@@ -172,6 +184,7 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
         skills.delete()
         xp_events.delete()
         saved.delete()
+        loose_events.delete()
         throttles.delete()
         counters.delete()
         audit_logs.delete()

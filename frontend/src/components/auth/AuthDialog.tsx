@@ -59,6 +59,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { ApiError } from "../../api/http";
 import { requestPasswordReset } from "../../api/accounts";
 import { useAuth } from "../../auth/AuthContext";
+import { EVENTS, track } from "../../lib/analytics";
 import { AUTH_COPY } from "../../content/ui";
 import { PRIVACY, TERMS, findLegalDocument, type LegalDocument } from "../../content/legal";
 import { LegalView } from "../legal/LegalView";
@@ -189,6 +190,8 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
     if (view === "signup" && step === "method") {
       if (email.trim().length === 0) return;
       setFailure(null);
+      // ここから先が登録の道。どこで落ちたかを見るための起点
+      track(EVENTS.signUpStarted);
       setStep("password");
       return;
     }
@@ -227,6 +230,7 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
           acceptTerms: true,
           acceptPrivacy: true,
         });
+        track(EVENTS.signUpCompleted);
         onDone?.(
           migration.retryable
             ? AUTH_COPY.migrationRetryable
@@ -238,6 +242,8 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
         onDone?.("ログインしました。続きから始められます。");
         onClose();
       } else {
+        // 押した回。サーバー側の password_reset_sent（送れた回）と対にする
+        track(EVENTS.passwordResetRequested);
         const result = await requestPasswordReset(email);
         // 登録の有無にかかわらず同じ文にする
         setSent(true);

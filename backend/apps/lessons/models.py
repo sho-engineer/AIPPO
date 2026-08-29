@@ -194,6 +194,27 @@ class LearningEventType(models.TextChoices):
     CONCEPT_CARD_VIEWED = "concept_card_viewed"
     CONCEPT_CARD_SKIPPED = "concept_card_skipped"
 
+    """第一リリースの見張り（Analytics 14種）。
+
+    足りていなかったのは、**詰まる場所と、続く理由**の両方。
+
+      - 登録の途中で何に当たって落ちたか（Google・パスキー・再設定）
+      - 学習の中でどこまで進んだか（区切り・技・XP・節目）
+      - 作ったものを取っておいたか
+
+    どれも画面は止まらずに進むので、記録が無いと気づけない。
+    """
+    GOOGLE_AUTH_FAILED = "google_auth_failed"
+    PASSKEY_REGISTRATION_FAILED = "passkey_registration_failed"
+    PASSWORD_RESET_REQUESTED = "password_reset_requested"
+    PASSWORD_RESET_SENT = "password_reset_sent"
+    MISSION_COMPLETED = "mission_completed"
+    AI_SKILL_ACQUIRED = "ai_skill_acquired"
+    XP_EARNED = "xp_earned"
+    ARTIFACT_SAVED = "artifact_saved"
+    SKILL_DICTIONARY_OPENED = "skill_dictionary_opened"
+    COURSE_CHECKPOINT_COMPLETED = "course_checkpoint_completed"
+
     # 旧レッスンから使っているもの。消すと過去のログが読めなくなる。
     LESSON_STARTED = "lesson_started"
     USE_CASE_SELECTED = "use_case_selected"
@@ -229,7 +250,23 @@ class LearningEvent(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    session = models.ForeignKey(LearningSession, on_delete=models.CASCADE, related_name="events")
+    """
+    どのレッスンの中の出来事か。**アカウントまわりの記録には無い。**
+
+    登録・パスワード再設定・図鑑を開いた、はレッスンの外で起きる。
+    そのために架空のセッションを作ると、学習の数え上げ（何本進めたか）に
+    中身の無いセッションが混ざる。ここは空にできるようにして、
+    誰のことかは下の `learner_key` で持つ。
+    """
+    session = models.ForeignKey(
+        LearningSession,
+        on_delete=models.CASCADE,
+        related_name="events",
+        null=True,
+        blank=True,
+    )
+    #: セッションが無い記録の持ち主。ある記録では session 側が持っている
+    learner_key = models.UUIDField(null=True, blank=True, db_index=True)
     lesson_id = models.CharField(max_length=100, blank=True)
     step = models.CharField(max_length=50, blank=True)
     event_type = models.CharField(max_length=50, choices=LearningEventType.choices, db_index=True)

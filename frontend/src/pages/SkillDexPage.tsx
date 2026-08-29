@@ -26,6 +26,7 @@ import { useCallback, useEffect, useState } from "react";
 import { fetchSkillDex, type Skill, type SkillDex } from "../api/skills";
 import { AppHeader } from "../components/AppShell";
 import { IconCheck, IconSparkle, IconStar } from "../components/Icons";
+import { EVENTS, track } from "../lib/analytics";
 
 export interface SkillDexPageProps {
   /** 「この教材で習得できます」から、そのまま入れるようにする。 */
@@ -197,6 +198,9 @@ export function SkillDexPage({ onSelectLesson, onOpenCourse }: SkillDexPageProps
     void load(controller.signal);
     return () => controller.abort();
   }, [load]);
+
+  // 開かれているか。開かれないなら、置き場所か名前が悪い
+  useEffect(() => track(EVENTS.skillDictionaryOpened), []);
 
   return (
     <>

@@ -19,6 +19,7 @@ import {
   browserReason,
   wasCancelled,
 } from "../../api/passkeys";
+import { EVENTS, track } from "../../lib/analytics";
 import { IconCaution, IconKey } from "../Icons";
 
 export interface PasskeyPanelProps {
@@ -104,10 +105,15 @@ export function PasskeyPanel({
       */
       if (wasCancelled(error)) {
         setFailure(null);
-      } else if (error instanceof ApiError) {
-        setFailure(error.detail);
       } else {
-        setFailure(browserReason(error));
+        /*
+          やめた人は数えない。数えると「使えない端末が多い」ように
+          見えて、直す場所を取り違える。
+        */
+        if (mode === "signup") track(EVENTS.passkeyRegistrationFailed);
+        setFailure(
+          error instanceof ApiError ? error.detail : browserReason(error),
+        );
       }
     } finally {
       setBusy(false);
