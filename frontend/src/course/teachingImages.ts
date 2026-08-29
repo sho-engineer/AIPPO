@@ -223,6 +223,45 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       alt: "AI技「出力形式の指定」の図。同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できることを示したもの。",
     },
   },
+
+  /*
+    Day6「情報を整理して見やすくする」。
+
+    出る順は、レッスンの流れそのまま。
+      完成イメージ → まずそのまま整理してもらう → 情報整理
+      → 分け方を足して再実行 → 分ける前後を見比べる
+      → 自分のメモ → 分類 → 分け方を選ぶ
+      → 出力形式の指定 → 形を選ぶ
+
+    出力形式の絵は Day2・Day5 と同じ1枚を使い回す
+    ——**同じ技には同じ絵**。
+
+    この教材の本文はサーバーだけが持っている（apps/catalog/
+    release_seeding.py）。並びを見張るのは backend/tests/
+    test_day6_organize.py のほう。
+  */
+  organize_information: {
+    outcome_preview: {
+      src: "/assets/teaching/day6_overview.webp",
+      alt: "Day6「情報を整理して見やすくする」の全体図。散らばったメモをAIで表・箇条書き・カテゴリーへ変える流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+    },
+    concept_1: {
+      src: "/assets/teaching/skill_12_information_organization.webp",
+      alt: "AI技「情報整理」の図。バラバラの紙をAIに渡すと、いくつかのカテゴリに並べ直されることを示したもの。情報を減らさなくても整理すると理解しやすくなる。",
+    },
+    compare_results: {
+      src: "/assets/teaching/compare_09_organization.webp",
+      alt: "分類すると見やすくなることの図。整理前のバラバラなメモと、仕事・生活のカテゴリーに分けたあとを並べ、情報量は同じまま見つけやすさだけが変わることを示したもの。",
+    },
+    concept_classification: {
+      src: "/assets/teaching/skill_13_classification.webp",
+      alt: "AI技「分類」の図。メール・会議・旅行などが混ざった情報を、仕事と生活のグループに分ける様子を示したもの。",
+    },
+    concept_output_format: {
+      src: "/assets/teaching/skill_05_output_format.webp",
+      alt: "AI技「出力形式の指定」の図。同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できることを示したもの。",
+    },
+  },
 };
 
 /**

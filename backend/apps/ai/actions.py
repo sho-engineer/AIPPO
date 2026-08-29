@@ -357,7 +357,9 @@ ORGANIZE = Action(
     fields=(
         ActionField("original_text", "整理したい情報", max_length=5000),
         ActionField("purpose", "使う目的"),
-        ActionField("categories", "分ける見出し", max_length=500),
+        # 最初の1回は見出しを決めずに通す。分けると見やすくなることを
+        # その差で見せる回なので、ここを必須にすると最初から分け済みになる。
+        ActionField("categories", "分ける見出し", required=False, max_length=500),
         ActionField("format", "出力形式"),
         ActionField("instruction", "追加の条件", required=False),
     ),
@@ -366,7 +368,7 @@ ORGANIZE = Action(
         "次の情報を整理してください。",
         [
             ("使う目的", v["purpose"]),
-            ("分ける見出し", v["categories"]),
+            ("分ける見出し", v.get("categories", "")),
             ("出力形式", v["format"]),
             ("追加の条件", v.get("instruction", "")),
         ],

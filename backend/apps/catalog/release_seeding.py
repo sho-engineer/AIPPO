@@ -147,27 +147,24 @@ _BRAINSTORM_STEPS: list[dict[str, Any]] = [
     },
     {
         "placement": "override",
+        "step_key": "real_task_result",
+        "title": "自分のテーマの結果",
+    },
+    {
+        "placement": "override",
         "step_key": "compare_results",
         "instruction": "最初の案・条件を足したあと、を見比べます。",
         "po_message": "数と方向を伝えると、案の幅そのものが変わります。",
     },
     {
-        # 骨格の「条件を一つ足す」は文章を直す言い回し（もっと短く・
-        # もっと丁寧に）で、アイデアの束には当たらない。この回だけ
-        # 差し替えて、**数と方向性**を足す一歩にする。
+        # 選択肢そのものは `condition_options`（下の content）で差し替える。
+        # ここで直すのは言い回しだけ。
         "placement": "override",
         "step_key": "add_condition",
         "title": "案の数と方向性を足してみましょう",
         "instruction": "一度に一つだけ選ぶのがコツです。",
         "po_message": "数を増やすより、方向を散らすほうが効きます。",
         "po_emotion": "hint",
-        "options": [
-            {"value": "方向性が違う案を10個出して", "label": "方向を散らして10個"},
-            {"value": "費用をかけない案を増やして", "label": "費用をかけない案"},
-            {"value": "すぐ試せる小さい案にして", "label": "すぐ試せる小さい案"},
-            {"value": "ふだん出ないような案も混ぜて", "label": "変わった案も混ぜる"},
-            {"value": "", "label": "自分で条件を追加", "free": True},
-        ],
     },
     {
         "placement": "after_real_task",
@@ -277,6 +274,130 @@ _BRAINSTORM_STEPS: list[dict[str, Any]] = [
 ]
 
 
+#: Day6「情報を整理して見やすくする」で、自分のメモに入ったあとに聞くこと。
+#:
+#: 覚える技は3つ（情報整理・分類・出力形式の指定）。情報整理だけを骨格に
+#: 置き、残り2つは使う場面の直前へ移した。**技は、使う直前に出す。**
+#:
+#:     【分類】→ 分け方を選ぶ → 【出力形式の指定】→ 形を選ぶ → 送る
+#:
+#: 解説を2枚続けて出さない。あいだに必ず手を動かす画面が入る。
+_ORGANIZE_STEPS: list[dict[str, Any]] = [
+    {
+        # 骨格は「自分の文章」と言う。この回で入れるのは文章ではなく
+        # **散らかったメモ**なので、言い換える。画面が文章と言い、
+        # 教材の絵がメモと言う、というずれを残さない。
+        "placement": "override",
+        "step_key": "real_task_intro",
+        "title": "次は、自分のメモで試してみましょう",
+    },
+    {
+        "placement": "override",
+        "step_key": "real_task",
+        "title": "自分のメモ",
+    },
+    {
+        "placement": "override",
+        "step_key": "real_task_result",
+        "title": "自分のメモの結果",
+    },
+    {
+        # 選択肢そのものは `condition_options` で差し替える。
+        # ここで直すのは言い回しだけ。
+        "placement": "override",
+        "step_key": "add_condition",
+        "title": "分け方を足してみましょう",
+        "instruction": "一度に一つだけ選ぶのがコツです。",
+        "po_message": "情報を減らさなくても、分けるだけで見やすくなります。",
+        "po_emotion": "hint",
+    },
+    {
+        "placement": "override",
+        "step_key": "compare_results",
+        "instruction": "整理前・1回目・分けたあと、の3つを見比べます。",
+        "po_message": "情報の数は同じままです。変わったのは見つけやすさ。",
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "concept_classification",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "分類",
+        "po_message": "似ているものをまとめると、全体が見えます。",
+        "po_emotion": "neutral",
+        # 解説は必ず飛ばせる。読みたくない人を足止めしない
+        "is_skippable": True,
+        "card": {
+            "title": "分類",
+            "body": "似ている情報をグループに分けると、全体が見えやすくなります。",
+            "visual": "three_points",
+            "points": ["仕事", "生活", "そのほか"],
+            "reviewExample": {
+                "body": "分け方は一つではありません。何を探したいかで決めます。",
+                "points": ["急ぎ／あとで", "自分／人に頼む", "決まった／未定"],
+            },
+        },
+    },
+    {
+        # 専用の `categories` に置く。最初のお試しでは埋めていないので
+        # （見出しを決めずに通す回）、ここが素通りになることはない。
+        "placement": "after_real_task",
+        "step_key": "real_categories",
+        "step_type": "single_choice",
+        "phase": "own",
+        "title": "どう分けますか",
+        "po_message": "何を探したいかで、分け方を決めてください。",
+        "po_emotion": "question",
+        "input_key": "categories",
+        "is_required": True,
+        "options": [
+            {"value": "仕事と生活", "label": "仕事／生活"},
+            {"value": "急ぎとあとで", "label": "急ぎ／あとで"},
+            {"value": "自分がやることと人に頼むこと", "label": "自分／人に頼む"},
+            {"value": "決まったこととまだ決まっていないこと", "label": "決定／未定"},
+            {"value": "", "label": "そのほか", "free": True},
+        ],
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "concept_output_format",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "出力形式の指定",
+        "po_message": "答え方も指定できます。",
+        "po_emotion": "hint",
+        "is_skippable": True,
+        "card": {
+            "title": "出力形式の指定",
+            "body": "何を答えるかだけでなく、どう答えるかも指定できます。",
+            "visual": "three_points",
+            "points": ["3行で", "箇条書きで", "表で"],
+            "reviewExample": {
+                "body": "同じ中身でも、貼る先に合う形にするとそのまま使えます。",
+                "points": ["共有なら箇条書き", "比べるなら表", "報告なら3行"],
+            },
+        },
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "real_format",
+        "step_type": "single_choice",
+        "phase": "own",
+        "title": "どの形にしますか",
+        "po_message": "これで最後の質問です。",
+        "po_emotion": "question",
+        "input_key": "format",
+        "is_required": True,
+        "options": [
+            {"value": "見出しと箇条書き", "label": "見出しと箇条書き"},
+            {"value": "表", "label": "表"},
+            {"value": "番号つきの手順", "label": "番号つきの手順"},
+            {"value": "3行のまとめ", "label": "3行のまとめ"},
+        ],
+    },
+]
+
+
 ADDED_LESSONS = (
     _lesson(
         "brainstorm_ideas",
@@ -324,6 +445,15 @@ ADDED_LESSONS = (
             "quick_title": "誰に向けた企画にしますか？",
             "quick_instruction": "ひとつ選ぶと、すぐにAIが案を出します。",
             "working": "いろいろな方向の案を出しています。",
+            # 共通の選択肢（もっと短く・もっと丁寧に）は文章を直す言い回しで、
+            # 案の束には当たらない。数と方向性を足す一歩に差し替える。
+            "condition_options": [
+                {"value": "方向性が違う案を10個出して", "label": "方向を散らして10個"},
+                {"value": "費用をかけない案を増やして", "label": "費用をかけない案"},
+                {"value": "すぐ試せる小さい案にして", "label": "すぐ試せる小さい案"},
+                {"value": "ふだん出ないような案も混ぜて", "label": "変わった案も混ぜる"},
+                {"value": "", "label": "自分で条件を追加", "free": True},
+            ],
             "observation_options": [
                 {"value": "案が増えた", "label": "案が増えた"},
                 {"value": "方向がばらけた", "label": "方向がばらけた"},
@@ -363,17 +493,20 @@ ADDED_LESSONS = (
     _lesson(
         "organize_information",
         "情報を整理する",
-        "バラバラな情報を、目的に合う見出しへ分けられるようになる",
+        "バラバラな情報を、分けて見やすい形に変えられるようになる",
         "organize",
         "original_text",
-        "新機能が分かりにくい。検索は便利。料金の説明が欲しい。操作が少し難しい。",
+        "来週会議。資料修正。ホテル予約。見積確認。旅行予定。メール返信。",
         "purpose",
         [
             {"value": "チームで共有する", "label": "チームで共有"},
-            {"value": "改善案を決める", "label": "改善案を決める"},
-            {"value": "質問へ答える", "label": "質問へ答える"},
+            {"value": "自分のやることを見渡す", "label": "やることを見渡す"},
+            {"value": "抜けが無いか確かめる", "label": "抜けを確かめる"},
         ],
-        {"categories": "良い点・困りごと・要望", "format": "見出しと箇条書き"},
+        # 見出し（categories）はここに入れない。**最初の1回は分けずに通す。**
+        # 分けると見やすくなることを、その差で見せる回なので、先に
+        # 埋めてしまうと次の一歩で何も変わらない。
+        {"format": "見出しと箇条書き"},
         {
             "source_text": "original_text",
             "purpose": "purpose",
@@ -382,6 +515,70 @@ ADDED_LESSONS = (
         },
         thumbnail="/assets/final-thumbnails/start_06.webp",
         tags=["organizing", "research"],
+        content={
+            "outcome_title": "バラバラなメモを、パッと分かる形に変える",
+            "outcome_description": "似ているものをまとめて、見たい形で並べ直します。",
+            "before_example": (
+                "来週会議。資料修正。ホテル予約。見積確認。旅行予定。メール返信。"
+            ),
+            "after_example": (
+                "【仕事】\n"
+                "・来週会議\n"
+                "・資料修正\n"
+                "・見積確認\n"
+                "・メール返信\n"
+                "【生活】\n"
+                "・ホテル予約\n"
+                "・旅行予定"
+            ),
+            "learned_skills": ["情報整理", "分類", "出力形式の指定"],
+            "outcomes": ["情報を構造化できる", "パッと見て分かる形に変えられる"],
+            "quick_title": "この情報を何に使いますか？",
+            "quick_instruction": "ひとつ選ぶと、すぐにAIが整理します。",
+            "working": "情報を並べ直しています。",
+            # 共通の選択肢（もっと短く・もっと丁寧に）は文章を直す言い回しで、
+            # バラバラのメモには当たらない。分け方を足す一歩に差し替える。
+            "condition_options": [
+                {"value": "仕事と生活のカテゴリーに分けて", "label": "仕事／生活で分ける"},
+                {"value": "急ぎとあとでのカテゴリーに分けて", "label": "急ぎ／あとで分ける"},
+                {"value": "自分がやることと人に頼むことに分けて", "label": "自分／人で分ける"},
+                {"value": "", "label": "自分で分け方を追加", "free": True},
+            ],
+            "observation_options": [
+                {"value": "見つけやすくなった", "label": "見つけやすくなった"},
+                {"value": "同じ仲間がまとまった", "label": "仲間がまとまった"},
+                {"value": "抜けに気づいた", "label": "抜けに気づいた"},
+                {"value": "情報の数は同じ", "label": "情報の数は同じ"},
+                {"value": "よく分からない", "label": "よく分からない"},
+            ],
+            # 骨格が続けて出す解説は1枚だけ。残り2つは使う直前へ移した
+            # （下の _ORGANIZE_STEPS）。
+            "concept_cards": [
+                {
+                    "title": "情報整理",
+                    "body": "情報を減らさなくても、並べ直すだけで分かりやすくなります。",
+                    "visual": "three_points",
+                    "points": ["集める", "並べ直す", "見やすくなる"],
+                    "reviewExample": {
+                        "body": "捨てるのではなく、置き場所を決めるのが整理です。",
+                        "points": ["情報の数は同じ", "置き場所が決まる", "探せるようになる"],
+                    },
+                },
+            ],
+            "review_points": [
+                "元に無い内容が足されていないか",
+                "どの見出しにも入らないものが残っていないか",
+                "あとから探せる形になっているか",
+            ],
+            "real_task_label": "いま散らかっているメモを、そのまま入れてみましょう。",
+            "real_task_placeholder": "例）思いついた順に書いたやることリスト",
+            "takeaway": (
+                "分けるだけで、情報を減らさずに見やすくできることを"
+                "確かめられましたね。"
+            ),
+            "next_suggestion": "次は「AIで画像を作る」に進みましょう。",
+        },
+        step_rows=_ORGANIZE_STEPS,
     ),
     _lesson(
         "organize_meeting",
