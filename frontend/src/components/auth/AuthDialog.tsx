@@ -58,6 +58,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { ApiError } from "../../api/http";
 import { requestPasswordReset } from "../../api/accounts";
+import { verifyMfa } from "../../api/mfa";
 import { useAuth } from "../../auth/AuthContext";
 import { EVENTS, track } from "../../lib/analytics";
 import { AUTH_COPY } from "../../content/ui";
@@ -69,6 +70,14 @@ import { SocialButtons } from "./SocialButtons";
 import { IconCaution, IconKey } from "../Icons";
 
 export type AuthMode = "signup" | "signin" | "reset";
+
+/**
+ * ログインの途中で、確認コードを聞いている状態。
+ *
+ * 合言葉は合っていて、まだ入っていない。**先に入れてから聞かない**
+ * ——聞いている最中に他の画面が使えると、追加の確認の意味が無くなる。
+ */
+type SignInStep = "password" | "code";
 
 /**
  * 登録の何枚目か。
@@ -96,6 +105,9 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
 
   const [view, setView] = useState<AuthMode>(mode);
   const [step, setStep] = useState<SignUpStep>("method");
+  /* ログインの途中。合言葉が通ったあと、確認コードを聞いている */
+  const [signInStep, setSignInStep] = useState<SignInStep>("password");
+  const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -145,6 +157,8 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
     setRevealPassword(false);
     // 登録は必ず「どれで登録するか」から始める
     setStep("method");
+    setSignInStep("password");
+    setCode("");
   }, [view]);
 
   // Esc で閉じられるようにする。閉じ方が1つしかないと逃げ場がない
@@ -237,8 +251,26 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
             : AUTH_COPY.migrationLinked(migration.linked ? migration.sessions : 0),
         );
         onClose();
+      } else if (view === "signin" && signInStep === "code") {
+        /*
+          追加の確認。ここを通って初めてログインになる。
+          予備の合言葉でも通る（認証アプリを無くした人の逃げ道）。
+        */
+        const result = await verifyMfa(code);
+        await auth.finishSignIn();
+        onDone?.(
+          result.recovery_used
+            ? `ログインしました。予備の合言葉を1つ使いました（残り${result.recovery_codes_left}個）。`
+            : "ログインしました。続きから始められます。",
+        );
+        onClose();
       } else if (view === "signin") {
-        await auth.signIn(email, password);
+        const { mfaRequired } = await auth.signIn(email, password);
+        if (mfaRequired) {
+          // まだ入っていない。コードを聞く画面へ
+          setSignInStep("code");
+          return;
+        }
         onDone?.("ログインしました。続きから始められます。");
         onClose();
       } else {
@@ -278,28 +310,35 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
     }
   }
 
-  const title = {
-    signup: AUTH_COPY.signUpTitle,
-    signin: AUTH_COPY.signInTitle,
-    reset: AUTH_COPY.resetTitle,
-  }[view];
+  const title =
+    view === "signin" && signInStep === "code"
+      ? AUTH_COPY.mfaTitle
+      : {
+          signup: AUTH_COPY.signUpTitle,
+          signin: AUTH_COPY.signInTitle,
+          reset: AUTH_COPY.resetTitle,
+        }[view];
 
   /* 登録は画面ごとに前置きが変わる。いま何を聞かれているかを毎回書く */
   const lead =
-    view === "signup"
+    view === "signin" && signInStep === "code"
+      ? AUTH_COPY.mfaLead
+      : view === "signup"
       ? {
           method: AUTH_COPY.signUpLead,
           password: AUTH_COPY.passwordStepLead,
           passkey: AUTH_COPY.passkeyStepLead,
         }[step]
-      : { signin: AUTH_COPY.signInLead, reset: AUTH_COPY.resetLead }[view];
+        : { signin: AUTH_COPY.signInLead, reset: AUTH_COPY.resetLead }[view];
 
   const submitLabel =
-    view === "signup"
-      ? step === "method"
-        ? AUTH_COPY.continueWithEmail
-        : AUTH_COPY.submitSignUp
-      : { signin: AUTH_COPY.submitSignIn, reset: AUTH_COPY.submitReset }[view];
+    view === "signin" && signInStep === "code"
+      ? AUTH_COPY.mfaSubmit
+      : view === "signup"
+        ? step === "method"
+          ? AUTH_COPY.continueWithEmail
+          : AUTH_COPY.submitSignUp
+        : { signin: AUTH_COPY.submitSignIn, reset: AUTH_COPY.submitReset }[view];
 
   /** 登録が済んだときの後始末。3つの道で同じことをする。 */
   async function finish(message: string) {
@@ -361,7 +400,9 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
           ログインでは、パスキーを一番上に置く。打つものが何も無いので、
           条件も前置きも要らない——押せばそれで終わる。
         */}
-        {view === "signin" && <PasskeyPanel mode="signin" disabled={busy} onDone={finish} />}
+        {view === "signin" && signInStep === "password" && (
+          <PasskeyPanel mode="signin" disabled={busy} onDone={finish} />
+        )}
 
         {/*
           登録の1枚目。ここで道を選ぶ。
@@ -427,8 +468,12 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
         )}
 
         <form className="mt-5 space-y-4" onSubmit={submit} noValidate>
-          {/* パスワードの画面だけは、メールアドレスを上に出してある */}
-          {!(view === "signup" && step === "password") && (
+          {/*
+            確認コードの画面では、メールもパスワードも出さない。
+            もう通っているものを、もう一度見せる理由が無い。
+          */}
+          {!(view === "signup" && step === "password") &&
+            !(view === "signin" && signInStep === "code") && (
             <div>
               <label htmlFor={`${ids}-email`} className="text-sm font-bold">
                 {AUTH_COPY.email}
@@ -454,7 +499,42 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
             </div>
           )}
 
-          {view === "signin" && (
+          {view === "signin" && signInStep === "code" && (
+            <div>
+              <label htmlFor={`${ids}-code`} className="text-sm font-bold">
+                {AUTH_COPY.mfaCode}
+              </label>
+              <input
+                id={`${ids}-code`}
+                type="text"
+                value={code}
+                /*
+                  携帯の自動入力に任せる。手で打つ人には数字の並びを出す。
+                  予備の合言葉（英数字）も同じ欄に入るので、
+                  `inputMode` は numeric に固定しない。
+                */
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={20}
+                aria-describedby={fieldError("code") ? `${ids}-code-error` : undefined}
+                aria-invalid={Boolean(fieldError("code"))}
+                onChange={(event) => setCode(event.target.value)}
+                data-testid="auth-mfa-code"
+                className={`${FIELD} tracking-[0.3em]`}
+              />
+              {fieldError("code") && (
+                <p
+                  id={`${ids}-code-error`}
+                  data-testid="auth-mfa-error"
+                  className="mt-1 text-xs text-caution"
+                >
+                  {fieldError("code")}
+                </p>
+              )}
+            </div>
+          )}
+
+          {view === "signin" && signInStep === "password" && (
             <PasswordField
               id={`${ids}-password`}
               label={AUTH_COPY.password}
@@ -578,7 +658,9 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
         )}
 
         {/* ログインでは今までどおり下に置く。再設定では出さない */}
-        {view === "signin" && <SocialButtons disabled={busy} />}
+        {view === "signin" && signInStep === "password" && (
+          <SocialButtons disabled={busy} />
+        )}
 
         {/* 2枚目からは、まず戻り道を出す。行き止まりを作らない */}
         {view === "signup" && step !== "method" && (

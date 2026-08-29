@@ -255,3 +255,78 @@ class Passkey(models.Model):
     def __str__(self) -> str:
         who = self.user.email or self.user.username
         return f"{self.label or 'パスキー'} → {who}"
+
+
+class TotpDevice(models.Model):
+    """認証アプリ（TOTP）。1人につき1つ。
+
+    なぜ全員に強いないか
+    --------------------
+    一般向けの学習サービスなので、登録の時点で全員に求めると、
+    そこで止まる人のほうが多い。入れたい人が設定から入れる形にする
+    （要件 P2）。
+
+    確かめるまでは「入っていない」扱い
+    ----------------------------------
+    秘密を作った時点では、その人のアプリに本当に登録できたかが
+    分からない。**1回コードを通してから**有効にする。ここを飛ばすと、
+    アプリに入れ損ねた人が次のログインで締め出される。
+
+    同じコードを二度使わせない
+    --------------------------
+    `last_used_counter` に、通した30秒の番号を残す。盗み見た人が
+    同じ30秒のうちに入れても通らない。
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, related_name="totp", on_delete=models.CASCADE
+    )
+    #: base32 の秘密。**画面へ返すのは登録の途中だけ**
+    secret = models.CharField(max_length=64)
+    #: 1回コードを通した日時。null なら、まだ有効ではない
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    #: 最後に通したコードの30秒番号。二度使いを防ぐ
+    last_used_counter = models.BigIntegerField(default=-1)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "認証アプリ"
+        verbose_name_plural = "認証アプリ"
+
+    def __str__(self) -> str:
+        state = "有効" if self.confirmed_at else "設定中"
+        return f"{self.user.email or self.user.username}（{state}）"
+
+    @property
+    def is_active(self) -> bool:
+        return self.confirmed_at is not None
+
+
+class RecoveryCode(models.Model):
+    """予備の合言葉。認証アプリを無くしたときの逃げ道。
+
+    無いと、端末を替えた人が**自分のアカウントから締め出される**。
+    2段階認証を入れる以上、これは付属品ではなく必須の片割れ。
+
+    平文では持たない
+    ----------------
+    保存するのはハッシュだけ。渡すのは作った1回きりで、画面から
+    離れたら二度と出さない（`used_at` が入ったものは使えない）。
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, related_name="recovery_codes", on_delete=models.CASCADE
+    )
+    code_hash = models.CharField(max_length=128)
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "予備の合言葉"
+        verbose_name_plural = "予備の合言葉"
+        ordering = ("created_at",)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "code_hash"], name="uniq_recovery_code"
+            )
+        ]

@@ -20,6 +20,7 @@ import { SettingsGroup } from "./Controls";
 import { changePassword, deleteAccount } from "../../api/accounts";
 import { ApiError } from "../../api/http";
 import { useAuth } from "../../auth/AuthContext";
+import { MfaGroup } from "./MfaGroup";
 import { PasskeyGroup } from "./PasskeyGroup";
 import { AUTH_COPY } from "../../content/ui";
 
@@ -111,8 +112,15 @@ export function AccountPanel({ onOpenAuth, onNotice }: AccountPanelProps) {
         </SettingsGroup>
       </Card>
 
+      {/*
+        入り方の設定は1枚にまとめる。
+
+        パスキーと2段階認証は、どちらも「どうやって本人だと分かるか」の
+        話なので、離して置くと片方だけ見て帰ることになる。
+      */}
       <Card className="mt-5" padded={false}>
         <PasskeyGroup onNotice={onNotice} />
+        <MfaGroup onNotice={onNotice} />
       </Card>
 
       <DeleteGroup onNotice={onNotice} />

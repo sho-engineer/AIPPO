@@ -2,6 +2,13 @@
 
 from django.urls import path
 
+from apps.accounts.mfa import (
+    MfaConfirmView,
+    MfaDisableView,
+    MfaSetupView,
+    MfaStateView,
+    MfaVerifyView,
+)
 from apps.accounts.passkey_views import (
     PasskeyDeleteView,
     PasskeyListView,
@@ -37,6 +44,13 @@ urlpatterns = [
     path("signup/", SignUpView.as_view(), name="accounts-signup"),
     path("signin/", SignInView.as_view(), name="accounts-signin"),
     path("signout/", SignOutView.as_view(), name="accounts-signout"),
+    # 2段階認証（認証アプリ）。入れたい人だけが設定から入れる
+    path("mfa/", MfaStateView.as_view(), name="accounts-mfa"),
+    path("mfa/setup/", MfaSetupView.as_view(), name="accounts-mfa-setup"),
+    path("mfa/confirm/", MfaConfirmView.as_view(), name="accounts-mfa-confirm"),
+    path("mfa/disable/", MfaDisableView.as_view(), name="accounts-mfa-disable"),
+    # ログインの続き。合言葉が合っていた人だけがここへ来る
+    path("mfa/verify/", MfaVerifyView.as_view(), name="accounts-mfa-verify"),
     # 画面が開くたびに見る。ログイン状態と進み具合
     path("me/", MeView.as_view(), name="accounts-me"),
     path("profile/", ProfileView.as_view(), name="accounts-profile"),

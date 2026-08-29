@@ -34,6 +34,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts import emails
+from apps.accounts.mfa import device_is_trusted, mfa_is_required, start_pending
 from apps.accounts.migration import (
     MIGRATION_COMPLETED,
     MIGRATION_FAILED,
@@ -263,6 +264,20 @@ class SignInView(APIView):
                 },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+
+        """
+        2段階認証を入れている人は、ここではまだ入れない。
+
+        **先にログインさせてから聞かない。** 聞いている最中に他の画面が
+        使えてしまうと、追加の確認の意味が無くなる。
+
+        毎回は聞かない。1度通した端末は30日おぼえてあり、その間は
+        そのまま入れる（`apps/accounts/mfa.py`）。毎回聞くと、
+        入れた人ほど毎日面倒になり、切る方向に働く。
+        """
+        if mfa_is_required(user) and not device_is_trusted(request, user):
+            clear_attempts("signin", request, email)
+            return start_pending(request, user)
 
         login(request, user)
         # 入れた人の数えは消す。打ち間違いを数回した人が、

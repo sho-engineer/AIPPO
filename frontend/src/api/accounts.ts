@@ -69,10 +69,19 @@ export function signUp(
   });
 }
 
-export function signIn(
-  email: string,
-  password: string,
-): Promise<{ user: AccountUser }> {
+/**
+ * ログインの返事。
+ *
+ * 2段階認証を入れている人には、**まだ入れていない**返事が来る
+ * （`mfa_required`）。合言葉は合っていたが、追加の確認が残っている。
+ * ここでログインしたことにすると、聞いている最中に他の画面が使える。
+ */
+export interface SignInResult {
+  user?: AccountUser;
+  mfa_required?: boolean;
+}
+
+export function signIn(email: string, password: string): Promise<SignInResult> {
   return sendJson(`${BASE}/signin/`, { email: email.trim(), password });
 }
 

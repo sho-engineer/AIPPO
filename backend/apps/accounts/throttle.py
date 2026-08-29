@@ -100,11 +100,15 @@ def rules() -> dict[str, Rule]:
     - 登録    … 宛先という概念が無い（毎回ちがうメールアドレス）ので
                  接続元だけ。1時間に10回。研修で数人まとめて登録する場面を
                  通しつつ、機械的な大量作成は当たる
+    - 2段階   … **いちばん狭くする。** 6桁は当てられる短さで、
+                 100万通りを15分で回されると当たってしまう。
+                 打ち間違いと時計のずれで数回は要るので、10回で切る
     """
     return {
         "signin": _rule("signin", source=30, target=10, window=15 * 60),
         "password_reset": _rule("password_reset", source=20, target=5, window=60 * 60),
         "signup": _rule("signup", source=10, target=0, window=60 * 60),
+        "mfa": _rule("mfa", source=20, target=10, window=15 * 60),
     }
 
 
