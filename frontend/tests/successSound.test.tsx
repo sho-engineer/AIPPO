@@ -248,3 +248,51 @@ describe("音と文字の関係", () => {
     expect(started).toHaveLength(0);
   });
 });
+
+describe("鳴らす場面", () => {
+  /**
+   * 音を出す場面は6つ（要件 P1-1）。
+   *
+   *     1歩進んだ / AIの返事が届いた / AI技をおぼえた /
+   *     レッスンを終えた / コースの節目 / コース完走
+   *
+   * 常時鳴らさない。既定は切のまま。
+   *
+   * 場面ごとに**長さ**で差を付ける。高さを大きく変えると、どれかが
+   * 目立って「そこだけ大事」に見える。
+   */
+  it("場面ごとに、鳴らす音が違う", async () => {
+    const { previewSuccessSound, resetAudioForTest } = await import(
+      "../src/course/sound"
+    );
+    resetAudioForTest();
+
+    const played = stubAudio();
+
+    previewSuccessSound("step");
+    const step = played.length;
+    played.length = 0;
+
+    previewSuccessSound("milestone");
+    const milestone = played.length;
+
+    // コースの節目のほうが長い（音の数が多い）
+    expect(milestone).toBeGreaterThan(step);
+  });
+
+  it("切っていれば、どの場面でも鳴らない", async () => {
+    const { playSuccessSound, resetAudioForTest } = await import(
+      "../src/course/sound"
+    );
+    resetAudioForTest();
+    window.localStorage.clear();
+
+    const played = stubAudio();
+
+    for (const cue of ["step", "result", "skill", "complete", "milestone"] as const) {
+      playSuccessSound(cue);
+    }
+
+    expect(played).toHaveLength(0);
+  });
+});

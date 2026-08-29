@@ -268,6 +268,22 @@ export interface LearningEventInput {
  *
  * 本文は送らない。文字数のみ（設計判断 Q-2）。
  */
+/**
+ * レッスンを終えたときに、サーバーが返してくるもの。
+ *
+ * 何が増えたかは**サーバーが決める**（設計方針 §36）。画面で数えると
+ * 必ず食い違うので、増えた分をそのまま受け取って出す。
+ * やり直しでは中身が空になる——祝う材料が無い回に演出を出さない。
+ */
+export interface LessonAward {
+  /** 新しく覚えたAI技の slug。表示名は図鑑が持っている */
+  skills: string[];
+  /** 増えたXP。0 なら増えていない */
+  xp: number;
+  /** 節目に届いたなら、その本数。届いていなければ null */
+  checkpoint: number | null;
+}
+
 export async function sendLearningEvent(
   input: LearningEventInput,
 ): Promise<boolean> {
@@ -338,5 +354,31 @@ export async function sendSurvey(
     return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * レッスンを終えたことを送り、増えた分を受け取る。
+ *
+ * 失敗しても学習は終わっている。祝いの材料が無いだけなので、
+ * 例外は投げずに null を返す。
+ */
+export async function completeLesson(
+  lessonId: string,
+  step: string,
+): Promise<LessonAward | null> {
+  try {
+    const body = await request<{ awarded?: LessonAward }>("/api/learning-events/", {
+      method: "POST",
+      body: JSON.stringify({
+        lesson_id: lessonId,
+        event_type: "lesson_completed",
+        step,
+        completed: true,
+      }),
+    });
+    return body?.awarded ?? null;
+  } catch {
+    return null;
   }
 }

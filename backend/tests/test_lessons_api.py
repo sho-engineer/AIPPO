@@ -405,7 +405,8 @@ def test_lesson_completes_with_stub_provider(
             {"lesson_id": LESSON_ID, "event_type": "lesson_completed", "completed": True},
             format="json",
         ).status_code
-        == 204
+        # 終えた回だけ、何が増えたかを返す（204 ではない）
+        == 200
     )
 
     assert Attempt.objects.count() == 4

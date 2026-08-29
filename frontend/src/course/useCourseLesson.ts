@@ -17,9 +17,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { generate, AiRequestError, type AiUsage } from "../api/ai";
-import { sendLearningEvent } from "../api/lesson";
+import { completeLesson, sendLearningEvent, type LessonAward } from "../api/lesson";
 import { missionStateOf, type MissionState } from "./missions";
 import { rememberForReview } from "./review";
+import { playSuccessSound } from "./sound";
 import {
   clearDraft,
   countRealTask,
@@ -62,6 +63,12 @@ export interface CourseLessonApi {
   values: StepValues;
   po: PoMessage;
   runs: RunRecord[];
+  /**
+   * 終えたときに増えた分。終える前と、届かなかったときは null。
+   *
+   * 完了画面はこれで「新しく覚えた技」と「増えたXP」を出す。
+   */
+  award: LessonAward | null;
   progress: { current: number; total: number };
   /** レッスンの中の区切り（ミッション）と、いまどこにいるか。 */
   missions: MissionState;
@@ -152,6 +159,8 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
   const [findings, setFindings] = useState<PrivacyFinding[]>([]);
   const [hintIndex, setHintIndex] = useState(0);
   const [realTaskSkipped, setRealTaskSkipped] = useState(false);
+  /* 終えたときに増えた分。サーバーが決める（画面では数えない） */
+  const [award, setAward] = useState<LessonAward | null>(null);
   const [restored, setRestored] = useState(false);
 
   /**
@@ -412,6 +421,15 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
         });
         if (mine !== generation.current) return "busy" as const;
 
+        /*
+          AIの返事が届いた。既定は無音で、入れた人にだけ短く1音。
+
+          いちばん待たされる場面なので、届いたことが画面を見ていない
+          人にも分かるようにする。文字（結果そのもの）は必ず出るので、
+          音はその上乗せ。
+        */
+        playSuccessSound("result");
+
         setRuns((current) => [
           ...current,
           {
@@ -525,17 +543,18 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
 
   const complete = useCallback(() => {
     markCompleted(lesson.id);
-    void sendLearningEvent({
-      lessonId: lesson.id,
-      eventType: "lesson_completed",
-      step: stepId,
-      completed: true,
-    });
+    /*
+      何が増えたかはサーバーが決める（設計方針 §36）。
+      画面で数えると必ず食い違うので、返ってきた分をそのまま出す。
+      届かなくても学習は終わっている——祝いの材料が無いだけ。
+    */
+    void completeLesson(lesson.id, stepId).then(setAward);
     clearDraft(lesson.id);
   }, [lesson.id, stepId]);
 
   const restart = useCallback(() => {
     clearDraft(lesson.id);
+    setAward(null);
     setValues({});
     setRuns([]);
     setRealTaskSkipped(false);
@@ -547,6 +566,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     values,
     po,
     runs,
+    award,
     progress: progressOf(lesson, stepId),
     missions: missionStateOf(lesson, progressOf(lesson, stepId).current - 1),
     summary: summaryOf(lesson, stepId, values),

@@ -20,6 +20,7 @@
 import { useEffect, useState } from "react";
 
 import { prefersReducedMotion } from "../../course/motion";
+import { playSuccessSound } from "../../course/sound";
 
 /** 紙の数。少ないほうが品よく収まる。 */
 const PIECES = 12;
@@ -32,6 +33,14 @@ const SPREAD = [-38, -30, -22, -14, -6, 2, 10, 18, 26, 34, 42, 48];
 
 export function LessonCelebration() {
   const [alive, setAlive] = useState(false);
+
+  /*
+    音は、動きを止めている人にも鳴らす。
+
+    「動きを減らす」は目に入る動きの話で、音の設定とは別のつまみ。
+    音そのものは設定（設定 → 音）で切ってあれば鳴らない。
+  */
+  useEffect(() => playSuccessSound("complete"), []);
 
   useEffect(() => {
     if (prefersReducedMotion()) return;

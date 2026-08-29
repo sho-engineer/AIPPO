@@ -458,6 +458,7 @@ export function StepRenderer({
           onSelectLesson={onSelectLesson}
           onOpenCourseCatalog={onOpenCourseCatalog}
           onOpenRecipe={onOpenRecipe}
+          award={api.award}
         />
       );
 

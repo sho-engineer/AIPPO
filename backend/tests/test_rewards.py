@@ -324,7 +324,8 @@ class TestLessonCompletionIntegration:
             {"lesson_id": lesson.slug, "event_type": "lesson_completed", "completed": True},
         )
 
-        assert response.status_code == 204
+        # 終えた回は、何が増えたかを返す（204 ではない）
+        assert response.status_code == 200
         assert UserStamp.objects.filter(learner_key=key).count() == 1
         # ゲストのままではCreditは渡らない（account が要る）
         assert CreditTransaction.objects.count() == 0
@@ -345,7 +346,8 @@ class TestLessonCompletionIntegration:
             {"lesson_id": lesson.slug, "event_type": "lesson_completed", "completed": True},
         )
 
-        assert response.status_code == 204
+        # 終えた回は、何が増えたかを返す（204 ではない）
+        assert response.status_code == 200
         assert UserStamp.objects.count() == 1
         assert CreditTransaction.objects.filter(user=user).count() == 1
         assert wallet_for(user).balance == 2

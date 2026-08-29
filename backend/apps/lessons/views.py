@@ -226,19 +226,32 @@ class LearningEventView(_SessionMixin, APIView):
         )
 
         if session is not None and data["event_type"] == LearningEventType.LESSON_COMPLETED:
-            self._complete(request, session)
+            """
+            終えた回だけ、**何が増えたか**を返す。
+
+            画面はこれで「新しく覚えた技」と「増えたXP」を出す。
+            画面側で数えさせない——技もXPも節目も判定はサーバーがしていて
+            （設計方針 §36）、画面が別に数えると必ず食い違う。
+
+            やり直しでは中身が空になる。祝う材料が無い回に演出を出さない
+            ためで、「増えなかった」を画面が言い分けられる。
+            """
+            return Response({"awarded": self._complete(request, session)})
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def _complete(self, request: Request, session: LearningSession) -> None:
+    def _complete(self, request: Request, session: LearningSession) -> dict[str, object]:
         session.completed_at = timezone.now()
         session.current_step = "COMPLETE"
         session.save(update_fields=["completed_at", "current_step", "updated_at"])
 
-        self._award_skills_and_xp(request, session)
+        awarded = self._award_skills_and_xp(request, session)
         self._award_stamps_and_rewards(request, session)
+        return awarded
 
-    def _award_skills_and_xp(self, request: Request, session: LearningSession) -> None:
+    def _award_skills_and_xp(
+        self, request: Request, session: LearningSession
+    ) -> dict[str, object]:
         """このレッスンで習得できるAI技を付け、XPを足す。
 
         前はレッスンに関係なく固定の4つを付けていた。どのレッスンを
@@ -287,6 +300,14 @@ class LearningEventView(_SessionMixin, APIView):
         """
         if gained > 0:
             self._log(session, LearningEventType.XP_EARNED, gained)
+
+        return {
+            # 名前ではなく slug を返す。表示名は図鑑が持っている
+            "skills": acquired,
+            "xp": gained,
+            #: 節目に届いたなら、その本数。届いていなければ None
+            "checkpoint": reached,
+        }
 
     @staticmethod
     def _log(session: LearningSession, event_type: str, amount: int = 0) -> None:

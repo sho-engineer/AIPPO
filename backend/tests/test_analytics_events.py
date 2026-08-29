@@ -116,7 +116,7 @@ class TestWhatTheServerDecides:
                 },
                 format="json",
             ).status_code
-            == 204
+            == 200
         )
 
     def test_skill_and_xp_are_recorded_by_the_server(self, api_client):

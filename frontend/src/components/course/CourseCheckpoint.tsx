@@ -20,10 +20,13 @@
  * 残す——使い道がまだ無いものを獲得の報告にしない（憲章 原則 I）。
  */
 
+import { useEffect } from "react";
+
 import { Card } from "../AppShell";
 import { PoAvatar } from "../../po/PoAvatar";
 import { IconCheck } from "../Icons";
 import { startableLessons } from "../../course/availability";
+import { playSuccessSound } from "../../course/sound";
 import type { Course } from "../../course/types";
 
 export interface CourseCheckpointProps {
@@ -63,6 +66,9 @@ export function CourseCheckpoint({
   rewardLabel,
 }: CourseCheckpointProps) {
   const outcomes = outcomesSoFar(course, completedIds);
+
+  // 節目にだけ、いちばん長い音。1本ごとの完了音とは別のものだと分かる
+  useEffect(() => playSuccessSound("milestone"), []);
 
   return (
     <Card testId="course-checkpoint">

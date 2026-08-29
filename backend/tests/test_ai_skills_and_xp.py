@@ -205,7 +205,8 @@ class TestFinishingALessonThroughTheApi:
             },
             format="json",
         )
-        assert response.status_code == 204
+        # 終えた回は、何が増えたかを返す
+        assert response.status_code == 200
 
     def test_skills_and_xp_are_awarded(self, api_client):
         lesson = _lesson("rewrite_text")
@@ -469,7 +470,8 @@ class TestCourseCheckpoints:
             },
             format="json",
         )
-        assert response.status_code == 204
+        # 終えた回は、何が増えたかを返す
+        assert response.status_code == 200
 
     def test_it_arrives_after_three(self, api_client):
         course, _ = Course.objects.get_or_create(slug="c1", defaults={"title": "c1"})

@@ -14,6 +14,8 @@ import { useEffect, useState } from "react";
 import { Card, CardHeading, IconBadge } from "../../AppShell";
 import { SaveProgressCard } from "../../auth/SaveProgressCard";
 import { CourseCheckpoint } from "../CourseCheckpoint";
+import { LessonAwardCard } from "../LessonAwardCard";
+import { playSuccessSound } from "../../../course/sound";
 import { KeepArtifactButton } from "../KeepArtifactButton";
 import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
@@ -35,6 +37,7 @@ import {
   IconStar,
 } from "../../Icons";
 import type { Course } from "../../../course/types";
+import type { LessonAward } from "../../../api/lesson";
 
 // ------------------------------------------------------------- 完了画面
 
@@ -78,6 +81,7 @@ export function CompletionView({
   onSelectLesson,
   onOpenCourseCatalog,
   onOpenRecipe,
+  award = null,
 }: {
   /** スタンプの絵と、節目の中身を決めるのに使う。 */
   course: Course;
@@ -103,6 +107,12 @@ export function CompletionView({
   onOpenCourseCatalog?: () => void;
   /** 「やり方をくわしく見る」を押したとき。 */
   onOpenRecipe?: (tipId: string) => void;
+  /**
+   * 終えたときに増えた分（XPとAI技）。サーバーが決める。
+   *
+   * 無い回（やり直し・届かなかったとき）は、その節ごと出さない。
+   */
+  award?: LessonAward | null;
 }) {
   /*
     このレッスンで、新しく超えた節目。
@@ -115,6 +125,16 @@ export function CompletionView({
   */
   const crossed = milestonesCrossed(course, done - 1, done);
   const courseComplete = done >= total && total > 0;
+
+  /*
+    コースを完走した回だけ、節目と同じ長い音を鳴らす。
+
+    節目のまとめ（CourseCheckpoint）は完走の回には出さないので、
+    ここで鳴らさないと、いちばん大きな回だけ音が短くなる。
+  */
+  useEffect(() => {
+    if (courseComplete) playSuccessSound("milestone");
+  }, [courseComplete]);
 
   /*
     節目のまとめに、**いま終えた1本**を必ず含める。
@@ -133,6 +153,14 @@ export function CompletionView({
     */
     <div data-testid="completion-view" className="relative space-y-4">
       <LessonCelebration />
+
+      {/*
+        並びは 祝う → XP → AI技 → 成果物。
+        数の前に祝いを置き、数のあとに持ち帰れるものを置く。
+        数字で終わらせない。
+      */}
+      <LessonAwardCard award={award} />
+
       <Card>
         <CardHeading icon={IconStar} tone="plain">
           スキルを身につけました
