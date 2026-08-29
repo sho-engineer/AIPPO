@@ -472,6 +472,11 @@ const LESSON_3: Lesson = {
         style: "style",
         example: "example",
         length: "length",
+        /*
+          聞き返しの一言。空なら依頼文に出ない（apps/ai/actions.py の
+          `_line` が空の項目を落とす）ので、答えなくても通る。
+        */
+        followup: "instruction",
       },
     },
     sampleText: "サブスクリプション",
@@ -496,24 +501,29 @@ const LESSON_3: Lesson = {
       { value: "短くなった", label: "短くなった" },
       { value: "よく分からない", label: "よく分からない" },
     ],
+    /*
+      骨格が続けて出す解説は**1枚だけ**にしてある。
+
+      覚える技は3つ（ターゲット指定・ロール指定・追加質問）で、残り2つは
+      それを実際に使う場面の直前へ移した（下の realTaskSteps）。
+      **技は、使う直前に出す。**
+
+      外した2枚
+      ----------
+      「例えを頼む」… 直後の比較で、身近な例を足した結果をそのまま見る。
+      並べて見たあとに同じことを言うと、二度読ませることになる。
+      「確かめる場所」… `factCheck` を立ててあるので、結果を見る画面が
+      毎回そのことを出す。解説でも言うと1レッスンに4枚並ぶ。
+    */
     conceptCards: [
       {
-        title: "相手を決める",
+        title: "ターゲット指定",
         body: "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
         visual: "highlight",
         highlight: "小学生でも分かるように",
-      },
-      {
-        title: "例えを頼む",
-        body: "身近なものに置きかえてもらうと、初めての言葉でも掴めます。",
-        visual: "before_after",
-        before: "定額制の役務提供契約です。",
-        after: "雑誌の定期購読と同じ仕組みです。",
-      },
-      {
-        title: "確かめる場所",
-        body: "AIは知らないことも書きます。数字・日付・固有名詞は自分で確認します。",
-        visual: "text",
+        reviewExample: {
+          body: "身近なものに置きかえてもらうと、初めての言葉でも掴めます。",
+        },
       },
     ],
     reviewPoints: [
@@ -540,18 +550,84 @@ const LESSON_3: Lesson = {
         ],
       },
       {
+        id: "concept_role",
+        type: "concept_card",
+        phase: "own",
+        title: "ロール指定",
+        poMessage: "どんな立場で答えてほしいかを伝えられます。",
+        poEmotion: "neutral",
+        // 解説は必ず飛ばせる。読みたくない人を足止めしない
+        skippable: true,
+        card: {
+          title: "ロール指定",
+          body: "「先生として」「IT担当者として」と立場を伝えると、説明の寄せ方が変わります。",
+          visual: "three_points",
+          points: ["先生", "IT担当者", "詳しい友だち"],
+          reviewExample: {
+            body: "同じことでも、誰の口から聞くかで届き方が変わります。",
+            points: ["先生なら順を追って", "実務なら手順から", "友だちなら要点だけ"],
+          },
+        },
+      },
+      {
+        /*
+          「どう説明してもらうか」を、立場の指定に作り替えた。
+
+          直前で「これがロール指定」と言っておきながら、それを使う場面が
+          どこにも無い、という形にしないため。選ぶ言葉をそのまま
+          「説明のしかた」としてAIへ渡す（依頼文に立場が乗る）。
+        */
         id: "real_style",
         type: "single_choice",
-        title: "どう説明してもらいますか",
-        poMessage: "これで最後の質問です。",
+        title: "どんな立場で説明してもらいますか",
+        poMessage: "立場を伝えると、説明の寄せ方が変わります。",
         poEmotion: "question",
         key: "style",
         required: true,
         options: [
-          { value: "例えを使う", label: "例えを使う" },
-          { value: "順番に説明する", label: "順番に説明する" },
-          { value: "ひとことで言う", label: "ひとことで言う" },
+          { value: "先生として、順を追って教えるように", label: "先生として" },
+          { value: "IT担当者として、実務に寄せて", label: "IT担当者として" },
+          { value: "詳しい友だちとして、くだけた言葉で", label: "詳しい友だちとして" },
           { value: "", label: "そのほか", free: true },
+        ],
+      },
+      {
+        id: "concept_followup",
+        type: "concept_card",
+        phase: "own",
+        title: "追加質問",
+        poMessage: "分からないまま終わらず、聞き返して大丈夫です。",
+        poEmotion: "hint",
+        skippable: true,
+        card: {
+          title: "追加質問",
+          body: "一度で分からなくても、聞き返しながら近づけていけます。",
+          visual: "simple_flow",
+          points: ["答えを読む", "分からない所を言う", "もう一度もらう"],
+          reviewExample: {
+            body: "「もっと簡単に」「具体例を出して」の一言で十分です。",
+            points: ["もっと簡単に", "具体例を出して", "一言でまとめて"],
+          },
+        },
+      },
+      {
+        /*
+          聞き返しの一言。**答えなくても進める**（required にしない）。
+
+          いまのレッスンは1往復で終わるので、聞き返しは送る前に
+          添える形にしてある。空なら依頼文に出ない。
+        */
+        id: "real_followup",
+        type: "single_choice",
+        title: "追加でお願いしたいことはありますか",
+        poMessage: "これで最後です。無ければ「追加はしない」で進めます。",
+        poEmotion: "question",
+        key: "followup",
+        options: [
+          { value: "もっと簡単な言葉で", label: "もっと簡単に" },
+          { value: "具体例をもう一つ足して", label: "具体例をもう1つ" },
+          { value: "最後に一言でまとめて", label: "一言でまとめて" },
+          { value: "", label: "追加はしない" },
         ],
       },
     ],

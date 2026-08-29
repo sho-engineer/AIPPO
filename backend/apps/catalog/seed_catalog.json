@@ -1125,7 +1125,8 @@
               "audience": "audience",
               "style": "style",
               "example": "example",
-              "length": "length"
+              "length": "length",
+              "followup": "instruction"
             }
           },
           "meta": {
@@ -1152,7 +1153,8 @@
               "audience": "audience",
               "style": "style",
               "example": "example",
-              "length": "length"
+              "length": "length",
+              "followup": "instruction"
             }
           }
         },
@@ -1200,45 +1202,18 @@
           "id": "concept_1",
           "type": "concept_card",
           "phase": "try",
-          "title": "相手を決める",
+          "title": "ターゲット指定",
           "poMessage": "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
           "poEmotion": "neutral",
           "skippable": true,
           "card": {
-            "title": "相手を決める",
+            "title": "ターゲット指定",
             "body": "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
             "visual": "highlight",
-            "highlight": "小学生でも分かるように"
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "例えを頼む",
-          "poMessage": "身近なものに置きかえてもらうと、初めての言葉でも掴めます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "例えを頼む",
-            "body": "身近なものに置きかえてもらうと、初めての言葉でも掴めます。",
-            "visual": "before_after",
-            "before": "定額制の役務提供契約です。",
-            "after": "雑誌の定期購読と同じ仕組みです。"
-          }
-        },
-        {
-          "id": "concept_3",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "確かめる場所",
-          "poMessage": "AIは知らないことも書きます。数字・日付・固有名詞は自分で確認します。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "確かめる場所",
-            "body": "AIは知らないことも書きます。数字・日付・固有名詞は自分で確認します。",
-            "visual": "text"
+            "highlight": "小学生でも分かるように",
+            "reviewExample": {
+              "body": "身近なものに置きかえてもらうと、初めての言葉でも掴めます。"
+            }
           }
         },
         {
@@ -1389,30 +1364,110 @@
           ]
         },
         {
+          "id": "concept_role",
+          "type": "concept_card",
+          "phase": "own",
+          "title": "ロール指定",
+          "poMessage": "どんな立場で答えてほしいかを伝えられます。",
+          "poEmotion": "neutral",
+          "card": {
+            "title": "ロール指定",
+            "body": "「先生として」「IT担当者として」と立場を伝えると、説明の寄せ方が変わります。",
+            "visual": "three_points",
+            "points": [
+              "先生",
+              "IT担当者",
+              "詳しい友だち"
+            ],
+            "reviewExample": {
+              "body": "同じことでも、誰の口から聞くかで届き方が変わります。",
+              "points": [
+                "先生なら順を追って",
+                "実務なら手順から",
+                "友だちなら要点だけ"
+              ]
+            }
+          },
+          "skippable": true
+        },
+        {
           "id": "real_style",
           "type": "single_choice",
-          "title": "どう説明してもらいますか",
-          "poMessage": "これで最後の質問です。",
+          "title": "どんな立場で説明してもらいますか",
+          "poMessage": "立場を伝えると、説明の寄せ方が変わります。",
           "poEmotion": "question",
           "key": "style",
           "required": true,
           "options": [
             {
-              "value": "例えを使う",
-              "label": "例えを使う"
+              "value": "先生として、順を追って教えるように",
+              "label": "先生として"
             },
             {
-              "value": "順番に説明する",
-              "label": "順番に説明する"
+              "value": "IT担当者として、実務に寄せて",
+              "label": "IT担当者として"
             },
             {
-              "value": "ひとことで言う",
-              "label": "ひとことで言う"
+              "value": "詳しい友だちとして、くだけた言葉で",
+              "label": "詳しい友だちとして"
             },
             {
               "value": "",
               "label": "そのほか",
               "free": true
+            }
+          ]
+        },
+        {
+          "id": "concept_followup",
+          "type": "concept_card",
+          "phase": "own",
+          "title": "追加質問",
+          "poMessage": "分からないまま終わらず、聞き返して大丈夫です。",
+          "poEmotion": "hint",
+          "card": {
+            "title": "追加質問",
+            "body": "一度で分からなくても、聞き返しながら近づけていけます。",
+            "visual": "simple_flow",
+            "points": [
+              "答えを読む",
+              "分からない所を言う",
+              "もう一度もらう"
+            ],
+            "reviewExample": {
+              "body": "「もっと簡単に」「具体例を出して」の一言で十分です。",
+              "points": [
+                "もっと簡単に",
+                "具体例を出して",
+                "一言でまとめて"
+              ]
+            }
+          },
+          "skippable": true
+        },
+        {
+          "id": "real_followup",
+          "type": "single_choice",
+          "title": "追加でお願いしたいことはありますか",
+          "poMessage": "これで最後です。無ければ「追加はしない」で進めます。",
+          "poEmotion": "question",
+          "key": "followup",
+          "options": [
+            {
+              "value": "もっと簡単な言葉で",
+              "label": "もっと簡単に"
+            },
+            {
+              "value": "具体例をもう一つ足して",
+              "label": "具体例をもう1つ"
+            },
+            {
+              "value": "最後に一言でまとめて",
+              "label": "一言でまとめて"
+            },
+            {
+              "value": "",
+              "label": "追加はしない"
             }
           ]
         },
@@ -1431,7 +1486,8 @@
               "audience": "audience",
               "style": "style",
               "example": "example",
-              "length": "length"
+              "length": "length",
+              "followup": "instruction"
             }
           }
         },
@@ -1450,7 +1506,8 @@
               "audience": "audience",
               "style": "style",
               "example": "example",
-              "length": "length"
+              "length": "length",
+              "followup": "instruction"
             }
           }
         },

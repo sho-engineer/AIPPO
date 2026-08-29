@@ -100,7 +100,55 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       alt: "AI技「コンテキスト」の図。ただ「まとめて」と頼んだ場合と、目的・相手・場面という背景を渡した場合を並べ、背景を伝えるほど目的に合った回答になることを示したもの。",
     },
   },
+
+  /*
+    Day3「分からないことを説明してもらう」。
+
+    出る順は、レッスンの流れそのまま。
+      完成イメージ → まず質問する → ターゲット指定
+      → レベルと例を足して再実行 → レベルで説明が変わる
+      → 自分の分からないこと → ロール指定 → 立場を選ぶ
+      → 追加質問 → 聞き返しを1つ足す
+
+    ターゲット指定の絵は Day1 と同じ1枚を使い回す。同じ技に別の絵を
+    用意すると、**同じものだと気づけない**——2つ目の技として数えられる。
+
+    Day1・Day2 と同じ決まりで置く。比べる図は一度試して条件を足した
+    あと、解説の絵は使う直前、そして解説の絵を続けて2枚出さない。
+  */
+  explain_topic: {
+    concept_1: {
+      src: "/assets/teaching/skill_01_targeting.webp",
+      alt: "AI技「ターゲット指定」の図。同じ文章でも、新入社員向けならやさしい文章に、専門家向けなら専門的な文章になることを示したもの。",
+    },
+    /*
+      まだ4枚届いていない。**置き場所は決まっている**ので、
+      ファイルが `public/assets/teaching/` に入ったら、ここへ
+      次の4行を戻すだけで出るようになる。
+
+        outcome_preview   day3_overview.webp
+        compare_results   compare_05_explanation_level.webp
+        concept_role      skill_07_role.webp
+        concept_followup  skill_08_followup_question.webp
+
+      先に書いて置かないのは、**指しているファイルが無い行**を残すと
+      画面に壊れた枠が出るため（tests がそれを見張っている）。
+    */
+  },
 };
+
+/**
+ * 表に載っている絵、全部。
+ *
+ * 置き忘れ（表に1行足したのにファイルが無い）を検査から見つけるため。
+ * 画面には壊れた枠が出るのに、ほかの検査は全部通ってしまう。
+ */
+export const ALL_TEACHING_IMAGES: (TeachingImageEntry & {
+  lessonId: string;
+  stepId: string;
+})[] = Object.entries(BY_LESSON).flatMap(([lessonId, steps]) =>
+  Object.entries(steps).map(([stepId, entry]) => ({ ...entry, lessonId, stepId })),
+);
 
 /** このステップに出す絵。無ければ null（呼ぶ側は絵の場所ごと出さない）。 */
 export function teachingImage(
