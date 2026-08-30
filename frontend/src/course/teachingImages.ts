@@ -67,6 +67,23 @@ export interface TeachingImageEntry {
    */
   width?: number;
   height?: number;
+  /**
+   * その絵が「学習時間の目安」を持っているか。
+   *
+   * なぜ要るか
+   * ----------
+   * Day1〜8 の全体図には、**時間が絵の中に焼き込まれている**
+   * （「約3分」「約5分」）。アプリはその絵のすぐ下に `所要時間` を
+   * 出しているので、そのままだと同じ画面に別々の数字が上下に並ぶ。
+   * Day1 は絵が「約3分」、アプリが「8分」だった。
+   *
+   * どちらが正しいかは絵を見ても分からない。**数字を2つ出すのを
+   * やめる**のが先で、絵が言っているなら、アプリは黙る。
+   *
+   * 絵を差し替えて時間が消えたら、ここも false（または省略）に
+   * 戻すこと。戻さないと、時間がどこにも出なくなる。
+   */
+  showsMinutes?: boolean;
 }
 
 /**
@@ -128,6 +145,7 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       visualType: "lesson_overview",
       width: 1219,
       height: 1231,
+      showsMinutes: true,
     },
     concept_1: {
       src: "/assets/teaching/skill_01_targeting.webp",
@@ -170,6 +188,7 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       visualType: "lesson_overview",
       width: 1223,
       height: 1227,
+      showsMinutes: true,
     },
     concept_1: {
       src: "/assets/teaching/skill_04_summarization.webp",
@@ -215,6 +234,7 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       visualType: "lesson_overview",
       width: 1228,
       height: 1228,
+      showsMinutes: true,
     },
     concept_1: {
       src: "/assets/teaching/skill_01_targeting.webp",
@@ -266,6 +286,7 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       visualType: "lesson_overview",
       width: 1228,
       height: 1232,
+      showsMinutes: true,
     },
     concept_1: {
       src: "/assets/teaching/skill_09_divergence.webp",
@@ -315,6 +336,7 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       visualType: "lesson_overview",
       width: 1230,
       height: 1226,
+      showsMinutes: true,
     },
     concept_1: {
       src: "/assets/teaching/skill_10_comparison.webp",
@@ -361,6 +383,7 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       visualType: "lesson_overview",
       width: 1232,
       height: 1229,
+      showsMinutes: true,
     },
     concept_1: {
       src: "/assets/teaching/skill_12_information_organization.webp",
@@ -410,6 +433,7 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       visualType: "lesson_overview",
       width: 1254,
       height: 1254,
+      showsMinutes: true,
     },
     concept_1: {
       src: "/assets/teaching/skill_14_image_prompt.webp",
@@ -462,6 +486,7 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       visualType: "lesson_overview",
       width: 1244,
       height: 1232,
+      showsMinutes: true,
     },
     concept_1: {
       src: "/assets/teaching/skill_17_image_edit_instruction.webp",

@@ -15,6 +15,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { ConceptCardView } from "../src/components/course/steps/ConceptCard";
+import { OutcomePreview } from "../src/components/course/steps/Outcome";
 import { TeachingImage } from "../src/components/lessons/TeachingImage";
 import { getLesson } from "../src/course/catalog";
 import {
@@ -105,6 +106,63 @@ describe("出し方", () => {
     */
     for (const [, entry] of Object.entries({ a: teachingImage(DAY1, "concept_1") })) {
       expect(entry?.alt.length ?? 0).toBeGreaterThan(10);
+    }
+  });
+});
+
+describe("時間を二度言わない", () => {
+  /*
+    Day1〜8 の全体図には「学習時間の目安」が焼き込まれている。
+    アプリはその絵のすぐ下に `所要時間` を出していたので、同じ画面に
+    別々の数字が上下に並んでいた（絵は「約3分」、アプリは「8分」）。
+
+    絵の中の数字は動かせない。下げるのはアプリ側。
+  */
+  it("絵が時間を言っているなら、アプリは出さない", () => {
+    render(
+      <OutcomePreview
+        minutes={8}
+        skills={[]}
+        overview={teachingImage(DAY1, "outcome_preview")}
+      />,
+    );
+
+    expect(screen.queryByText("所要時間")).not.toBeInTheDocument();
+    expect(screen.queryByText("8分")).not.toBeInTheDocument();
+    // むずかしさは絵に無いので、こちらは残す
+    expect(screen.getByText("初級")).toBeInTheDocument();
+  });
+
+  it("絵が言っていないなら、これまでどおり出す", () => {
+    // 下げすぎると、時間がどこにも出なくなる
+    render(
+      <OutcomePreview
+        minutes={8}
+        skills={[]}
+        overview={{
+          src: "/x.webp",
+          alt: "時間の入っていない絵",
+          visualType: "lesson_overview",
+        }}
+      />,
+    );
+
+    expect(screen.getByText("所要時間")).toBeInTheDocument();
+    expect(screen.getByText("8分")).toBeInTheDocument();
+  });
+
+  it("Day1〜8 の全体図は、8枚とも時間を持っていると書いてある", () => {
+    /*
+      1枚でも書き忘れると、その日だけ数字が2つ並ぶ。
+      絵を差し替えて時間が消えたときは、逆にここを false へ戻すこと。
+    */
+    const overviews = ALL_TEACHING_IMAGES.filter(
+      (entry) => entry.visualType === "lesson_overview",
+    );
+
+    expect(overviews).toHaveLength(8);
+    for (const entry of overviews) {
+      expect(entry.showsMinutes, `${entry.lessonId} の全体図`).toBe(true);
     }
   });
 });

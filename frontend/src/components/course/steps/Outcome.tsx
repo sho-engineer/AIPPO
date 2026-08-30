@@ -106,9 +106,20 @@ export function OutcomePreview({
         thumbnail && <LessonThumbnail src={thumbnail} variant="banner" />
       )}
 
-      {/* 始める前に知りたいのは、かかる時間とむずかしさの2つだけ */}
+      {/*
+        始める前に知りたいのは、かかる時間とむずかしさの2つだけ。
+
+        ただし**絵が時間を言っているなら、ここは黙る**。
+        Day1〜8 の全体図には「学習時間の目安」が焼き込まれていて、
+        そのすぐ下にアプリの数字を出すと、別々の数字が上下に並ぶ
+        （絵は「約3分」、アプリは「8分」だった）。
+
+        どちらが正しいかは絵を見ても分からない。**数字を2つ出すのを
+        やめる**のが先。絵の中の数字は動かせないので、下げるのは
+        こちら側になる（course/teachingImages.ts の `showsMinutes`）。
+      */}
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-panel bg-surface px-5 py-4 shadow-card">
-        {minutes !== undefined && (
+        {minutes !== undefined && !overview?.showsMinutes && (
           <MetaPill icon={IconClock} label="所要時間" value={`${minutes}分`} />
         )}
         <MetaPill icon={IconBars} value="初級" />
