@@ -1,7 +1,7 @@
 /**
  * レッスンの進み具合。
  *
- * 細い帯と「3 / 19」だけ。
+ * 細い帯と、いまいる区切りの名前・番号だけ。
  *
  * 前は3つの部品で同じことを言っていた——区切りの帯（4段）、丸の列
  * （最大7つ）、そして数字。同じ情報を3段で出すと、どれを見れば
@@ -17,8 +17,11 @@
  *
  * 分数を2つにしない。前に3段で同じことを言って読まれなくなった件と
  * 同じ轍で、「2 / 4」と「3 / 19」が並ぶと、どちらを見ればよいのか
- * 決められなくなる。**割れ目は形で、名前は言葉で**出し、数字は
- * いままでどおり1つだけにしてある。
+ * 決められなくなる。**割れ目は形で、名前は言葉で**出し、数字は1つだけ。
+ *
+ * その1つは**区切りの番号**にしてある（2 / 4）。内部の歩数（3 / 19）は
+ * 実装上の数で、学習者にとって意味を持たない。細かい進み具合は
+ * 帯の幅が持っているので、数字まで細かくする必要が無い。
  *
  * なぜ割るか
  * ----------
@@ -62,10 +65,18 @@ export function LessonProgress({
       aria-valuenow={current}
       aria-valuemin={1}
       aria-valuemax={safeTotal}
+      /*
+        読み上げにも、内部の歩数は渡さない。
+
+        `aria-valuenow` / `valuemax` は帯の伸び具合として細かい数を
+        持っているが、**読まれるのは valuetext のほう**。ここで
+        「19歩のうち3歩目」と言うと、目で見ている人には隠した数字を
+        読み上げだけに出すことになる。
+      */
       aria-valuetext={
         here
-          ? `${safeTotal}歩のうち${current}歩目。いまは「${here.label}」`
-          : `${safeTotal}歩のうち${current}歩目`
+          ? `${missions.length}つのうち${currentMission}つ目。いまは「${here.label}」`
+          : `${Math.round(ratio * 100)}パーセント`
       }
       data-testid="lesson-progress"
     >
@@ -111,9 +122,25 @@ export function LessonProgress({
         >
           {here?.label ?? ""}
         </span>
-        <span className="shrink-0 text-xs tabular-nums text-ink-muted">
-          {current} / {safeTotal}
-        </span>
+        {/*
+          区切りの番号だけを出す。**内部の歩数は出さない。**
+
+          前は「3 / 19」と書いていた。19 はステップの実装上の数で、
+          学習者にとっては意味を持たない——中身は4つのまとまりに
+          分かれていて、どれも数歩で終わる。19 と言われた人が最初に
+          思うのは「あと16回も押すのか」で、これは実際より長く感じる。
+
+          帯の幅が細かい進み具合を持っているので、数字は
+          「4つのうち2つ目」だけでよい。
+        */}
+        {missions.length > 1 && (
+          <span
+            className="shrink-0 text-xs tabular-nums text-ink-muted"
+            data-testid="lesson-mission-count"
+          >
+            {currentMission} / {missions.length}
+          </span>
+        )}
       </div>
     </div>
   );

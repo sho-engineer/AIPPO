@@ -81,6 +81,32 @@ async function advance(page: Page): Promise<boolean> {
   return true;
 }
 
+/**
+ * 押していないのに画面が変わる回が、終わるのを待つ。
+ *
+ * AIへ送る回は、開いた瞬間に自分で送り、返ってきたら自分で次へ進む。
+ * その最中に見出しを読むと「AIに送っています」が取れてしまい、
+ * 読み終えたころには画面がもう次へ移っている。**歩数で数えている
+ * かぎり、どこで止まるかは教材の並び次第**なので、止まった先が
+ * 自動で動く回かどうかを、こちらで確かめる。
+ *
+ * 見張り方は2つ重ねる。送信中の合図（考えている顔）が消えていること、
+ * そのうえで見出しが2回続けて同じであること。
+ */
+async function settled(page: Page): Promise<string> {
+  const heading = page.locator("main h1, main h2").first();
+  let last = "";
+  for (let i = 0; i < 40; i++) {
+    if ((await page.locator('[data-po-scene="thinking"]').count()) === 0) {
+      const now = (await heading.innerText()).trim();
+      if (now !== "" && now === last) return now;
+      last = now;
+    }
+    await page.waitForTimeout(150);
+  }
+  throw new Error(`画面が落ち着かなかった（最後に見えた見出し: ${last}）`);
+}
+
 /** 完了画面まで進める。何歩かかるかは教材が決めるので、上限だけ置く。 */
 async function runToEnd(page: Page, limit = 40): Promise<void> {
   for (let i = 0; i < limit; i++) {
@@ -115,7 +141,11 @@ test.describe("レッスンを最後まで進める", () => {
     await openRewrite(page);
     await runToEnd(page);
 
-    await expect(page.getByTestId("completion-view")).toContainText("スキルを身につけました");
+    // 完了画面の主役は「できるようになったこと」。技はその次
+    await expect(page.getByTestId("completion-outcomes")).toContainText(
+      "できるようになりました",
+    );
+    await expect(page.getByTestId("completion-view")).toContainText("覚えたAI技");
   });
 
   test("教材が決めた action しか呼ばない", async ({ page }) => {
@@ -155,7 +185,7 @@ test.describe("レッスンを最後まで進める", () => {
   test("途中で読み込み直しても、続きから始まる", async ({ page }) => {
     await openRewrite(page);
     for (let i = 0; i < 4; i++) await advance(page);
-    const before = await page.locator("main h1, main h2").first().innerText();
+    const before = await settled(page);
 
     await page.reload();
     await expect(page.getByTestId("primary-action").first()).toBeVisible();

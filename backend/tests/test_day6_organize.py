@@ -86,12 +86,23 @@ class TestTheFirstTryHasNoHeadings:
 @pytest.mark.django_db
 class TestTheOrder:
     def test_the_comparison_comes_after_adding_a_condition(self, order):
-        for earlier in ("quick_try", "concept_1", "add_condition", "generate_improved"):
+        # concept_1 はここに入れない。**解説は比べたあとに来る**ので、
+        # 「比べるより前にあること」を求めると順序が逆に固定される
+        for earlier in ("quick_try", "add_condition", "generate_improved"):
             assert order.index("compare_results") > order.index(earlier)
 
-    def test_a_hands_on_screen_sits_between_the_slide_and_the_comparison(self, order):
-        between = order[order.index("concept_1") + 1 : order.index("compare_results")]
-        assert "add_condition" in between
+    def test_the_slide_comes_straight_after_the_comparison(self, order):
+        """AI技の名前は、**使って、違いを見たあと**に出す。
+
+        前はここが逆で、条件を足す前に「〜とは」を読ませていた。
+        何の役に立つのか分からないまま読む説明は、飛ばされるか、
+        読んでも残らない。
+
+        見比べた直後に置くと、名前がたったいま自分で起こした変化に
+        貼り付く。**あいだに何も挟まない**のが肝心で、1画面でも
+        空くと「さっきの話」になってしまう。
+        """
+        assert order.index("concept_1") - order.index("compare_results") == 1
 
     def test_no_two_slides_in_a_row(self, day6, order):
         slides = [

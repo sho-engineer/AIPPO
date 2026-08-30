@@ -121,7 +121,9 @@ class TestTheBodyIsWritten:
 class TestTheOrder:
     def test_the_comparison_comes_after_adding_a_condition(self, steps):
         order = [step["id"] for step in steps]
-        for earlier in ("quick_try", "concept_1", "add_condition", "generate_improved"):
+        # concept_1 はここに入れない。**解説は比べたあとに来る**ので、
+        # 「比べるより前にあること」を求めると順序が逆に固定される
+        for earlier in ("quick_try", "add_condition", "generate_improved"):
             assert order.index("compare_results") > order.index(earlier)
 
     def test_no_two_slides_in_a_row(self, steps):

@@ -21,17 +21,19 @@ import { StepDone } from "../src/components/course/StepDone";
 import { LessonCelebration } from "../src/components/course/LessonCelebration";
 
 describe("進み具合", () => {
-  it("何歩目かが読み上げに届く", () => {
+  it("進み具合が読み上げに届く", () => {
     /*
       帯の幅だけで伝えると、見えない人には何も残らない。
-      数字と、読み上げ用の文の両方を持たせる。
+      ただし**内部の歩数は渡さない**——19 は実装上の数で、
+      学習者にとって意味を持たない（下の「区切り」を参照）。
     */
     render(<LessonProgress current={3} total={19} />);
 
     const bar = screen.getByRole("progressbar", { name: "レッスンの進み具合" });
     expect(bar).toHaveAttribute("aria-valuenow", "3");
     expect(bar).toHaveAttribute("aria-valuemax", "19");
-    expect(bar).toHaveTextContent("3 / 19");
+    expect(bar).toHaveAttribute("aria-valuetext", "16パーセント");
+    expect(bar).not.toHaveTextContent("3 / 19");
   });
 
   it("0本のレッスンでも壊れない", () => {
@@ -185,14 +187,19 @@ describe("進み具合の帯の区切り", () => {
     expect(screen.getByTestId("lesson-mission")).toHaveTextContent("お試し");
   });
 
-  it("分数は1つだけ", () => {
+  it("分数は1つだけ。しかも区切りの番号のほう", () => {
+    /*
+      内部の歩数（3 / 10）は出さない。学習者にとって意味を持つのは
+      「4つのうち2つ目」で、細かい進み具合は帯の幅が持っている。
+    */
     render(
       <LessonProgress current={3} total={10} missions={MISSIONS} currentMission={2} />,
     );
 
     const text = screen.getByTestId("lesson-progress").textContent ?? "";
     expect(text.match(/\//g) ?? []).toHaveLength(1);
-    expect(text).toContain("3 / 10");
+    expect(text).toContain(`2 / ${MISSIONS.length}`);
+    expect(text).not.toContain("3 / 10");
   });
 
   it("読み上げにも、いまの区切りが伝わる", () => {
@@ -202,14 +209,17 @@ describe("進み具合の帯の区切り", () => {
 
     expect(screen.getByTestId("lesson-progress")).toHaveAttribute(
       "aria-valuetext",
-      "10歩のうち3歩目。いまは「お試し」",
+      "3つのうち2つ目。いまは「お試し」",
     );
   });
 
-  it("区切りが無くても、いままでどおり出る", () => {
-    // 区切りを持たない呼び出し側が残っていても、帯だけは必ず出す
+  it("区切りが無くても、帯だけは必ず出る", () => {
+    // 区切りを持たない呼び出し側が残っていても、進み具合は消さない
     render(<LessonProgress current={3} total={10} />);
 
-    expect(screen.getByTestId("lesson-progress")).toHaveTextContent("3 / 10");
+    const bar = screen.getByTestId("lesson-progress");
+    expect(bar).toHaveAttribute("aria-valuetext", "30パーセント");
+    // 名前も番号も出せないので、数字は置かない
+    expect(bar.textContent).toBe("");
   });
 });

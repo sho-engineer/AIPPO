@@ -90,8 +90,18 @@ export interface StepShellProps {
    * 進む前に、進むと分かる合図を出す（Learning UX §2 / §3）。
    */
   autoAdvancing?: boolean;
-  /** ポーを出すか。本文が同じことを言う画面では下げる。 */
+  /**
+   * ポーを出すか。
+   *
+   * 決めるのは `course/poPresence.ts`。ここでは受け取るだけにする——
+   * 「どの画面に居るか」を各画面が個別に決め始めると、全部足したときに
+   * 何画面に居るのかが誰にも分からなくなる。
+   */
   showPo?: boolean;
+  /** ポーが喋るか。顔だけ出して黙る場面がある（失敗のとき）。 */
+  poSpeaks?: boolean;
+  /** ポーが出ている理由。`data-po-scene` として出す。 */
+  poScene?: string;
   children: ReactNode;
 }
 
@@ -126,6 +136,8 @@ export function StepShell({
   busy = false,
   autoAdvancing = false,
   showPo = true,
+  poSpeaks = true,
+  poScene,
   children,
 }: StepShellProps) {
   /*
@@ -199,6 +211,9 @@ export function StepShell({
         前はポーを画面のいちばん下（ボタンのすぐ上）に置いていた。
         案内役の言葉は**読み始める前**に要るもので、読み終えた後に
         出てきても遅い。支給デザインも6枚とも、ポーは見出しの右にいる。
+
+        ポーが居ない画面では、見出しだけがここに残る。居ないぶんの
+        余白は返すので、本文がその高さぶん上がる。
       */}
       <div className="mt-4">
         <PoHero
@@ -212,9 +227,11 @@ export function StepShell({
           }
           title={title}
           description={instruction}
-          message={showPo ? po.message : undefined}
+          message={poSpeaks ? po.message : undefined}
           emotion={po.emotion}
           compact={!eyebrow}
+          showPo={showPo}
+          scene={poScene}
         />
       </div>
 

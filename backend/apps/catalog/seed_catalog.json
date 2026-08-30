@@ -265,27 +265,6 @@
           }
         },
         {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "誰向けかを伝える",
-          "poMessage": "同じ内容でも、上司・同僚・顧客で、ちょうどよい言い方は変わります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "誰向けかを伝える",
-            "body": "同じ内容でも、上司・同僚・顧客で、ちょうどよい言い方は変わります。",
-            "visual": "before_after",
-            "before": "確認していただけますでしょうか。",
-            "after": "ご確認ください。",
-            "reviewExample": {
-              "body": "相手が変われば、ちょうどよい丁寧さも変わります。",
-              "before": "ご多忙のところ大変恐縮ではございますが。",
-              "after": "お忙しいところすみませんが。"
-            }
-          }
-        },
-        {
           "id": "add_condition",
           "type": "condition_choice",
           "phase": "compare",
@@ -362,6 +341,27 @@
             ],
             "factCheck": false,
             "threeWay": true
+          }
+        },
+        {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "誰向けかを伝える",
+          "poMessage": "同じ内容でも、上司・同僚・顧客で、ちょうどよい言い方は変わります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "誰向けかを伝える",
+            "body": "同じ内容でも、上司・同僚・顧客で、ちょうどよい言い方は変わります。",
+            "visual": "before_after",
+            "before": "確認していただけますでしょうか。",
+            "after": "ご確認ください。",
+            "reviewExample": {
+              "body": "相手が変われば、ちょうどよい丁寧さも変わります。",
+              "before": "ご多忙のところ大変恐縮ではございますが。",
+              "after": "お忙しいところすみませんが。"
+            }
           }
         },
         {
@@ -730,33 +730,6 @@
           }
         },
         {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "要約",
-          "poMessage": "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "要約",
-            "body": "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
-            "visual": "three_points",
-            "points": [
-              "目的",
-              "決定事項",
-              "次の行動"
-            ],
-            "reviewExample": {
-              "body": "何を残すかは、そのあと何に使うかで決まります。",
-              "points": [
-                "共有する",
-                "作業を知る",
-                "内容をつかむ"
-              ]
-            }
-          }
-        },
-        {
           "id": "add_condition",
           "type": "condition_choice",
           "phase": "compare",
@@ -833,6 +806,33 @@
             ],
             "factCheck": false,
             "threeWay": true
+          }
+        },
+        {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "要約",
+          "poMessage": "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "要約",
+            "body": "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
+            "visual": "three_points",
+            "points": [
+              "目的",
+              "決定事項",
+              "次の行動"
+            ],
+            "reviewExample": {
+              "body": "何を残すかは、そのあと何に使うかで決まります。",
+              "points": [
+                "共有する",
+                "作業を知る",
+                "内容をつかむ"
+              ]
+            }
           }
         },
         {
@@ -1201,24 +1201,6 @@
           }
         },
         {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "ターゲット指定",
-          "poMessage": "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "ターゲット指定",
-            "body": "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
-            "visual": "highlight",
-            "highlight": "小学生でも分かるように",
-            "reviewExample": {
-              "body": "身近なものに置きかえてもらうと、初めての言葉でも掴めます。"
-            }
-          }
-        },
-        {
           "id": "add_condition",
           "type": "condition_choice",
           "phase": "compare",
@@ -1295,6 +1277,24 @@
             ],
             "factCheck": true,
             "threeWay": true
+          }
+        },
+        {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "ターゲット指定",
+          "poMessage": "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "ターゲット指定",
+            "body": "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
+            "visual": "highlight",
+            "highlight": "小学生でも分かるように",
+            "reviewExample": {
+              "body": "身近なものに置きかえてもらうと、初めての言葉でも掴めます。"
+            }
           }
         },
         {
@@ -1683,33 +1683,6 @@
           }
         },
         {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "比較",
-          "poMessage": "頭の中で比べず、同じ観点で並べると違いが見えます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "比較",
-            "body": "頭の中で比べず、同じ観点で並べると違いが見えます。",
-            "visual": "three_points",
-            "points": [
-              "候補を並べる",
-              "同じ観点で見る",
-              "違いが見える"
-            ],
-            "reviewExample": {
-              "body": "並べ方が同じだと、どこが違うのかを目で追えます。",
-              "points": [
-                "A・B・C",
-                "価格／機能／簡単さ",
-                "表で見る"
-              ]
-            }
-          }
-        },
-        {
           "id": "add_condition",
           "type": "condition_choice",
           "phase": "compare",
@@ -1776,6 +1749,33 @@
             ],
             "factCheck": true,
             "threeWay": true
+          }
+        },
+        {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "比較",
+          "poMessage": "頭の中で比べず、同じ観点で並べると違いが見えます。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "比較",
+            "body": "頭の中で比べず、同じ観点で並べると違いが見えます。",
+            "visual": "three_points",
+            "points": [
+              "候補を並べる",
+              "同じ観点で見る",
+              "違いが見える"
+            ],
+            "reviewExample": {
+              "body": "並べ方が同じだと、どこが違うのかを目で追えます。",
+              "points": [
+                "A・B・C",
+                "価格／機能／簡単さ",
+                "表で見る"
+              ]
+            }
           }
         },
         {
@@ -2129,51 +2129,6 @@
           }
         },
         {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "期限を伝える",
-          "poMessage": "「今週中」と「3か月」では、1つの手順の大きさが変わります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "期限を伝える",
-            "body": "「今週中」と「3か月」では、1つの手順の大きさが変わります。",
-            "visual": "before_after",
-            "before": "資料作りを効率化する",
-            "after": "今週中に、今の作業を15分で書き出す"
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "使える時間を言う",
-          "poMessage": "1日15分と言えば、15分で終わる手順に分けてもらえます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "使える時間を言う",
-            "body": "1日15分と言えば、15分で終わる手順に分けてもらえます。",
-            "visual": "highlight",
-            "highlight": "1日15分"
-          }
-        },
-        {
-          "id": "concept_3",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "避けたいことも伝える",
-          "poMessage": "「お金をかけたくない」と言えば、その案は出てこなくなります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "避けたいことも伝える",
-            "body": "「お金をかけたくない」と言えば、その案は出てこなくなります。",
-            "visual": "text"
-          }
-        },
-        {
           "id": "add_condition",
           "type": "condition_choice",
           "phase": "compare",
@@ -2250,6 +2205,51 @@
             ],
             "factCheck": false,
             "threeWay": true
+          }
+        },
+        {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "期限を伝える",
+          "poMessage": "「今週中」と「3か月」では、1つの手順の大きさが変わります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "期限を伝える",
+            "body": "「今週中」と「3か月」では、1つの手順の大きさが変わります。",
+            "visual": "before_after",
+            "before": "資料作りを効率化する",
+            "after": "今週中に、今の作業を15分で書き出す"
+          }
+        },
+        {
+          "id": "concept_2",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "使える時間を言う",
+          "poMessage": "1日15分と言えば、15分で終わる手順に分けてもらえます。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "使える時間を言う",
+            "body": "1日15分と言えば、15分で終わる手順に分けてもらえます。",
+            "visual": "highlight",
+            "highlight": "1日15分"
+          }
+        },
+        {
+          "id": "concept_3",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "避けたいことも伝える",
+          "poMessage": "「お金をかけたくない」と言えば、その案は出てこなくなります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "避けたいことも伝える",
+            "body": "「お金をかけたくない」と言えば、その案は出てこなくなります。",
+            "visual": "text"
           }
         },
         {
@@ -2546,54 +2546,6 @@
           }
         },
         {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "一度に一つだけ",
-          "poMessage": "まとめて頼むと、どれが効いたのか分からなくなります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "一度に一つだけ",
-            "body": "まとめて頼むと、どれが効いたのか分からなくなります。",
-            "visual": "simple_flow",
-            "points": [
-              "一つ足す",
-              "結果を見る",
-              "また一つ足す"
-            ]
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "質問させてもよい",
-          "poMessage": "「足りない情報を聞いて」と頼むと、必要なことを尋ねてくれます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "質問させてもよい",
-            "body": "「足りない情報を聞いて」と頼むと、必要なことを尋ねてくれます。",
-            "visual": "highlight",
-            "highlight": "足りない情報を聞いて"
-          }
-        },
-        {
-          "id": "concept_3",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "厳しく見てもらう",
-          "poMessage": "「厳しい視点で」と頼むと、弱いところを指摘してもらえます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "厳しく見てもらう",
-            "body": "「厳しい視点で」と頼むと、弱いところを指摘してもらえます。",
-            "visual": "text"
-          }
-        },
-        {
           "id": "add_condition",
           "type": "condition_choice",
           "phase": "compare",
@@ -2670,6 +2622,54 @@
             ],
             "factCheck": false,
             "threeWay": true
+          }
+        },
+        {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "一度に一つだけ",
+          "poMessage": "まとめて頼むと、どれが効いたのか分からなくなります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "一度に一つだけ",
+            "body": "まとめて頼むと、どれが効いたのか分からなくなります。",
+            "visual": "simple_flow",
+            "points": [
+              "一つ足す",
+              "結果を見る",
+              "また一つ足す"
+            ]
+          }
+        },
+        {
+          "id": "concept_2",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "質問させてもよい",
+          "poMessage": "「足りない情報を聞いて」と頼むと、必要なことを尋ねてくれます。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "質問させてもよい",
+            "body": "「足りない情報を聞いて」と頼むと、必要なことを尋ねてくれます。",
+            "visual": "highlight",
+            "highlight": "足りない情報を聞いて"
+          }
+        },
+        {
+          "id": "concept_3",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "厳しく見てもらう",
+          "poMessage": "「厳しい視点で」と頼むと、弱いところを指摘してもらえます。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "厳しく見てもらう",
+            "body": "「厳しい視点で」と頼むと、弱いところを指摘してもらえます。",
+            "visual": "text"
           }
         },
         {
@@ -3220,40 +3220,6 @@
           }
         },
         {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "型に当てはめる",
-          "poMessage": "困りごとは「直す・まとめる・説明する・比べる・計画する」に入ります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "型に当てはめる",
-            "body": "困りごとは「直す・まとめる・説明する・比べる・計画する」に入ります。",
-            "visual": "three_points",
-            "points": [
-              "直す",
-              "まとめる",
-              "計画する"
-            ]
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "できあがりを言う",
-          "poMessage": "「そのまま送れる文章」のように、形を先に決めると近づきます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "できあがりを言う",
-            "body": "「そのまま送れる文章」のように、形を先に決めると近づきます。",
-            "visual": "highlight",
-            "highlight": "そのまま送れる文章"
-          }
-        },
-        {
           "id": "add_condition",
           "type": "condition_choice",
           "phase": "compare",
@@ -3336,6 +3302,40 @@
             ],
             "factCheck": false,
             "threeWay": true
+          }
+        },
+        {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "型に当てはめる",
+          "poMessage": "困りごとは「直す・まとめる・説明する・比べる・計画する」に入ります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "型に当てはめる",
+            "body": "困りごとは「直す・まとめる・説明する・比べる・計画する」に入ります。",
+            "visual": "three_points",
+            "points": [
+              "直す",
+              "まとめる",
+              "計画する"
+            ]
+          }
+        },
+        {
+          "id": "concept_2",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "できあがりを言う",
+          "poMessage": "「そのまま送れる文章」のように、形を先に決めると近づきます。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "できあがりを言う",
+            "body": "「そのまま送れる文章」のように、形を先に決めると近づきます。",
+            "visual": "highlight",
+            "highlight": "そのまま送れる文章"
           }
         },
         {

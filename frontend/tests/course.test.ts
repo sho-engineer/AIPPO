@@ -150,15 +150,27 @@ describe("教材データ", () => {
         "outcome_preview",
       );
       expect(kinds[1], `${lesson.title} がすぐ試せない`).toBe("quick_try");
-      // 観察 → 解説 の順。解説が先に来ていないこと
-      expect(kinds.indexOf("observation")).toBeLessThan(
+      /*
+        AI技の名前は、**使って、違いを見たあと**に出す。
+
+        観察より後、というだけでは足りなかった。以前はここが
+        「観察 → 解説 → 条件を足す → 比べる」で、条件を足す前・
+        比べる前に「〜とは」を読ませていた。何の役に立つのか
+        分からないまま読む説明は、飛ばされるか、読んでも残らない。
+
+        いまは 条件を足す → 結果が変わる → 見比べる → 「今のが〜です」。
+        名前が、たったいま自分で起こした変化に貼り付く。
+      */
+      expect(
         kinds.indexOf("concept_card"),
-      );
-      // 骨格が続けて出す解説のあとは、条件を足す画面へ戻る
-      const skeletonCards = kinds.indexOf("condition_choice") - 1;
-      expect(kinds[skeletonCards], `${lesson.title} の解説が条件の直前に無い`).toBe(
-        "concept_card",
-      );
+        `${lesson.title} の解説が、比べるより前に出ている`,
+      ).toBeGreaterThan(kinds.indexOf("result_compare"));
+
+      // 比べた直後であること。1画面でも空くと「さっきの話」になる
+      expect(
+        kinds[kinds.indexOf("result_compare") + 1],
+        `${lesson.title} の解説が、比べた直後に無い`,
+      ).toBe("concept_card");
     }
   });
 

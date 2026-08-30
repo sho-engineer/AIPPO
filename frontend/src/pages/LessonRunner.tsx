@@ -28,6 +28,7 @@ import {
   canAutoAdvance,
   isAnswered,
 } from "../course/autoAdvance";
+import { poAppearance } from "../course/poPresence";
 import { recommendLessons, saveRecommendations } from "../course/recommend";
 import { saveProfile } from "../api/diagnosis";
 import { useCompletedLessons } from "../course/progress";
@@ -319,6 +320,18 @@ export function LessonRunner({
   const blockingIssue = api.issue?.blocking ? api.issue : null;
 
   /*
+    ポーを出す場面か。決め方は course/poPresence.ts に1か所でまとめてある。
+    ヒントを出しているかは、ポーの動き（`show_hint`）で分かる——
+    ヒントは押されて初めて出るので、状態としては動きの側に乗っている。
+  */
+  const po = poAppearance({
+    stepType: step.type,
+    busy: api.isSubmitting,
+    failed: Boolean(api.error),
+    hinting: api.po.action === "show_hint",
+  });
+
+  /*
     今日の実行上限に当たった。押し直せば直る失敗とは扱いを分ける
     （`components/course/LessonPaused.tsx` 参照）。
   */
@@ -400,17 +413,20 @@ export function LessonRunner({
         doneLabel={doneLabel}
         busy={api.isSubmitting}
         /*
-          解説の回は、カード本文とポーの台詞が同じ文になる（教材データが
-          同じ文字を持っている）。同じことを2回言うと、2つ別のことが
-          書いてあるのかと読んでしまう。ここだけ吹き出しを下げる。
+          ポーを出すかどうか。
 
-          失敗しているときも下げる。失敗の文はポーの吹き出しと下の
-          エラー欄の両方に同じ `failure.detail` が乗っていた——
-          「失敗は下のボタンのそばに1度だけ出す」という設計（下の
-          StepShell の error）が、吹き出し側を消し忘れていたぶんだけ
-          崩れていた。
+          決め方は course/poPresence.ts に1か所でまとめてある。
+          前はここで「解説カードでなく、失敗もしていなければ出す」と
+          書いていた——つまり**19画面中17画面に居た**。毎画面に居ると、
+          居ること自体が何も言わなくなる。
+
+          失敗しているときは、いまは**出す**（顔は warning）。
+          吹き出しの文は `api.po` が持っているが、失敗の詳しい話は
+          下のエラー欄が1度だけ言う担当なので、そちらと重ならない。
         */
-        showPo={step.type !== "concept_card" && !api.error}
+        showPo={po !== null}
+        poSpeaks={po?.speaks ?? false}
+        poScene={po?.scene}
       >
         {body}
       </StepShell>

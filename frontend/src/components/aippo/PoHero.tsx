@@ -41,6 +41,16 @@ export interface PoHeroProps {
   meta?: ReactNode;
   /** ポーを小さくする。中身が多い画面で使う。 */
   compact?: boolean;
+  /**
+   * ポーそのものを出すか。
+   *
+   * 出さないときは、絵も吹き出しも置かず、**空けてあった右の余白も
+   * 返す**。居ないのに場所だけ空いていると、絵が読み込めていないように
+   * 見える。誰の画面かは course/poPresence.ts が決める。
+   */
+  showPo?: boolean;
+  /** ポーが出ている理由（course/poPresence.ts）。検査の手がかりに出す。 */
+  scene?: string;
 }
 
 export function PoHero({
@@ -51,9 +61,15 @@ export function PoHero({
   emotion = "neutral",
   meta,
   compact,
+  showPo = true,
+  scene,
 }: PoHeroProps) {
   return (
-    <section className="relative pt-2" data-testid="po-hero">
+    <section
+      className="relative pt-2"
+      data-testid="po-hero"
+      data-po-scene={scene}
+    >
       {/*
         ポーは文字の上に重ねる。回り込みではなく重ねるのは、
         見出しが2行でも3行でも、ポーの位置を動かさないため。
@@ -63,15 +79,17 @@ export function PoHero({
         目印（po-avatar）は変えない。表情の切り替わりを見ている検査が
         これを指している。置き場所を変えても、指し先は動かさない。
       */}
-      <div
-        data-testid="po-avatar"
-        data-emotion={emotion}
-        className={`pointer-events-none absolute -top-2 right-0 ${
-          compact ? "w-28" : "w-36 sm:w-40"
-        }`}
-      >
-        <PoFace emotion={emotion} message={message} className="h-auto w-full" />
-      </div>
+      {showPo && (
+        <div
+          data-testid="po-avatar"
+          data-emotion={emotion}
+          className={`pointer-events-none absolute -top-2 right-0 ${
+            compact ? "w-28" : "w-36 sm:w-40"
+          }`}
+        >
+          <PoFace emotion={emotion} message={message} className="h-auto w-full" />
+        </div>
+      )}
 
       {/*
         見出しの側。**ポーの背丈ぶんの高さを最低限そこに確保する。**
@@ -98,9 +116,9 @@ export function PoHero({
           通常 : 幅 144px、上へ 8px はみ出す → 136px。pt-2 の 8px を引いて 128px
           compact: 幅 112px、同じく → 104px → 96px
       */}
-      <div className={compact ? "min-h-24" : "min-h-32"}>
+      <div className={!showPo ? "" : compact ? "min-h-24" : "min-h-32"}>
         {/* 文字の側は、ポーの幅ぶんだけ空ける。空けないと見出しに重なる */}
-        <div className={compact ? "pr-28" : "pr-32 sm:pr-36"}>
+        <div className={!showPo ? "" : compact ? "pr-28" : "pr-32 sm:pr-36"}>
           {eyebrow && <div className="mb-1">{eyebrow}</div>}
 
           {/*
@@ -124,7 +142,7 @@ export function PoHero({
         {meta && <div className="mt-3">{meta}</div>}
       </div>
 
-      {message && (
+      {showPo && message && (
         /*
           吹き出し。しっぽはポーの側（右上）へ向ける。
           誰が言っているのかを、線1本で示す。

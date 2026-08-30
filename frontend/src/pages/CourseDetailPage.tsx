@@ -44,6 +44,7 @@ import { AppHeader } from "../components/AppShell";
 import { CourseOutcome } from "../components/course/CourseOutcome";
 import { CourseOutline } from "../components/course/CourseOutline";
 import { CourseProgressLine } from "../components/course/CourseProgressLine";
+import { CourseResume } from "../components/course/CourseResume";
 import { LessonDiscoveryCard } from "../components/lessons/LessonDiscoveryCard";
 import { PathProgress } from "../components/course/PathProgress";
 import { PoAvatar } from "../po/PoAvatar";
@@ -142,6 +143,25 @@ export function CourseDetailPage({
         */}
         <p className="mt-1.5 text-sm leading-7 text-ink-muted">{course.description}</p>
 
+        <CourseProgressLine
+          done={doneDays}
+          total={outline.startableDays.length}
+          comingSoon={outline.comingSoonDays}
+          skills={summary?.skills}
+        />
+
+        {/*
+          次に押す場所を1つに決める。
+
+          道のりの中でも現在地は強調されるが、それは「いまどこか」を
+          示すだけで、**押す場所が1つに決まっていない**。数日ぶりに
+          開いた人は、結局スクロールして探すことになる。
+
+          探している最中は隠す。絞り込んだ結果の上に「次はここから」が
+          残ると、検索したのに別のものを勧められる形になる。
+        */}
+        {!searching && <CourseResume lesson={current ?? null} onStart={onSelectLesson} />}
+
         {/*
           コース全体の1枚。**説明文の代わりではなく、説明文より先**。
 
@@ -157,13 +177,6 @@ export function CourseDetailPage({
             <TeachingImage src={overview.src} alt={overview.alt} />
           </div>
         )}
-
-        <CourseProgressLine
-          done={doneDays}
-          total={outline.startableDays.length}
-          comingSoon={outline.comingSoonDays}
-          skills={summary?.skills}
-        />
 
         {/*
           道のり。この画面の主役。

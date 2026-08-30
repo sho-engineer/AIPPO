@@ -79,7 +79,9 @@ def _concept_steps(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
             {
                 "id": f"concept_{index}",
                 "type": "concept_card",
-                "phase": "try",
+                # 比べたあとに出るので、区切りは「比べる」に属する。
+                # try のままだと、比べる画面の直後で帯が1つ戻って見える
+                "phase": "compare",
                 "title": card.get("title", ""),
                 "poMessage": card.get("body", ""),
                 "poEmotion": "neutral",
@@ -154,7 +156,6 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "options": options.get("observationOptions") or OBSERVATION_OPTIONS,
             "meta": review,
         },
-        *_concept_steps(options.get("conceptCards") or []),
         {
             "id": "add_condition",
             "type": "condition_choice",
@@ -188,6 +189,19 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "poEmotion": "talking",
             "meta": {**review, "threeWay": True},
         },
+        # AI技の名前は、**使って、違いを見たあと**に出す。
+        #
+        # 前はここが observe_result の直後——条件を足す前・比べる前に
+        # あった。「出力形式の指定とは」を、それが何の役に立つのか
+        # 分からないまま読ませていたことになる。
+        #
+        # いまは順がこうなる:
+        #
+        #     条件を足す → 結果が変わる → 見比べる → 「今のが〜です」
+        #
+        # 名前が、たったいま自分で起こした変化に貼り付く。
+        # 歩数は変わっていない。**入れ替えただけ**。
+        *_concept_steps(options.get("conceptCards") or []),
         {
             "id": "real_task_intro",
             "type": "safety_check",

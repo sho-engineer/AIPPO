@@ -476,6 +476,13 @@ export function StepRenderer({
         <CompletionView
           course={course}
           skills={lesson.learnedSkills ?? lesson.outcomes}
+          /*
+            できるようになったこと。完了画面のいちばん上に出す。
+
+            `learnedSkills` を技として出しているとき**だけ**渡す。
+            両方が同じ配列だと、同じ文が2枚のカードに並ぶ。
+          */
+          outcomes={lesson.learnedSkills ? lesson.outcomes : undefined}
           outcomeText={lastRun?.outputText}
           outcomeLabel={
             api.realTaskSkipped ? "AIが書いた文章（練習）" : "AIが書いた文章"

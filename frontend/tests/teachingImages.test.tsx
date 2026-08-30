@@ -78,8 +78,8 @@ describe("Day1 のどこに出るか", () => {
 
     expect(placed).toEqual([
       "outcome_preview",
-      "concept_1",
       "compare_results",
+      "concept_1",
       "concept_tone",
       "concept_iteration",
     ]);
@@ -95,21 +95,31 @@ describe("Day1 のどこに出るか", () => {
     expect(at("compare_results")).toBeGreaterThan(at("generate_improved"));
   });
 
-  it("解説の絵と比べる図を、続けて出さない", () => {
-    // あいだに手を動かす画面が入っていること
-    const between = order.slice(at("concept_1") + 1, at("compare_results"));
-    expect(between).toContain("add_condition");
+  it("解説の絵は、比べた直後に出る", () => {
+    /*
+      AI技の名前は、**使って、違いを見たあと**に出す。
+      あいだに1画面でも挟むと「さっきの話」になってしまう。
+    */
+    expect(at("concept_1") - at("compare_results")).toBe(1);
   });
 
   it("解説の絵を続けて2枚出さない", () => {
-    const withImage = order
-      .map((id, index) => ({ id, index }))
-      .filter((entry) => teachingImage(DAY1, entry.id) !== null);
+    /*
+      見張るのは**解説どうし**が続くこと。読み下す画面が2つ続くと
+      手が止まる。
 
-    for (let i = 0; i < withImage.length - 1; i += 1) {
+      「比べる図 → 解説の絵」だけは続いてよい。あれは2つの教材では
+      なく、**見比べて、その名前を知る**というひとつながりの流れで、
+      あいだに何か挟むほうが切れてしまう。
+    */
+    const slides = order
+      .map((id, index) => ({ id, index, type: teachingImage(DAY1, id)?.visualType }))
+      .filter((entry) => entry.type === "skill_concept");
+
+    for (let i = 0; i < slides.length - 1; i += 1) {
       expect(
-        withImage[i + 1].index - withImage[i].index,
-        `${withImage[i].id} と ${withImage[i + 1].id} が隣り合っている`,
+        slides[i + 1].index - slides[i].index,
+        `${slides[i].id} と ${slides[i + 1].id} が隣り合っている`,
       ).toBeGreaterThan(1);
     }
   });
@@ -142,8 +152,8 @@ describe("Day2 のどこに出るか", () => {
 
     expect(placed).toEqual([
       "outcome_preview",
-      "concept_1",
       "compare_results",
+      "concept_1",
       "concept_output_format",
       "concept_context",
     ]);
@@ -155,20 +165,27 @@ describe("Day2 のどこに出るか", () => {
     expect(at("compare_results")).toBeGreaterThan(at("generate_improved"));
   });
 
-  it("解説の絵と比べる図を、続けて出さない", () => {
-    const between = order.slice(at("concept_1") + 1, at("compare_results"));
-    expect(between).toContain("add_condition");
+  it("解説の絵は、比べた直後に出る", () => {
+    expect(at("concept_1") - at("compare_results")).toBe(1);
   });
 
   it("解説の絵を続けて2枚出さない", () => {
-    const withImage = order
-      .map((id, index) => ({ id, index }))
-      .filter((entry) => teachingImage(DAY2, entry.id) !== null);
+    /*
+      見張るのは**解説どうし**が続くこと。読み下す画面が2つ続くと
+      手が止まる。
 
-    for (let i = 0; i < withImage.length - 1; i += 1) {
+      「比べる図 → 解説の絵」だけは続いてよい。あれは2つの教材では
+      なく、**見比べて、その名前を知る**というひとつながりの流れで、
+      あいだに何か挟むほうが切れてしまう。
+    */
+    const slides = order
+      .map((id, index) => ({ id, index, type: teachingImage(DAY2, id)?.visualType }))
+      .filter((entry) => entry.type === "skill_concept");
+
+    for (let i = 0; i < slides.length - 1; i += 1) {
       expect(
-        withImage[i + 1].index - withImage[i].index,
-        `${withImage[i].id} と ${withImage[i + 1].id} が隣り合っている`,
+        slides[i + 1].index - slides[i].index,
+        `${slides[i].id} と ${slides[i + 1].id} が隣り合っている`,
       ).toBeGreaterThan(1);
     }
   });
@@ -273,22 +290,30 @@ describe("Day3 のどこに出るか", () => {
 
     expect(placed).toEqual([
       "outcome_preview",
-      "concept_1",
       "compare_results",
+      "concept_1",
       "concept_role",
       "concept_followup",
     ]);
   });
 
   it("解説の絵を続けて2枚出さない", () => {
-    const withImage = order
-      .map((id, index) => ({ id, index }))
-      .filter((entry) => teachingImage(DAY3, entry.id) !== null);
+    /*
+      見張るのは**解説どうし**が続くこと。読み下す画面が2つ続くと
+      手が止まる。
 
-    for (let i = 0; i < withImage.length - 1; i += 1) {
+      「比べる図 → 解説の絵」だけは続いてよい。あれは2つの教材では
+      なく、**見比べて、その名前を知る**というひとつながりの流れで、
+      あいだに何か挟むほうが切れてしまう。
+    */
+    const slides = order
+      .map((id, index) => ({ id, index, type: teachingImage(DAY3, id)?.visualType }))
+      .filter((entry) => entry.type === "skill_concept");
+
+    for (let i = 0; i < slides.length - 1; i += 1) {
       expect(
-        withImage[i + 1].index - withImage[i].index,
-        `${withImage[i].id} と ${withImage[i + 1].id} が隣り合っている`,
+        slides[i + 1].index - slides[i].index,
+        `${slides[i].id} と ${slides[i + 1].id} が隣り合っている`,
       ).toBeGreaterThan(1);
     }
   });
@@ -309,9 +334,12 @@ describe("Day3 のどこに出るか", () => {
     expect(at("compare_results")).toBeGreaterThan(at("generate_improved"));
   });
 
-  it("解説と比べる画面のあいだに、手を動かす画面が入る", () => {
-    const between = order.slice(at("concept_1") + 1, at("compare_results"));
-    expect(between).toContain("add_condition");
+  it("解説の絵は、比べた直後に出る", () => {
+    /*
+      AI技の名前は、**使って、違いを見たあと**に出す。
+      あいだに1画面でも挟むと「さっきの話」になってしまう。
+    */
+    expect(at("concept_1") - at("compare_results")).toBe(1);
   });
 
   it("解説を続けて2枚出さない", () => {
