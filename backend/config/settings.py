@@ -538,6 +538,39 @@ MAX_ATTEMPTS_PER_SESSION = int(os.getenv("MAX_ATTEMPTS_PER_SESSION", "10"))
 AI_RUNS_PER_IP_PER_DAY = int(os.getenv("AI_RUNS_PER_IP_PER_DAY", "100"))
 AI_RUNS_PER_DAY = int(os.getenv("AI_RUNS_PER_DAY", "2000"))
 
+# --- 画像の上限（文章とは別枠） -------------------------------------------
+#
+# 画像1枚は文章1回の**数十倍**かかる（docs/image-lessons.md）。上の枠を
+# そのまま使うと、文章の目安で決めた 100 回が画像 100 枚を許すことになり、
+# 1日の請求が桁で変わる。だから画像は別のカウンタで数える。
+#
+# 別枠にするのは費用のためだけではない。混ぜると、画像を数枚作った人が
+# その日の**文章のレッスンまで使えなくなる**。逆も同じ。片方の使いすぎで
+# もう片方が止まるのは、学習者から見て理由が分からない。
+#
+# 数の根拠
+# --------
+# 画像のレッスンは Day7・Day8 の2本。1本で最低3枚
+# （最初の1枚＋条件を足した1枚＋自分の課題で1枚）作る。
+#
+#   登録前   … 3枚 = 1本ぶん。試してみて、続きは登録してから
+#   登録済み … 8枚 = 2本を通して、少しやり直せる
+#
+# ここの数は**仮置き**。実際の単価が分かったら、1日に許してよい金額から
+# 逆に決めること。全部 env で差し替えられる。
+#
+# 0以下にすると「上限なし」。**画像では使わないこと。**
+AI_IMAGE_RUNS_PER_IP_PER_DAY = int(
+    os.getenv("AI_IMAGE_RUNS_PER_IP_PER_DAY", "20")
+)
+AI_IMAGE_RUNS_PER_DAY = int(os.getenv("AI_IMAGE_RUNS_PER_DAY", "200"))
+AI_IMAGE_DAILY_REQUEST_LIMIT_USER = int(
+    os.getenv("AI_IMAGE_DAILY_REQUEST_LIMIT_USER", "8")
+)
+AI_IMAGE_DAILY_REQUEST_LIMIT_GUEST = int(
+    os.getenv("AI_IMAGE_DAILY_REQUEST_LIMIT_GUEST", "3")
+)
+
 # ロードバランサ配下に置くときだけ true にする。
 # 直接公開している状態で true にすると、接続元を詐称して上限を回避できる。
 TRUST_FORWARDED_FOR = _bool("TRUST_FORWARDED_FOR", False)

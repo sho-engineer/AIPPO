@@ -63,6 +63,12 @@ services:
       MAX_ATTEMPTS_PER_SESSION: ${MAX_ATTEMPTS_PER_SESSION:-10}
       AI_RUNS_PER_IP_PER_DAY: ${AI_RUNS_PER_IP_PER_DAY:-100}
       AI_RUNS_PER_DAY: ${AI_RUNS_PER_DAY:-2000}
+      # 画像は文章と別枠で数える（1枚が文章1回の数十倍かかるため）。
+      # 0以下にすると歯止めが外れる。docs/image-lessons.md を参照。
+      AI_IMAGE_RUNS_PER_IP_PER_DAY: ${AI_IMAGE_RUNS_PER_IP_PER_DAY:-20}
+      AI_IMAGE_RUNS_PER_DAY: ${AI_IMAGE_RUNS_PER_DAY:-200}
+      AI_IMAGE_DAILY_REQUEST_LIMIT_GUEST: ${AI_IMAGE_DAILY_REQUEST_LIMIT_GUEST:-3}
+      AI_IMAGE_DAILY_REQUEST_LIMIT_USER: ${AI_IMAGE_DAILY_REQUEST_LIMIT_USER:-8}
       # 前段に Caddy を置いているので、ここでは true にする。
       # true にした状態で Caddy を経由せず直接 8000 番を公開すると、
       # X-Forwarded-For を詐称して接続元単位の上限を回避できてしまう
