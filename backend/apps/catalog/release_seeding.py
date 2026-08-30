@@ -398,6 +398,236 @@ _ORGANIZE_STEPS: list[dict[str, Any]] = [
 ]
 
 
+#: Day7「AIで画像を作る」で、自分の作りたい画像に入ったあとに聞くこと。
+#:
+#: 覚える技は4つ（画像プロンプト・スタイル指定・構図指定・反復）。
+#: 画像プロンプトだけを骨格に置き、残りは使う場面の直前へ移した。
+#:
+#:     【スタイル指定】→ スタイルを選ぶ → 【構図指定】→ 構図を選ぶ
+#:     → 【反復】→ 送る
+#:
+#: 反復のあとに問いを置いていないのは、「一度で完璧を目指さなくていい」が
+#: 送る直前にいちばん効くため（Day1・Day4 と同じ置き方）。
+_IMAGE_STEPS: list[dict[str, Any]] = [
+    {
+        # 骨格は「自分の文章」と言う。この回で入れるのは文章ではなく
+        # **作りたい画像**なので、言い換える。
+        "placement": "override",
+        "step_key": "real_task_intro",
+        "title": "次は、自分の作りたい画像で試してみましょう",
+    },
+    {
+        "placement": "override",
+        "step_key": "real_task",
+        "title": "作りたい画像",
+    },
+    {
+        "placement": "override",
+        "step_key": "real_task_result",
+        "title": "作りたい画像の結果",
+    },
+    {
+        # 選択肢そのものは `condition_options` で差し替える。
+        # ここで直すのは言い回しだけ。
+        "placement": "override",
+        "step_key": "add_condition",
+        "title": "条件を一つ足してみましょう",
+        "instruction": "一度に一つだけ選ぶのがコツです。",
+        "po_message": "具体的に伝えるほど、欲しいイメージに近づきます。",
+        "po_emotion": "hint",
+    },
+    {
+        "placement": "override",
+        "step_key": "compare_results",
+        "instruction": "最初の1枚・条件を足したあと、を見比べます。",
+        "po_message": "被写体の具体さと、構図・スタイルで変わります。",
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "concept_style",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "スタイル指定",
+        "po_message": "同じ内容でも、スタイルで印象が大きく変わります。",
+        "po_emotion": "neutral",
+        # 解説は必ず飛ばせる。読みたくない人を足止めしない
+        "is_skippable": True,
+        "card": {
+            "title": "スタイル指定",
+            "body": "画像の見た目や雰囲気を決められます。",
+            "visual": "three_points",
+            "points": ["写真風", "イラスト風", "水彩風"],
+            "reviewExample": {
+                "body": "同じ場所でも、スタイルを変えると別の伝わり方になります。",
+                "points": ["写真風は現実感", "イラスト風は親しみ", "水彩風はやわらかさ"],
+            },
+        },
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "real_style",
+        "step_type": "single_choice",
+        "phase": "own",
+        "title": "どのスタイルにしますか",
+        "po_message": "迷ったら写真風で大丈夫です。あとから変えられます。",
+        "po_emotion": "question",
+        "input_key": "style",
+        "is_required": True,
+        "options": [
+            {"value": "写真風", "label": "写真風"},
+            {"value": "イラスト風", "label": "イラスト風"},
+            {"value": "水彩風", "label": "水彩風"},
+            {"value": "", "label": "そのほか", "free": True},
+        ],
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "concept_composition",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "構図指定",
+        "po_message": "見せ方まで伝えると、欲しい画像に近づきます。",
+        "po_emotion": "hint",
+        "is_skippable": True,
+        "card": {
+            "title": "構図指定",
+            "body": "何を、どこから、どの大きさで見せるかを決められます。",
+            "visual": "three_points",
+            "points": ["正面", "俯瞰", "クローズアップ"],
+            "reviewExample": {
+                "body": "同じ被写体でも、どこから見るかで伝わることが変わります。",
+                "points": ["正面は全体", "俯瞰は並び", "クローズアップは質感"],
+            },
+        },
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "real_composition",
+        "step_type": "single_choice",
+        "phase": "own",
+        "title": "どの構図にしますか",
+        "po_message": "これで最後の質問です。",
+        "po_emotion": "question",
+        "input_key": "composition",
+        "is_required": True,
+        "options": [
+            {"value": "正面から", "label": "正面から"},
+            {"value": "真上から（俯瞰）", "label": "俯瞰"},
+            {"value": "近くに寄って（クローズアップ）", "label": "クローズアップ"},
+            {"value": "", "label": "そのほか", "free": True},
+        ],
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "concept_iteration",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "反復（Iteration）",
+        "po_message": "一度で完璧を目指さなくて大丈夫です。",
+        "po_emotion": "hint",
+        "is_skippable": True,
+        "card": {
+            "title": "反復（Iteration）",
+            "body": "結果を見てから足すほうが、はじめから細かく書くより近づきます。",
+            "visual": "simple_flow",
+            "points": ["まず作る", "見てみる", "条件を足す"],
+            "reviewExample": {
+                "body": "画像はとくに、1枚目を見てからのほうが言葉にしやすくなります。",
+                "points": ["1枚目を見る", "違う所を言う", "もう一度作る"],
+            },
+        },
+    },
+]
+
+
+#: Day7「AIで画像を作る」。**まだ開けない。**
+#:
+#: 本文とステップは揃えてある。足りないのは画像を作る口だけで、
+#: それは費用の見通しを立ててから開ける（docs/image-lessons.md）。
+#: 画像1枚は文章1回の数十倍かかり、レッスン1本で最低2枚生成する。
+#:
+#: `action` を空にしてあるのは、**無い口の名前を書かない**ため。
+#: それらしい名前を置くと「あるのに動かない」に見え、公開の検査
+#: （catalog/validation.py）も素通りする。空なら検査が
+#: 「AIへの頼み方がありません」と名指しで止める——残りの仕事はそれ1つ。
+IMAGE_GENERATION = _lesson(
+    "image_generation",
+    "AIで画像を作る",
+    "作りたいものを言葉で伝えて、思ったイメージへ近づけられるようになる",
+    "",
+    "subject",
+    "カフェ",
+    "subject",
+    [
+        {"value": "カフェ", "label": "カフェ"},
+        {"value": "部屋", "label": "部屋"},
+        {"value": "食べ物", "label": "食べ物"},
+    ],
+    {"style": "写真風", "composition": "正面から"},
+    {},
+    thumbnail="/assets/final-thumbnails/start_07.webp",
+    tags=["image"],
+    content={
+        "availability_status": AvailabilityStatus.COMING_SOON,
+        "coming_soon_message": "画像を作る仕組みを準備しています",
+        "outcome_title": "欲しいイメージを言葉で伝えて、画像を作る",
+        "outcome_description": "被写体・場所・雰囲気・スタイルを足して近づけます。",
+        "before_example": "カフェの画像",
+        "after_example": (
+            "青空の下にある、白い外壁の小さなカフェ。正面構図。明るい写真風。"
+        ),
+        "learned_skills": ["画像プロンプト", "スタイル指定", "構図指定", "反復"],
+        "outcomes": ["言葉から画像を作れる", "修正してイメージへ近づけられる"],
+        "quick_title": "何の画像を作りますか？",
+        "quick_instruction": "ひとつ選ぶと、短い言葉のまま1枚作ります。",
+        "working": "言葉から画像を作っています。",
+        # 共通の選択肢（もっと短く・もっと丁寧に）は文章を直す言い回しで、
+        # 画像には当たらない。被写体・場所・雰囲気・スタイルに差し替える。
+        "condition_options": [
+            {"value": "白い外壁の小さな建物にして", "label": "被写体をくわしく"},
+            {"value": "青空の下、海の見える場所にして", "label": "場所を足す"},
+            {"value": "明るく開放的な雰囲気にして", "label": "雰囲気を足す"},
+            {"value": "明るい写真風にして", "label": "スタイルを足す"},
+            {"value": "", "label": "自分で条件を追加", "free": True},
+        ],
+        "observation_options": [
+            {"value": "イメージに近づいた", "label": "イメージに近づいた"},
+            {"value": "雰囲気が変わった", "label": "雰囲気が変わった"},
+            {"value": "見せ方が変わった", "label": "見せ方が変わった"},
+            {"value": "まだ違う", "label": "まだ違う"},
+            {"value": "よく分からない", "label": "よく分からない"},
+        ],
+        # 骨格が続けて出す解説は1枚だけ。残り3つは使う直前へ移した
+        # （上の _IMAGE_STEPS）。
+        "concept_cards": [
+            {
+                "title": "画像プロンプト",
+                "body": "頭の中のイメージを、具体的な言葉にして渡します。",
+                "visual": "three_points",
+                "points": ["被写体", "場所", "雰囲気"],
+                "reviewExample": {
+                    "body": "足りない言葉があるほど、AIは一般的な絵を返します。",
+                    "points": ["何を", "どこで", "どんな空気で"],
+                },
+            },
+        ],
+        "review_points": [
+            "思っていたものと、どこが違うか",
+            "足りない言葉はどれか",
+            "人の顔や商標が入っていないか",
+        ],
+        "real_task_label": "作りたい画像を、ひとつ言葉にしてみましょう。",
+        "real_task_placeholder": "例）資料の表紙に使う、机の上の写真",
+        "takeaway": (
+            "具体的に伝えるほど、欲しいイメージに近づくことを"
+            "確かめられましたね。"
+        ),
+        "next_suggestion": "次は「画像を修正する」で、出てきた画像を直してみましょう。",
+    },
+    step_rows=_IMAGE_STEPS,
+)
+
+
 ADDED_LESSONS = (
     _lesson(
         "brainstorm_ideas",
@@ -927,25 +1157,7 @@ def seed_first_release(*, only_new: bool = False) -> tuple[Course, Course]:
     「画像まで行く」のかは、始める前に知りたいことで、
     出さずにおくと**あとから足された別物**に見える。
     """
-    Lesson.objects.update_or_create(
-        slug="image_generation",
-        defaults={
-            "course": start,
-            "number": 7,
-            "title": "AIで画像を作る",
-            "goal": "作りたいものを言葉で伝えて、1枚目の画像を出せるようになる",
-            "template": LessonTemplate.CUSTOM,
-            "estimated_minutes": 8,
-            "thumbnail": "/assets/final-thumbnails/start_07.webp",
-            "outcomes": ["作りたいものを言葉で伝えられる", "雰囲気や構図を指定できる"],
-            "tags": ["image"],
-            "uses_ai": True,
-            "status": PublishStatus.PUBLISHED,
-            "availability_status": AvailabilityStatus.COMING_SOON,
-            "coming_soon_message": "画像を作る仕組みを準備しています",
-            "sort_order": 7,
-        },
-    )
+    _upsert_lesson(start, 7, IMAGE_GENERATION)
     Lesson.objects.update_or_create(
         slug="image_edit",
         defaults={

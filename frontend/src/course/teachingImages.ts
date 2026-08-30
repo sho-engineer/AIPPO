@@ -262,6 +262,52 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       alt: "AI技「出力形式の指定」の図。同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できることを示したもの。",
     },
   },
+
+  /*
+    Day7「AIで画像を作る」。**まだ開けないレッスン。**
+
+    絵と本文は揃えてある。足りないのは画像を作る口だけで、それは
+    費用の見通しを立ててから開ける（docs/image-lessons.md）。
+    開くまでこの表は使われない——近日公開の教材はステップを配らないので、
+    画面がここを引きに来ることがそもそも無い。
+
+    それでも先に書いておく。**絵の置き場所を決めるのは教材を書く作業**で、
+    画像の口ができてから慌ててやることではない。
+
+    出る順は、レッスンの流れそのまま。
+      完成イメージ → 短い言葉で1枚作る → 画像プロンプト
+      → 被写体・場所・雰囲気・スタイルを足して再生成 → 見比べる
+      → 自分の作りたい画像 → スタイル指定 → スタイルを選ぶ
+      → 構図指定 → 構図を選ぶ → 反復 → 送る
+
+    反復の絵は Day1・Day4 と同じ1枚を使い回す——**同じ技には同じ絵**。
+  */
+  image_generation: {
+    outcome_preview: {
+      src: "/assets/teaching/day7_overview.webp",
+      alt: "Day7「AIで画像を作る」の全体図。言葉からAIで画像を作る流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+    },
+    concept_1: {
+      src: "/assets/teaching/skill_14_image_prompt.webp",
+      alt: "AI技「画像プロンプト」の図。作りたい画像を、被写体・場所・雰囲気・スタイルという具体的な言葉にしてAIへ渡すことを示したもの。",
+    },
+    compare_results: {
+      src: "/assets/teaching/compare_11_image_prompt.webp",
+      alt: "具体的に伝えるほど画像がイメージへ近づくことの図。ただ「カフェの画像」と頼んだ場合と、外観・構図・スタイルまで足した場合を並べたもの。",
+    },
+    concept_style: {
+      src: "/assets/teaching/skill_15_style.webp",
+      alt: "AI技「スタイル指定」の図。同じ被写体でも、写真風・イラスト風・水彩風で見た目と雰囲気が変わることを示したもの。",
+    },
+    concept_composition: {
+      src: "/assets/teaching/skill_16_composition.webp",
+      alt: "AI技「構図指定」の図。同じ被写体でも、正面・俯瞰・クローズアップで何がどう見えるかが変わることを示したもの。",
+    },
+    concept_iteration: {
+      src: "/assets/teaching/skill_03_iteration.webp",
+      alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
+    },
+  },
 };
 
 /**
