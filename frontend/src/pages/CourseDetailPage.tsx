@@ -48,6 +48,8 @@ import { LessonDiscoveryCard } from "../components/lessons/LessonDiscoveryCard";
 import { PathProgress } from "../components/course/PathProgress";
 import { PoAvatar } from "../po/PoAvatar";
 import { courseOutline, nextLesson } from "../course/outline";
+import { courseImage } from "../course/teachingImages";
+import { TeachingImage } from "../components/lessons/TeachingImage";
 import { loadRecommendations } from "../course/recommend";
 import { useCompletedLessons, useXpSummary } from "../course/progress";
 import { useLearningPath } from "../course/learningPath";
@@ -119,6 +121,8 @@ export function CourseDetailPage({
     completed.includes(lesson.id),
   ).length;
 
+  const overview = courseImage(course.id);
+
   // 探している最中は、絞り込んだものだけを並べる
   const searching = query.trim() !== "" || category !== null;
   const found = searchLessons(
@@ -137,6 +141,22 @@ export function CourseDetailPage({
           （それは下の「できるようになること」の担当）。
         */}
         <p className="mt-1.5 text-sm leading-7 text-ink-muted">{course.description}</p>
+
+        {/*
+          コース全体の1枚。**説明文の代わりではなく、説明文より先**。
+
+          「8日で何をするのか」は、順に読んで組み立てるより1枚見たほうが早い。
+          道のり（下の CourseOutline）は「いまどこか」を担うので、
+          こちらは「ぜんぶでどこへ行くのか」だけを持つ。
+
+          探している最中は隠す。絞り込んだ結果の上にコース全体の絵が
+          残ると、検索結果がその絵の付属物に見える。
+        */}
+        {!searching && overview && (
+          <div className="mt-4">
+            <TeachingImage src={overview.src} alt={overview.alt} />
+          </div>
+        )}
 
         <CourseProgressLine
           done={doneDays}

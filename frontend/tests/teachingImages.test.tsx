@@ -17,7 +17,12 @@ import { describe, expect, it } from "vitest";
 import { ConceptCardView } from "../src/components/course/steps/ConceptCard";
 import { TeachingImage } from "../src/components/lessons/TeachingImage";
 import { getLesson } from "../src/course/catalog";
-import { ALL_TEACHING_IMAGES, teachingImage } from "../src/course/teachingImages";
+import {
+  ALL_COURSE_IMAGES,
+  ALL_TEACHING_IMAGES,
+  courseImage,
+  teachingImage,
+} from "../src/course/teachingImages";
 
 const DAY1 = "rewrite_text";
 const DAY2 = "summarize_text";
@@ -198,11 +203,53 @@ describe("表に載せた絵が、実際にあること", () => {
       逆（置いたのに表へ足さない）は、絵が出ないだけで壊れて見えない
       ので、ここでは見ない。
     */
-    const missing = ALL_TEACHING_IMAGES.filter(
-      (entry) => !existsSync(`public${entry.src}`),
-    ).map((entry) => `${entry.lessonId}/${entry.stepId} → ${entry.src}`);
+    const missing = [
+      ...ALL_TEACHING_IMAGES.map((entry) => ({
+        where: `${entry.lessonId}/${entry.stepId}`,
+        src: entry.src,
+      })),
+      // コースの絵はレッスンの表に入っていない。別に持っているので
+      // 別に見る——片方だけ見ると、もう片方が黙って抜ける
+      ...ALL_COURSE_IMAGES.map((entry) => ({
+        where: `コース ${entry.courseId}`,
+        src: entry.src,
+      })),
+    ]
+      .filter((entry) => !existsSync(`public${entry.src}`))
+      .map((entry) => `${entry.where} → ${entry.src}`);
 
     expect(missing, `置き忘れている絵:\n${missing.join("\n")}`).toEqual([]);
+  });
+
+  it("絵の種類が、置き場所と食い違っていない", () => {
+    /*
+      種類（visualType）は画面が出し分けに使う。置き場所と合っていないと、
+      比べる図が解説として出る、といったことが起きる。
+      種類は書き手が毎回選ぶものではなく、**置き場所から決まる**。
+    */
+    for (const entry of ALL_TEACHING_IMAGES) {
+      const expected = entry.stepId === "outcome_preview"
+        ? "lesson_overview"
+        : entry.stepId === "intro"
+          ? "diagnosis_overview"
+          : entry.stepId.startsWith("compare_")
+            ? "compare"
+            : "skill_concept";
+
+      expect(entry.visualType, `${entry.lessonId}/${entry.stepId}`).toBe(expected);
+    }
+
+    for (const entry of ALL_COURSE_IMAGES) {
+      expect(entry.visualType, entry.courseId).toBe("course_overview");
+    }
+  });
+
+  it("コース全体の絵と、現在地チェックの絵がある", () => {
+    // 今回いちばん足したかった2枚。表から消えたらここで気づく
+    expect(courseImage("first_step_7days")?.visualType).toBe("course_overview");
+    expect(teachingImage("diagnosis", "intro")?.visualType).toBe(
+      "diagnosis_overview",
+    );
   });
 
   it("何の図かを、読み上げにも渡している", () => {

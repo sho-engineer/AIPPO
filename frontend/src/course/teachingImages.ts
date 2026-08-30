@@ -26,13 +26,75 @@
  * （`alt`）だけをここに持つ。
  */
 
+/**
+ * 絵の種類。**何の絵かで出し方が変わる**ので、画面側が見分けられるようにする。
+ *
+ * 種類を持たないと、置き場所（lessonId + stepId）からしか判断できない。
+ * それだと「コース全体の絵」のようにステップに属さないものを置けないし、
+ * 「これは比べる図だから見出しを添える」といった出し分けもできない。
+ *
+ *   course_overview    … コース全体。何をする8日間かを1枚で
+ *   diagnosis_overview … 現在地チェック。何を聞かれて何が分かるか
+ *   lesson_overview    … その日の全体図。今日つくるもの
+ *   skill_concept      … AI技1つの説明。**使った直後**に出す
+ *   compare            … 条件を変えると結果がどう変わるか
+ */
+export type VisualType =
+  | "course_overview"
+  | "diagnosis_overview"
+  | "lesson_overview"
+  | "skill_concept"
+  | "compare";
+
 export interface TeachingImageEntry {
   src: string;
   /** 何の図か。1文で。絵の中の文字を書き写さない。 */
   alt: string;
+  visualType: VisualType;
 }
 
+/**
+ * コース全体の絵。**ステップに属さない**ので、レッスンの表とは別に持つ。
+ *
+ * 出るのはコースの画面のいちばん上。「この8日で何をするのか」を、
+ * 説明文を読む前に1枚で見せる。
+ */
+const BY_COURSE: Record<string, TeachingImageEntry> = {
+  first_step_7days: {
+    src: "/assets/teaching/course_overview_start.webp",
+    alt: "AIスタートコースの全体図。文章を分かりやすくする・要約する・説明してもらう・アイデアを広げる・比較する・整理する・画像を作る・画像を修正する、の8つの実践と、終えたらできるようになることをまとめたもの。",
+    visualType: "course_overview",
+  },
+};
+
+/** そのコースの絵。無ければ null。 */
+export function courseImage(courseId: string): TeachingImageEntry | null {
+  return BY_COURSE[courseId] ?? null;
+}
+
+/**
+ * コースの絵、全部。置き忘れの検査に使う（レッスンの分は下の
+ * `ALL_TEACHING_IMAGES`）。**両方を見ないと片方だけ抜ける。**
+ */
+export const ALL_COURSE_IMAGES: (TeachingImageEntry & { courseId: string })[] =
+  Object.entries(BY_COURSE).map(([courseId, entry]) => ({ ...entry, courseId }));
+
 const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
+  /*
+    現在地チェック（AI活用診断）。
+
+    ここだけ骨格を使っていない教材で、最初のステップの名前が
+    `outcome_preview` ではなく `intro`。**ステップの名前で置き場所を
+    決めている**ので、名前が違えば置き場所も違う。
+  */
+  diagnosis: {
+    intro: {
+      src: "/assets/teaching/diagnosis_overview.webp",
+      alt: "AI活用診断の全体図。いくつかの質問に答えると、いまのAI活用の現在地と、次に学ぶおすすめのLessonが分かることを示したもの。",
+      visualType: "diagnosis_overview",
+    },
+  },
+
   /*
     Day1「文章を分かりやすくする」。
 
@@ -47,22 +109,27 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
     outcome_preview: {
       src: "/assets/teaching/day1_overview.webp",
       alt: "Day1「文章を分かりやすくする」の全体図。分かりにくい文章をAIで読みやすい文章に直す流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      visualType: "lesson_overview",
     },
     concept_1: {
       src: "/assets/teaching/skill_01_targeting.webp",
       alt: "AI技「ターゲット指定」の図。同じ文章でも、新入社員向けならやさしい文章に、専門家向けなら専門的な文章になることを示したもの。",
+      visualType: "skill_concept",
     },
     compare_results: {
       src: "/assets/teaching/compare_01_target.webp",
       alt: "誰に伝えるかで文章が変わることの図。ただ「分かりやすくして」と頼んだ場合と、「新入社員向けに」と足した場合を並べ、言葉の選び方と説明のやさしさが変わることを示したもの。",
+      visualType: "compare",
     },
     concept_tone: {
       src: "/assets/teaching/skill_02_tone.webp",
       alt: "AI技「トーン指定」の図。同じ内容でも、丁寧・やわらかい・カジュアルで言い方が変わることを示したもの。",
+      visualType: "skill_concept",
     },
     concept_iteration: {
       src: "/assets/teaching/skill_03_iteration.webp",
       alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
+      visualType: "skill_concept",
     },
   },
 
@@ -82,22 +149,27 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
     outcome_preview: {
       src: "/assets/teaching/day2_overview.webp",
       alt: "Day2「長い文章を短くまとめる」の全体図。長くて要点の見つけにくい文章をAIで短い要約に変える流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      visualType: "lesson_overview",
     },
     concept_1: {
       src: "/assets/teaching/skill_04_summarization.webp",
       alt: "AI技「要約」の図。長い文章から、目的・決定事項・次の行動といった要点だけを取り出すことを示したもの。全部を削るのではなく、大事な情報を残す。",
+      visualType: "skill_concept",
     },
     compare_results: {
       src: "/assets/teaching/compare_03_summary_format.webp",
       alt: "まとめ方を指定すると要約が変わることの図。ただ「要約して」と頼んだ場合と、「重要なポイントを3つの箇条書きで」と足した場合を並べ、長さと出力形式が変わることを示したもの。",
+      visualType: "compare",
     },
     concept_output_format: {
       src: "/assets/teaching/skill_05_output_format.webp",
       alt: "AI技「出力形式の指定」の図。同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できることを示したもの。",
+      visualType: "skill_concept",
     },
     concept_context: {
       src: "/assets/teaching/skill_06_context.webp",
       alt: "AI技「コンテキスト」の図。ただ「まとめて」と頼んだ場合と、目的・相手・場面という背景を渡した場合を並べ、背景を伝えるほど目的に合った回答になることを示したもの。",
+      visualType: "skill_concept",
     },
   },
 
@@ -120,22 +192,27 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
     outcome_preview: {
       src: "/assets/teaching/day3_overview.webp",
       alt: "Day3「分からないことを説明してもらう」の全体図。難しい説明を、自分に合ったレベルの分かりやすい説明に変える流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      visualType: "lesson_overview",
     },
     concept_1: {
       src: "/assets/teaching/skill_01_targeting.webp",
       alt: "AI技「ターゲット指定」の図。同じ文章でも、新入社員向けならやさしい文章に、専門家向けなら専門的な文章になることを示したもの。",
+      visualType: "skill_concept",
     },
     compare_results: {
       src: "/assets/teaching/compare_05_explanation_level.webp",
       alt: "自分のレベルを伝えると説明が変わることの図。ただ「APIについて説明して」と頼んだ場合と、「IT初心者向けに、身近な例を使って」と足した場合を並べ、言葉の難しさと例の有無が変わることを示したもの。",
+      visualType: "compare",
     },
     concept_role: {
       src: "/assets/teaching/skill_07_role.webp",
       alt: "AI技「ロール指定」の図。「あなたは先生です」と伝えると初心者向けの説明に、「あなたはIT担当者です」と伝えると実務的な説明になることを示したもの。",
+      visualType: "skill_concept",
     },
     concept_followup: {
       src: "/assets/teaching/skill_08_followup_question.webp",
       alt: "AI技「追加質問」の図。AIの答えに「もっと簡単に」「具体例を出して」と聞き返しながら、分かるまで深掘りしていく流れを示したもの。",
+      visualType: "skill_concept",
     },
   },
 
@@ -164,26 +241,32 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
     outcome_preview: {
       src: "/assets/teaching/day4_overview.webp",
       alt: "Day4「アイデアを広げる」の全体図。1つのアイデアからAIで複数の案を生み出す流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      visualType: "lesson_overview",
     },
     concept_1: {
       src: "/assets/teaching/skill_09_divergence.webp",
       alt: "AI技「発散」の図。1つのアイデアをAIに渡すと複数方向のアイデアに広がることを示したもの。最初から正解を探さず、まず選択肢を増やす。",
+      visualType: "skill_concept",
     },
     compare_results: {
       src: "/assets/teaching/compare_07_divergence.webp",
       alt: "数と方向性を指定すると案が広がることの図。ただ「アイデアを考えて」と頼んだ場合と、「方向性が違う案を10個」と足した場合を並べ、案の数と方向の幅が変わることを示したもの。",
+      visualType: "compare",
     },
     concept_role: {
       src: "/assets/teaching/skill_07_role.webp",
       alt: "AI技「ロール指定」の図。「あなたは先生です」と伝えると初心者向けの説明に、「あなたはIT担当者です」と伝えると実務的な説明になることを示したもの。",
+      visualType: "skill_concept",
     },
     concept_followup: {
       src: "/assets/teaching/skill_08_followup_question.webp",
       alt: "AI技「追加質問」の図。AIの答えに「もっと簡単に」「具体例を出して」と聞き返しながら、分かるまで深掘りしていく流れを示したもの。",
+      visualType: "skill_concept",
     },
     concept_iteration: {
       src: "/assets/teaching/skill_03_iteration.webp",
       alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
+      visualType: "skill_concept",
     },
   },
 
@@ -205,22 +288,27 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
     outcome_preview: {
       src: "/assets/teaching/day5_overview.webp",
       alt: "Day5「選択肢を比較する」の全体図。複数の選択肢を同じ基準で比べて比較表にする流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      visualType: "lesson_overview",
     },
     concept_1: {
       src: "/assets/teaching/skill_10_comparison.webp",
       alt: "AI技「比較」の図。バラバラの候補をAIに渡すと、価格・簡単さ・機能といった同じ観点で並んだ表になることを示したもの。",
+      visualType: "skill_concept",
     },
     compare_results: {
       src: "/assets/teaching/compare_08_evaluation.webp",
       alt: "評価基準でおすすめが変わることの図。基準を決めずに「どれがおすすめ？」と聞いた場合と、価格・使いやすさ・機能を指定した場合を並べ、勧められる選択肢そのものが入れ替わることを示したもの。",
+      visualType: "compare",
     },
     concept_criteria: {
       src: "/assets/teaching/skill_11_evaluation_criteria.webp",
       alt: "AI技「評価基準の指定」の図。同じ候補でも、価格重視ならA、機能重視ならCというように、重視するものを変えるとおすすめが変わることを示したもの。",
+      visualType: "skill_concept",
     },
     concept_output_format: {
       src: "/assets/teaching/skill_05_output_format.webp",
       alt: "AI技「出力形式の指定」の図。同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できることを示したもの。",
+      visualType: "skill_concept",
     },
   },
 
@@ -244,22 +332,27 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
     outcome_preview: {
       src: "/assets/teaching/day6_overview.webp",
       alt: "Day6「情報を整理して見やすくする」の全体図。散らばったメモをAIで表・箇条書き・カテゴリーへ変える流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      visualType: "lesson_overview",
     },
     concept_1: {
       src: "/assets/teaching/skill_12_information_organization.webp",
       alt: "AI技「情報整理」の図。バラバラの紙をAIに渡すと、いくつかのカテゴリに並べ直されることを示したもの。情報を減らさなくても整理すると理解しやすくなる。",
+      visualType: "skill_concept",
     },
     compare_results: {
       src: "/assets/teaching/compare_09_organization.webp",
       alt: "分類すると見やすくなることの図。整理前のバラバラなメモと、仕事・生活のカテゴリーに分けたあとを並べ、情報量は同じまま見つけやすさだけが変わることを示したもの。",
+      visualType: "compare",
     },
     concept_classification: {
       src: "/assets/teaching/skill_13_classification.webp",
       alt: "AI技「分類」の図。メール・会議・旅行などが混ざった情報を、仕事と生活のグループに分ける様子を示したもの。",
+      visualType: "skill_concept",
     },
     concept_output_format: {
       src: "/assets/teaching/skill_05_output_format.webp",
       alt: "AI技「出力形式の指定」の図。同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できることを示したもの。",
+      visualType: "skill_concept",
     },
   },
 
@@ -286,26 +379,32 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
     outcome_preview: {
       src: "/assets/teaching/day7_overview.webp",
       alt: "Day7「AIで画像を作る」の全体図。言葉からAIで画像を作る流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      visualType: "lesson_overview",
     },
     concept_1: {
       src: "/assets/teaching/skill_14_image_prompt.webp",
       alt: "AI技「画像プロンプト」の図。作りたい画像を、被写体・場所・雰囲気・スタイルという具体的な言葉にしてAIへ渡すことを示したもの。",
+      visualType: "skill_concept",
     },
     compare_results: {
       src: "/assets/teaching/compare_11_image_prompt.webp",
       alt: "具体的に伝えるほど画像がイメージへ近づくことの図。ただ「カフェの画像」と頼んだ場合と、外観・構図・スタイルまで足した場合を並べたもの。",
+      visualType: "compare",
     },
     concept_style: {
       src: "/assets/teaching/skill_15_style.webp",
       alt: "AI技「スタイル指定」の図。同じ被写体でも、写真風・イラスト風・水彩風で見た目と雰囲気が変わることを示したもの。",
+      visualType: "skill_concept",
     },
     concept_composition: {
       src: "/assets/teaching/skill_16_composition.webp",
       alt: "AI技「構図指定」の図。同じ被写体でも、正面・俯瞰・クローズアップで何がどう見えるかが変わることを示したもの。",
+      visualType: "skill_concept",
     },
     concept_iteration: {
       src: "/assets/teaching/skill_03_iteration.webp",
       alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
+      visualType: "skill_concept",
     },
   },
 
@@ -330,26 +429,32 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
     outcome_preview: {
       src: "/assets/teaching/day8_overview.webp",
       alt: "Day8「画像を修正する」の全体図。元画像の変えたい部分だけをAIへ伝えて直す流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      visualType: "lesson_overview",
     },
     concept_1: {
       src: "/assets/teaching/skill_17_image_edit_instruction.webp",
       alt: "AI技「画像編集指示」の図。カフェの写真に「空を夕焼けに変えて」と伝えると、その部分だけが変わった修正版になることを示したもの。",
+      visualType: "skill_concept",
     },
     compare_results: {
       src: "/assets/teaching/compare_14_image_edit.webp",
       alt: "変えたい部分だけ画像を直せることの図。元画像と、「空だけ夕焼けに変えて」と部分を指定した結果を並べ、空だけが変わって建物はそのままであることを示したもの。",
+      visualType: "compare",
     },
     concept_partial: {
       src: "/assets/teaching/skill_18_partial_edit.webp",
       alt: "AI技「部分修正」の図。カフェの画像から人物だけを選んで消し、背景や構図はそのまま残す流れを示したもの。",
+      visualType: "skill_concept",
     },
     concept_partial_result: {
       src: "/assets/teaching/compare_15_partial_edit.webp",
       alt: "直す場所を絞ると他を残せることの図。元画像と、人物だけを消した結果を並べ、背景・色・構図が保たれていることを示したもの。",
+      visualType: "skill_concept",
     },
     concept_iteration: {
       src: "/assets/teaching/skill_03_iteration.webp",
       alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
+      visualType: "skill_concept",
     },
   },
 };

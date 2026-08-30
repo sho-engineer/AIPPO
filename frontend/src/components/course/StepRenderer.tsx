@@ -148,8 +148,18 @@ export function StepRenderer({
 
     case "intro":
       return (
-        <div className="rounded-card border border-brand-line bg-surface p-5">
-          <p className="text-sm leading-7">{step.poMessage}</p>
+        <div className="space-y-4">
+          {/*
+            絵があるときは、絵を先に置く。
+
+            この画面は「これから何が起きるか」を伝えるためだけにある。
+            1枚で伝わるなら、読む前に見せたほうが早い。
+            絵は説明の飾りではなく、説明そのもの。
+          */}
+          {picture && <TeachingImage src={picture.src} alt={picture.alt} />}
+          <div className="rounded-card border border-brand-line bg-surface p-5">
+            <p className="text-sm leading-7">{step.poMessage}</p>
+          </div>
         </div>
       );
 
