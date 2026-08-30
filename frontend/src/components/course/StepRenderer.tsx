@@ -156,7 +156,14 @@ export function StepRenderer({
             1枚で伝わるなら、読む前に見せたほうが早い。
             絵は説明の飾りではなく、説明そのもの。
           */}
-          {picture && <TeachingImage src={picture.src} alt={picture.alt} />}
+          {picture && (
+            <TeachingImage
+              src={picture.src}
+              alt={picture.alt}
+              width={picture.width}
+              height={picture.height}
+            />
+          )}
           <div className="rounded-card border border-brand-line bg-surface p-5">
             <p className="text-sm leading-7">{step.poMessage}</p>
           </div>
@@ -383,7 +390,12 @@ export function StepRenderer({
             */}
             {picture && (
               <div className="mb-4">
-                <TeachingImage src={picture.src} alt={picture.alt} />
+                <TeachingImage
+                  src={picture.src}
+                  alt={picture.alt}
+                  width={picture.width}
+                  height={picture.height}
+                />
               </div>
             )}
             <ThreeWayCompare

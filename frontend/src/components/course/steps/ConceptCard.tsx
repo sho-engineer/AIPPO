@@ -56,7 +56,12 @@ export function ConceptCardView({
 
       {image && (
         <div className="mt-4">
-          <TeachingImage src={image.src} alt={image.alt} />
+          <TeachingImage
+            src={image.src}
+            alt={image.alt}
+            width={image.width}
+            height={image.height}
+          />
         </div>
       )}
 

@@ -96,7 +96,12 @@ export function OutcomePreview({
         そろえるため）。専用の1枚は切り取らない。
       */}
       {overview ? (
-        <TeachingImage src={overview.src} alt={overview.alt} />
+        <TeachingImage
+          src={overview.src}
+          alt={overview.alt}
+          width={overview.width}
+          height={overview.height}
+        />
       ) : (
         thumbnail && <LessonThumbnail src={thumbnail} variant="banner" />
       )}

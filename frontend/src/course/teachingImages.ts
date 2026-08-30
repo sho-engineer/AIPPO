@@ -51,6 +51,17 @@ export interface TeachingImageEntry {
   /** 何の図か。1文で。絵の中の文字を書き写さない。 */
   alt: string;
   visualType: VisualType;
+  /**
+   * その絵の実寸。
+   *
+   * 既定（3:2 = 1536×1024）と比が違う絵にだけ書く。書かないと
+   * 読み込む前だけ 3:2 で場所を取り、読み終わりに箱の高さが変わって
+   * 下の文とボタンが飛ぶ（`components/lessons/TeachingImage.tsx`）。
+   *
+   * 絵を差し替えたら、ここも測り直すこと。
+   */
+  width?: number;
+  height?: number;
 }
 
 /**
@@ -108,8 +119,10 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   rewrite_text: {
     outcome_preview: {
       src: "/assets/teaching/day1_overview.webp",
-      alt: "Day1「文章を分かりやすくする」の全体図。分かりにくい文章をAIで読みやすい文章に直す流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      alt: "Day1「文章を分かりやすくする」の全体図。専門用語が多く何を伝えたいのか分かりにくい文章が、やさしい言葉で短くまとまった文章に変わることを並べて示し、終えたらできるようになること3つと学習時間の目安を添えたもの。",
       visualType: "lesson_overview",
+      width: 1219,
+      height: 1231,
     },
     concept_1: {
       src: "/assets/teaching/skill_01_targeting.webp",
@@ -148,8 +161,10 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   summarize_text: {
     outcome_preview: {
       src: "/assets/teaching/day2_overview.webp",
-      alt: "Day2「長い文章を短くまとめる」の全体図。長くて要点の見つけにくい文章をAIで短い要約に変える流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      alt: "Day2「長い文章を短くまとめる」の全体図。情報が詰まっていて読むのが大変な文章が、大事なポイントだけを残した短い箇条書きに変わることを並べて示し、終えたらできるようになること3つと学習時間の目安を添えたもの。",
       visualType: "lesson_overview",
+      width: 1223,
+      height: 1227,
     },
     concept_1: {
       src: "/assets/teaching/skill_04_summarization.webp",
@@ -191,8 +206,10 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   explain_topic: {
     outcome_preview: {
       src: "/assets/teaching/day3_overview.webp",
-      alt: "Day3「分からないことを説明してもらう」の全体図。難しい説明を、自分に合ったレベルの分かりやすい説明に変える流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      alt: "Day3「分からないことを説明してもらう」の全体図。「初心者にも分かるように教えて」と尋ねると、たとえを使ったやさしい説明が返ってくることを示し、用語を知りたいとき・調べ物を進めたいとき・ニュースを理解したいときという使いどころと、終えたらできるようになること3つ、学習時間の目安を添えたもの。",
       visualType: "lesson_overview",
+      width: 1228,
+      height: 1228,
     },
     concept_1: {
       src: "/assets/teaching/skill_01_targeting.webp",
@@ -240,8 +257,10 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   brainstorm_ideas: {
     outcome_preview: {
       src: "/assets/teaching/day4_overview.webp",
-      alt: "Day4「アイデアを広げる」の全体図。1つのアイデアからAIで複数の案を生み出す流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      alt: "Day4「アイデアを広げる」の全体図。ひとつのテーマから四方へ案が広がっていくようすと、新しいサービス・イベントの企画・商品の改善案といったアイデアの例、終えたらできるようになること3つと学習時間の目安をまとめたもの。",
       visualType: "lesson_overview",
+      width: 1228,
+      height: 1232,
     },
     concept_1: {
       src: "/assets/teaching/skill_09_divergence.webp",
@@ -287,8 +306,10 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   compare_options: {
     outcome_preview: {
       src: "/assets/teaching/day5_overview.webp",
-      alt: "Day5「選択肢を比較する」の全体図。複数の選択肢を同じ基準で比べて比較表にする流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      alt: "Day5「選択肢を比較する」の全体図。A案・B案・C案をメリットとデメリットで並べた比較表とおすすめ欄を示し、目的に合っているか・メリットは大きいか・デメリットは少ないか・実現しやすいかという比べるときのポイント、終えたらできるようになること3つと学習時間の目安を添えたもの。",
       visualType: "lesson_overview",
+      width: 1230,
+      height: 1226,
     },
     concept_1: {
       src: "/assets/teaching/skill_10_comparison.webp",

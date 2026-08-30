@@ -174,7 +174,12 @@ export function CourseDetailPage({
         */}
         {!searching && overview && (
           <div className="mt-4">
-            <TeachingImage src={overview.src} alt={overview.alt} />
+            <TeachingImage
+              src={overview.src}
+              alt={overview.alt}
+              width={overview.width}
+              height={overview.height}
+            />
           </div>
         )}
 

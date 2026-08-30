@@ -8,7 +8,7 @@
  *
  * 守ること
  * --------
- * - 3:2 のまま。`contain` で、どの幅でも1枚まるごと入る
+ * - **絵そのものの比のまま**。`contain` で、どの幅でも1枚まるごと入る
  * - 幅は親いっぱい。固定幅にしない（390px の画面ではみ出す）
  * - 外側に枠・影・背景の箱を足さない。**絵の中に枠もレイアウトも
  *   すでにある。** 二重の枠は、画面の作りと教材の絵の境目を曖昧にする
@@ -27,14 +27,17 @@
  */
 
 /**
- * 教材の絵の実寸。
+ * 教材の絵の実寸（既定）。
  *
  * ここが効くのは**比**だけ——読み込む前に高さを取っておくための値で、
  * 実際の表示幅は親いっぱい（`w-full`）に決まる。だから1枚だけ小さい絵
- * （skill_09_divergence は 1086×724）が混じっても、3:2 が同じなら
+ * （skill_09_divergence は 1086×724）が混じっても、比が同じなら
  * 場所取りは正しく、下の文やボタンが飛ぶことはない。
  *
- * 比の違う絵を足すときは、この値では足りない。1枚ずつ実寸を持たせること。
+ * **比の違う絵は、1枚ずつ実寸を渡すこと**（`teachingImages.ts` の
+ * `width`/`height`）。渡さないとここの値で場所を取ってしまい、
+ * 読み終わりに箱の高さが変わって、下の文とボタンが飛ぶ。
+ * 実際、Day1〜5 の全体図は 3:2 から約 1:1 へ差し替わっている。
  */
 export const TEACHING_IMAGE_WIDTH = 1536;
 export const TEACHING_IMAGE_HEIGHT = 1024;
@@ -43,10 +46,19 @@ export interface TeachingImageProps {
   src: string;
   /** 何の図か。1文で。絵の中の文字を書き写さない。 */
   alt: string;
+  /** その絵の実寸。比が既定と違う絵では必ず渡す。 */
+  width?: number;
+  height?: number;
   className?: string;
 }
 
-export function TeachingImage({ src, alt, className = "" }: TeachingImageProps) {
+export function TeachingImage({
+  src,
+  alt,
+  width = TEACHING_IMAGE_WIDTH,
+  height = TEACHING_IMAGE_HEIGHT,
+  className = "",
+}: TeachingImageProps) {
   return (
     /*
       親で丸めて隠す。img 側だけを丸めると、拡大縮小の途中で
@@ -59,17 +71,21 @@ export function TeachingImage({ src, alt, className = "" }: TeachingImageProps) 
       <img
         src={src}
         alt={alt}
-        width={TEACHING_IMAGE_WIDTH}
-        height={TEACHING_IMAGE_HEIGHT}
+        width={width}
+        height={height}
         loading="lazy"
         decoding="async"
         /*
-          `h-auto` と `aspect-[3/2]` を両方置いている。
-          比は読み込み前の場所取りに効き、`h-auto` は読み込み後に
-          実寸の比へ従わせる。どちらか片方だけだと、絵を差し替えて
-          比が変わったときに縦に伸びる。
+          比は**その絵の実寸から出す**。前は `aspect-[3/2]` と決め打って
+          いたので、比の違う絵に差し替えると読み込み前だけ 3:2 で場所を
+          取り、読み終わりに箱の高さが変わって下の文とボタンが飛んだ。
+
+          `h-auto` と両方置くのは変わらない。比は読み込み前の場所取りに
+          効き、`h-auto` は読み込み後に実寸へ従わせる。片方だけだと、
+          渡した実寸が間違っていたときに縦へ伸びる。
         */
-        className="block aspect-[3/2] h-auto w-full max-w-full object-contain"
+        style={{ aspectRatio: `${width} / ${height}` }}
+        className="block h-auto w-full max-w-full object-contain"
       />
     </div>
   );

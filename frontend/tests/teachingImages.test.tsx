@@ -10,7 +10,7 @@
  *   5. 絵があるとき、同じことを本文の図でもう一度出さないこと
  */
 
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
@@ -28,14 +28,55 @@ const DAY1 = "rewrite_text";
 const DAY2 = "summarize_text";
 const DAY3 = "explain_topic";
 
+/**
+ * WebP の実寸を、ファイルの先頭から読む。
+ *
+ * 絵を差し替えたのに `teachingImages.ts` の実寸を直し忘れる、が
+ * いちばん起きやすい。画面には正しい絵が出るので、**目では気づけない**。
+ * 気づくのは、読み終わりに下の文とボタンが飛ぶ人になる。
+ *
+ * 教材の絵はすべて可逆（VP8L）で置いてある。読むのはその1形式だけ。
+ * 別の形式が混じったら、そこで落として気づけるようにする。
+ */
+function webpSize(path: string): { width: number; height: number } {
+  const file = readFileSync(path);
+  const kind = file.toString("ascii", 12, 16);
+  if (kind !== "VP8L") {
+    throw new Error(`${path} が可逆WebP（VP8L）ではない: ${kind}`);
+  }
+  /*
+    VP8L は 21バイト目から、幅-1 を14ビット、高さ-1 を14ビット、
+    下位ビットから詰めてある。
+  */
+  const bits = file.readUInt32LE(21);
+  return {
+    width: (bits & 0x3fff) + 1,
+    height: ((bits >> 14) & 0x3fff) + 1,
+  };
+}
+
 describe("出し方", () => {
-  it("幅は親いっぱい、比は 3:2 のまま、切り取らない", () => {
+  it("幅は親いっぱい、比はその絵のまま、切り取らない", () => {
     render(<TeachingImage src="/assets/teaching/day1_overview.webp" alt="ずかい" />);
 
     const image = screen.getByAltText("ずかい");
     expect(image).toHaveClass("w-full", "max-w-full", "h-auto", "object-contain", "block");
-    // 3:2 を保つ。読み込み前の場所取りにも効く
-    expect(image.className).toContain("aspect-[3/2]");
+    // 比を保つ。読み込み前の場所取りにも効く
+    expect(image.style.aspectRatio).toBe("1536 / 1024");
+  });
+
+  it("比の違う絵は、その絵の比で場所を取る", () => {
+    /*
+      前は `aspect-[3/2]` と決め打っていた。比の違う絵に差し替えると、
+      読み込み前だけ 3:2 で場所を取り、読み終わりに箱の高さが変わって
+      下の文とボタンが飛ぶ（CLS）。
+    */
+    render(<TeachingImage src="/x.webp" alt="ましかく" width={1219} height={1231} />);
+
+    const image = screen.getByAltText("ましかく");
+    expect(image.style.aspectRatio).toBe("1219 / 1231");
+    expect(image).toHaveAttribute("width", "1219");
+    expect(image).toHaveAttribute("height", "1231");
   });
 
   it("読み込む前から高さが決まっている", () => {
@@ -259,6 +300,48 @@ describe("表に載せた絵が、実際にあること", () => {
     for (const entry of ALL_COURSE_IMAGES) {
       expect(entry.visualType, entry.courseId).toBe("course_overview");
     }
+  });
+
+  it("表に書いた実寸が、置いてあるファイルと合っている", () => {
+    /*
+      合っていないと、読み込む前と後で箱の高さが変わって、下の文と
+      ボタンが飛ぶ（CLS）。**絵を差し替えて数字を直し忘れる**のが
+      いちばん起きやすく、画面を見ても気づけない。
+
+      書いていない絵は既定（3:2 = 1536×1024）で場所を取るので、
+      その比と合っているかを見る。実寸そのものは違ってよい——
+      効くのは比だけで、幅は親いっぱいに決まる。
+    */
+    const wrong: string[] = [];
+    for (const entry of [
+      ...ALL_TEACHING_IMAGES.map((one) => ({
+        where: `${one.lessonId}/${one.stepId}`,
+        ...one,
+      })),
+      ...ALL_COURSE_IMAGES.map((one) => ({ where: `コース ${one.courseId}`, ...one })),
+    ]) {
+      const real = webpSize(`public${entry.src}`);
+
+      if (entry.width !== undefined || entry.height !== undefined) {
+        if (entry.width !== real.width || entry.height !== real.height) {
+          wrong.push(
+            `${entry.where}: 表は ${entry.width}×${entry.height}、` +
+              `ファイルは ${real.width}×${real.height}`,
+          );
+        }
+        continue;
+      }
+
+      // 実寸を書いていない絵は、既定の 3:2 であること
+      const ratio = real.width / real.height;
+      if (Math.abs(ratio - 1536 / 1024) > 0.01) {
+        wrong.push(
+          `${entry.where}: 3:2 ではない（${real.width}×${real.height}）のに実寸を書いていない`,
+        );
+      }
+    }
+
+    expect(wrong, `実寸が合っていない絵:\n${wrong.join("\n")}`).toEqual([]);
   });
 
   it("コース全体の絵と、現在地チェックの絵がある", () => {
