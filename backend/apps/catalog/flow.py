@@ -111,7 +111,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
         {
             "id": "outcome_preview",
             "type": "outcome_preview",
-            "phase": "outcome",
+            "phase": "try",
             "title": "今日つくるもの",
             "poMessage": "まず、できあがりを見てみましょう。",
             "poEmotion": "neutral",
@@ -221,6 +221,10 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "id": "real_task",
             "type": "real_task",
             "phase": "own",
+            # 次に何が来るかで言うことが変わる。あとに何も挟まなければ
+            # 次は送る内容の確認なので、そう書ける。挟むときは
+            # `expand.py` の `_assemble` がここを外す
+            "primaryLabel": "AIに送る内容を見る",
             "title": "自分の文章",
             "instruction": options.get("realTaskLabel", ""),
             "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",

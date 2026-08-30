@@ -89,6 +89,7 @@ class StepPlacement(models.TextChoices):
 
     OVERRIDE = "override", "生成済みステップの上書き（step_key が一致）"
     LEAD_IN = "lead_in", "骨格の前に置く"
+    DEEPEN = "deepen", "「自分の文章」の**前**に置く（技を深める）"
     AFTER_REAL_TASK = "after_real_task", "「自分の文章」の直後に置く"
 
 
@@ -399,7 +400,18 @@ class LessonStep(models.Model):
         override        … step_key が一致する生成済みステップを上書きする
                           （空でない項目だけ当たる）
         lead_in         … 骨格の前に置く（最終課題の「困りごとを選ぶ」など）
-        after_real_task … 「自分の文章」の直後に置く（相手・言い方を聞く）
+        deepen          … 「自分の文章」の**前**に置く（相手・言い方を聞く）
+        after_real_task … 「自分の文章」の直後に置く
+
+    deepen を足した理由
+    -------------------
+    前は相手や言い方を聞く回が after_real_task にあり、
+    「自分の文章を書く → 誰向け？ → トーンの解説 → トーンを選ぶ
+    → 反復の解説 → 送る」という並びだった。書き終えた人を4画面
+    足止めしてから送ることになるうえ、「自分で試す」の区切りが
+    11歩に膨らんで、帯がそのあいだ動かなかった。
+
+    条件も解説も、自分の文章とは関係なく決められる。先に済ませる。
 
     追加ステップを Lesson の JSON 項目として持たせる手もあったが、
     それだと管理画面で1項目ずつ編集できない。行にしておけば、
@@ -429,10 +441,18 @@ class LessonStep(models.Model):
     phase = models.CharField(
         max_length=20,
         blank=True,
-        help_text="上の帯のどこか（outcome / try / compare / own）",
+        help_text="上の帯のどこか（outcome / try / compare / deepen / own）",
     )
 
     title = models.CharField(max_length=120, blank=True)
+    primary_label = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text=(
+            "画面の下のボタンの文言。空なら種類ごとの既定。"
+            "押すと何が起きるかを書く（「次へ」は何も言っていない）"
+        ),
+    )
     instruction = models.CharField(max_length=200, blank=True)
     po_message = models.CharField(max_length=300, blank=True)
     po_emotion = models.CharField(max_length=20, blank=True)

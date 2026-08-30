@@ -157,7 +157,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -365,6 +365,133 @@
           }
         },
         {
+          "id": "real_audience",
+          "type": "single_choice",
+          "title": "誰が読みますか",
+          "poMessage": "読む相手を伝えると、言葉づかいが変わります。",
+          "poEmotion": "question",
+          "key": "audience",
+          "required": true,
+          "options": [
+            {
+              "value": "上司",
+              "label": "上司",
+              "icon": "person"
+            },
+            {
+              "value": "同僚",
+              "label": "同僚",
+              "icon": "people"
+            },
+            {
+              "value": "顧客",
+              "label": "顧客",
+              "icon": "building"
+            },
+            {
+              "value": "はじめて読む人",
+              "label": "はじめて読む人"
+            },
+            {
+              "value": "",
+              "label": "そのほか",
+              "free": true
+            }
+          ],
+          "phase": "deepen",
+          "primaryLabel": "誰向けか決めた"
+        },
+        {
+          "id": "concept_tone",
+          "type": "concept_card",
+          "phase": "deepen",
+          "title": "トーン指定",
+          "poMessage": "同じ内容でも、言い方は変えられます。",
+          "poEmotion": "neutral",
+          "card": {
+            "title": "トーン指定",
+            "body": "同じ内容でも、丁寧・やわらかい・カジュアルで伝わり方が変わります。",
+            "visual": "three_points",
+            "points": [
+              "丁寧",
+              "やわらかい",
+              "カジュアル"
+            ],
+            "reviewExample": {
+              "body": "望む形は、長さ・言い方・並べ方のどれでも指定できます。",
+              "points": [
+                "3行で",
+                "やわらかく",
+                "箇条書きで"
+              ]
+            }
+          },
+          "skippable": true,
+          "primaryLabel": "トーンを選ぶ"
+        },
+        {
+          "id": "real_tone",
+          "type": "single_choice",
+          "title": "どう変えたいですか",
+          "poMessage": "これで最後の質問です。",
+          "poEmotion": "question",
+          "key": "tone",
+          "required": true,
+          "options": [
+            {
+              "value": "ていねいに",
+              "label": "ていねいに"
+            },
+            {
+              "value": "やわらかく",
+              "label": "やわらかく"
+            },
+            {
+              "value": "きっぱりと",
+              "label": "きっぱりと"
+            },
+            {
+              "value": "やさしい言葉で",
+              "label": "やさしい言葉で"
+            },
+            {
+              "value": "",
+              "label": "そのほか",
+              "free": true
+            }
+          ],
+          "phase": "deepen",
+          "primaryLabel": "この言い方で書く"
+        },
+        {
+          "id": "concept_iteration",
+          "type": "concept_card",
+          "phase": "deepen",
+          "title": "反復（Iteration）",
+          "poMessage": "一度で完璧を目指さなくて大丈夫です。",
+          "poEmotion": "hint",
+          "card": {
+            "title": "反復（Iteration）",
+            "body": "結果を見てから足すほうが、はじめから細かく書くより近づきます。",
+            "visual": "simple_flow",
+            "points": [
+              "まず送る",
+              "結果を見る",
+              "条件を足す"
+            ],
+            "reviewExample": {
+              "body": "一度で完璧を狙わず、足りないところだけ言い足します。",
+              "points": [
+                "長すぎた",
+                "「半分に」と足す",
+                "また見る"
+              ]
+            }
+          },
+          "skippable": true,
+          "primaryLabel": "自分の文章で試す"
+        },
+        {
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
@@ -402,128 +529,8 @@
           "validationRules": {
             "suggestLength": 20,
             "maxLength": 5000
-          }
-        },
-        {
-          "id": "real_audience",
-          "type": "single_choice",
-          "title": "誰が読みますか",
-          "poMessage": "読む相手を伝えると、言葉づかいが変わります。",
-          "poEmotion": "question",
-          "key": "audience",
-          "required": true,
-          "options": [
-            {
-              "value": "上司",
-              "label": "上司",
-              "icon": "person"
-            },
-            {
-              "value": "同僚",
-              "label": "同僚",
-              "icon": "people"
-            },
-            {
-              "value": "顧客",
-              "label": "顧客",
-              "icon": "building"
-            },
-            {
-              "value": "はじめて読む人",
-              "label": "はじめて読む人"
-            },
-            {
-              "value": "",
-              "label": "そのほか",
-              "free": true
-            }
-          ]
-        },
-        {
-          "id": "concept_tone",
-          "type": "concept_card",
-          "phase": "own",
-          "title": "トーン指定",
-          "poMessage": "同じ内容でも、言い方は変えられます。",
-          "poEmotion": "neutral",
-          "card": {
-            "title": "トーン指定",
-            "body": "同じ内容でも、丁寧・やわらかい・カジュアルで伝わり方が変わります。",
-            "visual": "three_points",
-            "points": [
-              "丁寧",
-              "やわらかい",
-              "カジュアル"
-            ],
-            "reviewExample": {
-              "body": "望む形は、長さ・言い方・並べ方のどれでも指定できます。",
-              "points": [
-                "3行で",
-                "やわらかく",
-                "箇条書きで"
-              ]
-            }
           },
-          "skippable": true
-        },
-        {
-          "id": "real_tone",
-          "type": "single_choice",
-          "title": "どう変えたいですか",
-          "poMessage": "これで最後の質問です。",
-          "poEmotion": "question",
-          "key": "tone",
-          "required": true,
-          "options": [
-            {
-              "value": "ていねいに",
-              "label": "ていねいに"
-            },
-            {
-              "value": "やわらかく",
-              "label": "やわらかく"
-            },
-            {
-              "value": "きっぱりと",
-              "label": "きっぱりと"
-            },
-            {
-              "value": "やさしい言葉で",
-              "label": "やさしい言葉で"
-            },
-            {
-              "value": "",
-              "label": "そのほか",
-              "free": true
-            }
-          ]
-        },
-        {
-          "id": "concept_iteration",
-          "type": "concept_card",
-          "phase": "own",
-          "title": "反復（Iteration）",
-          "poMessage": "一度で完璧を目指さなくて大丈夫です。",
-          "poEmotion": "hint",
-          "card": {
-            "title": "反復（Iteration）",
-            "body": "結果を見てから足すほうが、はじめから細かく書くより近づきます。",
-            "visual": "simple_flow",
-            "points": [
-              "まず送る",
-              "結果を見る",
-              "条件を足す"
-            ],
-            "reviewExample": {
-              "body": "一度で完璧を狙わず、足りないところだけ言い足します。",
-              "points": [
-                "長すぎた",
-                "「半分に」と足す",
-                "また見る"
-              ]
-            }
-          },
-          "skippable": true
+          "primaryLabel": "AIに送る内容を見る"
         },
         {
           "id": "prompt_preview",
@@ -625,7 +632,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -1089,7 +1096,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -1579,7 +1586,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -2024,7 +2031,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -2448,7 +2455,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -3116,7 +3123,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -3376,7 +3383,8 @@
           "validationRules": {
             "suggestLength": 20,
             "maxLength": 5000
-          }
+          },
+          "primaryLabel": "AIに送る内容を見る"
         },
         {
           "id": "prompt_preview",

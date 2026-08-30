@@ -126,10 +126,24 @@ def _rows(lesson: dict[str, Any], flow_start: int | None) -> list[dict[str, Any]
     """ステップを行にする。
 
     自由型はすべての行を作る。
-    骨格型は、骨格が作らないものだけを行にする
-    （骨格より前にあれば前置き、あとにあれば「自分の文章」の直後）。
+    骨格型は、骨格が作らないものだけを行にする。置き場所は
+    **教材の中での位置から決める**——書いてある順が正しい順なので、
+    そこを読み替えない。
+
+        骨格より前          … 前置き（lead_in）
+        「自分の文章」より前 … 技を深める回（deepen）
+        「自分の文章」より後 … その直後（after_real_task）
+
+    前は最後の2つを分けておらず、骨格より後ろなら何でも
+    「自分の文章の直後」にしていた。教材で前に置いても後ろへ回るので、
+    **並べ替えても並びが変わらない**——直したつもりで直っていない。
     """
     rows = []
+    own_text_at = next(
+        (i for i, step in enumerate(lesson["steps"]) if step["id"] == "real_task"),
+        None,
+    )
+
     for order, step in enumerate(lesson["steps"]):
         if flow_start is not None and step["id"] in _GENERATED:
             continue
@@ -138,6 +152,8 @@ def _rows(lesson: dict[str, Any], flow_start: int | None) -> list[dict[str, Any]
             placement = StepPlacement.OVERRIDE
         elif order < flow_start:
             placement = StepPlacement.LEAD_IN
+        elif own_text_at is not None and order < own_text_at:
+            placement = StepPlacement.DEEPEN
         else:
             placement = StepPlacement.AFTER_REAL_TASK
 
@@ -148,6 +164,7 @@ def _rows(lesson: dict[str, Any], flow_start: int | None) -> list[dict[str, Any]
                 "step_type": step.get("type", ""),
                 "phase": step.get("phase", ""),
                 "title": step.get("title", ""),
+                "primary_label": step.get("primaryLabel", ""),
                 "instruction": step.get("instruction", ""),
                 "po_message": step.get("poMessage", ""),
                 "po_emotion": step.get("poEmotion", ""),

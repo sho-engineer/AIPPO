@@ -31,7 +31,7 @@ function lessonOf(steps: Partial<LessonStep>[]): Lesson {
 describe("区切りの作り方", () => {
   it("同じ区切りが続くあいだは、1つにまとめる", () => {
     const lesson = lessonOf([
-      { phase: "outcome" },
+      { phase: "try" },
       { phase: "try" },
       { phase: "try" },
       { phase: "try" },
@@ -40,12 +40,8 @@ describe("区切りの作り方", () => {
 
     const state = missionStateOf(lesson, 0);
 
-    expect(state.missions.map((mission) => mission.key)).toEqual([
-      "outcome",
-      "try",
-      "own",
-    ]);
-    expect(state.missions[1].steps).toBe(3);
+    expect(state.missions.map((mission) => mission.key)).toEqual(["try", "own"]);
+    expect(state.missions[0].steps).toBe(4);
   });
 
   it("名前は LESSON_PHASES のものを使う", () => {
@@ -59,9 +55,9 @@ describe("区切りの作り方", () => {
 
   it("いま何番目かを、1始まりで返す", () => {
     const lesson = lessonOf([
-      { phase: "outcome" },
       { phase: "try" },
-      { phase: "try" },
+      { phase: "compare" },
+      { phase: "compare" },
       { phase: "own" },
     ]);
 
@@ -73,10 +69,10 @@ describe("区切りの作り方", () => {
 
   it("その区切りの中で何歩目かも返す", () => {
     const lesson = lessonOf([
-      { phase: "outcome" },
       { phase: "try" },
-      { phase: "try" },
-      { phase: "try" },
+      { phase: "compare" },
+      { phase: "compare" },
+      { phase: "compare" },
     ]);
 
     expect(missionStateOf(lesson, 2).stepInMission).toBe(2);
@@ -89,14 +85,14 @@ describe("区切りの作り方", () => {
       そのまま、進み具合の減る画面になるのを防ぐ。
     */
     const lesson = lessonOf([
-      { phase: "outcome" },
+      { phase: "try" },
       { phase: "own" },
       { phase: "try" },
     ]);
 
     const state = missionStateOf(lesson, 2);
 
-    expect(state.missions.map((mission) => mission.key)).toEqual(["outcome", "own"]);
+    expect(state.missions.map((mission) => mission.key)).toEqual(["try", "own"]);
     expect(state.current).toBe(2);
   });
 
@@ -112,11 +108,11 @@ describe("区切りの作り方", () => {
     const state = missionStateOf(lesson, 0);
 
     expect(state.missions.length).toBeGreaterThan(1);
-    expect(state.missions[0].key).toBe("outcome");
+    expect(state.missions[0].key).toBe("try");
   });
 
   it("範囲の外を渡されても落ちない", () => {
-    const lesson = lessonOf([{ phase: "outcome" }, { phase: "try" }]);
+    const lesson = lessonOf([{ phase: "try" }, { phase: "own" }]);
 
     expect(missionStateOf(lesson, -5).current).toBe(1);
     expect(missionStateOf(lesson, 99).current).toBe(2);

@@ -228,8 +228,13 @@ describe("Day1 のどこに出るか", () => {
     expect(at("real_tone") - at("concept_tone")).toBe(1);
   });
 
-  it("反復は、自分の文章を送る直前に出る", () => {
-    expect(at("prompt_preview") - at("concept_iteration")).toBe(1);
+  it("反復は、自分の文章を書く直前に出る", () => {
+    /*
+      「一度で完璧を目指さなくていい」は、**これから書く人**に効く。
+      前は送信の直前だったが、条件と解説を自分の文章より前へ移した
+      ので、いちばん近い「手を動かす場面」は書くところになった。
+    */
+    expect(at("real_task_intro") - at("concept_iteration")).toBe(1);
   });
 
   it("画像だけの画面を増やしていない", () => {

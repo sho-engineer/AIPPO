@@ -10,7 +10,7 @@
  *
  * 区切りは既にある
  * ----------------
- * `LESSON_PHASES`（完成イメージ → お試し → 比較 → 自分で試す）が
+ * `LESSON_PHASES`（試す → 変える → 深める → 自分で使う）が
  * それで、教材データの各ステップが `phase` を持っている。
  * `StepShell` は受け取っていたが描いていなかった。新しく作らず、
  * これをそのまま出す。増やすと、データと画面で区切りが2種類になる。
@@ -44,8 +44,8 @@ const LABEL = new Map<LessonPhase, string>(
  * ここに無い種類は、直前のステップと同じ区切りに入る。
  */
 const FALLBACK: Partial<Record<StepType, LessonPhase>> = {
-  intro: "outcome",
-  outcome_preview: "outcome",
+  intro: "try",
+  outcome_preview: "try",
   quick_try: "try",
   single_choice: "try",
   multi_choice: "try",

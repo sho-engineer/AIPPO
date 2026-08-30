@@ -29,6 +29,7 @@ import {
   isAnswered,
 } from "../course/autoAdvance";
 import { poAppearance } from "../course/poPresence";
+import { primaryLabel } from "../course/primaryLabel";
 import { recommendLessons, saveRecommendations } from "../course/recommend";
 import { saveProfile } from "../api/diagnosis";
 import { useCompletedLessons } from "../course/progress";
@@ -46,29 +47,6 @@ export interface LessonRunnerProps {
   /** 「やり方をくわしく見る」を押したとき。 */
   onOpenRecipe?: (tipId: string) => void;
 }
-
-/** ステップの種類ごとの「次にやること」。1つに絞る（憲章 原則 I）。 */
-const PRIMARY_LABEL: Record<string, string> = {
-  intro: "はじめる",
-  outcome_preview: "はじめる",
-  quick_try: "AIに送ってみる",
-  observation: "解説を見る",
-  concept_card: "次へ",
-  condition_choice: "この条件で試す",
-  single_choice: "次へ",
-  multi_choice: "次へ",
-  text_input: "次へ",
-  template_builder: "次へ",
-  prompt_preview: "この内容でAIに送る",
-  ai_generate: "AIに送る",
-  result_review: "次へ",
-  result_compare: "次へ",
-  improvement_choice: "もう一度AIに送る",
-  safety_check: "この中から選ぶ",
-  real_task: "自分の文章で試す",
-  reflection: "次へ",
-  completion: "完了する",
-};
 
 export function LessonRunner({
   lesson,
@@ -388,7 +366,7 @@ export function LessonRunner({
         po={api.po}
         summary={api.summary}
         onEditSummary={editSummary}
-        primaryLabel={PRIMARY_LABEL[step.type] ?? "次へ"}
+        primaryLabel={primaryLabel(step)}
         onPrimary={onPrimary}
         primaryDisabled={Boolean(blockingIssue)}
         hintNearButton={api.issue?.reason ?? null}

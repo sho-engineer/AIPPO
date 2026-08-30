@@ -70,6 +70,7 @@ def step_row_to_dict(row: LessonStep) -> dict[str, Any]:
         "type": row.step_type,
         "phase": row.phase,
         "title": row.title,
+        "primaryLabel": row.primary_label,
         "instruction": row.instruction,
         "poMessage": row.po_message,
         "poEmotion": row.po_emotion,
@@ -100,6 +101,7 @@ def _assemble(
         row.step_key: row for row in rows if row.placement == StepPlacement.OVERRIDE
     }
     lead_in = [row for row in rows if row.placement == StepPlacement.LEAD_IN]
+    deepen = [row for row in rows if row.placement == StepPlacement.DEEPEN]
     after_real = [
         row for row in rows if row.placement == StepPlacement.AFTER_REAL_TASK
     ]
@@ -107,6 +109,16 @@ def _assemble(
     result = [drop_empty(step_row_to_dict(row)) for row in lead_in]
 
     for step in generated:
+        # 技を深める回は、「自分の文章」へ入る**前**に差し込む。
+        # 骨格側（shared.ts の deepenSteps）と同じ位置。
+        if step["id"] == "real_task_intro":
+            result.extend(drop_empty(step_row_to_dict(row)) for row in deepen)
+
+        # あとに問いを挟むなら、「送る内容を見る」は嘘になる。
+        # 骨格は次が送信前の確認である前提で書いているので、ここで外す
+        if step["id"] == "real_task" and after_real:
+            step = {**step, "primaryLabel": ""}
+
         row = overrides.get(step["id"])
         if row is not None:
             patch = {

@@ -174,9 +174,9 @@ describe("進み具合の帯の区切り", () => {
    * 読まれなくなった件と同じ轍）。
    */
   const MISSIONS = [
-    { key: "outcome" as const, label: "完成イメージ", steps: 1 },
-    { key: "try" as const, label: "お試し", steps: 5 },
-    { key: "own" as const, label: "自分で試す", steps: 4 },
+    { key: "try" as const, label: "試す", steps: 4 },
+    { key: "compare" as const, label: "変える", steps: 4 },
+    { key: "own" as const, label: "自分で使う", steps: 7 },
   ];
 
   it("いまいる区切りの名前を出す", () => {
@@ -184,7 +184,7 @@ describe("進み具合の帯の区切り", () => {
       <LessonProgress current={3} total={10} missions={MISSIONS} currentMission={2} />,
     );
 
-    expect(screen.getByTestId("lesson-mission")).toHaveTextContent("お試し");
+    expect(screen.getByTestId("lesson-mission")).toHaveTextContent("変える");
   });
 
   it("分数は1つだけ。しかも区切りの番号のほう", () => {
@@ -209,7 +209,7 @@ describe("進み具合の帯の区切り", () => {
 
     expect(screen.getByTestId("lesson-progress")).toHaveAttribute(
       "aria-valuetext",
-      "3つのうち2つ目。いまは「お試し」",
+      "3つのうち2つ目。いまは「変える」",
     );
   });
 

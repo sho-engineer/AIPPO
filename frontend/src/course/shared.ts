@@ -95,10 +95,29 @@ export interface FlowOptions {
   /** 結果を見るときの着眼点。 */
   reviewPoints: string[];
 
+  /**
+   * 技をもう少し深める回。**自分の文章を書く前**に置く。
+   *
+   * ここに来るのは、条件を選ぶ回と、その技の解説。前は
+   * `realTaskSteps` に入れて自分の文章を書いた**あと**に置いていたが、
+   * そうすると「自分の文章を書く → 誰向け？ → トーンの解説 →
+   * トーンを選ぶ → 反復の解説 → 送る」となり、書き終えた人を
+   * 4画面ぶん足止めしてから送ることになる。
+   *
+   * 条件も解説も、自分の文章とは関係なく決められる。先に済ませて、
+   * 自分の文章を書いてからは**書く → 確かめる → 送る**を続けさせる。
+   */
+  deepenSteps?: LessonStep[];
+
   // -- 自分の課題 --------------------------------------------------------
   realTaskLabel: string;
   realTaskPlaceholder: string;
-  /** 自分の課題で追加で聞くこと。1画面1判断で並べる。 */
+  /**
+   * 自分の課題を書いた**あと**に聞くこと。
+   *
+   * 書いた文章そのものを見ないと答えられないことだけを置く。
+   * 条件や解説は上の `deepenSteps` へ。
+   */
   realTaskSteps?: LessonStep[];
 
   takeaway: string;
@@ -138,7 +157,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
     {
       id: "outcome_preview",
       type: "outcome_preview",
-      phase: "outcome",
+      phase: "try",
       title: "今日つくるもの",
       poMessage: "まず、できあがりを見てみましょう。",
       poEmotion: "neutral",
@@ -234,6 +253,15 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       歩数は変わっていない。**入れ替えただけ**で、足しても引いてもいない。
     */
     ...conceptSteps(options.conceptCards),
+    /*
+      技を深める回。**自分の文章を書く前**に置く。
+
+      前はここに何も無く、条件と解説は自分の文章を書いたあと
+      （`realTaskSteps`）に並んでいた。書き終えた人を4画面ぶん
+      足止めしてから送る形で、しかも「自分で試す」の区切りが
+      11歩になり、帯がそのあいだ止まっていた。
+    */
+    ...(options.deepenSteps ?? []),
     {
       id: "real_task_intro",
       type: "safety_check",
@@ -253,6 +281,15 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       id: "real_task",
       type: "real_task",
       phase: "own",
+      /*
+        次に何が来るかで、言うことが変わる。あとに何も挟まなければ
+        次は送る内容の確認なので、そう書ける。まだ並べ替えていない
+        教材では条件や解説が続くので、行き先を約束しない既定に任せる。
+      */
+      primaryLabel:
+        (options.realTaskSteps ?? []).length === 0
+          ? "AIに送る内容を見る"
+          : undefined,
       title: "自分の文章",
       instruction: options.realTaskLabel,
       poMessage: "自分の仕事のことで試すと、そのまま使えるようになります。",

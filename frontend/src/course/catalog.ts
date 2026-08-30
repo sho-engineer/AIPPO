@@ -188,20 +188,27 @@ const LESSON_1: Lesson = {
     realTaskLabel: "いま実際に直したい文章を、ひとつ入れてみましょう。",
     realTaskPlaceholder: "例）お客様へ送るお知らせの文章",
     /*
-      自分の文章を入れたあとの並び。
+      技を深める並び。**自分の文章を書く前**に置く。
 
-          誰が読むか → 【トーン指定】 → どう変えたいか
-          → 【反復】 → 送る
+          誰が読むか → 【トーン指定】 → どう変えたいか → 【反復】
+          → 自分の文章 → 送る内容を見る → 送る
+
+      前は自分の文章を書いた**あと**に置いていた。書き終えた人を
+      4画面ぶん足止めしてから送る形で、しかも「自分で試す」の区切りが
+      11歩に膨らみ、帯がそのあいだ止まっていた。相手も言い方も、
+      自分の文章とは関係なく決められるので、先に済ませる。
 
       解説を2枚続けて出さない。**あいだに必ず手を動かす画面が入る。**
-      技を出す位置も、覚えてもらう場面のすぐ手前にしてある
-      ——トーン指定はトーンを選ぶ直前、反復は送る直前。
-      「一度で完璧を目指さなくていい」は、送る前がいちばん効く。
+      技を出す位置も、使う場面のすぐ手前——トーン指定はトーンを選ぶ
+      直前、反復は自分の文章を書く直前。「一度で完璧を目指さなくていい」は、
+      これから書く人にいちばん効く。
     */
-    realTaskSteps: [
+    deepenSteps: [
       {
         id: "real_audience",
         type: "single_choice",
+        phase: "deepen",
+        primaryLabel: "誰向けか決めた",
         title: "誰が読みますか",
         poMessage: "読む相手を伝えると、言葉づかいが変わります。",
         poEmotion: "question",
@@ -216,7 +223,8 @@ const LESSON_1: Lesson = {
       {
         id: "concept_tone",
         type: "concept_card",
-        phase: "own",
+        phase: "deepen",
+        primaryLabel: "トーンを選ぶ",
         title: "トーン指定",
         poMessage: "同じ内容でも、言い方は変えられます。",
         poEmotion: "neutral",
@@ -236,6 +244,8 @@ const LESSON_1: Lesson = {
       {
         id: "real_tone",
         type: "single_choice",
+        phase: "deepen",
+        primaryLabel: "この言い方で書く",
         title: "どう変えたいですか",
         poMessage: "これで最後の質問です。",
         poEmotion: "question",
@@ -252,7 +262,8 @@ const LESSON_1: Lesson = {
       {
         id: "concept_iteration",
         type: "concept_card",
-        phase: "own",
+        phase: "deepen",
+        primaryLabel: "自分の文章で試す",
         title: "反復（Iteration）",
         poMessage: "一度で完璧を目指さなくて大丈夫です。",
         poEmotion: "hint",
