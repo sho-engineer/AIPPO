@@ -17,8 +17,13 @@
  * --------
  *     public/assets/teaching/<名前>.webp
  *
- * 3:2（1536×1024）。出すのは `components/lessons/TeachingImage.tsx` で、
- * 切り取らずに1枚まるごと入れる。
+ * 出すのは `components/lessons/TeachingImage.tsx` で、切り取らずに
+ * 1枚まるごと入れる。
+ *
+ * 比は1枚ずつ違ってよい。AI技と比べる図は 3:2（1536×1024）、
+ * Day1〜8 の全体図はおよそ 1:1。既定（3:2）と違う絵には、下の
+ * `width`/`height` に実寸を書くこと——書かないと読み込む前だけ
+ * 3:2 で場所を取り、読み終わりに下の文とボタンが飛ぶ。
  *
  * 絵の中に説明がある
  * ------------------
@@ -352,8 +357,10 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   organize_information: {
     outcome_preview: {
       src: "/assets/teaching/day6_overview.webp",
-      alt: "Day6「情報を整理して見やすくする」の全体図。散らばったメモをAIで表・箇条書き・カテゴリーへ変える流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      alt: "Day6「情報を整理して見やすくする」の全体図。ばらばらに書かれたメモが、ターゲット・アプローチ方法・発売時期・予算などの項目ごとに並んだ表へ変わることを示し、要点だけをまとめる・表やリストで見やすくする・重要な順に並べる・ムダをそぎ落とすという整理のポイントと、終えたらできるようになること3つ、学習時間の目安を添えたもの。",
       visualType: "lesson_overview",
+      width: 1232,
+      height: 1229,
     },
     concept_1: {
       src: "/assets/teaching/skill_12_information_organization.webp",
@@ -399,8 +406,10 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   image_generation: {
     outcome_preview: {
       src: "/assets/teaching/day7_overview.webp",
-      alt: "Day7「AIで画像を作る」の全体図。言葉からAIで画像を作る流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      alt: "Day7「AIで画像を作る」の全体図。指示を考える・AIにお願いする・画像が完成する、という3つの手順を示し、プレゼン資料のイラストやSNSの投稿画像といった作れるものの例、具体的に伝える・色や雰囲気も指定する・最初はシンプルにするというコツ、終えたらできるようになること3つと学習時間の目安を添えたもの。",
       visualType: "lesson_overview",
+      width: 1254,
+      height: 1254,
     },
     concept_1: {
       src: "/assets/teaching/skill_14_image_prompt.webp",
@@ -449,8 +458,10 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   image_edit: {
     outcome_preview: {
       src: "/assets/teaching/day8_overview.webp",
-      alt: "Day8「画像を修正する」の全体図。元画像の変えたい部分だけをAIへ伝えて直す流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+      alt: "Day8「画像を修正する」の全体図。元の画像に「夕暮れを夜にして、星空を追加して」と指示すると、その通りに直った画像が返ってくる流れを示し、構図を変える・色や明るさを調整する・不要なものを消すといった修正の種類、具体的に伝える・1回の指示は1つずつ・何度でも調整できるというコツ、終えたらできるようになること4つと学習時間の目安を添えたもの。",
       visualType: "lesson_overview",
+      width: 1244,
+      height: 1232,
     },
     concept_1: {
       src: "/assets/teaching/skill_17_image_edit_instruction.webp",
