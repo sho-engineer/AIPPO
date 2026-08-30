@@ -628,6 +628,245 @@ IMAGE_GENERATION = _lesson(
 )
 
 
+#: Day8「画像を修正する」で、直したい画像に入ったあとに聞くこと。
+#:
+#: この回だけ、比べる図が2枚ある
+#: --------------------------
+#: 骨格が作る比べる画面（compare_results）は1つだけ。2枚目
+#: （compare_15「直す場所を絞ると、他を残せる」）は、部分修正を
+#: 使ったすぐ後に置きたいので、解説の一歩として差し込む。
+#:
+#: そのままだと反復の解説と隣り合うので、あいだに「どう変えますか」を
+#: 置いた。絵の中の流れ（①画像を選ぶ ②箇所を示す ③変更を伝える
+#: ④確認する）とも合う——**箇所と変更は別のこと**として聞く。
+#:
+#:     【部分修正】→ どこを直す → 【他は残せる】→ どう変える
+#:     → 【反復】→ 送る
+_IMAGE_EDIT_STEPS: list[dict[str, Any]] = [
+    {
+        "placement": "override",
+        "step_key": "real_task_intro",
+        "title": "次は、自分の直したい画像で試してみましょう",
+    },
+    {
+        "placement": "override",
+        "step_key": "real_task",
+        "title": "直したい画像",
+    },
+    {
+        "placement": "override",
+        "step_key": "real_task_result",
+        "title": "直したい画像の結果",
+    },
+    {
+        # 選択肢そのものは `condition_options` で差し替える。
+        # ここで直すのは言い回しだけ。
+        "placement": "override",
+        "step_key": "add_condition",
+        "title": "直したいことを一つ伝えてみましょう",
+        "instruction": "一度に一つだけ選ぶのがコツです。",
+        "po_message": "全部を作り直さなくても、変えたい所だけ直せます。",
+        "po_emotion": "hint",
+    },
+    {
+        "placement": "override",
+        "step_key": "compare_results",
+        "instruction": "元画像・1回目・直したあと、を見比べます。",
+        "po_message": "変えたい所だけが変わって、ほかは残っているか見てみましょう。",
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "concept_partial",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "部分修正",
+        "po_message": "画像の特定の部分だけを選んで変えられます。",
+        "po_emotion": "neutral",
+        # 解説は必ず飛ばせる。読みたくない人を足止めしない
+        "is_skippable": True,
+        "card": {
+            "title": "部分修正",
+            "body": "全部を変えず、必要な場所だけを直せます。",
+            "visual": "three_points",
+            "points": ["空", "人物", "背景"],
+            "reviewExample": {
+                "body": "場所を言えるほど、ほかを触られずに済みます。",
+                "points": ["空だけ", "人物だけ", "看板の文字だけ"],
+            },
+        },
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "real_area",
+        "step_type": "single_choice",
+        "phase": "own",
+        "title": "どこを直しますか",
+        "po_message": "場所を先に決めます。変え方は次に聞きます。",
+        "po_emotion": "question",
+        "input_key": "area",
+        "is_required": True,
+        "options": [
+            {"value": "空", "label": "空"},
+            {"value": "背景", "label": "背景"},
+            {"value": "写っている人", "label": "写っている人"},
+            {"value": "色みぜんたい", "label": "色みぜんたい"},
+            {"value": "", "label": "そのほか", "free": True},
+        ],
+    },
+    {
+        # 比べる図の2枚目。骨格の比べる画面は1つしか無いので、
+        # 部分修正を使ったすぐ後に、解説の一歩として置く。
+        "placement": "after_real_task",
+        "step_key": "concept_partial_result",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "ほかは残せる",
+        "po_message": "直す場所を絞ると、それ以外はそのまま残ります。",
+        "po_emotion": "talking",
+        "is_skippable": True,
+        "card": {
+            "title": "ほかは残せる",
+            "body": "直したい場所を絞ると、他を残したまま修正できます。",
+            "visual": "before_after",
+            "before": "全部を作り直す（雰囲気も構図も変わってしまう）",
+            "after": "人物だけ消す（背景・色・構図はそのまま）",
+            "reviewExample": {
+                "body": "変わっていない所を確かめると、指示が効いたか分かります。",
+                "before": "どこが変わったか分からない",
+                "after": "変えた所だけが変わっている",
+            },
+        },
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "real_instruction",
+        "step_type": "single_choice",
+        "phase": "own",
+        "title": "どう変えますか",
+        "po_message": "選んだ場所を、どうしたいかを伝えます。",
+        "po_emotion": "question",
+        "input_key": "instruction",
+        "is_required": True,
+        "options": [
+            {"value": "夕焼けに変えて", "label": "夕焼けに変える"},
+            {"value": "消して", "label": "消す"},
+            {"value": "明るくして", "label": "明るくする"},
+            {"value": "落ち着いた色にして", "label": "落ち着いた色にする"},
+            {"value": "", "label": "そのほか", "free": True},
+        ],
+    },
+    {
+        "placement": "after_real_task",
+        "step_key": "concept_iteration",
+        "step_type": "concept_card",
+        "phase": "own",
+        "title": "反復（Iteration）",
+        "po_message": "一度で完璧を目指さなくて大丈夫です。",
+        "po_emotion": "hint",
+        "is_skippable": True,
+        "card": {
+            "title": "反復（Iteration）",
+            "body": "結果を見てから足すほうが、はじめから細かく書くより近づきます。",
+            "visual": "simple_flow",
+            "points": ["まず直す", "見てみる", "もう一つ直す"],
+            "reviewExample": {
+                "body": "一度に何か所も頼むと、どれが効いたか分からなくなります。",
+                "points": ["1か所ずつ", "見て確かめる", "また1か所"],
+            },
+        },
+    },
+]
+
+
+#: Day8「画像を修正する」。**まだ開けない。**
+#:
+#: Day7 と同じ理由（docs/image-lessons.md）。`action` を空にしてある
+#: のも同じで、無い口の名前を書かないため。残っている仕事を
+#: 公開の検査に名指しさせる。
+IMAGE_EDIT = _lesson(
+    "image_edit",
+    "画像を修正する",
+    "変えたい部分だけをAIへ伝えて、画像を直せるようになる",
+    "",
+    "source_image",
+    "湖のほとりのカフェの写真",
+    # 最初のお試しで選んだ場所は、あとの `real_area` へそのまま持ち越す
+    # （Day1 の「誰が読みますか」と同じ形）。別のキーにすると、
+    # 一度選んだのにもう一度ゼロから聞かれる。
+    "area",
+    [
+        {"value": "空", "label": "空を変える"},
+        {"value": "背景", "label": "背景を変える"},
+        {"value": "写っている人", "label": "人を消す"},
+    ],
+    {"instruction": "夕焼けに変えて"},
+    {},
+    thumbnail="/assets/final-thumbnails/start_08.webp",
+    tags=["image"],
+    content={
+        "availability_status": AvailabilityStatus.COMING_SOON,
+        "coming_soon_message": "画像を作る仕組みを準備しています",
+        "outcome_title": "変えたい部分だけをAIへ伝えて、画像を直す",
+        "outcome_description": "全部を作り直さず、直したい所だけを言葉で伝えます。",
+        "before_example": "湖のほとりのカフェの写真（青空）",
+        "after_example": "空だけ夕焼けに変えた写真（カフェも人もそのまま）",
+        "learned_skills": ["画像編集指示", "部分修正", "反復"],
+        "outcomes": [
+            "画像を作り直さず修正できる",
+            "指示を重ねて完成形へ近づけられる",
+        ],
+        "quick_title": "どこを直してみますか？",
+        "quick_instruction": "ひとつ選ぶと、すぐにAIが直します。",
+        "working": "指定された所だけを直しています。",
+        # 共通の選択肢（もっと短く・もっと丁寧に）は文章を直す言い回しで、
+        # 画像には当たらない。画像への直し方に差し替える。
+        "condition_options": [
+            {"value": "空だけ夕焼けに変えて", "label": "空を夕焼けに"},
+            {"value": "写っている人を消して", "label": "人を消す"},
+            {"value": "全体を明るくして", "label": "明るくする"},
+            {"value": "落ち着いた色みにして", "label": "色を落ち着かせる"},
+            {"value": "", "label": "自分で直し方を追加", "free": True},
+        ],
+        "observation_options": [
+            {"value": "頼んだ所だけ変わった", "label": "頼んだ所だけ変わった"},
+            {"value": "ほかも変わってしまった", "label": "ほかも変わった"},
+            {"value": "イメージに近づいた", "label": "イメージに近づいた"},
+            {"value": "まだ違う", "label": "まだ違う"},
+            {"value": "よく分からない", "label": "よく分からない"},
+        ],
+        # 骨格が続けて出す解説は1枚だけ。残りは使う直前へ移した
+        # （上の _IMAGE_EDIT_STEPS）。
+        "concept_cards": [
+            {
+                "title": "画像編集指示",
+                "body": "画像全体を作り直さず、変えたいことだけを伝えます。",
+                "visual": "before_after",
+                "before": "もう一度、いい感じに作って",
+                "after": "空を夕焼けに変えて",
+                "reviewExample": {
+                    "body": "作り直すと、気に入っていた所まで変わってしまいます。",
+                    "before": "全部作り直す",
+                    "after": "変えたい所だけ言う",
+                },
+            },
+        ],
+        "review_points": [
+            "頼んでいない所まで変わっていないか",
+            "変えたい所が本当に変わったか",
+            "人の顔や商標が入っていないか",
+        ],
+        "real_task_label": "直したい画像について、どこをどうしたいか書いてみましょう。",
+        "real_task_placeholder": "例）先週撮った店の写真の、曇り空が気になる",
+        "takeaway": (
+            "全部を作り直さなくても、変えたい部分だけ直せることを"
+            "確かめられましたね。"
+        ),
+        "next_suggestion": "コースはここまでです。作ったものはマイ成果物から見返せます。",
+    },
+    step_rows=_IMAGE_EDIT_STEPS,
+)
+
+
 ADDED_LESSONS = (
     _lesson(
         "brainstorm_ideas",
@@ -1158,25 +1397,7 @@ def seed_first_release(*, only_new: bool = False) -> tuple[Course, Course]:
     出さずにおくと**あとから足された別物**に見える。
     """
     _upsert_lesson(start, 7, IMAGE_GENERATION)
-    Lesson.objects.update_or_create(
-        slug="image_edit",
-        defaults={
-            "course": start,
-            "number": 8,
-            "title": "画像を修正する",
-            "goal": "出てきた画像に条件を足して、思っていたものへ近づけられるようになる",
-            "template": LessonTemplate.CUSTOM,
-            "estimated_minutes": 8,
-            "thumbnail": "/assets/final-thumbnails/start_08.webp",
-            "outcomes": ["一度で完成させようとしなくなる", "直したい点を1つずつ伝えられる"],
-            "tags": ["image"],
-            "uses_ai": True,
-            "status": PublishStatus.PUBLISHED,
-            "availability_status": AvailabilityStatus.COMING_SOON,
-            "coming_soon_message": "画像を作る仕組みを準備しています",
-            "sort_order": 8,
-        },
-    )
+    _upsert_lesson(start, 8, IMAGE_EDIT)
 
     # AIスタートコースから外した2本を、実務側で引き取る。
     # 本文も、それで覚えた技も、終えた記録もそのまま生きる。

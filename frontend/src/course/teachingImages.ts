@@ -308,6 +308,50 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
     },
   },
+
+  /*
+    Day8「画像を修正する」。Day7 と同じく**まだ開けないレッスン。**
+
+    出る順は、レッスンの流れそのまま。
+      完成イメージ → 元画像を直してみる → 画像編集指示
+      → 直したいことを伝えて再実行 → 変わり方を見比べる
+      → 自分の直したい画像 → 部分修正 → どこを直す
+      → ほかは残せる → どう変える → 反復 → 送る
+
+    このレッスンだけ比べる図が2枚ある
+    ------------------------------
+    骨格が作る比べる画面は1つだけ。2枚目（compare_15）は部分修正を
+    使ったすぐ後に置きたいので、`concept_partial_result` という
+    解説の一歩に載せている。**絵の置き場所は、絵の意味で決める**
+    ——比べる図だからといって compare_results に押し込むと、
+    1枚目と入れ替わってしまう。
+  */
+  image_edit: {
+    outcome_preview: {
+      src: "/assets/teaching/day8_overview.webp",
+      alt: "Day8「画像を修正する」の全体図。元画像の変えたい部分だけをAIへ伝えて直す流れと、覚えるAI技・使う場面・終えたらできることをまとめたもの。",
+    },
+    concept_1: {
+      src: "/assets/teaching/skill_17_image_edit_instruction.webp",
+      alt: "AI技「画像編集指示」の図。カフェの写真に「空を夕焼けに変えて」と伝えると、その部分だけが変わった修正版になることを示したもの。",
+    },
+    compare_results: {
+      src: "/assets/teaching/compare_14_image_edit.webp",
+      alt: "変えたい部分だけ画像を直せることの図。元画像と、「空だけ夕焼けに変えて」と部分を指定した結果を並べ、空だけが変わって建物はそのままであることを示したもの。",
+    },
+    concept_partial: {
+      src: "/assets/teaching/skill_18_partial_edit.webp",
+      alt: "AI技「部分修正」の図。カフェの画像から人物だけを選んで消し、背景や構図はそのまま残す流れを示したもの。",
+    },
+    concept_partial_result: {
+      src: "/assets/teaching/compare_15_partial_edit.webp",
+      alt: "直す場所を絞ると他を残せることの図。元画像と、人物だけを消した結果を並べ、背景・色・構図が保たれていることを示したもの。",
+    },
+    concept_iteration: {
+      src: "/assets/teaching/skill_03_iteration.webp",
+      alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
+    },
+  },
 };
 
 /**
