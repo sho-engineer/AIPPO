@@ -167,6 +167,48 @@ describe("時間を二度言わない", () => {
   });
 });
 
+describe("必ず見せるものと、見たい人に見せるもの", () => {
+  /*
+    「作った絵だから毎回必ず全部見せる」にはしない。ただし畳む向きは
+    絵によって逆になる。
+
+      全体図   … 今日やることを知らせる。**開いておく**（畳める）
+      技の絵   … 本文の補足。**閉じておく**（開ける）
+  */
+  it("最初の画面の全体図は、開いた状態で置く", () => {
+    render(
+      <OutcomePreview
+        skills={[]}
+        overview={teachingImage(DAY1, "outcome_preview")}
+      />,
+    );
+
+    const box = screen.getByTestId("outcome-overview");
+    expect(box).toHaveAttribute("open");
+    // 畳めること自体も見る。押せないと、もう一度やる人には邪魔なまま
+    expect(screen.getByTestId("outcome-overview-toggle")).toBeInTheDocument();
+  });
+
+  it("技の絵は、閉じた状態で置く", () => {
+    /*
+      技の名前を受け取る場面なので、大きな絵で埋めると
+      名前より絵が主役になる。本文の1行で用は足りている。
+    */
+    const card = getLesson(DAY1)!.steps.find((step) => step.id === "concept_tone")!
+      .card!;
+    render(
+      <ConceptCardView
+        card={card}
+        image={teachingImage(DAY1, "concept_tone")}
+        headingShown
+      />,
+    );
+
+    expect(screen.getByTestId("concept-visual")).not.toHaveAttribute("open");
+    expect(screen.getByTestId("concept-visual-toggle")).toBeInTheDocument();
+  });
+});
+
 describe("Day1 のどこに出るか", () => {
   const lesson = getLesson(DAY1)!;
   const order = lesson.steps.map((step) => step.id);

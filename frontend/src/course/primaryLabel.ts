@@ -52,7 +52,7 @@ export const LABEL_BY_TYPE: Record<StepType, string> = {
     文言だけが残り、押した先に解説が無かった。
   */
   observation: "条件を足してみる",
-  concept_card: "受け取る",
+  concept_card: "覚えた",
   condition_choice: "この条件で試す",
   single_choice: "決めた",
   multi_choice: "決めた",

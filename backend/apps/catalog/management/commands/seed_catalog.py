@@ -84,11 +84,14 @@ def _flow_params(lesson: dict[str, Any]) -> dict[str, Any]:
     real_task = steps.get("real_task", {})
     compare = steps.get("compare_results", {})
 
-    cards = [
-        steps[f"concept_{i}"]["card"]
+    concepts = [
+        steps[f"concept_{i}"]
         for i in (1, 2, 3)
         if f"concept_{i}" in steps and "card" in steps[f"concept_{i}"]
     ]
+    cards = [step["card"] for step in concepts]
+    # その解説で覚える技の名前。並びはカードと同じ
+    skills = [step.get("skill", "") for step in concepts]
 
     review = compare.get("meta", {})
 
@@ -104,6 +107,7 @@ def _flow_params(lesson: dict[str, Any]) -> dict[str, Any]:
         "observation_options": observe.get("options", []),
         "condition_options": steps.get("add_condition", {}).get("options", []),
         "concept_cards": cards,
+        "concept_skills": skills,
         "review_points": review.get("reviewPoints", []),
         "real_task_label": real_task.get("instruction", ""),
         "real_task_placeholder": real_task.get("placeholder", ""),

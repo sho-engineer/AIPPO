@@ -55,14 +55,35 @@ export function ConceptCardView({
       <p className={`text-sm leading-7 ${headingShown ? "" : "mt-2"}`}>{card.body}</p>
 
       {image && (
-        <div className="mt-4">
-          <TeachingImage
-            src={image.src}
-            alt={image.alt}
-            width={image.width}
-            height={image.height}
-          />
-        </div>
+        /*
+          技の絵は**畳めるようにする。既定は閉じておく。**
+
+          本文の1行で用は足りている（「同じ内容でも、丁寧・やわらかい・
+          カジュアルで伝わり方が変わります」）。絵はそれをもっと詳しく
+          知りたい人のためのもので、全員に毎回開いて見せるものではない。
+          ここは技の名前を受け取る場面なので、大きな絵で埋めると
+          名前より絵が主役になる。
+
+          最初の画面（全体図）とは向きが逆。あちらは今日やることを
+          知らせるので開いておき、こちらは補足なので閉じておく。
+        */
+        <details className="mt-4" data-testid="concept-visual">
+          <summary
+            data-testid="concept-visual-toggle"
+            className="row-tap cursor-pointer list-none text-sm font-bold text-brand
+                       transition hover:text-brand-dark"
+          >
+            くわしく見る（図）
+          </summary>
+          <div className="mt-3">
+            <TeachingImage
+              src={image.src}
+              alt={image.alt}
+              width={image.width}
+              height={image.height}
+            />
+          </div>
+        </details>
       )}
 
       {!image && card.visual === "before_after" && card.before && card.after && (

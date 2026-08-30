@@ -96,12 +96,33 @@ export function OutcomePreview({
         そろえるため）。専用の1枚は切り取らない。
       */}
       {overview ? (
-        <TeachingImage
-          src={overview.src}
-          alt={overview.alt}
-          width={overview.width}
-          height={overview.height}
-        />
+        /*
+          全体図は**畳めるようにする。既定は開いておく。**
+
+          「作った絵だから毎回必ず全部見せる」にはしない。1枚で
+          今日やることが分かる人には要るが、**もう一度やる人や、
+          今日は先へ進みたい人には邪魔**で、しかも大きいので
+          「はじめる」がその下へ押しやられる。
+
+          ただし最初から閉じてもいない。閉じて置くと、初めて開いた人が
+          「何をするのか分からないまま押す」ことになる。開いた状態から
+          畳める、が正しい向き——押せば消せるが、見ないことにはならない。
+        */
+        <details open data-testid="outcome-overview">
+          <summary
+            data-testid="outcome-overview-toggle"
+            className="row-tap mb-2 cursor-pointer list-none text-sm font-bold
+                       text-brand transition hover:text-brand-dark"
+          >
+            今日やることの全体図
+          </summary>
+          <TeachingImage
+            src={overview.src}
+            alt={overview.alt}
+            width={overview.width}
+            height={overview.height}
+          />
+        </details>
       ) : (
         thumbnail && <LessonThumbnail src={thumbnail} variant="banner" />
       )}

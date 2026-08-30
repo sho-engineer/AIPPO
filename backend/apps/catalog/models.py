@@ -317,6 +317,15 @@ class Lesson(models.Model):
     concept_cards = models.JSONField(
         default=list, blank=True, help_text="短い解説。3枚まで（超えた分は捨てる）"
     )
+    concept_skills = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "その解説で覚える技の名前。concept_cards と同じ並び。"
+            "見出しはやさしい言い方（誰向けかを伝える）、"
+            "ここは技の名前（ターゲット指定）。AI分野で普通に使う言葉にする"
+        ),
+    )
     review_points = models.JSONField(
         default=list, blank=True, help_text="結果を見るときの着眼点"
     )

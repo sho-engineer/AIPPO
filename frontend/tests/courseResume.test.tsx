@@ -48,7 +48,12 @@ describe("続きから", () => {
     expect(screen.getByTestId("course-resume-state")).toHaveTextContent("次はここから");
   });
 
-  it("途中まで進んでいるときは「続きから」", async () => {
+  it("途中まで進んでいるときは、どこまでやったかを言う", async () => {
+    /*
+      「途中です」だけでは、思い出す手間が残る。数日ぶりに開いた人が
+      考えずに済むよう、**どこまで進んだか**を区切りの名前で返す。
+      歩数（12 / 19）では言わない——内部の数で、本人には意味が無い。
+    */
     saveDraft({
       lessonId: LESSON.id,
       stepId: "compare_results",
@@ -60,7 +65,18 @@ describe("続きから", () => {
     await waitFor(() =>
       expect(screen.getByTestId("course-resume-start")).toHaveTextContent("続きから"),
     );
-    expect(screen.getByTestId("course-resume-state")).toHaveTextContent("途中です");
+    expect(screen.getByTestId("course-resume-state")).toHaveTextContent("変える");
+  });
+
+  it("途中なら、残りの時間を言う", async () => {
+    // 半分終えた人に「約8分」と出すと、進んだぶんが消える
+    saveDraft({ lessonId: LESSON.id, stepId: "reflection", values: {} });
+
+    render(<CourseResume lesson={LESSON} onStart={() => {}} />);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("course-resume-time")).toHaveTextContent(/あと約\d+分/),
+    );
   });
 
   it("開いただけの回は、途中と言わない", async () => {

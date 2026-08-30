@@ -54,6 +54,7 @@ def _flow_options(lesson: Lesson) -> dict[str, Any]:
         "observationOptions": lesson.observation_options,
         "conditionOptions": lesson.condition_options,
         "conceptCards": lesson.concept_cards,
+        "conceptSkills": lesson.concept_skills,
         "reviewPoints": lesson.review_points,
         "realTaskLabel": lesson.real_task_label,
         "realTaskPlaceholder": lesson.real_task_placeholder,

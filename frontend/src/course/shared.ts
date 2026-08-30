@@ -92,6 +92,20 @@ export interface FlowOptions {
   conditionOptions?: StepOption[];
   /** 短い解説。**3枚まで**。 */
   conceptCards: ConceptCard[];
+  /**
+   * その解説で覚える技の名前。`conceptCards` と同じ並び。
+   *
+   * カードの見出しは**やさしい言い方**（「誰向けかを伝える」）で、
+   * こちらは**技の名前**（「ターゲット指定」）。分けているのは、
+   * 名前だけ見せても何のことか分からず、やさしい言い方だけでは
+   * 他所で通じないため。画面は名前を先に、言い換えを下に出す。
+   *
+   * AI分野で普通に使われている言葉にする。AIPPO だけの造語は使わない
+   * ——ここで覚えた言葉が、外の記事や同僚との会話で通じなくなる。
+   *
+   * 省いてよい。無ければ、その解説では技の名前を渡さない。
+   */
+  conceptSkills?: string[];
   /** 結果を見るときの着眼点。 */
   reviewPoints: string[];
 
@@ -129,7 +143,7 @@ export interface FlowOptions {
 /** 解説カードは3枚まで。増えた時点で講義に戻っている。 */
 export const MAX_CONCEPT_CARDS = 3;
 
-function conceptSteps(cards: ConceptCard[]): LessonStep[] {
+function conceptSteps(cards: ConceptCard[], skills: string[] = []): LessonStep[] {
   return cards.slice(0, MAX_CONCEPT_CARDS).map((card, index) => ({
     id: `concept_${index + 1}`,
     type: "concept_card" as const,
@@ -143,6 +157,7 @@ function conceptSteps(cards: ConceptCard[]): LessonStep[] {
     poEmotion: "neutral" as const,
     // 解説は必ず飛ばせる。読みたくない人を足止めしない
     skippable: true,
+    skill: skills[index],
     card,
   }));
 }
@@ -252,7 +267,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
 
       歩数は変わっていない。**入れ替えただけ**で、足しても引いてもいない。
     */
-    ...conceptSteps(options.conceptCards),
+    ...conceptSteps(options.conceptCards, options.conceptSkills),
     /*
       技を深める回。**自分の文章を書く前**に置く。
 

@@ -31,6 +31,7 @@ import { useEffect, useState } from "react";
 
 import { IconChevronRight, IconClock } from "../Icons";
 import { loadDraft } from "../../lib/draft";
+import { missionStateOf } from "../../course/missions";
 import type { Lesson } from "../../course/types";
 
 export interface CourseResumeProps {
@@ -45,11 +46,16 @@ export function CourseResume({ lesson, onStart }: CourseResumeProps) {
     `useEffect` のあとで確かめる。分かるまでは「はじめる」と書いて
     おく——あとから「続ける」へ変わるのは、逆よりも驚きが小さい。
   */
-  const [inProgress, setInProgress] = useState(false);
+  const [resume, setResume] = useState<{
+    /** どこまで進んだか。区切りの名前で言う。 */
+    where: string;
+    /** 残りの画面数。 */
+    left: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!lesson) {
-      setInProgress(false);
+      setResume(null);
       return;
     }
     const draft = loadDraft(lesson.id);
@@ -58,7 +64,27 @@ export function CourseResume({ lesson, onStart }: CourseResumeProps) {
       開いて閉じただけで「途中から続ける」と出ると、
       やっていないことをやったことにしてしまう。
     */
-    setInProgress(Boolean(draft && draft.stepId !== lesson.steps[0]?.id));
+    if (!draft || draft.stepId === lesson.steps[0]?.id) {
+      setResume(null);
+      return;
+    }
+
+    const index = lesson.steps.findIndex((step) => step.id === draft.stepId);
+    if (index < 0) {
+      setResume(null);
+      return;
+    }
+
+    /*
+      「途中です」だけでは、思い出す手間が残る。**どこまでやったか**を
+      言葉で返す。歩数（12 / 19）では言わない——内部の数で、
+      本人にとっては意味を持たない。区切りの名前で言う。
+    */
+    const state = missionStateOf(lesson, index);
+    setResume({
+      where: state.missions[state.current - 1]?.label ?? "",
+      left: lesson.steps.length - index,
+    });
   }, [lesson]);
 
   if (!lesson) return null;
@@ -72,7 +98,7 @@ export function CourseResume({ lesson, onStart }: CourseResumeProps) {
       data-testid="course-resume"
     >
       <p className="text-xs font-bold text-brand" data-testid="course-resume-state">
-        {inProgress ? `${day}の途中です` : "次はここから"}
+        {resume ? `${day} 「${resume.where}」まで進みました` : "次はここから"}
       </p>
 
       <h2 id="resume-heading" className="mt-1.5 text-lg font-bold leading-7">
@@ -83,9 +109,25 @@ export function CourseResume({ lesson, onStart }: CourseResumeProps) {
       </h2>
 
       {lesson.estimatedMinutes !== undefined && (
-        <p className="mt-1 flex items-center gap-1.5 text-xs text-ink-muted">
+        <p
+          className="mt-1 flex items-center gap-1.5 text-xs text-ink-muted"
+          data-testid="course-resume-time"
+        >
           <IconClock className="h-3.5 w-3.5 shrink-0" />
-          約{lesson.estimatedMinutes}分
+          {/*
+            途中なら、**残り**を言う。最初から数えた時間を出すと、
+            半分終えた人にも「約8分」と出て、進んだぶんが消える。
+            残りは画面数の比で見積もる——正確な数字ではないので
+            「あと約」と書く。
+          */}
+          {resume
+            ? `あと約${Math.max(
+                1,
+                Math.round(
+                  (lesson.estimatedMinutes * resume.left) / lesson.steps.length,
+                ),
+              )}分`
+            : `約${lesson.estimatedMinutes}分`}
         </p>
       )}
 
@@ -97,7 +139,7 @@ export function CourseResume({ lesson, onStart }: CourseResumeProps) {
                    rounded-card bg-brand px-4 py-3 text-sm font-bold text-white
                    transition hover:bg-brand-dark"
       >
-        {inProgress ? "続きから" : "はじめる"}
+        {resume ? "続きから" : "はじめる"}
         <IconChevronRight className="h-4 w-4 shrink-0" />
       </button>
     </section>

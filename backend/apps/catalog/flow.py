@@ -72,7 +72,9 @@ OBSERVATION_OPTIONS: list[dict[str, Any]] = [
 MAX_CONCEPT_CARDS = 3
 
 
-def _concept_steps(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _concept_steps(
+    cards: list[dict[str, Any]], skills: list[str] | None = None
+) -> list[dict[str, Any]]:
     steps = []
     for index, card in enumerate(cards[:MAX_CONCEPT_CARDS], start=1):
         steps.append(
@@ -87,6 +89,12 @@ def _concept_steps(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "poEmotion": "neutral",
                 # 解説は必ず飛ばせる。読みたくない人を足止めしない
                 "skippable": True,
+                # その解説で覚える技の名前（「ターゲット指定」）。
+                # カードの見出しはやさしい言い方（「誰向けかを伝える」）で、
+                # 画面は名前を先に、言い換えを下に出す
+                "skill": (skills or [])[index - 1]
+                if skills and index <= len(skills)
+                else "",
                 "card": card,
             }
         )
@@ -201,7 +209,10 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
         #
         # 名前が、たったいま自分で起こした変化に貼り付く。
         # 歩数は変わっていない。**入れ替えただけ**。
-        *_concept_steps(options.get("conceptCards") or []),
+        *_concept_steps(
+            options.get("conceptCards") or [],
+            options.get("conceptSkills") or [],
+        ),
         {
             "id": "real_task_intro",
             "type": "safety_check",

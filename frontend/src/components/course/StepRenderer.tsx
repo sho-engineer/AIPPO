@@ -18,6 +18,7 @@
 import { Card, CardHeading } from "../AppShell";
 import { IconCaution, IconSparkle } from "../Icons";
 import { SafetyNote } from "../SafetyNote";
+import { SkillGet } from "./SkillGet";
 import { StepDone } from "./StepDone";
 import {
   ChoiceStep,
@@ -196,11 +197,37 @@ export function StepRenderer({
         1画面に同じ言葉が2回並ぶ（実際そうなっていた）。
       */
       return step.card ? (
-        <ConceptCardView
-          card={step.card}
-          headingShown={step.card.title === step.title}
-          image={picture}
-        />
+        <div>
+          {/*
+            技の名前を受け取る場面。
+
+            並びは直したが（体験 → 変化 → 気づき → 名前）、**名前を
+            渡すところ**が画面に無かった。解説カードは「〜とは」で
+            始まるので、読んだ人は「説明を読んだ」としか思わない。
+
+            骨格が最初に出す解説（concept_1〜3）は、同じ場面を言い換えた
+            ものなので、名前を渡すのは**技として名前が付いている回**だけ。
+            見分けは教材データの `skill` が持っている。
+          */}
+          {step.skill && (
+            <SkillGet
+              name={step.skill}
+              /*
+                やさしい言い方は、カードの見出しが持っている
+                （「ターゲット指定」＋「誰向けかを伝える」）。
+                技の名前と同じ文字のときは繰り返さない。
+              */
+              summary={
+                step.card.title === step.skill ? undefined : step.card.title
+              }
+            />
+          )}
+          <ConceptCardView
+            card={step.card}
+            headingShown={step.card.title === step.title}
+            image={picture}
+          />
+        </div>
       ) : null;
 
     case "quick_try":
@@ -383,13 +410,23 @@ export function StepRenderer({
         return (
           <div>
             <StepDone label="AIが書き直しました" trigger={runs.length} />
+            <ThreeWayCompare
+              original={runs[0].inputText}
+              first={runs[0].outputText}
+              improved={runs[runs.length - 1].outputText}
+              condition={values.condition ?? ""}
+            />
             {/*
-              条件を足す前と後を、自分の結果で見比べたところ。
-              その直後に、同じことを図で1枚置く——**先には出さない。**
-              先に出すと、答えを見てから確かめる作業になる。
+              条件を足す前と後を、自分の結果で見比べた**あと**に、
+              同じことを図で1枚置く。
+
+              前はこの絵が上にあった。コメントには「先には出さない」と
+              書いてあったのに、読む順では絵が先に来ていた——答えを見て
+              から自分の結果を確かめる作業になる。自分の結果が主で、
+              図はその裏取り。
             */}
             {picture && (
-              <div className="mb-4">
+              <div className="mt-4">
                 <TeachingImage
                   src={picture.src}
                   alt={picture.alt}
@@ -398,12 +435,6 @@ export function StepRenderer({
                 />
               </div>
             )}
-            <ThreeWayCompare
-              original={runs[0].inputText}
-              first={runs[0].outputText}
-              improved={runs[runs.length - 1].outputText}
-              condition={values.condition ?? ""}
-            />
             <SafetyNote placement="output" />
             <RunHistory runs={runs} />
           </div>

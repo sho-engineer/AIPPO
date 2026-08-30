@@ -165,6 +165,12 @@ const LESSON_1: Lesson = {
       残り2枚（トーン指定・反復）は、それを実際に使う場面の直前へ
       移した（下の realTaskSteps）。**技は、使う直前に出す。**
     */
+    /*
+      技の名前は、AI分野で普通に使われている言葉にする
+      （AIPPO だけの造語にしない）。やさしい言い方はカードの見出しが
+      持っていて、名前のほうを `conceptSkills` が持つ。
+    */
+    conceptSkills: ["ターゲット指定"],
     conceptCards: [
       {
         title: "誰向けかを伝える",
@@ -225,6 +231,7 @@ const LESSON_1: Lesson = {
         type: "concept_card",
         phase: "deepen",
         primaryLabel: "トーンを選ぶ",
+        skill: "トーン指定",
         title: "トーン指定",
         poMessage: "同じ内容でも、言い方は変えられます。",
         poEmotion: "neutral",
@@ -264,6 +271,7 @@ const LESSON_1: Lesson = {
         type: "concept_card",
         phase: "deepen",
         primaryLabel: "自分の文章で試す",
+        skill: "反復（Iteration）",
         title: "反復（Iteration）",
         poMessage: "一度で完璧を目指さなくて大丈夫です。",
         poEmotion: "hint",

@@ -362,7 +362,8 @@
               "before": "ご多忙のところ大変恐縮ではございますが。",
               "after": "お忙しいところすみませんが。"
             }
-          }
+          },
+          "skill": "ターゲット指定"
         },
         {
           "id": "real_audience",
@@ -427,7 +428,8 @@
             }
           },
           "skippable": true,
-          "primaryLabel": "トーンを選ぶ"
+          "primaryLabel": "トーンを選ぶ",
+          "skill": "トーン指定"
         },
         {
           "id": "real_tone",
@@ -489,7 +491,8 @@
             }
           },
           "skippable": true,
-          "primaryLabel": "自分の文章で試す"
+          "primaryLabel": "自分の文章で試す",
+          "skill": "反復（Iteration）"
         },
         {
           "id": "real_task_intro",
