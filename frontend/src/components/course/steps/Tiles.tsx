@@ -1,30 +1,49 @@
 /**
- * 大きめのタイルから1つ選ぶ画面。
+ * 並んだものから1つ選ぶ画面。
  *
  * 条件を足すときと、自分の課題の始め方を選ぶとき。どちらも
- * 「並んだ札から1枚選ぶ」形なので、同じファイルに置く。
- * 文字だけの選択肢（Inputs の ChoiceStep）と違い、絵と説明を添えて
- * 大きく出す——選んだ先で何が起きるかが、押す前に読める。
+ * 「並んだものから1つ選ぶ」形なので、同じファイルに置く。
+ *
+ * どちらも、以前は2列のカードだった。淡色の器つきの絵を載せ、白い面に
+ * 影を落として、高さを揃えて——**選択肢が、今日の1本と同じ重さの
+ * 部品として並ぶ**ことになっていた。ここで人がすることは
+ * 「読んで、1つ押す」だけなので、字が読めて押せれば足りる。
  */
 
 import { useEffect, useId, useState } from "react";
 
-import { IconBadge } from "../../AppShell";
 import {
   IconCheckCircle,
+  IconChevronRight,
   IconDocument,
   IconPaste,
   IconPencil,
   IconSkip,
-  IconSparkle,
 } from "../../Icons";
 import { isFreeValue } from "../../../course/engine";
-import { optionIcon, optionTone } from "../../../course/presentation";
 import type { LessonStep } from "../../../course/types";
 
 // --------------------------------------------------------- 条件のタイル
 
-/** 条件は2列のタイルで並べる。横に流すより一覧しやすい。 */
+/**
+ * 条件を1つ選ぶ。
+ *
+ * 札（chip）で並べる
+ * ------------------
+ * 札にすると、字の長さのぶんだけ幅を取り、6つで2〜3行に収まる。
+ * 絵も外した——6つに6色の器を配ると、色のほうが先に目に入る。
+ *
+ * 選んだことは、枠・地色・左のチェックの3つで示す（色だけにしない）。
+ * チェックの場所は選ぶ前から確保する。以前は選択時にしか描画して
+ * おらず、選ぶたびに隣の文字の実効幅が縮んで折り返しが動いていた
+ * （`aippo/ChoiceButton.tsx` と同じ不具合）。
+ *
+ * 「自分で書く」は、札の中に混ぜない
+ * ----------------------------------
+ * 用意した条件と同じ列に並べると、6つのうち1つだけ**押した先が
+ * 違うもの**が混ざる。押すと入力欄が開くので、選んだつもりの人は
+ * そこで止まる。並びの外に、小さな二次操作として置く。
+ */
 export function ChoiceTiles({
   step,
   value,
@@ -36,90 +55,74 @@ export function ChoiceTiles({
 }) {
   const options = step.options ?? [];
   const free = options.find((option) => option.free);
+  const ready = options.filter((option) => !option.free);
   const isFree = isFreeValue(step, value);
   const [showFree, setShowFree] = useState(isFree);
+  /*
+    いま押されたばかりの札。跳ねる動きを、押した1枚にだけ返すため。
+
+    「選ばれている札」（value）ではなく「押した札」を覚える。
+    画面に戻ってきたときや、下書きから復元したときに、選択済みの札が
+    ひとりでに跳ねると、触ってもいないのに何かが起きたように見える。
+  */
+  const [popped, setPopped] = useState<string | null>(null);
   const inputId = useId();
 
   useEffect(() => setShowFree(isFree), [isFree]);
 
   return (
     <div>
-      {/*
-        絵を添えて色を散らす。6つを同じ見た目で並べると、
-        どれも同じに見えて選ぶ手が止まる。
-        選んだことは、枠・地色・右のチェックの3つで示す（色だけにしない）。
-
-        チェックの場所は選ぶ前から確保する。以前は選択時にしか
-        描画しておらず、選ぶたびに隣の文字列の実効幅が縮んで
-        折り返しが動いていた（`aippo/ChoiceButton.tsx` と同じ不具合）。
-      */}
-      <ul
-        /*
-          2列。1列にすると6つで画面1枚ぶんの高さになり、
-          「どれがあるか」を見るのにスクロールが要る。
-        */
-        className="grid grid-cols-2 gap-2.5"
-        role="list"
-        data-testid="choice-tiles"
-      >
-        {options.map((option) => {
-          const active = option.free ? showFree : value === option.value;
+      <ul className="flex flex-wrap gap-2" role="list" data-testid="choice-tiles">
+        {ready.map((option) => {
+          const active = !showFree && value === option.value;
           return (
             <li key={option.label}>
               <button
                 type="button"
                 aria-pressed={active}
                 onClick={() => {
-                  if (option.free) {
-                    setShowFree(true);
-                    onChange("");
-                    return;
-                  }
                   setShowFree(false);
+                  setPopped(option.value);
                   onChange(option.value);
                 }}
-                /*
-                  縦積みにする。**横並びだと文字の幅が足りない。**
-
-                  375px の2列では、絵と印を横に並べたぶん文字に残るのが
-                  61px しかなく、「もっと短く」（5字）でも2行、
-                  「自分で条件を追加」（8字）は3行になっていた（実測）。
-                  文字を短くしても直らない——配り方のほうが原因。
-
-                  縦に積むと文字は札の幅いっぱいを使えるので、
-                  8〜9字までは1行に収まる。列は2つのまま。
-                */
-                className={`relative flex h-full min-h-[3.5rem] w-full flex-col
-                            items-start gap-2 rounded-card border px-3 py-3 text-sm
-                            transition active:scale-[0.99]
+                /* 指で押せる高さ（44px）は、札でも下回らない */
+                className={`choice-tap flex min-h-[2.75rem] items-center gap-1.5
+                            rounded-badge border px-3.5 py-2 text-sm leading-6
+                            transition
+                            ${popped === option.value ? "animate-choice-pop" : ""}
                             ${
                               active
                                 ? "border-brand bg-brand-soft/70 font-bold text-brand-dark"
-                                : "border-line bg-surface shadow-card hover:border-brand-line"
+                                : "border-line bg-surface hover:border-brand-line"
                             }`}
               >
-                <IconBadge
-                  icon={optionIcon(option.icon) ?? IconSparkle}
-                  tone={optionTone(option.icon)}
-                  size="sm"
-                />
-                {/*
-                  印は右上へ浮かせる。絵と同じ高さに座り、文字は絵の
-                  **下**から始まるので、右の余白は要らない。
-                */}
-                <span className="w-full min-w-0 text-left leading-6">
-                  {option.label}
-                </span>
                 <IconCheckCircle
-                  className={`absolute right-2.5 top-2.5 h-5 w-5 shrink-0 text-brand
-                              transition-opacity
+                  className={`h-4 w-4 shrink-0 text-brand transition-opacity
                               ${active ? "opacity-100" : "opacity-0"}`}
                 />
+                {option.label}
               </button>
             </li>
           );
         })}
       </ul>
+
+      {free && !showFree && (
+        <button
+          type="button"
+          aria-pressed={false}
+          data-testid="choice-free"
+          onClick={() => {
+            setShowFree(true);
+            onChange("");
+          }}
+          /* 当たり判定を広げる（py と -my を同じだけ。見た目は変わらない） */
+          className="-my-1 mt-3 py-1 text-xs font-bold text-brand-dark underline
+                     transition hover:text-brand"
+        >
+          {free.label}
+        </button>
+      )}
 
       {free && showFree && (
         <div className="mt-4">
@@ -134,6 +137,18 @@ export function ChoiceTiles({
             placeholder="例）専門用語を使わないで"
             className="mt-2 w-full rounded-card border border-line px-4 py-3 text-base"
           />
+          {/* 戻る道を必ず置く。開いたら最後、では行き止まりになる */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowFree(false);
+              onChange("");
+            }}
+            className="-my-1 mt-3 py-1 text-xs font-bold text-brand-dark underline
+                       transition hover:text-brand"
+          >
+            用意された条件から選ぶ
+          </button>
         </div>
       )}
     </div>
@@ -142,7 +157,17 @@ export function ChoiceTiles({
 
 // ------------------------------------------------- 自分の課題の始め方
 
-/** 4つのタイル。何から始めるかを選ばせる（要件 §9）。 */
+/**
+ * 何から始めるかを選ばせる（要件 §9）。
+ *
+ * 縦に並べる。前は2列×2段の 96px 角のカードで、4枚で画面の
+ * 半分ほどを占めていた。**3つの入り方と1つの見送り**という中身は
+ * 一列に並ぶもので、格子に置く理由が無い。
+ *
+ * 「今回はスキップ」は同じ列に置かない。他の3つは「やる」の話で、
+ * これだけが「やらない」の話。同じ形で4枚目に並べると、4択のうちの
+ * 1つとして目に入る。
+ */
 export function StartChoiceTiles({
   onPick,
   onSkip,
@@ -151,7 +176,7 @@ export function StartChoiceTiles({
   onSkip: () => void;
 }) {
   // 絵は線画にそろえる。絵文字だと端末ごとに絵柄が変わり、
-  // 4つ並べたときに大きさも色もばらつく（components/Icons.tsx）。
+  // 並べたときに大きさも色もばらつく（components/Icons.tsx）。
   const tiles = [
     { value: "自分で入力する", label: "自分で入力する", Icon: IconPencil },
     { value: "貼り付ける", label: "貼り付ける", Icon: IconPaste },
@@ -159,33 +184,34 @@ export function StartChoiceTiles({
   ];
 
   return (
-    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-4" role="list">
-      {tiles.map((tile) => (
-        <li key={tile.value}>
-          <button
-            type="button"
-            onClick={() => onPick(tile.value)}
-            className="flex min-h-[6rem] w-full flex-col items-center justify-center gap-2
-                       rounded-card border border-line bg-surface px-3 py-4 text-xs
-                       leading-5 transition hover:border-brand hover:bg-brand-soft"
-          >
-            <tile.Icon className="h-6 w-6 text-brand" />
-            {tile.label}
-          </button>
-        </li>
-      ))}
-      <li>
-        <button
-          type="button"
-          onClick={onSkip}
-          className="flex min-h-[6rem] w-full flex-col items-center justify-center gap-2
-                     rounded-card border border-dashed border-line bg-canvas px-3 py-4
-                     text-xs leading-5 text-ink-muted transition hover:border-brand-line"
-        >
-          <IconSkip className="h-6 w-6" />
-          今回はスキップ
-        </button>
-      </li>
-    </ul>
+    <div>
+      <ul role="list">
+        {tiles.map((tile) => (
+          <li key={tile.value} className="border-b border-line last:border-b-0">
+            <button
+              type="button"
+              onClick={() => onPick(tile.value)}
+              className="row-tap flex w-full items-center gap-3 py-3.5 text-left
+                         text-sm transition hover:bg-brand-soft/40"
+            >
+              <tile.Icon className="h-5 w-5 shrink-0 text-brand" />
+              <span className="min-w-0 flex-1">{tile.label}</span>
+              <IconChevronRight className="h-5 w-5 shrink-0 text-ink-muted" />
+            </button>
+          </li>
+        ))}
+      </ul>
+
+      <button
+        type="button"
+        onClick={onSkip}
+        /* 当たり判定を広げる（py と -my を同じだけ。見た目は変わらない） */
+        className="-my-1 mt-3 flex items-center gap-1.5 py-1 text-xs text-ink-muted
+                   underline transition hover:text-ink"
+      >
+        <IconSkip className="h-4 w-4 shrink-0" />
+        今回はスキップ
+      </button>
+    </div>
   );
 }

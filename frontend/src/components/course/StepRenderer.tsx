@@ -15,8 +15,7 @@
  * 組み合わせ方だけを持つ。
  */
 
-import { Card, CardHeading } from "../AppShell";
-import { IconCaution, IconSparkle } from "../Icons";
+import { IconCaution } from "../Icons";
 import { SafetyNote } from "../SafetyNote";
 import { SkillGet } from "./SkillGet";
 import { StepDone } from "./StepDone";
@@ -248,14 +247,14 @@ export function StepRenderer({
           */}
           {sampleText && (
             <div className="mt-5">
-              <Card>
-                <CardHeading icon={IconSparkle} tone="plain">
-                  AIにはこう伝えます
-                </CardHeading>
-                <p className="mt-4 whitespace-pre-wrap rounded-card bg-canvas p-4 text-sm leading-7">
-                  {sampleText}
-                </p>
-              </Card>
+              {/* 名札と本文の面だけ。囲いを二重にしない（条件の画面と同じ） */}
+              <p className="text-xs font-bold text-ink-muted">AIにはこう伝えます</p>
+              <p
+                className="mt-2 whitespace-pre-wrap rounded-card border border-line
+                           bg-surface p-4 text-sm leading-7"
+              >
+                {sampleText}
+              </p>
             </div>
           )}
         </div>
@@ -305,14 +304,27 @@ export function StepRenderer({
             思い出しながら選ばせることになっていた。
           */}
           {lastRun && (
-            <Card className="mb-5">
-              <CardHeading icon={IconSparkle} tone="plain">
-                いまのAIの結果
-              </CardHeading>
-              <p className="mt-4 whitespace-pre-wrap break-words rounded-card bg-canvas p-4 text-sm leading-7">
+            <div className="mb-5">
+              {/*
+                カードの中にカードを入れない。
+
+                前は「いまのAIの結果」という見出し付きのカードの中に、
+                もう1枚、薄い地の面を敷いて本文を置いていた。面が二重に
+                なると、外側の枠が何を囲っているのかが分からなくなる。
+                いるのは**小さな名札と、本文の面**の2つだけ。
+
+                名札の言葉も変えた。「いまのAIの結果」は、こちらが
+                手順を説明する言い方になっている。読む人から見れば、
+                これは「さっき出てきた文」でしかない。
+              */}
+              <p className="text-xs font-bold text-ink-muted">さっき出てきた文</p>
+              <p
+                className="mt-2 whitespace-pre-wrap break-words rounded-card border
+                           border-line bg-surface p-4 text-sm leading-7"
+              >
                 {lastRun.outputText}
               </p>
-            </Card>
+            </div>
           )}
           <ChoiceTiles
             step={step}

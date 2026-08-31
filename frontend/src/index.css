@@ -135,4 +135,22 @@
   .row-tap {
     @apply enabled:hover:bg-brand-soft/40 enabled:active:bg-brand-soft/70;
   }
+
+  /*
+    押した手ごたえ。
+
+    指を置いているあいだ、ほんの少し縮む。押せるものを押したことが、
+    色の変化より先に返る——色は「選ばれた結果」で、これは「触れた」
+    という返事なので、選ばない札でも返す。
+
+    0.97 までにする。それ以上縮めると、札が並んでいるときに
+    隣との間隔が動いて見える。
+
+    prefers-reduced-motion のときは transition が 0.01ms になるので
+    （index.css の冒頭）、縮んだ姿へ一瞬で飛び、戻るのも一瞬になる。
+    止めているのではなく、目で追えない速さにしてある。
+  */
+  .choice-tap {
+    @apply active:scale-[0.97];
+  }
 }
