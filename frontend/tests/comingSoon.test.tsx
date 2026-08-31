@@ -144,11 +144,17 @@ describe("近日公開の判定", () => {
 });
 
 describe("同梱データの既定", () => {
-  it("教材9本は、すべて始められる", () => {
-    // 中身は9本とも揃っている。閉じておくと、画面には出ているのに
-    // 押せない教材が並ぶだけになる
+  it("同梱の教材は、すべて始められる", () => {
+    /*
+      中身が揃っているものだけを同梱している。閉じておくと、
+      画面には出ているのに押せない教材が並ぶだけになる。
+
+      本数は決め打ちにしない。同梱はサーバーが届かないときの控えで、
+      カリキュラムの姿を決めるのはサーバー側（release_seeding.py）。
+      ここで本数を固定すると、コースを組み替えるたびに落ちる。
+    */
+    expect(COURSE.lessons.length).toBeGreaterThan(0);
     expect(startableLessons(COURSE.lessons)).toHaveLength(COURSE.lessons.length);
-    expect(COURSE.lessons).toHaveLength(9);
   });
 
   it("どの教材にも、進められる中身がある", () => {

@@ -81,6 +81,26 @@ describe("選ぶ札", () => {
 
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
+
+  it("チェックの場所は、選ぶ前から確保されている（折り返しが動かない）", () => {
+    /*
+      以前はチェックの <span> を選択時にしか描画していなかった。
+      選ぶと隣のテキスト列の実効幅が縮み、折り返し位置が動いていた。
+      場所を常に描画して見た目だけを切り替えていれば、DOM の構造
+      （子要素の数）は選択の前後で変わらない。
+    */
+    const { rerender } = render(
+      <ChoiceButton label="自分がやることを知る" selected={false} onSelect={() => {}} />,
+    );
+    const button = screen.getByRole("button", { name: /自分がやることを知る/ });
+    const before = button.childElementCount;
+
+    rerender(
+      <ChoiceButton label="自分がやることを知る" selected onSelect={() => {}} />,
+    );
+
+    expect(button.childElementCount).toBe(before);
+  });
 });
 
 describe("画面のいちばん上（ポーと見出し）", () => {

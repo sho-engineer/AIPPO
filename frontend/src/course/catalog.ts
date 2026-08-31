@@ -1,8 +1,18 @@
 /**
- * コース「7日でAIの最初の一歩」の中身。
+ * AIスタートコースの中身（通信が届かないときの控え）。
  *
  * ここはデータであって、画面ではない。
  * レッスンを足すときにコンポーネントを触らなくて済むようにしてある。
+ *
+ * 本文と並べ方を分けてある
+ * ------------------------
+ * 上半分の `LESSON_*` が**本文**で、下の `START_CURRICULUM` が**並べ方**。
+ * 本文は「コードから DB へ移して1文字も変わっていない」ことを確かめる
+ * 正解データ（backend/tests/test_catalog_parity.py）を兼ねているので、
+ * カリキュラムを変えるたびにここを書き換えると、その役目が消える。
+ *
+ * 本当の持ち主はサーバー（`apps/catalog/release_seeding.py`）。
+ * ここはその控えなので、**同じ姿にしておくこと。**
  *
  * 決めごと:
  * - 1画面1タスク。1つのステップで2つのことを判断させない（要件 §6.1）
@@ -11,7 +21,7 @@
  */
 
 import { AUDIENCE_OPTIONS, buildLessonFlow } from "./shared";
-import type { Course, Lesson } from "./types";
+import type { Course, CourseStage, Lesson } from "./types";
 
 // ---------------------------------------------------------------- Lesson 0
 
@@ -48,13 +58,13 @@ const LESSON_0: Lesson = {
       key: "work_kind",
       required: true,
       options: [
-        { value: "writing", label: "文章を書くことが多い" },
-        { value: "reading", label: "長い文章を読むことが多い" },
-        { value: "researching", label: "分からないことを調べる" },
+        { value: "writing", label: "文章を書く" },
+        { value: "reading", label: "長い文章を読む" },
+        { value: "researching", label: "調べて理解する" },
         { value: "ideas", label: "アイデアを考える" },
-        { value: "comparing", label: "複数の選択肢を比較する" },
+        { value: "comparing", label: "選択肢を比較する" },
         { value: "planning", label: "計画を作る" },
-        { value: "organizing", label: "仕事の作業を整理する" },
+        { value: "organizing", label: "作業を整理する" },
       ],
     },
     {
@@ -83,7 +93,7 @@ const LESSON_0: Lesson = {
       options: [
         { value: "writing", label: "文章を書く・直す" },
         { value: "summarizing", label: "長い資料をまとめる" },
-        { value: "explaining", label: "分からないことを調べる・説明する" },
+        { value: "explaining", label: "調べる・説明する" },
         { value: "comparing", label: "選択肢を比べる" },
         { value: "planning", label: "段取りを決める" },
       ],
@@ -148,6 +158,19 @@ const LESSON_1: Lesson = {
     quickOptions: AUDIENCE_OPTIONS,
     quickDefaults: { tone: "ていねいに", length: "3行くらい" },
     working: "文章を書き直してもらっています。",
+    /*
+      骨格が続けて出す解説は**1枚だけ**にしてある。
+
+      3枚続けると、手を動かす前に解説を3画面読むことになる。
+      残り2枚（トーン指定・反復）は、それを実際に使う場面の直前へ
+      移した（下の realTaskSteps）。**技は、使う直前に出す。**
+    */
+    /*
+      技の名前は、AI分野で普通に使われている言葉にする
+      （AIPPO だけの造語にしない）。やさしい言い方はカードの見出しが
+      持っていて、名前のほうを `conceptSkills` が持つ。
+    */
+    conceptSkills: ["ターゲット指定"],
     conceptCards: [
       {
         title: "誰向けかを伝える",
@@ -162,26 +185,6 @@ const LESSON_1: Lesson = {
           after: "お忙しいところすみませんが。",
         },
       },
-      {
-        title: "どうしたいかを言う",
-        body: "「短く」「丁寧に」のように、望む形を一言そえると結果が寄ります。",
-        visual: "three_points",
-        points: ["短く", "丁寧に", "要点を先に"],
-        reviewExample: {
-          body: "望む形は、長さ・言い方・並べ方のどれでも指定できます。",
-          points: ["3行で", "やわらかく", "箇条書きで"],
-        },
-      },
-      {
-        title: "一度で決めない",
-        body: "条件を一つずつ足すほうが、はじめから細かく書くより近づきます。",
-        visual: "simple_flow",
-        points: ["まず送る", "結果を見る", "条件を足す"],
-        reviewExample: {
-          body: "一度で完璧を狙わず、足りないところだけ言い足します。",
-          points: ["長すぎた", "「半分に」と足す", "また見る"],
-        },
-      },
     ],
     reviewPoints: [
       "元の意味が変わっていないか",
@@ -190,10 +193,28 @@ const LESSON_1: Lesson = {
     ],
     realTaskLabel: "いま実際に直したい文章を、ひとつ入れてみましょう。",
     realTaskPlaceholder: "例）お客様へ送るお知らせの文章",
-    realTaskSteps: [
+    /*
+      技を深める並び。**自分の文章を書く前**に置く。
+
+          誰が読むか → 【トーン指定】 → どう変えたいか → 【反復】
+          → 自分の文章 → 送る内容を見る → 送る
+
+      前は自分の文章を書いた**あと**に置いていた。書き終えた人を
+      4画面ぶん足止めしてから送る形で、しかも「自分で試す」の区切りが
+      11歩に膨らみ、帯がそのあいだ止まっていた。相手も言い方も、
+      自分の文章とは関係なく決められるので、先に済ませる。
+
+      解説を2枚続けて出さない。**あいだに必ず手を動かす画面が入る。**
+      技を出す位置も、使う場面のすぐ手前——トーン指定はトーンを選ぶ
+      直前、反復は自分の文章を書く直前。「一度で完璧を目指さなくていい」は、
+      これから書く人にいちばん効く。
+    */
+    deepenSteps: [
       {
         id: "real_audience",
         type: "single_choice",
+        phase: "deepen",
+        primaryLabel: "誰向けか決めた",
         title: "誰が読みますか",
         poMessage: "読む相手を伝えると、言葉づかいが変わります。",
         poEmotion: "question",
@@ -206,8 +227,32 @@ const LESSON_1: Lesson = {
         ],
       },
       {
+        id: "concept_tone",
+        type: "concept_card",
+        phase: "deepen",
+        primaryLabel: "トーンを選ぶ",
+        skill: "トーン指定",
+        title: "トーン指定",
+        poMessage: "同じ内容でも、言い方は変えられます。",
+        poEmotion: "neutral",
+        // 解説は必ず飛ばせる。読みたくない人を足止めしない
+        skippable: true,
+        card: {
+          title: "トーン指定",
+          body: "同じ内容でも、丁寧・やわらかい・カジュアルで伝わり方が変わります。",
+          visual: "three_points",
+          points: ["丁寧", "やわらかい", "カジュアル"],
+          reviewExample: {
+            body: "望む形は、長さ・言い方・並べ方のどれでも指定できます。",
+            points: ["3行で", "やわらかく", "箇条書きで"],
+          },
+        },
+      },
+      {
         id: "real_tone",
         type: "single_choice",
+        phase: "deepen",
+        primaryLabel: "この言い方で書く",
         title: "どう変えたいですか",
         poMessage: "これで最後の質問です。",
         poEmotion: "question",
@@ -220,6 +265,27 @@ const LESSON_1: Lesson = {
           { value: "やさしい言葉で", label: "やさしい言葉で" },
           { value: "", label: "そのほか", free: true },
         ],
+      },
+      {
+        id: "concept_iteration",
+        type: "concept_card",
+        phase: "deepen",
+        primaryLabel: "自分の文章で試す",
+        skill: "反復（Iteration）",
+        title: "反復（Iteration）",
+        poMessage: "一度で完璧を目指さなくて大丈夫です。",
+        poEmotion: "hint",
+        skippable: true,
+        card: {
+          title: "反復（Iteration）",
+          body: "結果を見てから足すほうが、はじめから細かく書くより近づきます。",
+          visual: "simple_flow",
+          points: ["まず送る", "結果を見る", "条件を足す"],
+          reviewExample: {
+            body: "一度で完璧を狙わず、足りないところだけ言い足します。",
+            points: ["長すぎた", "「半分に」と足す", "また見る"],
+          },
+        },
       },
     ],
     takeaway: "相手と、どうしたいかを伝えると、結果が変わることを確かめられましたね。",
@@ -265,7 +331,7 @@ const LESSON_2: Lesson = {
     quickKey: "purpose",
     quickOptions: [
       { value: "人に共有するため", label: "人に共有する" },
-      { value: "自分がやることを知るため", label: "自分がやることを知る" },
+      { value: "自分がやることを知るため", label: "自分の作業を知る" },
       { value: "内容をつかむため", label: "内容をざっとつかむ" },
     ],
     quickDefaults: { format: "重要な点を3つ", length: "3行で" },
@@ -277,23 +343,27 @@ const LESSON_2: Lesson = {
       { value: "やることが分かった", label: "やることが分かった" },
       { value: "よく分からない", label: "よく分からない" },
     ],
+    /*
+      骨格が続けて出す解説は**1枚だけ**にしてある。
+
+      覚える技は3つ（要約・出力形式の指定・コンテキスト）で、残り2つは
+      それを実際に使う場面の直前へ移した（下の realTaskSteps）。
+      **技は、使う直前に出す。**
+
+      「足された話に気をつける」は解説から外した。技ではなく確かめ方の
+      話で、**同じことを下の reviewPoints が言っている**（結果を見る
+      画面で毎回出る）。解説でも言うと、1レッスンに4枚並ぶことになる。
+    */
     conceptCards: [
       {
-        title: "目的で残る情報が変わる",
-        body: "「共有用」と「自分の作業用」では、残すべきところが違います。",
+        title: "要約",
+        body: "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
         visual: "three_points",
-        points: ["共有する", "作業を知る", "内容をつかむ"],
-      },
-      {
-        title: "形を指定する",
-        body: "「3行で」「重要な点を3つ」と言うと、そのまま貼って使えます。",
-        visual: "highlight",
-        highlight: "重要な点を3つ",
-      },
-      {
-        title: "足された話に気をつける",
-        body: "元の文章に無いことが混ざることがあります。数字は必ず確かめます。",
-        visual: "text",
+        points: ["目的", "決定事項", "次の行動"],
+        reviewExample: {
+          body: "何を残すかは、そのあと何に使うかで決まります。",
+          points: ["共有する", "作業を知る", "内容をつかむ"],
+        },
       },
     ],
     reviewPoints: [
@@ -303,27 +373,44 @@ const LESSON_2: Lesson = {
     ],
     realTaskLabel: "手元にある長い文章を、ひとつ入れてみましょう。",
     realTaskPlaceholder: "例）今日届いた長いメールの本文",
+    /*
+      自分の文章を入れたあとの並び。
+
+          【出力形式の指定】 → どんな形で欲しいか
+          → 【コンテキスト】 → 何のためにまとめるか → 送る
+
+      形を先に聞く。直前の比較で見たのが「3つの箇条書きで」の効果
+      なので、そこから続けて自分の文章の形を決めるのが素直な順になる。
+
+      解説を2枚続けて出さない。**あいだに必ず手を動かす画面が入る。**
+      技を出す位置も、覚えてもらう場面のすぐ手前にしてある。
+    */
     realTaskSteps: [
       {
-        id: "real_purpose",
-        type: "single_choice",
-        title: "何のためにまとめますか",
-        poMessage: "目的が変わると、残す情報が変わります。",
-        poEmotion: "question",
-        key: "purpose",
-        required: true,
-        options: [
-          { value: "内容をつかむため", label: "内容をつかむため" },
-          { value: "人に共有するため", label: "人に共有するため" },
-          { value: "自分がやることを知るため", label: "自分がやることを知るため" },
-          { value: "", label: "そのほか", free: true },
-        ],
+        id: "concept_output_format",
+        type: "concept_card",
+        phase: "own",
+        title: "出力形式の指定",
+        poMessage: "何を答えるかだけでなく、どう答えるかも指定できます。",
+        poEmotion: "neutral",
+        // 解説は必ず飛ばせる。読みたくない人を足止めしない
+        skippable: true,
+        card: {
+          title: "出力形式の指定",
+          body: "同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できます。",
+          visual: "three_points",
+          points: ["3行で", "箇条書きで", "表で"],
+          reviewExample: {
+            body: "そのまま貼って使える形を言うと、直す手間が減ります。",
+            points: ["重要な点を3つ", "次にやることだけ", "見出しを付けて"],
+          },
+        },
       },
       {
         id: "real_format",
         type: "single_choice",
         title: "どんな形で欲しいですか",
-        poMessage: "これで最後の質問です。",
+        poMessage: "そのまま使える形を選んでください。",
         poEmotion: "question",
         key: "format",
         required: true,
@@ -332,6 +419,40 @@ const LESSON_2: Lesson = {
           { value: "重要な点を3つ", label: "重要な点を3つ" },
           { value: "次にやることを抽出", label: "次にやることを抽出" },
           { value: "初心者向けに説明", label: "初心者向けに説明" },
+          { value: "", label: "そのほか", free: true },
+        ],
+      },
+      {
+        id: "concept_context",
+        type: "concept_card",
+        phase: "own",
+        title: "コンテキスト",
+        poMessage: "背景を伝えるほど、目的に合った答えになります。",
+        poEmotion: "hint",
+        skippable: true,
+        card: {
+          title: "コンテキスト",
+          body: "目的・相手・場面という背景を渡すと、要点の絞り方が変わります。",
+          visual: "three_points",
+          points: ["目的", "相手", "場面"],
+          reviewExample: {
+            body: "「共有用」と「自分の作業用」では、残すべきところが違います。",
+            points: ["共有する", "作業を知る", "内容をつかむ"],
+          },
+        },
+      },
+      {
+        id: "real_purpose",
+        type: "single_choice",
+        title: "何のためにまとめますか",
+        poMessage: "これで最後の質問です。目的が変わると、残す情報が変わります。",
+        poEmotion: "question",
+        key: "purpose",
+        required: true,
+        options: [
+          { value: "内容をつかむため", label: "内容をつかむため" },
+          { value: "人に共有するため", label: "人に共有するため" },
+          { value: "自分がやることを知るため", label: "自分の作業のため" },
           { value: "", label: "そのほか", free: true },
         ],
       },
@@ -367,9 +488,24 @@ const LESSON_3: Lesson = {
       inputs: {
         source_text: "topic",
         audience: "audience",
+        /*
+          どんな立場で答えるか（ロール指定）。**`style` を流用しない。**
+
+          `style` は最初のお試しで `quickDefaults` が「例えを使う」で
+          埋めてしまう欄で、そこへ立場を重ねると、**選ばなくても値が
+          入っている状態**になる。`checkStep` は「空かどうか」しか見ない
+          ので、必須にしても素通りできてしまい、「これがロール指定」と
+          教えた直後に立場の無い依頼がAIへ行く。別の欄にして塞ぐ。
+        */
+        role: "role",
         style: "style",
         example: "example",
         length: "length",
+        /*
+          聞き返しの一言。空なら依頼文に出ない（apps/ai/actions.py の
+          `_line` が空の項目を落とす）ので、答えなくても通る。
+        */
+        followup: "instruction",
       },
     },
     sampleText: "サブスクリプション",
@@ -378,7 +514,7 @@ const LESSON_3: Lesson = {
     quickKey: "audience",
     quickOptions: [
       { value: "初心者向け", label: "はじめて聞く人" },
-      { value: "小学生向け", label: "小学生でも分かるように" },
+      { value: "小学生向け", label: "小学生にも分かる" },
       { value: "その分野の人向け", label: "その分野の人" },
     ],
     quickDefaults: {
@@ -388,30 +524,35 @@ const LESSON_3: Lesson = {
     },
     working: "分かる言い方に置きかえています。",
     observationOptions: [
-      { value: "やさしい言葉になった", label: "やさしい言葉になった" },
+      { value: "やさしい言葉になった", label: "やさしくなった" },
       { value: "例えが入った", label: "例えが入った" },
       { value: "具体例が入った", label: "具体例が入った" },
       { value: "短くなった", label: "短くなった" },
       { value: "よく分からない", label: "よく分からない" },
     ],
+    /*
+      骨格が続けて出す解説は**1枚だけ**にしてある。
+
+      覚える技は3つ（ターゲット指定・ロール指定・追加質問）で、残り2つは
+      それを実際に使う場面の直前へ移した（下の realTaskSteps）。
+      **技は、使う直前に出す。**
+
+      外した2枚
+      ----------
+      「例えを頼む」… 直後の比較で、身近な例を足した結果をそのまま見る。
+      並べて見たあとに同じことを言うと、二度読ませることになる。
+      「確かめる場所」… `factCheck` を立ててあるので、結果を見る画面が
+      毎回そのことを出す。解説でも言うと1レッスンに4枚並ぶ。
+    */
     conceptCards: [
       {
-        title: "相手を決める",
+        title: "ターゲット指定",
         body: "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
         visual: "highlight",
         highlight: "小学生でも分かるように",
-      },
-      {
-        title: "例えを頼む",
-        body: "身近なものに置きかえてもらうと、初めての言葉でも掴めます。",
-        visual: "before_after",
-        before: "定額制の役務提供契約です。",
-        after: "雑誌の定期購読と同じ仕組みです。",
-      },
-      {
-        title: "確かめる場所",
-        body: "AIは知らないことも書きます。数字・日付・固有名詞は自分で確認します。",
-        visual: "text",
+        reviewExample: {
+          body: "身近なものに置きかえてもらうと、初めての言葉でも掴めます。",
+        },
       },
     ],
     reviewPoints: [
@@ -438,18 +579,86 @@ const LESSON_3: Lesson = {
         ],
       },
       {
-        id: "real_style",
+        id: "concept_role",
+        type: "concept_card",
+        phase: "own",
+        title: "ロール指定",
+        poMessage: "どんな立場で答えてほしいかを伝えられます。",
+        poEmotion: "neutral",
+        // 解説は必ず飛ばせる。読みたくない人を足止めしない
+        skippable: true,
+        card: {
+          title: "ロール指定",
+          body: "「先生として」「IT担当者として」と立場を伝えると、説明の寄せ方が変わります。",
+          visual: "three_points",
+          points: ["先生", "IT担当者", "詳しい友だち"],
+          reviewExample: {
+            body: "同じことでも、誰の口から聞くかで届き方が変わります。",
+            points: ["先生なら順を追って", "実務なら手順から", "友だちなら要点だけ"],
+          },
+        },
+      },
+      {
+        /*
+          直前で「これがロール指定」と言っておきながら、それを使う場面が
+          どこにも無い、という形にしないための1問。選んだ言葉が
+          「答える立場」としてそのまま依頼文に乗る。
+
+          専用の `role` に置いている（`style` の流用ではない）。理由は
+          上の `inputs` に書いた——`style` は最初のお試しで既定値が
+          入るので、必須にしても素通りできる。
+        */
+        id: "real_role",
         type: "single_choice",
-        title: "どう説明してもらいますか",
-        poMessage: "これで最後の質問です。",
+        title: "どんな立場で説明してもらいますか",
+        poMessage: "立場を伝えると、説明の寄せ方が変わります。",
         poEmotion: "question",
-        key: "style",
+        key: "role",
         required: true,
         options: [
-          { value: "例えを使う", label: "例えを使う" },
-          { value: "順番に説明する", label: "順番に説明する" },
-          { value: "ひとことで言う", label: "ひとことで言う" },
+          { value: "先生として、順を追って教えるように", label: "先生として" },
+          { value: "IT担当者として、実務に寄せて", label: "IT担当者として" },
+          { value: "詳しい友だちとして、くだけた言葉で", label: "詳しい友だちとして" },
           { value: "", label: "そのほか", free: true },
+        ],
+      },
+      {
+        id: "concept_followup",
+        type: "concept_card",
+        phase: "own",
+        title: "追加質問",
+        poMessage: "分からないまま終わらず、聞き返して大丈夫です。",
+        poEmotion: "hint",
+        skippable: true,
+        card: {
+          title: "追加質問",
+          body: "一度で分からなくても、聞き返しながら近づけていけます。",
+          visual: "simple_flow",
+          points: ["答えを読む", "分からない所を言う", "もう一度もらう"],
+          reviewExample: {
+            body: "「もっと簡単に」「具体例を出して」の一言で十分です。",
+            points: ["もっと簡単に", "具体例を出して", "一言でまとめて"],
+          },
+        },
+      },
+      {
+        /*
+          聞き返しの一言。**答えなくても進める**（required にしない）。
+
+          いまのレッスンは1往復で終わるので、聞き返しは送る前に
+          添える形にしてある。空なら依頼文に出ない。
+        */
+        id: "real_followup",
+        type: "single_choice",
+        title: "追加でお願いしたいことはありますか",
+        poMessage: "これで最後です。無ければ「追加はしない」で進めます。",
+        poEmotion: "question",
+        key: "followup",
+        options: [
+          { value: "もっと簡単な言葉で", label: "もっと簡単に" },
+          { value: "具体例をもう一つ足して", label: "具体例をもう1つ" },
+          { value: "最後に一言でまとめて", label: "一言でまとめて" },
+          { value: "", label: "追加はしない" },
         ],
       },
     ],
@@ -473,9 +682,9 @@ const LESSON_4: Lesson = {
   beforeExample: "紙の書類で回す / 全部データにする",
   afterExample:
     "費用：紙は印刷代がかかる／データは初期の手間\n時間：紙は回覧待ち／データは即時\n※ 具体的な金額は確認が必要です",
-  learnedSkills: ["比べる基準を自分で決める", "AIの結論をそのまま信じない"],
+  learnedSkills: ["比較", "評価基準の指定", "出力形式の指定"],
 
-  outcomes: ["比べる基準を指定できる", "AIの結論をそのまま信じずに確かめられる"],
+  outcomes: ["違いを整理できる", "自分の基準で判断材料を作れる"],
   tags: ["comparing"],
   usesAi: true,
   mode: "standard",
@@ -498,33 +707,64 @@ const LESSON_4: Lesson = {
       { value: "時間", label: "時間" },
       { value: "使いやすさ", label: "使いやすさ" },
     ],
-    quickDefaults: { criteria: "費用と時間と使いやすさ", as_table: "文章でよい" },
+    /*
+      **最初の1回は、基準を決めずに聞く。**
+
+      基準まで先に埋めてしまうと、次の「基準を足して再実行」で
+      何も変わらない。基準を決めると答えが変わることを、その差で
+      見せる回なので、ここは空のまま通す（compare アクションの
+      `criteria` を任意にしてある）。
+
+      以前はここに「費用と時間と使いやすさ」と文で入れていた。
+      それだと、あとの必須の質問に**選択肢に無い値**が先に入り、
+      札はどれも選ばれていないのに空ではないので次へ進めてしまう。
+      基準を自分で決めないまま比較へ行けた——このレッスンで
+      いちばん大事なところが飛ばせる状態だった。
+    */
+    quickDefaults: { as_table: "文章でよい" },
     working: "基準ごとに並べています。",
+    /*
+      共通の選択肢（もっと短く・もっと丁寧に…）は**文章を直す**
+      言い回しで、選択肢の比較には当たらない。この回で足すのは
+      「何を基準に比べるか」なので、そちらに差し替える。
+    */
+    conditionOptions: [
+      { value: "価格・使いやすさ・機能で比較して", label: "価格・使いやすさ・機能で" },
+      { value: "費用と手間で比較して", label: "費用と手間で" },
+      { value: "続けやすさで比較して", label: "続けやすさで" },
+      { value: "表にまとめて", label: "表にまとめる" },
+      { value: "", label: "自分で基準を追加", free: true },
+    ],
     observationOptions: [
-      { value: "基準ごとに整理された", label: "基準ごとに整理された" },
+      { value: "基準ごとに整理された", label: "基準ごとに整理" },
       { value: "違いが分かった", label: "違いが分かった" },
-      { value: "確認が必要な点が出た", label: "確認が必要な点が出た" },
+      { value: "確認が必要な点が出た", label: "要確認の点が出た" },
       { value: "決め手が見えた", label: "決め手が見えた" },
       { value: "よく分からない", label: "よく分からない" },
     ],
+    /*
+      骨格が続けて出す解説は**1枚だけ**にしてある。
+
+      覚える技は3つ（比較・評価基準の指定・出力形式の指定）で、
+      残り2つはそれを実際に使う場面の直前へ移した（下の realTaskSteps）。
+      **技は、使う直前に出す。**
+
+      外した2枚
+      ----------
+      「AIは決めてくれない」… `factCheck` を立ててあるので、結果を見る
+      画面が毎回そのことを出す。解説でも言うと1レッスンに5枚並ぶ。
+      「数字は必ず確認」… reviewPoints の1行目がそのまま同じことを言う。
+    */
     conceptCards: [
       {
-        title: "基準は自分で決める",
-        body: "「何を大事にするか」を先に決めないと、比べた結果を使えません。",
+        title: "比較",
+        body: "頭の中で比べず、同じ観点で並べると違いが見えます。",
         visual: "three_points",
-        points: ["費用", "時間", "使いやすさ"],
-      },
-      {
-        title: "AIは決めてくれない",
-        body: "おすすめは答えではありません。材料を出す係だと思ってください。",
-        visual: "simple_flow",
-        points: ["AIが並べる", "自分が選ぶ", "自分が決める"],
-      },
-      {
-        title: "数字は必ず確認",
-        body: "価格・仕様・最新情報は、それらしく書かれても確かめてください。",
-        visual: "highlight",
-        highlight: "価格・仕様・最新情報",
+        points: ["候補を並べる", "同じ観点で見る", "違いが見える"],
+        reviewExample: {
+          body: "並べ方が同じだと、どこが違うのかを目で追えます。",
+          points: ["A・B・C", "価格／機能／簡単さ", "表で見る"],
+        },
       },
     ],
     reviewPoints: [
@@ -534,7 +774,36 @@ const LESSON_4: Lesson = {
     ],
     realTaskLabel: "いま迷っていることを、ひとつ入れてみましょう。",
     realTaskPlaceholder: "例）今の方法を続ける / 新しい方法に変える",
+    /*
+      自分の選択肢を入れたあとの並び。
+
+          【評価基準の指定】→ 基準を選ぶ
+          → 【出力形式の指定】→ 形を選ぶ → 送る
+
+      解説を2枚続けて出さない。**あいだに必ず手を動かす画面が入る。**
+      技を出す位置も、使う場面のすぐ手前にしてある。
+    */
     realTaskSteps: [
+      {
+        id: "concept_criteria",
+        type: "concept_card",
+        phase: "own",
+        title: "評価基準の指定",
+        poMessage: "何を重視するかで、おすすめは変わります。",
+        poEmotion: "neutral",
+        // 解説は必ず飛ばせる。読みたくない人を足止めしない
+        skippable: true,
+        card: {
+          title: "評価基準の指定",
+          body: "「価格で」「機能で」と伝えると、おすすめそのものが入れ替わります。",
+          visual: "three_points",
+          points: ["価格重視ならA", "機能重視ならC", "基準が変われば答えも変わる"],
+          reviewExample: {
+            body: "決めるのは自分です。AIは基準どおりに並べる係です。",
+            points: ["基準を決める", "AIが並べる", "自分が選ぶ"],
+          },
+        },
+      },
       {
         id: "real_criteria",
         type: "multi_choice",
@@ -551,6 +820,25 @@ const LESSON_4: Lesson = {
           { value: "続けやすさ", label: "続けやすさ" },
           { value: "失敗したときの影響", label: "失敗したときの影響" },
         ],
+      },
+      {
+        id: "concept_output_format",
+        type: "concept_card",
+        phase: "own",
+        title: "出力形式の指定",
+        poMessage: "答え方も指定できます。",
+        poEmotion: "hint",
+        skippable: true,
+        card: {
+          title: "出力形式の指定",
+          body: "何を答えるかだけでなく、どう答えるかも指定できます。",
+          visual: "three_points",
+          points: ["3行で", "箇条書きで", "表で"],
+          reviewExample: {
+            body: "比べた結果は、表にすると違いを目で追えます。",
+            points: ["表で並べる", "行が基準", "列が選択肢"],
+          },
+        },
       },
       {
         id: "real_as_table",
@@ -615,7 +903,7 @@ const LESSON_5: Lesson = {
     working: "実行できる大きさに分けています。",
     observationOptions: [
       { value: "手順に分かれた", label: "手順に分かれた" },
-      { value: "始められる大きさになった", label: "始められる大きさになった" },
+      { value: "始められる大きさになった", label: "始められる大きさ" },
       { value: "順番が決まった", label: "順番が決まった" },
       { value: "時間の目安がついた", label: "時間の目安がついた" },
       { value: "よく分からない", label: "よく分からない" },
@@ -719,15 +1007,15 @@ const LESSON_6: Lesson = {
     quickKey: "improvement_direction",
     quickOptions: [
       { value: "短くする", label: "短くする" },
-      { value: "具体例を追加する", label: "具体例を追加する" },
-      { value: "足りない情報を質問する", label: "足りない情報を質問してもらう" },
+      { value: "具体例を追加する", label: "具体例を追加" },
+      { value: "足りない情報を質問する", label: "追加質問する" },
     ],
     quickDefaults: {},
     working: "指定された方向だけを直しています。",
     observationOptions: [
       { value: "短くなった", label: "短くなった" },
       { value: "分かりやすくなった", label: "分かりやすくなった" },
-      { value: "頼んだところだけ変わった", label: "頼んだところだけ変わった" },
+      { value: "頼んだところだけ変わった", label: "頼んだ所だけ変化" },
       { value: "質問が返ってきた", label: "質問が返ってきた" },
       { value: "よく分からない", label: "よく分からない" },
     ],
@@ -769,11 +1057,11 @@ const LESSON_6: Lesson = {
         options: [
           { value: "短くする", label: "短くする" },
           { value: "詳しくする", label: "詳しくする" },
-          { value: "具体例を追加する", label: "具体例を追加する" },
+          { value: "具体例を追加する", label: "具体例を追加" },
           { value: "表にする", label: "表にする" },
           { value: "別案を出す", label: "別案を出す" },
-          { value: "足りない情報を質問する", label: "足りない情報を質問してもらう" },
-          { value: "厳しい視点でレビューする", label: "厳しい視点で見てもらう" },
+          { value: "足りない情報を質問する", label: "追加質問する" },
+          { value: "厳しい視点でレビューする", label: "厳しく評価する" },
           { value: "", label: "そのほか", free: true },
         ],
       },
@@ -861,7 +1149,7 @@ const LESSON_7: Lesson = {
         { value: "APIキー", label: "APIキー" },
         { value: "顧客情報", label: "顧客情報" },
         { value: "未公開資料", label: "未公開資料" },
-        { value: "クレジットカード番号", label: "クレジットカード番号" },
+        { value: "クレジットカード番号", label: "カード番号" },
         { value: "個人住所", label: "個人住所" },
       ],
       meta: {
@@ -888,7 +1176,7 @@ const LESSON_7: Lesson = {
       options: [
         { value: "自分", label: "自分" },
         { value: "AI", label: "AI" },
-        { value: "AIが自信を持って言えばAI", label: "AIが自信を持って言えばAI" },
+        { value: "AIが自信を持って言えばAI", label: "自信ありげならAI" },
       ],
       meta: {
         answer: ["自分"],
@@ -970,7 +1258,7 @@ const FINAL: Lesson = {
       options: [
         { value: "rewrite", label: "文章を書く・直す" },
         { value: "summarize", label: "長い文章をまとめる" },
-        { value: "explain", label: "分からないことを説明してもらう" },
+        { value: "explain", label: "説明してもらう" },
         { value: "compare", label: "選択肢を比べる" },
         { value: "plan", label: "計画を作る" },
       ],
@@ -1097,26 +1385,100 @@ function withReleaseAvailability(lessons: Lesson[]): Lesson[] {
   }));
 }
 
-export const COURSE: Course = {
-  id: "first_step_7days",
-  title: "7日でAIの最初の一歩",
-  description:
-    "AIに興味はあるけれど何に使えばよいか分からない人が、実際に触りながら使い道を見つけるコースです。",
-  lessons: withReleaseAvailability([
-    LESSON_0,
-    LESSON_1,
-    LESSON_2,
-    LESSON_3,
-    LESSON_4,
-    LESSON_5,
-    LESSON_6,
-    LESSON_7,
-    FINAL,
-  ]),
+/**
+ * AIスタートコースの並び。
+ *
+ * **サーバー側（`apps/catalog/release_seeding.py` の START_CURRICULUM）と
+ * 同じ姿にする。** ここは通信が届かないときの控えなので、控えだけが
+ * 違うカリキュラムを出すと、圏外で見た人と繋がった人で別の教材が並ぶ。
+ *
+ * 上の LESSON_* は教材の**本文**で、こちらは**並べ方**。分けてあるのは、
+ * 本文が「移設で1文字も変わっていない」ことを確かめる正解データ
+ * （backend/tests/test_catalog_parity.py）を兼ねているため。
+ * カリキュラムを変えるたびに本文を書き換えると、その役目が消える。
+ *
+ * ここに無いレッスン（アイデアを広げる・情報を整理して見やすくする・
+ * 画像の2本）は、サーバーだけが持っている。控えの役目は
+ * 「通信できなくても最後まで学べること」で、そこは満たせている。
+ */
+const START_CURRICULUM: { lesson: Lesson; number: number; title: string; stage: string }[] = [
+  // 診断は Day ではない。始める前に自分の現在地を見るもの
+  { lesson: LESSON_0, number: 0, title: "AI活用診断", stage: "orientation" },
+  { lesson: LESSON_1, number: 1, title: "文章を分かりやすくする", stage: "ask" },
+  { lesson: LESSON_2, number: 2, title: "長い文章を短くまとめる", stage: "ask" },
+  { lesson: LESSON_3, number: 3, title: "分からないことを説明してもらう", stage: "ask" },
+  { lesson: LESSON_4, number: 5, title: "選択肢を比較する", stage: "think" },
+];
+
+const STAGE_TITLES: Record<string, string> = {
+  orientation: "現在地チェック",
+  ask: "AIに頼んでみる",
+  think: "AIと考える",
+  create: "AIで作る",
 };
 
+const START_LESSONS = withReleaseAvailability(
+  START_CURRICULUM.map(({ lesson, number, title, stage }) => ({
+    ...lesson,
+    number,
+    title,
+    stageKey: stage,
+  })),
+);
+
+/** 並びから STEP の束を読む。サーバー側の `_stages()` と同じ読み方。 */
+function stagesOf(lessons: Lesson[]): CourseStage[] {
+  const stages: CourseStage[] = [];
+  for (const lesson of lessons) {
+    if (!lesson.stageKey) continue;
+    const last = stages[stages.length - 1];
+    if (last && last.key === lesson.stageKey) {
+      last.lessonIds.push(lesson.id);
+      continue;
+    }
+    stages.push({
+      key: lesson.stageKey,
+      title: STAGE_TITLES[lesson.stageKey] ?? "",
+      lessonIds: [lesson.id],
+    });
+  }
+  return stages;
+}
+
+export const COURSE: Course = {
+  id: "first_step_7days",
+  title: "AIスタートコース",
+  description: "AIを仕事や日常で使う基本を、1日ひとつずつ身につけます。",
+  outcome:
+    "文章・要約・整理・比較・画像まで、AIを仕事や日常で使う基本が身につきます。",
+  stages: stagesOf(START_LESSONS),
+  lessons: START_LESSONS,
+};
+
+/**
+ * AIスタートコースから外したもの。
+ *
+ * **消していない。** 本文も、それで覚えた技も、終えた記録も生きている。
+ * サーバーでは AI活用コース（`improve_answer` / `make_plan`）と
+ * 非公開の旧教材（`use_ai_safely` / `final_challenge`）へ移してある。
+ *
+ * ここに残しておくのは、**学習記録から開けるようにする**ため。
+ * 一覧から外したのと、行き先ごと消すのは別のこと——終えた人が
+ * 自分の記録を押して「ありません」と言われるのがいちばんよくない。
+ */
+export const MOVED_OUT_LESSONS: Lesson[] = withReleaseAvailability([
+  LESSON_6, // improve_answer … AI活用コースへ
+  LESSON_5, // make_plan       … AI活用コースへ
+  LESSON_7, // use_ai_safely   … 非公開
+  FINAL, // final_challenge  … 非公開
+]);
+
 export function getLesson(lessonId: string): Lesson | null {
-  return COURSE.lessons.find((lesson) => lesson.id === lessonId) ?? null;
+  return (
+    COURSE.lessons.find((lesson) => lesson.id === lessonId) ??
+    MOVED_OUT_LESSONS.find((lesson) => lesson.id === lessonId) ??
+    null
+  );
 }
 
 /** AI を使うレッスン。Lesson 0 と 7 は含まない。 */

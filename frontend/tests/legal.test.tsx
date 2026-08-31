@@ -98,7 +98,7 @@ describe("設定から読む", () => {
     const user = userEvent.setup();
     render(
       <AuthProvider>
-        <SettingsPage onBack={() => {}} />
+        <SettingsPage onBack={() => {}} onOpenRecord={() => {}} onOpenSaved={() => {}} />
       </AuthProvider>,
     );
 
@@ -116,7 +116,7 @@ describe("設定から読む", () => {
     const user = userEvent.setup();
     render(
       <AuthProvider>
-        <SettingsPage onBack={() => {}} />
+        <SettingsPage onBack={() => {}} onOpenRecord={() => {}} onOpenSaved={() => {}} />
       </AuthProvider>,
     );
 

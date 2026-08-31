@@ -41,6 +41,16 @@ export interface PoHeroProps {
   meta?: ReactNode;
   /** ポーを小さくする。中身が多い画面で使う。 */
   compact?: boolean;
+  /**
+   * ポーそのものを出すか。
+   *
+   * 出さないときは、絵も吹き出しも置かず、**空けてあった右の余白も
+   * 返す**。居ないのに場所だけ空いていると、絵が読み込めていないように
+   * 見える。誰の画面かは course/poPresence.ts が決める。
+   */
+  showPo?: boolean;
+  /** ポーが出ている理由（course/poPresence.ts）。検査の手がかりに出す。 */
+  scene?: string;
 }
 
 export function PoHero({
@@ -51,9 +61,15 @@ export function PoHero({
   emotion = "neutral",
   meta,
   compact,
+  showPo = true,
+  scene,
 }: PoHeroProps) {
   return (
-    <section className="relative pt-2" data-testid="po-hero">
+    <section
+      className="relative pt-2"
+      data-testid="po-hero"
+      data-po-scene={scene}
+    >
       {/*
         ポーは文字の上に重ねる。回り込みではなく重ねるのは、
         見出しが2行でも3行でも、ポーの位置を動かさないため。
@@ -63,41 +79,70 @@ export function PoHero({
         目印（po-avatar）は変えない。表情の切り替わりを見ている検査が
         これを指している。置き場所を変えても、指し先は動かさない。
       */}
-      <div
-        data-testid="po-avatar"
-        data-emotion={emotion}
-        className={`pointer-events-none absolute -top-2 right-0 ${
-          compact ? "w-28" : "w-36 sm:w-40"
-        }`}
-      >
-        <PoFace emotion={emotion} message={message} className="h-auto w-full" />
+      {showPo && (
+        <div
+          data-testid="po-avatar"
+          data-emotion={emotion}
+          className={`pointer-events-none absolute -top-2 right-0 ${
+            compact ? "w-28" : "w-36 sm:w-40"
+          }`}
+        >
+          <PoFace emotion={emotion} message={message} className="h-auto w-full" />
+        </div>
+      )}
+
+      {/*
+        見出しの側。**ポーの背丈ぶんの高さを最低限そこに確保する。**
+
+        なぜ min-h が要るか
+        -------------------
+        ポーは絶対配置で、しかも DOM では吹き出しより**前**にいる。
+        重なった場所では、あとから通常の流れで置かれる吹き出し
+        （不透明な bg-surface を持つ）が上に描かれる。つまり
+        **ポーが吹き出しの下に隠れる**。
+
+        実測（390px・完了画面）:
+          ポー   top 106 / bottom 218
+          吹き出し top 200 / bottom 270
+          → 60 × 18px 重なり、elementFromPoint は po-hero-message を返した
+
+        題が長い画面（レッスンの導入など）では吹き出しが自然に下へ回るので
+        起きない。**題が短い画面だけで起きる**ぶん、見落としやすかった。
+
+        z-index でポーを前に出すのは違う。今度は吹き出しの文字が
+        読めなくなる。重ね順を入れ替えるのではなく、**重ならない高さを
+        確保する**のが正しい。ポーは正方形なので、背丈は幅と同じ。
+
+          通常 : 幅 144px、上へ 8px はみ出す → 136px。pt-2 の 8px を引いて 128px
+          compact: 幅 112px、同じく → 104px → 96px
+      */}
+      <div className={!showPo ? "" : compact ? "min-h-24" : "min-h-32"}>
+        {/* 文字の側は、ポーの幅ぶんだけ空ける。空けないと見出しに重なる */}
+        <div className={!showPo ? "" : compact ? "pr-28" : "pr-32 sm:pr-36"}>
+          {eyebrow && <div className="mb-1">{eyebrow}</div>}
+
+          {/*
+            折り返しはブラウザ任せにする。
+
+            break-keep を掛けると、句読点の無い日本語は切れる場所を失って
+            **折り返さずに画面からはみ出す**（実際に診断の設問で起きた）。
+            不自然な切れ方より、読めなくなるほうがずっと悪い。
+          */}
+          <h1 className="text-xl font-bold leading-[1.5] sm:text-2xl">
+            {title}
+          </h1>
+
+          {description && (
+            <p className="mt-2 text-sm leading-7 text-ink-muted">
+              {description}
+            </p>
+          )}
+        </div>
+
+        {meta && <div className="mt-3">{meta}</div>}
       </div>
 
-      {/* 文字の側は、ポーの幅ぶんだけ空ける。空けないと見出しに重なる */}
-      <div className={compact ? "pr-28" : "pr-32 sm:pr-36"}>
-        {eyebrow && <div className="mb-1">{eyebrow}</div>}
-
-        {/*
-          折り返しはブラウザ任せにする。
-
-          break-keep を掛けると、句読点の無い日本語は切れる場所を失って
-          **折り返さずに画面からはみ出す**（実際に診断の設問で起きた）。
-          不自然な切れ方より、読めなくなるほうがずっと悪い。
-        */}
-        <h1 className="text-xl font-bold leading-[1.5] sm:text-2xl">
-          {title}
-        </h1>
-
-        {description && (
-          <p className="mt-2 text-sm leading-7 text-ink-muted">
-            {description}
-          </p>
-        )}
-      </div>
-
-      {meta && <div className="mt-3">{meta}</div>}
-
-      {message && (
+      {showPo && message && (
         /*
           吹き出し。しっぽはポーの側（右上）へ向ける。
           誰が言っているのかを、線1本で示す。

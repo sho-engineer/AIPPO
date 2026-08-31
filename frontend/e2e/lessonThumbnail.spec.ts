@@ -45,7 +45,7 @@ async function openHome(page: Page): Promise<void> {
 async function openCourseDetail(page: Page): Promise<void> {
   await openHome(page);
   await page.getByTestId("open-path").click();
-  await expect(page.getByTestId("lesson-timeline")).toBeVisible();
+  await expect(page.getByTestId("course-outline")).toBeVisible();
 }
 
 test.describe("レッスンの絵", () => {
@@ -106,7 +106,7 @@ test.describe("レッスンの絵", () => {
     await openCourseDetail(page);
 
     await expect(
-      page.getByTestId("lesson-timeline").getByTestId("lesson-thumbnail"),
+      page.getByTestId("course-outline").getByTestId("lesson-thumbnail"),
     ).toHaveCount(0);
   });
 

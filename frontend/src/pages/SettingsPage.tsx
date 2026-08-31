@@ -42,7 +42,9 @@ import {
 import {
   IconBell,
   IconBook,
+  IconBookmark,
   IconChat,
+  IconClock,
   IconDocument,
   IconFolder,
   IconGlobe,
@@ -83,9 +85,18 @@ type Panel =
 
 export interface SettingsPageProps {
   onBack: () => void;
+  /**
+   * 学習記録・あとで見るへ。
+   *
+   * どちらも下タブから外した（AI技とマイ成果物を入れるため）。
+   * タブから消すのと、行き先ごと消すのは別のこと——ここに置いて、
+   * 探せば必ず見つかる場所を1つ残す。
+   */
+  onOpenRecord: () => void;
+  onOpenSaved: () => void;
 }
 
-export function SettingsPage({ onBack }: SettingsPageProps) {
+export function SettingsPage({ onBack, onOpenRecord, onOpenSaved }: SettingsPageProps) {
   const [settings, setSettings] = useState<Settings>(() => loadSettings());
   const [panel, setPanel] = useState<Panel>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -155,6 +166,8 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 
         {panel === null ? (
           <MainMenu
+            onOpenRecord={onOpenRecord}
+            onOpenSaved={onOpenSaved}
             onOpen={setPanel}
             onOpenLegal={(id) => {
               setPanel("legal");
@@ -223,9 +236,13 @@ export function SettingsPage({ onBack }: SettingsPageProps) {
 function MainMenu({
   onOpen,
   onOpenLegal,
+  onOpenRecord,
+  onOpenSaved,
 }: {
   onOpen: (panel: Panel) => void;
   onOpenLegal: (id: LegalDocument["id"]) => void;
+  onOpenRecord: () => void;
+  onOpenSaved: () => void;
 }) {
   return (
     <div className="animate-fade-up">
@@ -233,6 +250,31 @@ function MainMenu({
       <p className="mt-2 text-sm leading-7 text-ink-muted">
         学習環境や表示をカスタマイズできます。
       </p>
+
+      {/*
+        下タブから外した2つ。
+
+        AI技とマイ成果物を入れるために外したが、行き先ごと消しては
+        いない。探せば必ず見つかる場所を、ここに1つ残す。
+      */}
+      <Card className="mt-5" padded={false}>
+        <ul role="list">
+          <SettingsRow
+            icon={IconClock}
+            tone="sky"
+            title="学習記録"
+            description="どの教材を、どこまで進めたか"
+            onClick={onOpenRecord}
+          />
+          <SettingsRow
+            icon={IconBookmark}
+            tone="amber"
+            title="あとで見る"
+            description="目印を付けた教材"
+            onClick={onOpenSaved}
+          />
+        </ul>
+      </Card>
 
       <Card className="mt-5" padded={false}>
         <ul role="list">

@@ -89,6 +89,7 @@ class StepPlacement(models.TextChoices):
 
     OVERRIDE = "override", "生成済みステップの上書き（step_key が一致）"
     LEAD_IN = "lead_in", "骨格の前に置く"
+    DEEPEN = "deepen", "「自分の文章」の**前**に置く（技を深める）"
     AFTER_REAL_TASK = "after_real_task", "「自分の文章」の直後に置く"
 
 
@@ -124,6 +125,18 @@ class Course(models.Model):
     slug = models.SlugField(max_length=80, unique=True, help_text="URLと保存に使う名前")
     title = models.CharField(max_length=120)
     description = models.TextField(blank=True)
+
+    #: このコースを終えると何ができるようになるか。**1文で書く。**
+    #:
+    #: レッスンごとの成果（Lesson.outcomes）を全部並べると、始める前の
+    #: 人が読むには長すぎる。まとめて1文にしたものをここに置き、
+    #: 1本ずつの詳しい話はレッスンの最初の画面（完成イメージ）が持つ。
+    outcome = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name="このコースでできるようになること",
+        help_text="1文で。例: 文章・要約・整理・比較・画像まで、AIの基本が身につきます。",
+    )
 
     difficulty = models.CharField(
         max_length=20,
@@ -207,6 +220,31 @@ class Lesson(models.Model):
         default=LessonTemplate.OUTCOME_FIRST,
     )
 
+    # --- コースの中での位置づけ --------------------------------------------
+    #
+    # コースを「STEP」で束ねる。8本を平らに並べると、どこまでが
+    # 1つのまとまりなのかが読めず、8回ぶんの一本道に見える。
+    #
+    # 束ねる表をコース側に別の行として持たない。持つと、レッスンの
+    # 並び替えと束の並び替えが**別々にずれる**（表の順とレッスンの順が
+    # 食い違った瞬間、どちらが正しいのか誰にも分からなくなる）。
+    # ここに書いておけば、順序はレッスンの並び1つで決まる。
+    #
+    # 束は「同じ key が続くひとかたまり」として読む（expand.course_to_dict）。
+    # 空のときは、そのレッスンはどの束にも入らない。
+    stage_key = models.SlugField(
+        max_length=40,
+        blank=True,
+        verbose_name="STEPの識別子",
+        help_text="同じ値が続くレッスンが1つのSTEPになる（例: ask / think / create）",
+    )
+    stage_title = models.CharField(
+        max_length=60,
+        blank=True,
+        verbose_name="STEPの名前",
+        help_text="そのSTEPの見出し（例: AIに頼んでみる）。同じ stage_key には同じ名前を入れる",
+    )
+
     # --- 一覧と完成イメージ ------------------------------------------------
     outcome_title = models.CharField(
         max_length=120, blank=True, help_text="今日つくるもの。最初の画面の見出し"
@@ -268,8 +306,25 @@ class Lesson(models.Model):
     observation_options = models.JSONField(
         default=list, blank=True, help_text="空なら共通のものを使う"
     )
+    condition_options = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "「条件を一つ足す」の選択肢。空なら共通のものを使う。"
+            "共通のものは文章を直す言い回しなので、文章以外を扱う回では埋める"
+        ),
+    )
     concept_cards = models.JSONField(
         default=list, blank=True, help_text="短い解説。3枚まで（超えた分は捨てる）"
+    )
+    concept_skills = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "その解説で覚える技の名前。concept_cards と同じ並び。"
+            "見出しはやさしい言い方（誰向けかを伝える）、"
+            "ここは技の名前（ターゲット指定）。AI分野で普通に使う言葉にする"
+        ),
     )
     review_points = models.JSONField(
         default=list, blank=True, help_text="結果を見るときの着眼点"
@@ -354,7 +409,18 @@ class LessonStep(models.Model):
         override        … step_key が一致する生成済みステップを上書きする
                           （空でない項目だけ当たる）
         lead_in         … 骨格の前に置く（最終課題の「困りごとを選ぶ」など）
-        after_real_task … 「自分の文章」の直後に置く（相手・言い方を聞く）
+        deepen          … 「自分の文章」の**前**に置く（相手・言い方を聞く）
+        after_real_task … 「自分の文章」の直後に置く
+
+    deepen を足した理由
+    -------------------
+    前は相手や言い方を聞く回が after_real_task にあり、
+    「自分の文章を書く → 誰向け？ → トーンの解説 → トーンを選ぶ
+    → 反復の解説 → 送る」という並びだった。書き終えた人を4画面
+    足止めしてから送ることになるうえ、「自分で試す」の区切りが
+    11歩に膨らんで、帯がそのあいだ動かなかった。
+
+    条件も解説も、自分の文章とは関係なく決められる。先に済ませる。
 
     追加ステップを Lesson の JSON 項目として持たせる手もあったが、
     それだと管理画面で1項目ずつ編集できない。行にしておけば、
@@ -384,10 +450,18 @@ class LessonStep(models.Model):
     phase = models.CharField(
         max_length=20,
         blank=True,
-        help_text="上の帯のどこか（outcome / try / compare / own）",
+        help_text="上の帯のどこか（outcome / try / compare / deepen / own）",
     )
 
     title = models.CharField(max_length=120, blank=True)
+    primary_label = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text=(
+            "画面の下のボタンの文言。空なら種類ごとの既定。"
+            "押すと何が起きるかを書く（「次へ」は何も言っていない）"
+        ),
+    )
     instruction = models.CharField(max_length=200, blank=True)
     po_message = models.CharField(max_length=300, blank=True)
     po_emotion = models.CharField(max_length=20, blank=True)

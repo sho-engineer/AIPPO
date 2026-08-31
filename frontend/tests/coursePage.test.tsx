@@ -15,7 +15,7 @@
  *   5. 始められない教材は取っておけないこと
  */
 
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -254,23 +254,23 @@ describe("あとで見る", () => {
     await waitFor(() => expect(toggle).toHaveAttribute("aria-pressed", "false"));
   });
 
-  it("まとめて見る場所がある", async () => {
-    // 付けられるだけで見る場所が無いと、一覧を上から探し直すことになる
+  it("コースの画面には、まとめて見る場所を置かない", async () => {
+    /*
+      置く場所を「あとで見る」の画面1つに寄せた。
+
+      コースの画面が答えるのは「いまどこ・次はこれ」で、印を付けた
+      ものを並べる場所ではない。2か所に出すと、片方で外したものが
+      もう片方に残っているように見える。
+    */
     serve({ bookmarks: ["summarize_text"] });
     await open();
 
-    const saved = await screen.findByRole("region", { name: "あとで見る" });
-
-    expect(within(saved).getByTestId("saved-lesson-summarize_text")).toBeInTheDocument();
-    expect(within(saved).queryByTestId("saved-lesson-rewrite_text")).not.toBeInTheDocument();
-  });
-
-  it("1件も無いときは、空の枠を出さない", async () => {
-    // 空の枠は、機能が壊れているように見える
-    serve({ bookmarks: [] });
-    await open();
-
     expect(screen.queryByRole("region", { name: "あとで見る" })).not.toBeInTheDocument();
+    // 印そのものは、道のりの行から付け外しできる
+    expect(screen.getByTestId("bookmark-summarize_text")).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 
   it("色だけで「付いている」を表さない", async () => {
@@ -342,7 +342,14 @@ describe("応答が壊れていても、画面は開く", () => {
     </AuthProvider>,
   );
 
-    expect(await screen.findByTestId("lesson-rewrite_text")).toBeInTheDocument();
+    /*
+      同梱の教材で一度描いてから、届いたものへ差し替わる。差し替えの
+      前後で道のりの節が組み直されるので、掴んだ節点が入れ替わることが
+      ある。毎回引き直して、落ち着いたところを見る。
+    */
+    await waitFor(() =>
+      expect(screen.getByTestId("lesson-rewrite_text")).toBeInTheDocument(),
+    );
   });
 });
 

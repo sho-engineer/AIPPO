@@ -34,7 +34,13 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.accounts.models import AuthThrottle, LearnerIdentity
-from apps.lessons.models import AiUsageCounter, LearningSession, SkillProgress
+from apps.lessons.models import (
+    AiUsageCounter,
+    LearningEvent,
+    LearningSession,
+    SavedArtifact,
+    SkillProgress,
+)
 from apps.profiles.models import LearnerProfile
 
 
@@ -114,6 +120,32 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
     profiles = LearnerProfile.objects.filter(learner_key__in=keys)
     skills = SkillProgress.objects.filter(learner_key__in=keys)
 
+    # 学んだ量も、鍵ごと消えるものと一緒に消す。
+    # 残しても、鍵が無くなれば誰の分か分からない記録になるだけ
+    from apps.rewards.models import XpEvent
+
+    xp_events = XpEvent.objects.filter(learner_key__in=keys)
+
+    """
+    取っておいた成果物も、鍵ごと消えるものと一緒に消す。
+
+    「取っておける」と言った以上、残せるあいだは残す。だが鍵が
+    消える＝その人自身からも取り出せなくなるので、残しても
+    誰のものか分からない本文が溜まるだけになる。
+    プライバシーポリシーで「消します」と書いてあるほうを守る。
+    """
+    saved = SavedArtifact.objects.filter(learner_key__in=keys)
+
+    """
+    セッションの無い操作ログ（登録・再設定・図鑑を開いた）。
+
+    セッションに連なる分はセッションごと消えるが、こちらは
+    どこにも繋がっていない。忘れると、鍵が消えたあとも残り続ける。
+    """
+    loose_events = LearningEvent.objects.filter(
+        session__isnull=True, learner_key__in=keys
+    )
+
     # 試行回数は、いちばん長い窓を過ぎたら用が無い。
     # 余裕を持って1日ぶん残す（時計のずれで消しすぎないように）
     throttle_cutoff = timezone.now() - timedelta(days=1)
@@ -137,6 +169,9 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
         "学習セッション": sessions.count(),
         "診断の回答": profiles.count(),
         "身につけたこと": skills.count(),
+        "XPの記録": xp_events.count(),
+        "取っておいた成果物": saved.count(),
+        "アカウントの操作記録": loose_events.count(),
         "試行回数": throttles.count(),
         "AI実行回数": counters.count(),
         "操作記録": audit_logs.count(),
@@ -147,6 +182,9 @@ def prune(cutoff, *, dry_run: bool = False) -> dict[str, int]:
         sessions.delete()
         profiles.delete()
         skills.delete()
+        xp_events.delete()
+        saved.delete()
+        loose_events.delete()
         throttles.delete()
         counters.delete()
         audit_logs.delete()

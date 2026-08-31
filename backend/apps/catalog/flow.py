@@ -64,7 +64,7 @@ OBSERVATION_OPTIONS: list[dict[str, Any]] = [
     {"value": "短くなった", "label": "短くなった"},
     {"value": "丁寧になった", "label": "丁寧になった"},
     {"value": "要点が先に来た", "label": "要点が先に来た"},
-    {"value": "相手に合った表現になった", "label": "相手に合った表現になった"},
+    {"value": "相手に合った表現になった", "label": "相手に合った表現"},
     {"value": "よく分からない", "label": "よく分からない"},
 ]
 
@@ -72,19 +72,29 @@ OBSERVATION_OPTIONS: list[dict[str, Any]] = [
 MAX_CONCEPT_CARDS = 3
 
 
-def _concept_steps(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _concept_steps(
+    cards: list[dict[str, Any]], skills: list[str] | None = None
+) -> list[dict[str, Any]]:
     steps = []
     for index, card in enumerate(cards[:MAX_CONCEPT_CARDS], start=1):
         steps.append(
             {
                 "id": f"concept_{index}",
                 "type": "concept_card",
-                "phase": "try",
+                # 比べたあとに出るので、区切りは「比べる」に属する。
+                # try のままだと、比べる画面の直後で帯が1つ戻って見える
+                "phase": "compare",
                 "title": card.get("title", ""),
                 "poMessage": card.get("body", ""),
                 "poEmotion": "neutral",
                 # 解説は必ず飛ばせる。読みたくない人を足止めしない
                 "skippable": True,
+                # その解説で覚える技の名前（「ターゲット指定」）。
+                # カードの見出しはやさしい言い方（「誰向けかを伝える」）で、
+                # 画面は名前を先に、言い換えを下に出す
+                "skill": (skills or [])[index - 1]
+                if skills and index <= len(skills)
+                else "",
                 "card": card,
             }
         )
@@ -109,7 +119,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
         {
             "id": "outcome_preview",
             "type": "outcome_preview",
-            "phase": "outcome",
+            "phase": "try",
             "title": "今日つくるもの",
             "poMessage": "まず、できあがりを見てみましょう。",
             "poEmotion": "neutral",
@@ -154,7 +164,6 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "options": options.get("observationOptions") or OBSERVATION_OPTIONS,
             "meta": review,
         },
-        *_concept_steps(options.get("conceptCards") or []),
         {
             "id": "add_condition",
             "type": "condition_choice",
@@ -165,7 +174,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "poEmotion": "hint",
             "key": "condition",
             "required": True,
-            "options": CONDITION_OPTIONS,
+            "options": options.get("conditionOptions") or CONDITION_OPTIONS,
             "aiAction": improve_action,
         },
         {
@@ -188,6 +197,22 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "poEmotion": "talking",
             "meta": {**review, "threeWay": True},
         },
+        # AI技の名前は、**使って、違いを見たあと**に出す。
+        #
+        # 前はここが observe_result の直後——条件を足す前・比べる前に
+        # あった。「出力形式の指定とは」を、それが何の役に立つのか
+        # 分からないまま読ませていたことになる。
+        #
+        # いまは順がこうなる:
+        #
+        #     条件を足す → 結果が変わる → 見比べる → 「今のが〜です」
+        #
+        # 名前が、たったいま自分で起こした変化に貼り付く。
+        # 歩数は変わっていない。**入れ替えただけ**。
+        *_concept_steps(
+            options.get("conceptCards") or [],
+            options.get("conceptSkills") or [],
+        ),
         {
             "id": "real_task_intro",
             "type": "safety_check",
@@ -199,7 +224,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "key": "real_task_choice",
             "options": [
                 {"value": "自分で入力する", "label": "自分で入力する"},
-                {"value": "貼り付ける", "label": "クリップボードから貼り付ける"},
+                {"value": "貼り付ける", "label": "貼り付ける"},
                 {"value": "別のサンプルを試す", "label": "別のサンプルを試す"},
             ],
         },
@@ -207,6 +232,10 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "id": "real_task",
             "type": "real_task",
             "phase": "own",
+            # 次に何が来るかで言うことが変わる。あとに何も挟まなければ
+            # 次は送る内容の確認なので、そう書ける。挟むときは
+            # `expand.py` の `_assemble` がここを外す
+            "primaryLabel": "AIに送る内容を見る",
             "title": "自分の文章",
             "instruction": options.get("realTaskLabel", ""),
             "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",

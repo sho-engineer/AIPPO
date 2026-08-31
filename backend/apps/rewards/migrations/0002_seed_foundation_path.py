@@ -26,7 +26,7 @@ FOUNDATION_MILESTONES = (
     # (required_stamp_count, reward_credits, badge_name)
     (3, 1, ""),
     (5, 2, ""),
-    (9, 3, "AIの最初の一歩 Complete"),
+    (7, 3, "AIの最初の一歩 Complete"),
 )
 
 #: AI機能ごとのCredit消費量の初期値。無料コース(Foundation)のテキスト系は 0。

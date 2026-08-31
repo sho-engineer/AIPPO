@@ -71,6 +71,14 @@ export interface ApiFailure {
   detail: string;
   /** 入力欄ごとの指摘。項目名 → 文言。 */
   fieldErrors: Record<string, string>;
+  /**
+   * 次に試せるまでの秒数（`Retry-After`）。
+   *
+   * 「しばらく待ってください」だけだと、待つべきか壊れているのかが
+   * 分からず、結局押し直される。残りを数字で出すために通しておく。
+   * サーバーが言わなければ 0。
+   */
+  retryAfter: number;
 }
 
 export class ApiError extends Error implements ApiFailure {
@@ -78,6 +86,7 @@ export class ApiError extends Error implements ApiFailure {
   readonly code: string;
   readonly detail: string;
   readonly fieldErrors: Record<string, string>;
+  readonly retryAfter: number;
 
   constructor(failure: ApiFailure) {
     super(failure.detail);
@@ -86,13 +95,35 @@ export class ApiError extends Error implements ApiFailure {
     this.code = failure.code;
     this.detail = failure.detail;
     this.fieldErrors = failure.fieldErrors;
+    this.retryAfter = failure.retryAfter ?? 0;
   }
+}
+
+/**
+ * `Retry-After` を秒として読む。無ければ 0。
+ *
+ * `headers` が無い応答も想定する。差し替えた応答（テストの偽物や、
+ * 途中の proxy が返す簡易な応答）には付いていないことがあり、
+ * そこで例外が出ると**本来の失敗の理由が握りつぶされる**
+ * ——「メールアドレスかパスワードが違います」が
+ * 「うまくいきませんでした」に化ける、という形で実際に踏んだ。
+ * ここは補足の情報なので、読めなければ黙って 0 でよい。
+ */
+function retryAfterOf(response: Response): number {
+  const raw = response?.headers?.get?.("Retry-After");
+  if (!raw) return 0;
+  const seconds = Number.parseInt(raw, 10);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : 0;
 }
 
 const FALLBACK = "うまく届かなかったようです。少し待ってからお試しください。";
 
 /** サーバーの返す `{ code, errors }` を、画面で使える形へ直す。 */
-function toFailure(status: number, payload: unknown): ApiFailure {
+function toFailure(
+  status: number,
+  payload: unknown,
+  retryAfter = 0,
+): ApiFailure {
   const body = (payload ?? {}) as {
     code?: string;
     errors?: Record<string, unknown>;
@@ -107,7 +138,13 @@ function toFailure(status: number, payload: unknown): ApiFailure {
   // detail が無いときは、最初の指摘をそのまま見出しに使う
   const detail = fieldErrors.detail ?? Object.values(fieldErrors)[0] ?? FALLBACK;
 
-  return { status, code: body.code ?? "REQUEST_FAILED", detail, fieldErrors };
+  return {
+    status,
+    code: body.code ?? "REQUEST_FAILED",
+    detail,
+    fieldErrors,
+    retryAfter,
+  };
 }
 
 async function request<T>(
@@ -127,6 +164,7 @@ async function request<T>(
       code: "NETWORK",
       detail: "通信できませんでした。電波のよい場所でお試しください。",
       fieldErrors: {},
+      retryAfter: 0,
     });
   }
 
@@ -138,7 +176,9 @@ async function request<T>(
     return null;
   });
 
-  if (!response.ok) throw new ApiError(toFailure(response.status, payload));
+  if (!response.ok) {
+    throw new ApiError(toFailure(response.status, payload, retryAfterOf(response)));
+  }
 
   /*
     200 なのに JSON でない、を成功として扱わない。
@@ -159,6 +199,7 @@ async function request<T>(
       code: "NOT_JSON",
       detail: "サーバーからの応答を読めませんでした。時間をおいてお試しください。",
       fieldErrors: {},
+      retryAfter: 0,
     });
   }
 

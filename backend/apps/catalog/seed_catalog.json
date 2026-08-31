@@ -33,15 +33,15 @@
           "options": [
             {
               "value": "writing",
-              "label": "文章を書くことが多い"
+              "label": "文章を書く"
             },
             {
               "value": "reading",
-              "label": "長い文章を読むことが多い"
+              "label": "長い文章を読む"
             },
             {
               "value": "researching",
-              "label": "分からないことを調べる"
+              "label": "調べて理解する"
             },
             {
               "value": "ideas",
@@ -49,7 +49,7 @@
             },
             {
               "value": "comparing",
-              "label": "複数の選択肢を比較する"
+              "label": "選択肢を比較する"
             },
             {
               "value": "planning",
@@ -57,7 +57,7 @@
             },
             {
               "value": "organizing",
-              "label": "仕事の作業を整理する"
+              "label": "作業を整理する"
             }
           ]
         },
@@ -107,7 +107,7 @@
             },
             {
               "value": "explaining",
-              "label": "分からないことを調べる・説明する"
+              "label": "調べる・説明する"
             },
             {
               "value": "comparing",
@@ -157,7 +157,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -248,7 +248,7 @@
             },
             {
               "value": "相手に合った表現になった",
-              "label": "相手に合った表現になった"
+              "label": "相手に合った表現"
             },
             {
               "value": "よく分からない",
@@ -262,81 +262,6 @@
               "読む相手に合った言葉づかいか"
             ],
             "factCheck": false
-          }
-        },
-        {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "誰向けかを伝える",
-          "poMessage": "同じ内容でも、上司・同僚・顧客で、ちょうどよい言い方は変わります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "誰向けかを伝える",
-            "body": "同じ内容でも、上司・同僚・顧客で、ちょうどよい言い方は変わります。",
-            "visual": "before_after",
-            "before": "確認していただけますでしょうか。",
-            "after": "ご確認ください。",
-            "reviewExample": {
-              "body": "相手が変われば、ちょうどよい丁寧さも変わります。",
-              "before": "ご多忙のところ大変恐縮ではございますが。",
-              "after": "お忙しいところすみませんが。"
-            }
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "どうしたいかを言う",
-          "poMessage": "「短く」「丁寧に」のように、望む形を一言そえると結果が寄ります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "どうしたいかを言う",
-            "body": "「短く」「丁寧に」のように、望む形を一言そえると結果が寄ります。",
-            "visual": "three_points",
-            "points": [
-              "短く",
-              "丁寧に",
-              "要点を先に"
-            ],
-            "reviewExample": {
-              "body": "望む形は、長さ・言い方・並べ方のどれでも指定できます。",
-              "points": [
-                "3行で",
-                "やわらかく",
-                "箇条書きで"
-              ]
-            }
-          }
-        },
-        {
-          "id": "concept_3",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "一度で決めない",
-          "poMessage": "条件を一つずつ足すほうが、はじめから細かく書くより近づきます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "一度で決めない",
-            "body": "条件を一つずつ足すほうが、はじめから細かく書くより近づきます。",
-            "visual": "simple_flow",
-            "points": [
-              "まず送る",
-              "結果を見る",
-              "条件を足す"
-            ],
-            "reviewExample": {
-              "body": "一度で完璧を狙わず、足りないところだけ言い足します。",
-              "points": [
-                "長すぎた",
-                "「半分に」と足す",
-                "また見る"
-              ]
-            }
           }
         },
         {
@@ -419,44 +344,26 @@
           }
         },
         {
-          "id": "real_task_intro",
-          "type": "safety_check",
-          "phase": "own",
-          "title": "次は、自分の文章で試してみましょう",
-          "instruction": "どうしますか？",
-          "poMessage": "会社の秘密や個人情報は入力しないようにしましょう。",
-          "poEmotion": "warning",
-          "key": "real_task_choice",
-          "options": [
-            {
-              "value": "自分で入力する",
-              "label": "自分で入力する"
-            },
-            {
-              "value": "貼り付ける",
-              "label": "クリップボードから貼り付ける"
-            },
-            {
-              "value": "別のサンプルを試す",
-              "label": "別のサンプルを試す"
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "誰向けかを伝える",
+          "poMessage": "同じ内容でも、上司・同僚・顧客で、ちょうどよい言い方は変わります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "誰向けかを伝える",
+            "body": "同じ内容でも、上司・同僚・顧客で、ちょうどよい言い方は変わります。",
+            "visual": "before_after",
+            "before": "確認していただけますでしょうか。",
+            "after": "ご確認ください。",
+            "reviewExample": {
+              "body": "相手が変われば、ちょうどよい丁寧さも変わります。",
+              "before": "ご多忙のところ大変恐縮ではございますが。",
+              "after": "お忙しいところすみませんが。"
             }
-          ]
-        },
-        {
-          "id": "real_task",
-          "type": "real_task",
-          "phase": "own",
-          "title": "自分の文章",
-          "instruction": "いま実際に直したい文章を、ひとつ入れてみましょう。",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",
-          "poEmotion": "hint",
-          "key": "real_task_text",
-          "placeholder": "例）お客様へ送るお知らせの文章",
-          "required": true,
-          "validationRules": {
-            "suggestLength": 20,
-            "maxLength": 5000
-          }
+          },
+          "skill": "ターゲット指定"
         },
         {
           "id": "real_audience",
@@ -491,7 +398,38 @@
               "label": "そのほか",
               "free": true
             }
-          ]
+          ],
+          "phase": "deepen",
+          "primaryLabel": "誰向けか決めた"
+        },
+        {
+          "id": "concept_tone",
+          "type": "concept_card",
+          "phase": "deepen",
+          "title": "トーン指定",
+          "poMessage": "同じ内容でも、言い方は変えられます。",
+          "poEmotion": "neutral",
+          "card": {
+            "title": "トーン指定",
+            "body": "同じ内容でも、丁寧・やわらかい・カジュアルで伝わり方が変わります。",
+            "visual": "three_points",
+            "points": [
+              "丁寧",
+              "やわらかい",
+              "カジュアル"
+            ],
+            "reviewExample": {
+              "body": "望む形は、長さ・言い方・並べ方のどれでも指定できます。",
+              "points": [
+                "3行で",
+                "やわらかく",
+                "箇条書きで"
+              ]
+            }
+          },
+          "skippable": true,
+          "primaryLabel": "トーンを選ぶ",
+          "skill": "トーン指定"
         },
         {
           "id": "real_tone",
@@ -523,7 +461,79 @@
               "label": "そのほか",
               "free": true
             }
+          ],
+          "phase": "deepen",
+          "primaryLabel": "この言い方で書く"
+        },
+        {
+          "id": "concept_iteration",
+          "type": "concept_card",
+          "phase": "deepen",
+          "title": "反復（Iteration）",
+          "poMessage": "一度で完璧を目指さなくて大丈夫です。",
+          "poEmotion": "hint",
+          "card": {
+            "title": "反復（Iteration）",
+            "body": "結果を見てから足すほうが、はじめから細かく書くより近づきます。",
+            "visual": "simple_flow",
+            "points": [
+              "まず送る",
+              "結果を見る",
+              "条件を足す"
+            ],
+            "reviewExample": {
+              "body": "一度で完璧を狙わず、足りないところだけ言い足します。",
+              "points": [
+                "長すぎた",
+                "「半分に」と足す",
+                "また見る"
+              ]
+            }
+          },
+          "skippable": true,
+          "primaryLabel": "自分の文章で試す",
+          "skill": "反復（Iteration）"
+        },
+        {
+          "id": "real_task_intro",
+          "type": "safety_check",
+          "phase": "own",
+          "title": "次は、自分の文章で試してみましょう",
+          "instruction": "どうしますか？",
+          "poMessage": "会社の秘密や個人情報は入力しないようにしましょう。",
+          "poEmotion": "warning",
+          "key": "real_task_choice",
+          "options": [
+            {
+              "value": "自分で入力する",
+              "label": "自分で入力する"
+            },
+            {
+              "value": "貼り付ける",
+              "label": "貼り付ける"
+            },
+            {
+              "value": "別のサンプルを試す",
+              "label": "別のサンプルを試す"
+            }
           ]
+        },
+        {
+          "id": "real_task",
+          "type": "real_task",
+          "phase": "own",
+          "title": "自分の文章",
+          "instruction": "いま実際に直したい文章を、ひとつ入れてみましょう。",
+          "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",
+          "poEmotion": "hint",
+          "key": "real_task_text",
+          "placeholder": "例）お客様へ送るお知らせの文章",
+          "required": true,
+          "validationRules": {
+            "suggestLength": 20,
+            "maxLength": 5000
+          },
+          "primaryLabel": "AIに送る内容を見る"
         },
         {
           "id": "prompt_preview",
@@ -625,7 +635,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -647,7 +657,7 @@
             },
             {
               "value": "自分がやることを知るため",
-              "label": "自分がやることを知る"
+              "label": "自分の作業を知る"
             },
             {
               "value": "内容をつかむため",
@@ -730,54 +740,6 @@
           }
         },
         {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "目的で残る情報が変わる",
-          "poMessage": "「共有用」と「自分の作業用」では、残すべきところが違います。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "目的で残る情報が変わる",
-            "body": "「共有用」と「自分の作業用」では、残すべきところが違います。",
-            "visual": "three_points",
-            "points": [
-              "共有する",
-              "作業を知る",
-              "内容をつかむ"
-            ]
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "形を指定する",
-          "poMessage": "「3行で」「重要な点を3つ」と言うと、そのまま貼って使えます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "形を指定する",
-            "body": "「3行で」「重要な点を3つ」と言うと、そのまま貼って使えます。",
-            "visual": "highlight",
-            "highlight": "重要な点を3つ"
-          }
-        },
-        {
-          "id": "concept_3",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "足された話に気をつける",
-          "poMessage": "元の文章に無いことが混ざることがあります。数字は必ず確かめます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "足された話に気をつける",
-            "body": "元の文章に無いことが混ざることがあります。数字は必ず確かめます。",
-            "visual": "text"
-          }
-        },
-        {
           "id": "add_condition",
           "type": "condition_choice",
           "phase": "compare",
@@ -857,6 +819,33 @@
           }
         },
         {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "要約",
+          "poMessage": "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "要約",
+            "body": "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
+            "visual": "three_points",
+            "points": [
+              "目的",
+              "決定事項",
+              "次の行動"
+            ],
+            "reviewExample": {
+              "body": "何を残すかは、そのあと何に使うかで決まります。",
+              "points": [
+                "共有する",
+                "作業を知る",
+                "内容をつかむ"
+              ]
+            }
+          }
+        },
+        {
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
@@ -872,7 +861,7 @@
             },
             {
               "value": "貼り付ける",
-              "label": "クリップボードから貼り付ける"
+              "label": "貼り付ける"
             },
             {
               "value": "別のサンプルを試す",
@@ -897,38 +886,37 @@
           }
         },
         {
-          "id": "real_purpose",
-          "type": "single_choice",
-          "title": "何のためにまとめますか",
-          "poMessage": "目的が変わると、残す情報が変わります。",
-          "poEmotion": "question",
-          "key": "purpose",
-          "required": true,
-          "options": [
-            {
-              "value": "内容をつかむため",
-              "label": "内容をつかむため"
-            },
-            {
-              "value": "人に共有するため",
-              "label": "人に共有するため"
-            },
-            {
-              "value": "自分がやることを知るため",
-              "label": "自分がやることを知るため"
-            },
-            {
-              "value": "",
-              "label": "そのほか",
-              "free": true
+          "id": "concept_output_format",
+          "type": "concept_card",
+          "phase": "own",
+          "title": "出力形式の指定",
+          "poMessage": "何を答えるかだけでなく、どう答えるかも指定できます。",
+          "poEmotion": "neutral",
+          "card": {
+            "title": "出力形式の指定",
+            "body": "同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できます。",
+            "visual": "three_points",
+            "points": [
+              "3行で",
+              "箇条書きで",
+              "表で"
+            ],
+            "reviewExample": {
+              "body": "そのまま貼って使える形を言うと、直す手間が減ります。",
+              "points": [
+                "重要な点を3つ",
+                "次にやることだけ",
+                "見出しを付けて"
+              ]
             }
-          ]
+          },
+          "skippable": true
         },
         {
           "id": "real_format",
           "type": "single_choice",
           "title": "どんな形で欲しいですか",
-          "poMessage": "これで最後の質問です。",
+          "poMessage": "そのまま使える形を選んでください。",
           "poEmotion": "question",
           "key": "format",
           "required": true,
@@ -948,6 +936,61 @@
             {
               "value": "初心者向けに説明",
               "label": "初心者向けに説明"
+            },
+            {
+              "value": "",
+              "label": "そのほか",
+              "free": true
+            }
+          ]
+        },
+        {
+          "id": "concept_context",
+          "type": "concept_card",
+          "phase": "own",
+          "title": "コンテキスト",
+          "poMessage": "背景を伝えるほど、目的に合った答えになります。",
+          "poEmotion": "hint",
+          "card": {
+            "title": "コンテキスト",
+            "body": "目的・相手・場面という背景を渡すと、要点の絞り方が変わります。",
+            "visual": "three_points",
+            "points": [
+              "目的",
+              "相手",
+              "場面"
+            ],
+            "reviewExample": {
+              "body": "「共有用」と「自分の作業用」では、残すべきところが違います。",
+              "points": [
+                "共有する",
+                "作業を知る",
+                "内容をつかむ"
+              ]
+            }
+          },
+          "skippable": true
+        },
+        {
+          "id": "real_purpose",
+          "type": "single_choice",
+          "title": "何のためにまとめますか",
+          "poMessage": "これで最後の質問です。目的が変わると、残す情報が変わります。",
+          "poEmotion": "question",
+          "key": "purpose",
+          "required": true,
+          "options": [
+            {
+              "value": "内容をつかむため",
+              "label": "内容をつかむため"
+            },
+            {
+              "value": "人に共有するため",
+              "label": "人に共有するため"
+            },
+            {
+              "value": "自分がやることを知るため",
+              "label": "自分の作業のため"
             },
             {
               "value": "",
@@ -1056,7 +1099,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -1078,7 +1121,7 @@
             },
             {
               "value": "小学生向け",
-              "label": "小学生でも分かるように"
+              "label": "小学生にも分かる"
             },
             {
               "value": "その分野の人向け",
@@ -1090,9 +1133,11 @@
             "inputs": {
               "source_text": "topic",
               "audience": "audience",
+              "role": "role",
               "style": "style",
               "example": "example",
-              "length": "length"
+              "length": "length",
+              "followup": "instruction"
             }
           },
           "meta": {
@@ -1117,9 +1162,11 @@
             "inputs": {
               "source_text": "topic",
               "audience": "audience",
+              "role": "role",
               "style": "style",
               "example": "example",
-              "length": "length"
+              "length": "length",
+              "followup": "instruction"
             }
           }
         },
@@ -1135,7 +1182,7 @@
           "options": [
             {
               "value": "やさしい言葉になった",
-              "label": "やさしい言葉になった"
+              "label": "やさしくなった"
             },
             {
               "value": "例えが入った",
@@ -1161,51 +1208,6 @@
               "自分の言葉で説明し直せそうか"
             ],
             "factCheck": true
-          }
-        },
-        {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "相手を決める",
-          "poMessage": "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "相手を決める",
-            "body": "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
-            "visual": "highlight",
-            "highlight": "小学生でも分かるように"
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "例えを頼む",
-          "poMessage": "身近なものに置きかえてもらうと、初めての言葉でも掴めます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "例えを頼む",
-            "body": "身近なものに置きかえてもらうと、初めての言葉でも掴めます。",
-            "visual": "before_after",
-            "before": "定額制の役務提供契約です。",
-            "after": "雑誌の定期購読と同じ仕組みです。"
-          }
-        },
-        {
-          "id": "concept_3",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "確かめる場所",
-          "poMessage": "AIは知らないことも書きます。数字・日付・固有名詞は自分で確認します。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "確かめる場所",
-            "body": "AIは知らないことも書きます。数字・日付・固有名詞は自分で確認します。",
-            "visual": "text"
           }
         },
         {
@@ -1288,6 +1290,24 @@
           }
         },
         {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "ターゲット指定",
+          "poMessage": "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "ターゲット指定",
+            "body": "「小学生でも分かるように」と言うだけで、使う言葉が変わります。",
+            "visual": "highlight",
+            "highlight": "小学生でも分かるように",
+            "reviewExample": {
+              "body": "身近なものに置きかえてもらうと、初めての言葉でも掴めます。"
+            }
+          }
+        },
+        {
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
@@ -1303,7 +1323,7 @@
             },
             {
               "value": "貼り付ける",
-              "label": "クリップボードから貼り付ける"
+              "label": "貼り付ける"
             },
             {
               "value": "別のサンプルを試す",
@@ -1356,30 +1376,110 @@
           ]
         },
         {
-          "id": "real_style",
+          "id": "concept_role",
+          "type": "concept_card",
+          "phase": "own",
+          "title": "ロール指定",
+          "poMessage": "どんな立場で答えてほしいかを伝えられます。",
+          "poEmotion": "neutral",
+          "card": {
+            "title": "ロール指定",
+            "body": "「先生として」「IT担当者として」と立場を伝えると、説明の寄せ方が変わります。",
+            "visual": "three_points",
+            "points": [
+              "先生",
+              "IT担当者",
+              "詳しい友だち"
+            ],
+            "reviewExample": {
+              "body": "同じことでも、誰の口から聞くかで届き方が変わります。",
+              "points": [
+                "先生なら順を追って",
+                "実務なら手順から",
+                "友だちなら要点だけ"
+              ]
+            }
+          },
+          "skippable": true
+        },
+        {
+          "id": "real_role",
           "type": "single_choice",
-          "title": "どう説明してもらいますか",
-          "poMessage": "これで最後の質問です。",
+          "title": "どんな立場で説明してもらいますか",
+          "poMessage": "立場を伝えると、説明の寄せ方が変わります。",
           "poEmotion": "question",
-          "key": "style",
+          "key": "role",
           "required": true,
           "options": [
             {
-              "value": "例えを使う",
-              "label": "例えを使う"
+              "value": "先生として、順を追って教えるように",
+              "label": "先生として"
             },
             {
-              "value": "順番に説明する",
-              "label": "順番に説明する"
+              "value": "IT担当者として、実務に寄せて",
+              "label": "IT担当者として"
             },
             {
-              "value": "ひとことで言う",
-              "label": "ひとことで言う"
+              "value": "詳しい友だちとして、くだけた言葉で",
+              "label": "詳しい友だちとして"
             },
             {
               "value": "",
               "label": "そのほか",
               "free": true
+            }
+          ]
+        },
+        {
+          "id": "concept_followup",
+          "type": "concept_card",
+          "phase": "own",
+          "title": "追加質問",
+          "poMessage": "分からないまま終わらず、聞き返して大丈夫です。",
+          "poEmotion": "hint",
+          "card": {
+            "title": "追加質問",
+            "body": "一度で分からなくても、聞き返しながら近づけていけます。",
+            "visual": "simple_flow",
+            "points": [
+              "答えを読む",
+              "分からない所を言う",
+              "もう一度もらう"
+            ],
+            "reviewExample": {
+              "body": "「もっと簡単に」「具体例を出して」の一言で十分です。",
+              "points": [
+                "もっと簡単に",
+                "具体例を出して",
+                "一言でまとめて"
+              ]
+            }
+          },
+          "skippable": true
+        },
+        {
+          "id": "real_followup",
+          "type": "single_choice",
+          "title": "追加でお願いしたいことはありますか",
+          "poMessage": "これで最後です。無ければ「追加はしない」で進めます。",
+          "poEmotion": "question",
+          "key": "followup",
+          "options": [
+            {
+              "value": "もっと簡単な言葉で",
+              "label": "もっと簡単に"
+            },
+            {
+              "value": "具体例をもう一つ足して",
+              "label": "具体例をもう1つ"
+            },
+            {
+              "value": "最後に一言でまとめて",
+              "label": "一言でまとめて"
+            },
+            {
+              "value": "",
+              "label": "追加はしない"
             }
           ]
         },
@@ -1396,9 +1496,11 @@
             "inputs": {
               "source_text": "topic",
               "audience": "audience",
+              "role": "role",
               "style": "style",
               "example": "example",
-              "length": "length"
+              "length": "length",
+              "followup": "instruction"
             }
           }
         },
@@ -1415,9 +1517,11 @@
             "inputs": {
               "source_text": "topic",
               "audience": "audience",
+              "role": "role",
               "style": "style",
               "example": "example",
-              "length": "length"
+              "length": "length",
+              "followup": "instruction"
             }
           }
         },
@@ -1468,12 +1572,13 @@
       "beforeExample": "紙の書類で回す / 全部データにする",
       "afterExample": "費用：紙は印刷代がかかる／データは初期の手間\n時間：紙は回覧待ち／データは即時\n※ 具体的な金額は確認が必要です",
       "learnedSkills": [
-        "比べる基準を自分で決める",
-        "AIの結論をそのまま信じない"
+        "比較",
+        "評価基準の指定",
+        "出力形式の指定"
       ],
       "outcomes": [
-        "比べる基準を指定できる",
-        "AIの結論をそのまま信じずに確かめられる"
+        "違いを整理できる",
+        "自分の基準で判断材料を作れる"
       ],
       "tags": [
         "comparing"
@@ -1484,7 +1589,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -1525,7 +1630,6 @@
           "meta": {
             "sampleText": "紙の書類で回す / 全部データにする",
             "defaults": {
-              "criteria": "費用と時間と使いやすさ",
               "as_table": "文章でよい"
             }
           }
@@ -1560,7 +1664,7 @@
           "options": [
             {
               "value": "基準ごとに整理された",
-              "label": "基準ごとに整理された"
+              "label": "基準ごとに整理"
             },
             {
               "value": "違いが分かった",
@@ -1568,7 +1672,7 @@
             },
             {
               "value": "確認が必要な点が出た",
-              "label": "確認が必要な点が出た"
+              "label": "要確認の点が出た"
             },
             {
               "value": "決め手が見えた",
@@ -1589,59 +1693,6 @@
           }
         },
         {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "基準は自分で決める",
-          "poMessage": "「何を大事にするか」を先に決めないと、比べた結果を使えません。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "基準は自分で決める",
-            "body": "「何を大事にするか」を先に決めないと、比べた結果を使えません。",
-            "visual": "three_points",
-            "points": [
-              "費用",
-              "時間",
-              "使いやすさ"
-            ]
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "AIは決めてくれない",
-          "poMessage": "おすすめは答えではありません。材料を出す係だと思ってください。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "AIは決めてくれない",
-            "body": "おすすめは答えではありません。材料を出す係だと思ってください。",
-            "visual": "simple_flow",
-            "points": [
-              "AIが並べる",
-              "自分が選ぶ",
-              "自分が決める"
-            ]
-          }
-        },
-        {
-          "id": "concept_3",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "数字は必ず確認",
-          "poMessage": "価格・仕様・最新情報は、それらしく書かれても確かめてください。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "数字は必ず確認",
-            "body": "価格・仕様・最新情報は、それらしく書かれても確かめてください。",
-            "visual": "highlight",
-            "highlight": "価格・仕様・最新情報"
-          }
-        },
-        {
           "id": "add_condition",
           "type": "condition_choice",
           "phase": "compare",
@@ -1653,35 +1704,25 @@
           "required": true,
           "options": [
             {
-              "value": "もっと短く",
-              "label": "もっと短く",
-              "icon": "scissors"
+              "value": "価格・使いやすさ・機能で比較して",
+              "label": "価格・使いやすさ・機能で"
             },
             {
-              "value": "もっと丁寧に",
-              "label": "もっと丁寧に",
-              "icon": "heart"
+              "value": "費用と手間で比較して",
+              "label": "費用と手間で"
             },
             {
-              "value": "やわらかく",
-              "label": "やわらかく",
-              "icon": "smile"
+              "value": "続けやすさで比較して",
+              "label": "続けやすさで"
             },
             {
-              "value": "要点を先に",
-              "label": "要点を先に",
-              "icon": "list-ordered"
-            },
-            {
-              "value": "箇条書きにする",
-              "label": "箇条書きにする",
-              "icon": "list-bullet"
+              "value": "表にまとめて",
+              "label": "表にまとめる"
             },
             {
               "value": "",
-              "label": "自分で条件を追加",
-              "free": true,
-              "icon": "plus"
+              "label": "自分で基準を追加",
+              "free": true
             }
           ],
           "aiAction": {
@@ -1721,6 +1762,33 @@
           }
         },
         {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "比較",
+          "poMessage": "頭の中で比べず、同じ観点で並べると違いが見えます。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "比較",
+            "body": "頭の中で比べず、同じ観点で並べると違いが見えます。",
+            "visual": "three_points",
+            "points": [
+              "候補を並べる",
+              "同じ観点で見る",
+              "違いが見える"
+            ],
+            "reviewExample": {
+              "body": "並べ方が同じだと、どこが違うのかを目で追えます。",
+              "points": [
+                "A・B・C",
+                "価格／機能／簡単さ",
+                "表で見る"
+              ]
+            }
+          }
+        },
+        {
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
@@ -1736,7 +1804,7 @@
             },
             {
               "value": "貼り付ける",
-              "label": "クリップボードから貼り付ける"
+              "label": "貼り付ける"
             },
             {
               "value": "別のサンプルを試す",
@@ -1758,6 +1826,33 @@
           "validationRules": {
             "suggestLength": 20,
             "maxLength": 5000
+          }
+        },
+        {
+          "id": "concept_criteria",
+          "type": "concept_card",
+          "phase": "own",
+          "title": "評価基準の指定",
+          "poMessage": "何を重視するかで、おすすめは変わります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "評価基準の指定",
+            "body": "「価格で」「機能で」と伝えると、おすすめそのものが入れ替わります。",
+            "visual": "three_points",
+            "points": [
+              "価格重視ならA",
+              "機能重視ならC",
+              "基準が変われば答えも変わる"
+            ],
+            "reviewExample": {
+              "body": "決めるのは自分です。AIは基準どおりに並べる係です。",
+              "points": [
+                "基準を決める",
+                "AIが並べる",
+                "自分が選ぶ"
+              ]
+            }
           }
         },
         {
@@ -1791,6 +1886,33 @@
               "label": "失敗したときの影響"
             }
           ]
+        },
+        {
+          "id": "concept_output_format",
+          "type": "concept_card",
+          "phase": "own",
+          "title": "出力形式の指定",
+          "poMessage": "答え方も指定できます。",
+          "poEmotion": "hint",
+          "skippable": true,
+          "card": {
+            "title": "出力形式の指定",
+            "body": "何を答えるかだけでなく、どう答えるかも指定できます。",
+            "visual": "three_points",
+            "points": [
+              "3行で",
+              "箇条書きで",
+              "表で"
+            ],
+            "reviewExample": {
+              "body": "比べた結果は、表にすると違いを目で追えます。",
+              "points": [
+                "表で並べる",
+                "行が基準",
+                "列が選択肢"
+              ]
+            }
+          }
         },
         {
           "id": "real_as_table",
@@ -1912,7 +2034,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -1992,7 +2114,7 @@
             },
             {
               "value": "始められる大きさになった",
-              "label": "始められる大きさになった"
+              "label": "始められる大きさ"
             },
             {
               "value": "順番が決まった",
@@ -2014,51 +2136,6 @@
               "避けたいことが入っていないか"
             ],
             "factCheck": false
-          }
-        },
-        {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "期限を伝える",
-          "poMessage": "「今週中」と「3か月」では、1つの手順の大きさが変わります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "期限を伝える",
-            "body": "「今週中」と「3か月」では、1つの手順の大きさが変わります。",
-            "visual": "before_after",
-            "before": "資料作りを効率化する",
-            "after": "今週中に、今の作業を15分で書き出す"
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "使える時間を言う",
-          "poMessage": "1日15分と言えば、15分で終わる手順に分けてもらえます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "使える時間を言う",
-            "body": "1日15分と言えば、15分で終わる手順に分けてもらえます。",
-            "visual": "highlight",
-            "highlight": "1日15分"
-          }
-        },
-        {
-          "id": "concept_3",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "避けたいことも伝える",
-          "poMessage": "「お金をかけたくない」と言えば、その案は出てこなくなります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "避けたいことも伝える",
-            "body": "「お金をかけたくない」と言えば、その案は出てこなくなります。",
-            "visual": "text"
           }
         },
         {
@@ -2141,6 +2218,51 @@
           }
         },
         {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "期限を伝える",
+          "poMessage": "「今週中」と「3か月」では、1つの手順の大きさが変わります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "期限を伝える",
+            "body": "「今週中」と「3か月」では、1つの手順の大きさが変わります。",
+            "visual": "before_after",
+            "before": "資料作りを効率化する",
+            "after": "今週中に、今の作業を15分で書き出す"
+          }
+        },
+        {
+          "id": "concept_2",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "使える時間を言う",
+          "poMessage": "1日15分と言えば、15分で終わる手順に分けてもらえます。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "使える時間を言う",
+            "body": "1日15分と言えば、15分で終わる手順に分けてもらえます。",
+            "visual": "highlight",
+            "highlight": "1日15分"
+          }
+        },
+        {
+          "id": "concept_3",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "避けたいことも伝える",
+          "poMessage": "「お金をかけたくない」と言えば、その案は出てこなくなります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "避けたいことも伝える",
+            "body": "「お金をかけたくない」と言えば、その案は出てこなくなります。",
+            "visual": "text"
+          }
+        },
+        {
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
@@ -2156,7 +2278,7 @@
             },
             {
               "value": "貼り付ける",
-              "label": "クリップボードから貼り付ける"
+              "label": "貼り付ける"
             },
             {
               "value": "別のサンプルを試す",
@@ -2336,7 +2458,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -2358,11 +2480,11 @@
             },
             {
               "value": "具体例を追加する",
-              "label": "具体例を追加する"
+              "label": "具体例を追加"
             },
             {
               "value": "足りない情報を質問する",
-              "label": "足りない情報を質問してもらう"
+              "label": "追加質問する"
             }
           ],
           "aiAction": {
@@ -2413,7 +2535,7 @@
             },
             {
               "value": "頼んだところだけ変わった",
-              "label": "頼んだところだけ変わった"
+              "label": "頼んだ所だけ変化"
             },
             {
               "value": "質問が返ってきた",
@@ -2431,54 +2553,6 @@
               "次に何を足せばもっと近づくか"
             ],
             "factCheck": false
-          }
-        },
-        {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "一度に一つだけ",
-          "poMessage": "まとめて頼むと、どれが効いたのか分からなくなります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "一度に一つだけ",
-            "body": "まとめて頼むと、どれが効いたのか分からなくなります。",
-            "visual": "simple_flow",
-            "points": [
-              "一つ足す",
-              "結果を見る",
-              "また一つ足す"
-            ]
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "質問させてもよい",
-          "poMessage": "「足りない情報を聞いて」と頼むと、必要なことを尋ねてくれます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "質問させてもよい",
-            "body": "「足りない情報を聞いて」と頼むと、必要なことを尋ねてくれます。",
-            "visual": "highlight",
-            "highlight": "足りない情報を聞いて"
-          }
-        },
-        {
-          "id": "concept_3",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "厳しく見てもらう",
-          "poMessage": "「厳しい視点で」と頼むと、弱いところを指摘してもらえます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "厳しく見てもらう",
-            "body": "「厳しい視点で」と頼むと、弱いところを指摘してもらえます。",
-            "visual": "text"
           }
         },
         {
@@ -2561,6 +2635,54 @@
           }
         },
         {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "一度に一つだけ",
+          "poMessage": "まとめて頼むと、どれが効いたのか分からなくなります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "一度に一つだけ",
+            "body": "まとめて頼むと、どれが効いたのか分からなくなります。",
+            "visual": "simple_flow",
+            "points": [
+              "一つ足す",
+              "結果を見る",
+              "また一つ足す"
+            ]
+          }
+        },
+        {
+          "id": "concept_2",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "質問させてもよい",
+          "poMessage": "「足りない情報を聞いて」と頼むと、必要なことを尋ねてくれます。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "質問させてもよい",
+            "body": "「足りない情報を聞いて」と頼むと、必要なことを尋ねてくれます。",
+            "visual": "highlight",
+            "highlight": "足りない情報を聞いて"
+          }
+        },
+        {
+          "id": "concept_3",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "厳しく見てもらう",
+          "poMessage": "「厳しい視点で」と頼むと、弱いところを指摘してもらえます。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "厳しく見てもらう",
+            "body": "「厳しい視点で」と頼むと、弱いところを指摘してもらえます。",
+            "visual": "text"
+          }
+        },
+        {
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
@@ -2576,7 +2698,7 @@
             },
             {
               "value": "貼り付ける",
-              "label": "クリップボードから貼り付ける"
+              "label": "貼り付ける"
             },
             {
               "value": "別のサンプルを試す",
@@ -2619,7 +2741,7 @@
             },
             {
               "value": "具体例を追加する",
-              "label": "具体例を追加する"
+              "label": "具体例を追加"
             },
             {
               "value": "表にする",
@@ -2631,11 +2753,11 @@
             },
             {
               "value": "足りない情報を質問する",
-              "label": "足りない情報を質問してもらう"
+              "label": "追加質問する"
             },
             {
               "value": "厳しい視点でレビューする",
-              "label": "厳しい視点で見てもらう"
+              "label": "厳しく評価する"
             },
             {
               "value": "",
@@ -2819,7 +2941,7 @@
             },
             {
               "value": "クレジットカード番号",
-              "label": "クレジットカード番号"
+              "label": "カード番号"
             },
             {
               "value": "個人住所",
@@ -2857,7 +2979,7 @@
             },
             {
               "value": "AIが自信を持って言えばAI",
-              "label": "AIが自信を持って言えばAI"
+              "label": "自信ありげならAI"
             }
           ],
           "meta": {
@@ -2946,7 +3068,7 @@
             },
             {
               "value": "explain",
-              "label": "分からないことを説明してもらう"
+              "label": "説明してもらう"
             },
             {
               "value": "compare",
@@ -3004,7 +3126,7 @@
         {
           "id": "outcome_preview",
           "type": "outcome_preview",
-          "phase": "outcome",
+          "phase": "try",
           "title": "今日つくるもの",
           "poMessage": "まず、できあがりを見てみましょう。",
           "poEmotion": "neutral"
@@ -3108,40 +3230,6 @@
           }
         },
         {
-          "id": "concept_1",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "型に当てはめる",
-          "poMessage": "困りごとは「直す・まとめる・説明する・比べる・計画する」に入ります。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "型に当てはめる",
-            "body": "困りごとは「直す・まとめる・説明する・比べる・計画する」に入ります。",
-            "visual": "three_points",
-            "points": [
-              "直す",
-              "まとめる",
-              "計画する"
-            ]
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "try",
-          "title": "できあがりを言う",
-          "poMessage": "「そのまま送れる文章」のように、形を先に決めると近づきます。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "card": {
-            "title": "できあがりを言う",
-            "body": "「そのまま送れる文章」のように、形を先に決めると近づきます。",
-            "visual": "highlight",
-            "highlight": "そのまま送れる文章"
-          }
-        },
-        {
           "id": "add_condition",
           "type": "condition_choice",
           "phase": "compare",
@@ -3227,6 +3315,40 @@
           }
         },
         {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "型に当てはめる",
+          "poMessage": "困りごとは「直す・まとめる・説明する・比べる・計画する」に入ります。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "型に当てはめる",
+            "body": "困りごとは「直す・まとめる・説明する・比べる・計画する」に入ります。",
+            "visual": "three_points",
+            "points": [
+              "直す",
+              "まとめる",
+              "計画する"
+            ]
+          }
+        },
+        {
+          "id": "concept_2",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "できあがりを言う",
+          "poMessage": "「そのまま送れる文章」のように、形を先に決めると近づきます。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "card": {
+            "title": "できあがりを言う",
+            "body": "「そのまま送れる文章」のように、形を先に決めると近づきます。",
+            "visual": "highlight",
+            "highlight": "そのまま送れる文章"
+          }
+        },
+        {
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
@@ -3242,7 +3364,7 @@
             },
             {
               "value": "貼り付ける",
-              "label": "クリップボードから貼り付ける"
+              "label": "貼り付ける"
             },
             {
               "value": "別のサンプルを試す",
@@ -3264,7 +3386,8 @@
           "validationRules": {
             "suggestLength": 20,
             "maxLength": 5000
-          }
+          },
+          "primaryLabel": "AIに送る内容を見る"
         },
         {
           "id": "prompt_preview",

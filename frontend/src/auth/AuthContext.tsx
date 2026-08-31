@@ -69,7 +69,15 @@ export interface AuthState {
 
 export interface AuthActions {
   signUp: (input: api.SignUpInput) => Promise<MigrationResult>;
-  signIn: (email: string, password: string) => Promise<void>;
+  /**
+   * ログイン。
+   *
+   * 2段階認証を入れている人には `mfa_required` が返る。**その時点では
+   * まだ入っていない。** 呼んだ側がコードを聞き、`finishSignIn` を呼ぶ。
+   */
+  signIn: (email: string, password: string) => Promise<{ mfaRequired: boolean }>;
+  /** 追加の確認が通ったあと。ログイン状態を取り直す。 */
+  finishSignIn: () => Promise<void>;
   signOut: () => Promise<void>;
   setDisplayName: (name: string) => Promise<void>;
   /** サーバーへ聞き直す。進み具合の表示を更新したいときに使う。 */
@@ -182,8 +190,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
 
       async signIn(email, password) {
-        const { user } = await api.signIn(email, password);
-        setState({ loading: false, user, progress: null, lastMigration: null });
+        const result = await api.signIn(email, password);
+        if (result.mfa_required) {
+          // まだ入っていない。コードが通るまで、状態は変えない
+          return { mfaRequired: true };
+        }
+        setState({
+          loading: false,
+          user: result.user ?? null,
+          progress: null,
+          lastMigration: null,
+        });
+        await refresh();
+        return { mfaRequired: false };
+      },
+
+      async finishSignIn() {
         await refresh();
       },
 
@@ -238,6 +260,7 @@ export function useAuth(): Auth {
     signIn: async () => {
       throw new Error("AuthProvider がありません");
     },
+    finishSignIn: async () => {},
     signOut: async () => {},
     setDisplayName: async () => {},
     refresh: async () => {},

@@ -15,6 +15,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconBook } from "../components/Icons";
 import { PrivacyDialog } from "../components/course/PrivacyDialog";
 import { LessonHeader } from "../components/course/LessonHeader";
+import { LessonPaused } from "../components/course/LessonPaused";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
 import { useCourse } from "../course/live";
@@ -27,6 +28,8 @@ import {
   canAutoAdvance,
   isAnswered,
 } from "../course/autoAdvance";
+import { poAppearance } from "../course/poPresence";
+import { primaryLabel } from "../course/primaryLabel";
 import { recommendLessons, saveRecommendations } from "../course/recommend";
 import { saveProfile } from "../api/diagnosis";
 import { useCompletedLessons } from "../course/progress";
@@ -44,29 +47,6 @@ export interface LessonRunnerProps {
   /** 「やり方をくわしく見る」を押したとき。 */
   onOpenRecipe?: (tipId: string) => void;
 }
-
-/** ステップの種類ごとの「次にやること」。1つに絞る（憲章 原則 I）。 */
-const PRIMARY_LABEL: Record<string, string> = {
-  intro: "はじめる",
-  outcome_preview: "まず試してみる",
-  quick_try: "AIに送ってみる",
-  observation: "解説を見る",
-  concept_card: "次へ",
-  condition_choice: "この条件で試す",
-  single_choice: "次へ",
-  multi_choice: "次へ",
-  text_input: "次へ",
-  template_builder: "次へ",
-  prompt_preview: "この内容でAIに送る",
-  ai_generate: "AIに送る",
-  result_review: "次へ",
-  result_compare: "次へ",
-  improvement_choice: "もう一度AIに送る",
-  safety_check: "この中から選ぶ",
-  real_task: "自分の文章で試す",
-  reflection: "次へ",
-  completion: "完了する",
-};
 
 export function LessonRunner({
   lesson,
@@ -317,6 +297,32 @@ export function LessonRunner({
 
   const blockingIssue = api.issue?.blocking ? api.issue : null;
 
+  /*
+    ポーを出す場面か。決め方は course/poPresence.ts に1か所でまとめてある。
+    ヒントを出しているかは、ポーの動き（`show_hint`）で分かる——
+    ヒントは押されて初めて出るので、状態としては動きの側に乗っている。
+  */
+  const po = poAppearance({
+    stepType: step.type,
+    busy: api.isSubmitting,
+    failed: Boolean(api.error),
+    hinting: api.po.action === "show_hint",
+  });
+
+  /*
+    今日はここまで。押し直せば直る失敗とは扱いを分ける
+    （`components/course/LessonPaused.tsx` 参照）。
+
+    止まり方は2つある。**その人の分**を使い切った（`out_of_credits`）のと、
+    サービス全体が今日の上限に達した（`limit`）の。画面の見た目は同じでも、
+    次にできることが違う——前者は登録すれば続けられ、後者は登録しても
+    増えない。取り違えると「登録したのに進めない」になるので、
+    どちらなのかを画面へ渡す。
+  */
+  const pausedForToday =
+    step.type === "ai_generate" &&
+    (api.errorKind === "limit" || api.errorKind === "out_of_credits");
+
   return (
     <>
       {/*
@@ -344,6 +350,27 @@ export function LessonRunner({
 
       <main className="min-h-screen">
 
+      {pausedForToday ? (
+        <LessonPaused
+          po={api.po}
+          lessonId={lesson.id}
+          canRegisterForMore={api.errorKind === "out_of_credits"}
+          /*
+            今日できるようになったこと。**通り終えた区切りだけ**を渡す。
+            いまいる区切りはまだ途中なので入れない。
+          */
+          done={api.missions.missions
+            .slice(0, Math.max(0, api.missions.current - 1))
+            .map((mission) => mission.label)}
+          /*
+            登録できたので、そのまま続きを送る。登録した人の文章は
+            持ち分ではなく登録済みの枠で数えるので、これで通る。
+          */
+          onResume={() => void send()}
+          onExit={onExit}
+        />
+      ) : (
+        <>
       <StepShell
         {...(step.type === "outcome_preview"
           ? {
@@ -358,11 +385,13 @@ export function LessonRunner({
             }
           : { title: step.title, instruction: step.instruction })}
         progress={api.progress}
+        missions={api.missions.missions}
+        currentMission={api.missions.current}
         phase={step.phase}
         po={api.po}
         summary={api.summary}
         onEditSummary={editSummary}
-        primaryLabel={PRIMARY_LABEL[step.type] ?? "次へ"}
+        primaryLabel={primaryLabel(step)}
         onPrimary={onPrimary}
         primaryDisabled={Boolean(blockingIssue)}
         hintNearButton={api.issue?.reason ?? null}
@@ -387,11 +416,20 @@ export function LessonRunner({
         doneLabel={doneLabel}
         busy={api.isSubmitting}
         /*
-          解説の回は、カード本文とポーの台詞が同じ文になる（教材データが
-          同じ文字を持っている）。同じことを2回言うと、2つ別のことが
-          書いてあるのかと読んでしまう。ここだけ吹き出しを下げる。
+          ポーを出すかどうか。
+
+          決め方は course/poPresence.ts に1か所でまとめてある。
+          前はここで「解説カードでなく、失敗もしていなければ出す」と
+          書いていた——つまり**19画面中17画面に居た**。毎画面に居ると、
+          居ること自体が何も言わなくなる。
+
+          失敗しているときは、いまは**出す**（顔は warning）。
+          吹き出しの文は `api.po` が持っているが、失敗の詳しい話は
+          下のエラー欄が1度だけ言う担当なので、そちらと重ならない。
         */
-        showPo={step.type !== "concept_card"}
+        showPo={po !== null}
+        poSpeaks={po?.speaks ?? false}
+        poScene={po?.scene}
       >
         {body}
       </StepShell>
@@ -409,6 +447,8 @@ export function LessonRunner({
             step.type === "real_task" ? api.continueAnyway() : void confirmAndSend()
           }
         />
+      )}
+        </>
       )}
       </main>
     </>

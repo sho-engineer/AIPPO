@@ -48,6 +48,10 @@ export function ChoiceTiles({
         絵を添えて色を散らす。6つを同じ見た目で並べると、
         どれも同じに見えて選ぶ手が止まる。
         選んだことは、枠・地色・右のチェックの3つで示す（色だけにしない）。
+
+        チェックの場所は選ぶ前から確保する。以前は選択時にしか
+        描画しておらず、選ぶたびに隣の文字列の実効幅が縮んで
+        折り返しが動いていた（`aippo/ChoiceButton.tsx` と同じ不具合）。
       */}
       <ul
         /*
@@ -74,9 +78,20 @@ export function ChoiceTiles({
                   setShowFree(false);
                   onChange(option.value);
                 }}
-                className={`flex h-full min-h-[3.5rem] w-full items-center gap-2.5
-                            rounded-card border px-3 py-3 text-sm transition
-                            active:scale-[0.99]
+                /*
+                  縦積みにする。**横並びだと文字の幅が足りない。**
+
+                  375px の2列では、絵と印を横に並べたぶん文字に残るのが
+                  61px しかなく、「もっと短く」（5字）でも2行、
+                  「自分で条件を追加」（8字）は3行になっていた（実測）。
+                  文字を短くしても直らない——配り方のほうが原因。
+
+                  縦に積むと文字は札の幅いっぱいを使えるので、
+                  8〜9字までは1行に収まる。列は2つのまま。
+                */
+                className={`relative flex h-full min-h-[3.5rem] w-full flex-col
+                            items-start gap-2 rounded-card border px-3 py-3 text-sm
+                            transition active:scale-[0.99]
                             ${
                               active
                                 ? "border-brand bg-brand-soft/70 font-bold text-brand-dark"
@@ -88,10 +103,18 @@ export function ChoiceTiles({
                   tone={optionTone(option.icon)}
                   size="sm"
                 />
-                <span className="min-w-0 flex-1 text-left leading-6">{option.label}</span>
-                {active && (
-                  <IconCheckCircle className="h-5 w-5 shrink-0 text-brand" />
-                )}
+                {/*
+                  印は右上へ浮かせる。絵と同じ高さに座り、文字は絵の
+                  **下**から始まるので、右の余白は要らない。
+                */}
+                <span className="w-full min-w-0 text-left leading-6">
+                  {option.label}
+                </span>
+                <IconCheckCircle
+                  className={`absolute right-2.5 top-2.5 h-5 w-5 shrink-0 text-brand
+                              transition-opacity
+                              ${active ? "opacity-100" : "opacity-0"}`}
+                />
               </button>
             </li>
           );

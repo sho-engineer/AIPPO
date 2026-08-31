@@ -15,14 +15,36 @@
  *
  * 登録の並べ方
  * ------------
- * 登録では、**どちらの道でも要るもの**を先に置く。
- * メールアドレス・呼ばれたい名前・同意の3つ。そのあとで
- * 「パスキーで登録」「パスワードで登録」を選ばせる。
+ * **先に道を選ばせ、そのあとで、その道に要るものだけを聞く。**
  *
- * 前はパスキーの入口が一番上にあった。押せる条件（メールと同意）が
- * その下にあるので、開いた人はまず**押せないボタン**を見ることになり、
- * 何をすれば押せるのかはボタンの下の小さな字にしか書いていなかった。
- * 要るものを先に出せば、その説明は要らなくなる。
+ *     登録して、続きを別の端末でも
+ *     [ Google で続ける ]
+ *     [ パスキーで続ける ]
+ *     ──────── または ────────
+ *     メールアドレス
+ *     [                    ]
+ *     [ メールで続ける ]
+ *
+ * 前は1枚だった。メール・呼ばれたい名前・同意・パスワード2つ・
+ * パスキーのボタン・Google のボタンが同時に見えていて、
+ * **Google で登録する人にもパスワード欄が見えていた**。
+ * 自分に要らないものを数えてから始めることになる。
+ *
+ * いまは押した道の分だけを次で聞く。
+ *
+ *   - Google … 何も聞かない（メールも名前もあちらから来る）
+ *   - パスキー … メールアドレスだけ
+ *   - メール … パスワードと、その確認
+ *
+ * 同意の取り方
+ * ------------
+ * **どの道でも同じにする。** 前は Google だけ「押したら同意」で、
+ * パスキーとパスワードにはチェック欄があった。同じ登録なのに
+ * 求められるものが違い、しかもチェック欄は Google のボタンを
+ * 素通りしていた——厳しく見えて、実際には守っていない形だった。
+ *
+ * いまはどの道でも、押す前に同じ一文が見えるところにある。
+ * 規約とポリシーはこの画面の中で読める（外へ飛ばすと入力が消える）。
  *
  * パスワードの確認欄
  * ------------------
@@ -36,15 +58,34 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 import { ApiError } from "../../api/http";
 import { requestPasswordReset } from "../../api/accounts";
+import { verifyMfa } from "../../api/mfa";
 import { useAuth } from "../../auth/AuthContext";
+import { EVENTS, track } from "../../lib/analytics";
 import { AUTH_COPY } from "../../content/ui";
 import { PRIVACY, TERMS, findLegalDocument, type LegalDocument } from "../../content/legal";
 import { LegalView } from "../legal/LegalView";
-import { PasskeyPanel } from "./PasskeyPanel";
+import { PasskeyPanel, usePasskeyAvailable } from "./PasskeyPanel";
+import { ResendCountdown } from "./ResendCountdown";
 import { SocialButtons } from "./SocialButtons";
-import { IconCaution } from "../Icons";
+import { IconCaution, IconKey } from "../Icons";
 
 export type AuthMode = "signup" | "signin" | "reset";
+
+/**
+ * ログインの途中で、確認コードを聞いている状態。
+ *
+ * 合言葉は合っていて、まだ入っていない。**先に入れてから聞かない**
+ * ——聞いている最中に他の画面が使えると、追加の確認の意味が無くなる。
+ */
+type SignInStep = "password" | "code";
+
+/**
+ * 登録の何枚目か。
+ *
+ * `method` で道を選び、選んだ道に要るものだけを次で聞く。
+ * ログインと再設定は1枚のままなので、ここは登録のときだけ動く。
+ */
+type SignUpStep = "method" | "password" | "passkey";
 
 export interface AuthDialogProps {
   mode?: AuthMode;
@@ -63,24 +104,49 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
   const first = useRef<HTMLInputElement>(null);
 
   const [view, setView] = useState<AuthMode>(mode);
+  const [step, setStep] = useState<SignUpStep>("method");
+  /* ログインの途中。合言葉が通ったあと、確認コードを聞いている */
+  const [signInStep, setSignInStep] = useState<SignInStep>("password");
+  const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   /* 打った中身を目で確かめられるようにする。2つの欄で同じ挙動にする */
   const [revealPassword, setRevealPassword] = useState(false);
   const [displayName, setDisplayName] = useState("");
-  const [consent, setConsent] = useState(false);
   const [busy, setBusy] = useState(false);
+  /*
+    上に出せた外部ログインの数。0 なら「または」の線を出さない。
+    出すと、何も無いところに区切りだけが残る。
+  */
+  const [socialCount, setSocialCount] = useState(0);
+  const passkeyReady = usePasskeyAvailable();
   const [failure, setFailure] = useState<ApiError | null>(null);
   const [sent, setSent] = useState(false);
+  /*
+    次に送れるまでの残り秒数。0なら押せる。
+    秒数はサーバーが決める（送れたときは retry_after、
+    断られたときは Retry-After）。ここには書き写さない。
+  */
+  const [resendIn, setResendIn] = useState(0);
   /*
     規約を読んでいる最中。外部のページへ飛ばさない。
     飛ばすと、戻ってきたときに入力が消えている。
   */
   const [reading, setReading] = useState<LegalDocument["id"] | null>(null);
 
-  // 開いたら最初の欄に焦点を置く。指を1回減らす
-  useEffect(() => first.current?.focus(), [view]);
+  /*
+    開いたら、その画面で最初に打つ欄に焦点を置く。指を1回減らす。
+    パスワードの画面だけは、メールをもう一度打たせないので
+    パスワード欄が最初になる。
+  */
+  useEffect(() => {
+    const target =
+      view === "signup" && step === "password"
+        ? window.document.getElementById(`${ids}-password`)
+        : first.current;
+    target?.focus();
+  }, [view, step, ids]);
 
   // 画面を切り替えたら、前の指摘は消す。別の話になっているため
   useEffect(() => {
@@ -89,6 +155,10 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
     // 別の話になっているので、確認欄も持ち越さない
     setPasswordConfirm("");
     setRevealPassword(false);
+    // 登録は必ず「どれで登録するか」から始める
+    setStep("method");
+    setSignInStep("password");
+    setCode("");
   }, [view]);
 
   // Esc で閉じられるようにする。閉じ方が1つしかないと逃げ場がない
@@ -110,15 +180,37 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
     出すのは、確認欄に何か入っていて、かつ食い違っているときだけ。
   */
   const mismatch =
-    view === "signup" && passwordConfirm.length > 0 && password !== passwordConfirm;
+    view === "signup" &&
+    step === "password" &&
+    passwordConfirm.length > 0 &&
+    password !== passwordConfirm;
 
-  /** 登録の押せない理由。押せる形のまま止めて、理由をその場に出す。 */
-  const signUpBlocked =
-    view === "signup" && (!consent || mismatch || passwordConfirm.length === 0);
+  /** いま出ている一番下のボタンを押せない理由。押せる形のまま止めない。 */
+  const blocked =
+    view === "signup"
+      ? step === "method"
+        ? email.trim().length === 0
+        : mismatch || passwordConfirm.length === 0
+      : view === "reset" && resendIn > 0;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
+
+    /*
+      1枚目は送信ではなく、次の画面へ進むだけ。
+      Enter でも同じように進めるよう、ここに置いてある。
+    */
+    if (view === "signup" && step === "method") {
+      if (email.trim().length === 0) return;
+      setFailure(null);
+      // ここから先が登録の道。どこで落ちたかを見るための起点
+      track(EVENTS.signUpStarted);
+      setStep("password");
+      return;
+    }
+    // パスキーの画面に送信は無い（PasskeyPanel が自分で持っている）
+    if (view === "signup" && step === "passkey") return;
 
     setBusy(true);
     setFailure(null);
@@ -136,33 +228,72 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
               code: "PASSWORD_MISMATCH",
               detail: AUTH_COPY.passwordMismatch,
               fieldErrors: { password_confirm: AUTH_COPY.passwordMismatch },
+              retryAfter: 0,
             }),
           );
           return;
         }
+        /*
+          同意は、ここまで来た時点で取れている。1枚目の
+          「メールで続ける」の上に、同じ一文が出ている。
+        */
         const migration = await auth.signUp({
           email,
           password,
           displayName,
-          acceptTerms: consent,
-          acceptPrivacy: consent,
+          acceptTerms: true,
+          acceptPrivacy: true,
         });
+        track(EVENTS.signUpCompleted);
         onDone?.(
           migration.retryable
             ? AUTH_COPY.migrationRetryable
             : AUTH_COPY.migrationLinked(migration.linked ? migration.sessions : 0),
         );
         onClose();
+      } else if (view === "signin" && signInStep === "code") {
+        /*
+          追加の確認。ここを通って初めてログインになる。
+          予備の合言葉でも通る（認証アプリを無くした人の逃げ道）。
+        */
+        const result = await verifyMfa(code);
+        await auth.finishSignIn();
+        onDone?.(
+          result.recovery_used
+            ? `ログインしました。予備の合言葉を1つ使いました（残り${result.recovery_codes_left}個）。`
+            : "ログインしました。続きから始められます。",
+        );
+        onClose();
       } else if (view === "signin") {
-        await auth.signIn(email, password);
+        const { mfaRequired } = await auth.signIn(email, password);
+        if (mfaRequired) {
+          // まだ入っていない。コードを聞く画面へ
+          setSignInStep("code");
+          return;
+        }
         onDone?.("ログインしました。続きから始められます。");
         onClose();
       } else {
-        await requestPasswordReset(email);
+        // 押した回。サーバー側の password_reset_sent（送れた回）と対にする
+        track(EVENTS.passwordResetRequested);
+        const result = await requestPasswordReset(email);
         // 登録の有無にかかわらず同じ文にする
         setSent(true);
+        setResendIn(result.retry_after ?? 0);
       }
     } catch (error) {
+      if (error instanceof ApiError && error.retryAfter > 0) {
+        // 待つ時間が分かっているなら、押し直させずに数える
+        setResendIn(error.retryAfter);
+      }
+      /*
+        メールアドレスへの指摘（「すでに使われています」など）は、
+        その欄が見えている画面へ戻して出す。パスワードの画面のまま
+        出すと、直せない指摘だけが画面に残る。
+      */
+      if (error instanceof ApiError && error.fieldErrors.email && view === "signup") {
+        setStep("method");
+      }
       setFailure(
         error instanceof ApiError
           ? error
@@ -171,6 +302,7 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
               code: "UNKNOWN",
               detail: "うまくいきませんでした。もう一度お試しください。",
               fieldErrors: {},
+              retryAfter: 0,
             }),
       );
     } finally {
@@ -178,23 +310,42 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
     }
   }
 
-  const title = {
-    signup: AUTH_COPY.signUpTitle,
-    signin: AUTH_COPY.signInTitle,
-    reset: AUTH_COPY.resetTitle,
-  }[view];
+  const title =
+    view === "signin" && signInStep === "code"
+      ? AUTH_COPY.mfaTitle
+      : {
+          signup: AUTH_COPY.signUpTitle,
+          signin: AUTH_COPY.signInTitle,
+          reset: AUTH_COPY.resetTitle,
+        }[view];
 
-  const lead = {
-    signup: AUTH_COPY.signUpLead,
-    signin: AUTH_COPY.signInLead,
-    reset: AUTH_COPY.resetLead,
-  }[view];
+  /* 登録は画面ごとに前置きが変わる。いま何を聞かれているかを毎回書く */
+  const lead =
+    view === "signin" && signInStep === "code"
+      ? AUTH_COPY.mfaLead
+      : view === "signup"
+      ? {
+          method: AUTH_COPY.signUpLead,
+          password: AUTH_COPY.passwordStepLead,
+          passkey: AUTH_COPY.passkeyStepLead,
+        }[step]
+        : { signin: AUTH_COPY.signInLead, reset: AUTH_COPY.resetLead }[view];
 
-  const submitLabel = {
-    signup: AUTH_COPY.submitSignUp,
-    signin: AUTH_COPY.submitSignIn,
-    reset: AUTH_COPY.submitReset,
-  }[view];
+  const submitLabel =
+    view === "signin" && signInStep === "code"
+      ? AUTH_COPY.mfaSubmit
+      : view === "signup"
+        ? step === "method"
+          ? AUTH_COPY.continueWithEmail
+          : AUTH_COPY.submitSignUp
+        : { signin: AUTH_COPY.submitSignIn, reset: AUTH_COPY.submitReset }[view];
+
+  /** 登録が済んだときの後始末。3つの道で同じことをする。 */
+  async function finish(message: string) {
+    await auth.refresh();
+    onDone?.(message);
+    onClose();
+  }
 
   return (
     <div
@@ -238,51 +389,171 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
         )}
 
         {/*
+          次に送れるまでの残り。押せなくするのは親切のためで、
+          守りではない（実際に止めているのはサーバー）。
+        */}
+        {view === "reset" && (
+          <ResendCountdown seconds={resendIn} onFinished={() => setResendIn(0)} />
+        )}
+
+        {/*
           ログインでは、パスキーを一番上に置く。打つものが何も無いので、
           条件も前置きも要らない——押せばそれで終わる。
-
-          登録では下（フォームの中）に置く。押せる条件（メールと同意）が
-          先に要るためで、条件より先にボタンを見せると、
-          最初に目に入るのが押せないボタンになる。
         */}
-        {view === "signin" && (
-          <PasskeyPanel
-            mode="signin"
-            disabled={busy}
-            onDone={async (message) => {
-              await auth.refresh();
-              onDone?.(message);
-              onClose();
-            }}
-          />
+        {view === "signin" && signInStep === "password" && (
+          <PasskeyPanel mode="signin" disabled={busy} onDone={finish} />
+        )}
+
+        {/*
+          登録の1枚目。ここで道を選ぶ。
+
+          並びは **パスキー → Google → メール**。
+
+          パスキーを一番上に置く理由は、覚える合言葉が要らないこと。
+          流出しても使えず、打ち間違いも、使い回しも起こらない。
+          初心者にとっていちばん壊れにくい入り方が、いちばん上にある
+          べきだと決めた。
+
+          ただし**他の道を消さない。** パスキーは端末に紐づくので、
+          対応していない端末や、共用のパソコンから入る人が残る。
+          そして、どの道で作ったアカウントにも必ずメールアドレスが
+          付く——端末を失った人が、メールの再設定で戻ってこられる
+          ようにするため（パスキーだけのアカウントも例外ではない）。
+        */}
+        {view === "signup" && step === "method" && (
+          <>
+            <div className="mt-5 space-y-2" data-testid="auth-methods">
+              {passkeyReady && (
+                <button
+                  type="button"
+                  data-testid="auth-to-passkey"
+                  disabled={busy}
+                  onClick={() => setStep("passkey")}
+                  className="flex min-h-[3rem] w-full items-center justify-center gap-2
+                             rounded-cta border border-brand bg-brand px-6 py-3 text-base
+                             font-bold text-white transition hover:bg-brand-dark
+                             disabled:cursor-not-allowed disabled:border-line
+                             disabled:bg-line disabled:text-ink-muted"
+                >
+                  <IconKey className="h-5 w-5 shrink-0" />
+                  {AUTH_COPY.continueWithPasskey}
+                </button>
+              )}
+
+              <SocialButtons bare disabled={busy} onCount={setSocialCount} />
+            </div>
+
+            {/*
+              パスキーが何なのかを、押す前に一行だけ添える。
+              知らない言葉が一番上にあると、知っている言葉のほうへ逃げる。
+            */}
+            {passkeyReady && (
+              <p className="mt-2 text-center text-xs leading-6 text-ink-muted">
+                {AUTH_COPY.passkeyLead}
+              </p>
+            )}
+
+            {/* 上に何も出せなかった環境では、区切りの線だけを残さない */}
+            {(socialCount > 0 || passkeyReady) && (
+              <div className="mt-5 flex items-center gap-3" aria-hidden="true">
+                <span className="h-px flex-1 bg-line" />
+                <span className="text-xs text-ink-muted">{AUTH_COPY.methodDivider}</span>
+                <span className="h-px flex-1 bg-line" />
+              </div>
+            )}
+          </>
+        )}
+
+        {/*
+          2枚目では、打ったメールアドレスをそのまま出す。
+          もう一度打たせない。違っていたら「変更する」で1枚目へ戻る。
+        */}
+        {view === "signup" && step === "password" && (
+          <div
+            data-testid="auth-chosen-email"
+            className="mt-4 flex items-center justify-between gap-3 rounded-card
+                       bg-canvas px-4 py-3 text-sm"
+          >
+            <span className="min-w-0 break-all">{email}</span>
+            <button
+              type="button"
+              data-testid="auth-change-email"
+              onClick={() => setStep("method")}
+              className="shrink-0 text-brand-dark underline"
+            >
+              {AUTH_COPY.changeEmail}
+            </button>
+          </div>
         )}
 
         <form className="mt-5 space-y-4" onSubmit={submit} noValidate>
-          <div>
-            <label htmlFor={`${ids}-email`} className="text-sm font-bold">
-              {AUTH_COPY.email}
-            </label>
-            <input
-              ref={first}
-              id={`${ids}-email`}
-              type="email"
-              value={email}
-              autoComplete="email"
-              inputMode="email"
-              required
-              aria-describedby={fieldError("email") ? `${ids}-email-error` : undefined}
-              aria-invalid={Boolean(fieldError("email"))}
-              onChange={(event) => setEmail(event.target.value)}
-              className={FIELD}
-            />
-            {fieldError("email") && (
-              <p id={`${ids}-email-error`} className="mt-1 text-xs text-caution">
-                {fieldError("email")}
-              </p>
-            )}
-          </div>
+          {/*
+            確認コードの画面では、メールもパスワードも出さない。
+            もう通っているものを、もう一度見せる理由が無い。
+          */}
+          {!(view === "signup" && step === "password") &&
+            !(view === "signin" && signInStep === "code") && (
+            <div>
+              <label htmlFor={`${ids}-email`} className="text-sm font-bold">
+                {AUTH_COPY.email}
+              </label>
+              <input
+                ref={first}
+                id={`${ids}-email`}
+                type="email"
+                value={email}
+                autoComplete="email"
+                inputMode="email"
+                required
+                aria-describedby={fieldError("email") ? `${ids}-email-error` : undefined}
+                aria-invalid={Boolean(fieldError("email"))}
+                onChange={(event) => setEmail(event.target.value)}
+                className={FIELD}
+              />
+              {fieldError("email") && (
+                <p id={`${ids}-email-error`} className="mt-1 text-xs text-caution">
+                  {fieldError("email")}
+                </p>
+              )}
+            </div>
+          )}
 
-          {view === "signin" && (
+          {view === "signin" && signInStep === "code" && (
+            <div>
+              <label htmlFor={`${ids}-code`} className="text-sm font-bold">
+                {AUTH_COPY.mfaCode}
+              </label>
+              <input
+                id={`${ids}-code`}
+                type="text"
+                value={code}
+                /*
+                  携帯の自動入力に任せる。手で打つ人には数字の並びを出す。
+                  予備の合言葉（英数字）も同じ欄に入るので、
+                  `inputMode` は numeric に固定しない。
+                */
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={20}
+                aria-describedby={fieldError("code") ? `${ids}-code-error` : undefined}
+                aria-invalid={Boolean(fieldError("code"))}
+                onChange={(event) => setCode(event.target.value)}
+                data-testid="auth-mfa-code"
+                className={`${FIELD} tracking-[0.3em]`}
+              />
+              {fieldError("code") && (
+                <p
+                  id={`${ids}-code-error`}
+                  data-testid="auth-mfa-error"
+                  className="mt-1 text-xs text-caution"
+                >
+                  {fieldError("code")}
+                </p>
+              )}
+            </div>
+          )}
+
+          {view === "signin" && signInStep === "password" && (
             <PasswordField
               id={`${ids}-password`}
               label={AUTH_COPY.password}
@@ -296,87 +567,27 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
             />
           )}
 
-          {view === "signup" && (
+          {/* 呼ばれたい名前は任意。Google なら向こうから来るので聞かない */}
+          {view === "signup" && step !== "method" && (
+            <div>
+              <label htmlFor={`${ids}-name`} className="text-sm font-bold">
+                {AUTH_COPY.displayName}
+              </label>
+              <input
+                id={`${ids}-name`}
+                type="text"
+                value={displayName}
+                autoComplete="nickname"
+                maxLength={60}
+                onChange={(event) => setDisplayName(event.target.value)}
+                className={FIELD}
+              />
+              <p className="mt-1 text-xs text-ink-muted">{AUTH_COPY.displayNameHint}</p>
+            </div>
+          )}
+
+          {view === "signup" && step === "password" && (
             <>
-              <div>
-                <label htmlFor={`${ids}-name`} className="text-sm font-bold">
-                  {AUTH_COPY.displayName}
-                </label>
-                <input
-                  id={`${ids}-name`}
-                  type="text"
-                  value={displayName}
-                  autoComplete="nickname"
-                  maxLength={60}
-                  onChange={(event) => setDisplayName(event.target.value)}
-                  className={FIELD}
-                />
-                <p className="mt-1 text-xs text-ink-muted">
-                  {AUTH_COPY.displayNameHint}
-                </p>
-              </div>
-
-              <div className="rounded-card bg-canvas px-4 py-3">
-                <label className="flex items-start gap-3 text-sm leading-6">
-                  <input
-                    type="checkbox"
-                    checked={consent}
-                    onChange={(event) => setConsent(event.target.checked)}
-                    className="mt-1 h-5 w-5 shrink-0 rounded border-line text-brand
-                               focus:ring-2 focus:ring-brand/30"
-                  />
-                  <span>
-                    {AUTH_COPY.consent}
-                    <span className="mt-1 flex flex-wrap gap-x-4">
-                      {[TERMS, PRIVACY].map((document) => (
-                        <button
-                          key={document.id}
-                          type="button"
-                          data-testid={`auth-read-${document.id}`}
-                          onClick={() => setReading(document.id)}
-                          className="text-xs text-brand-dark underline"
-                        >
-                          {document.title}
-                        </button>
-                      ))}
-                    </span>
-                  </span>
-                </label>
-                {fieldError("accept_terms") && (
-                  <p className="mt-2 text-xs text-caution">{fieldError("accept_terms")}</p>
-                )}
-              </div>
-
-              {/*
-                ここから下が「登録のしかた」。上の3つはどちらの道でも要る。
-                2つの道があることと、その違いを、選ぶ前に見せる。
-              */}
-              <div className="pt-1">
-                <h3 className="section-title" data-testid="auth-methods">
-                  {AUTH_COPY.methodHeading}
-                </h3>
-
-                <p className="mt-2 text-sm font-bold">{AUTH_COPY.passkeyMethod}</p>
-                <p className="mt-1 text-xs leading-6 text-ink-muted">
-                  {AUTH_COPY.passkeyMethodLead}
-                </p>
-
-                <PasskeyPanel
-                  mode="signup"
-                  email={email}
-                  displayName={displayName}
-                  consent={consent}
-                  disabled={busy}
-                  onDone={async (message) => {
-                    await auth.refresh();
-                    onDone?.(message);
-                    onClose();
-                  }}
-                />
-
-                <p className="mt-4 text-sm font-bold">{AUTH_COPY.passwordMethod}</p>
-              </div>
-
               <PasswordField
                 id={`${ids}-password`}
                 label={AUTH_COPY.password}
@@ -404,28 +615,84 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
             </>
           )}
 
-          <button
-            type="submit"
-            disabled={busy || signUpBlocked}
-            data-testid="auth-submit"
-            className="min-h-[3rem] w-full rounded-cta bg-brand px-6 py-3 text-base
-                       font-bold text-white shadow-raised transition hover:brightness-110
-                       active:brightness-95 disabled:cursor-not-allowed
-                       disabled:bg-none disabled:bg-line disabled:text-ink-muted
-                       disabled:shadow-none"
-          >
-            {busy ? "送信中…" : submitLabel}
-          </button>
-
-          {view === "signup" && !consent && (
-            <p className="text-center text-xs text-ink-muted">
-              {AUTH_COPY.consentRequired}
-            </p>
+          {/* パスキーの画面には送信が無い。下の PasskeyPanel が持っている */}
+          {!(view === "signup" && step === "passkey") && (
+            <button
+              type="submit"
+              disabled={busy || blocked}
+              data-testid="auth-submit"
+              className="min-h-[3rem] w-full rounded-cta bg-brand px-6 py-3 text-base
+                         font-bold text-white shadow-raised transition hover:brightness-110
+                         active:brightness-95 disabled:cursor-not-allowed
+                         disabled:bg-none disabled:bg-line disabled:text-ink-muted
+                         disabled:shadow-none"
+            >
+              {busy ? "送信中…" : submitLabel}
+            </button>
           )}
         </form>
 
-        {/* 再設定の画面では出さない。ここでやることは1つだけにする */}
-        {view !== "reset" && <SocialButtons disabled={busy} />}
+        {view === "signup" && step === "passkey" && (
+          <PasskeyPanel
+            mode="signup"
+            bare
+            email={email}
+            displayName={displayName}
+            /* 同意はここへ来るまでに取れている（1枚目の一文） */
+            consent
+            disabled={busy}
+            onDone={finish}
+          />
+        )}
+
+        {/*
+          同意の一文。**どの登録方式でも同じものを、押す前に出す。**
+          置き場所を1つにしてあるので、Google だけ扱いが違う、
+          ということが起きない。
+        */}
+        {view === "signup" && (
+          <div data-testid="auth-consent" className="mt-4">
+            <p className="text-center text-xs leading-6 text-ink-muted">
+              {AUTH_COPY.consentNotice}
+            </p>
+            <div className="mt-1 flex flex-wrap justify-center gap-x-4">
+              {[TERMS, PRIVACY].map((document) => (
+                <button
+                  key={document.id}
+                  type="button"
+                  data-testid={`auth-read-${document.id}`}
+                  onClick={() => setReading(document.id)}
+                  className="text-xs text-brand-dark underline"
+                >
+                  {document.title}
+                </button>
+              ))}
+            </div>
+            {fieldError("accept_terms") && (
+              <p className="mt-2 text-center text-xs text-caution">
+                {fieldError("accept_terms")}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ログインでは今までどおり下に置く。再設定では出さない */}
+        {view === "signin" && signInStep === "password" && (
+          <SocialButtons disabled={busy} />
+        )}
+
+        {/* 2枚目からは、まず戻り道を出す。行き止まりを作らない */}
+        {view === "signup" && step !== "method" && (
+          <button
+            type="button"
+            data-testid="auth-step-back"
+            onClick={() => setStep("method")}
+            className="mt-5 w-full rounded-cta border border-line px-6 py-3 text-sm
+                       text-ink-muted transition hover:bg-canvas"
+          >
+            {AUTH_COPY.back}
+          </button>
+        )}
 
         <div className="mt-5 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
           {view !== "signin" && (

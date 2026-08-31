@@ -379,6 +379,17 @@ AUTH_THROTTLE_PASSWORD_RESET_WINDOW = int(
     os.getenv("AUTH_THROTTLE_PASSWORD_RESET_WINDOW", "3600")
 )
 
+# 続けて送るまでの間隔（秒）。0で間隔なし。
+#
+# 上の窓ごとの回数とは別の軸。窓の数えは「1時間に5回」のような総量を
+# 押さえるが、**続いた2回のあいだ**は押さえない。窓が切り替わる瞬間を
+# またげば、続けて2通送れてしまう。
+#
+# 再設定の案内は他人の受信箱へ届くので、総量とは別に間隔も要る。
+# 画面側も残り秒数を出して押せなくするが（要件 P0-5）、そちらは
+# 手元でいくらでも外せるので、**数えるのはここ**。
+AUTH_COOLDOWN_PASSWORD_RESET = int(os.getenv("AUTH_COOLDOWN_PASSWORD_RESET", "60"))
+
 # 登録には宛先という概念が無い（毎回ちがうメールアドレス）ので接続元だけ。
 AUTH_THROTTLE_SIGNUP_MAX_SOURCE = int(os.getenv("AUTH_THROTTLE_SIGNUP_MAX_SOURCE", "10"))
 AUTH_THROTTLE_SIGNUP_MAX_TARGET = 0
@@ -498,6 +509,68 @@ AI_DAILY_REQUEST_LIMIT_USER = int(
 AI_DAILY_REQUEST_LIMIT_GUEST = int(
     os.getenv("AI_DAILY_REQUEST_LIMIT_GUEST", "10")
 )
+# --------------------------------------------------------------------------
+# 無料でAIを試せる回数
+# --------------------------------------------------------------------------
+#
+# 上の `AI_DAILY_REQUEST_LIMIT_*` とは**役割が違う**。
+#
+#     AI_DAILY_REQUEST_LIMIT_*   費用の安全弁。1日の合計を頭打ちにする
+#     ここの値                    その人の持ち分。使うと減り、付与で増える
+#
+# 混ぜない。安全弁は「サービスが壊れないこと」を守り、持ち分は
+# 「その人があと何回試せるか」を表す。前者に当たったときは
+# 「いま混み合っています」、後者は「今日はここまで」で、
+# 言うことも次にすることも別になる。
+#
+# 持ち分を数えるのは**登録前の人の文章**と、**画像（登録の有無を問わず）**。
+# 登録した人の文章は、これまでどおり `AI_DAILY_REQUEST_LIMIT_USER`
+# （1日50回）が上限になる——持ち分では数えない。登録したら
+# 「毎日たくさん試せる」に変わる、という線をそのまま残す。
+
+#: 登録前の人が、最初に持っている文章の回数。
+#:
+#: 毎日配られる分（下の FREE_DAILY_TEXT_ACTIONS）とは別の考え方で、
+#: **一度きりの持ち出し**。初日にレッスンを通せる量を渡して、
+#: 「試す前に登録させない」を成り立たせるためのもの。
+GUEST_INITIAL_TEXT_ACTIONS = int(os.getenv("GUEST_INITIAL_TEXT_ACTIONS", "10"))
+
+#: 登録したときに1回だけ足す文章の回数。
+#:
+#: 登録した瞬間から上限は1日50回になるので、ふだんは効かない。
+#: 効くのは**ログアウトして、また登録前として使うとき**——持ち分は
+#: learner_key に付いているので、そこで受け取れる。
+FREE_REGISTRATION_TEXT_BONUS = int(os.getenv("FREE_REGISTRATION_TEXT_BONUS", "3"))
+
+#: 登録前の人へ、日が変わるたびに足す文章の回数。
+FREE_DAILY_TEXT_ACTIONS = int(os.getenv("FREE_DAILY_TEXT_ACTIONS", "3"))
+
+#: 毎日足したぶんが貯まる上限。
+#:
+#: 上限を置くのは、しばらく来なかった人が大量に持って戻ってくるのを
+#: 防ぐため。**最初の持ち出し（10）はこの上限を超えて持てる**——
+#: あちらは別の考え方なので、ここで削らない。
+FREE_MAX_DAILY_TEXT_ACTIONS = int(os.getenv("FREE_MAX_DAILY_TEXT_ACTIONS", "6"))
+
+#: Day7 に初めて着いた人へ足す、画像を作れる回数。
+#: 同じ learner_key には二度足さない（AiCreditGrant の一意制約）。
+DAY7_FREE_IMAGE_GENERATIONS = int(os.getenv("DAY7_FREE_IMAGE_GENERATIONS", "1"))
+
+#: 登録したときに1回だけ足す、画像を作れる回数。
+FREE_REGISTRATION_IMAGE_BONUS = int(os.getenv("FREE_REGISTRATION_IMAGE_BONUS", "1"))
+
+#: Day8 に初めて着いた人へ足す、画像を直せる回数。
+DAY8_FREE_IMAGE_EDITS = int(os.getenv("DAY8_FREE_IMAGE_EDITS", "1"))
+
+#: 使われないまま残った予約を、これだけ経ったら解く（秒）。
+#:
+#: 予約したあとにプロセスが落ちると `RESERVED` の行が残り、その人の
+#: 持ち分が減ったままになる。掃除の常駐は置かない——読むたびに、
+#: 古い予約を解いてから数える。
+AI_CREDIT_RESERVATION_TTL_SECONDS = int(
+    os.getenv("AI_CREDIT_RESERVATION_TTL_SECONDS", "180")
+)
+
 # AI へ送ってよい本文の長さ。長いほど費用も待ち時間も増える
 AI_MAX_INPUT_CHARACTERS = int(os.getenv("AI_MAX_INPUT_CHARACTERS", "5000"))
 
@@ -526,6 +599,39 @@ MAX_ATTEMPTS_PER_SESSION = int(os.getenv("MAX_ATTEMPTS_PER_SESSION", "10"))
 # 目安: レッスン1本の完走に必要なAI実行は 10〜12回。
 AI_RUNS_PER_IP_PER_DAY = int(os.getenv("AI_RUNS_PER_IP_PER_DAY", "100"))
 AI_RUNS_PER_DAY = int(os.getenv("AI_RUNS_PER_DAY", "2000"))
+
+# --- 画像の上限（文章とは別枠） -------------------------------------------
+#
+# 画像1枚は文章1回の**数十倍**かかる（docs/image-lessons.md）。上の枠を
+# そのまま使うと、文章の目安で決めた 100 回が画像 100 枚を許すことになり、
+# 1日の請求が桁で変わる。だから画像は別のカウンタで数える。
+#
+# 別枠にするのは費用のためだけではない。混ぜると、画像を数枚作った人が
+# その日の**文章のレッスンまで使えなくなる**。逆も同じ。片方の使いすぎで
+# もう片方が止まるのは、学習者から見て理由が分からない。
+#
+# 数の根拠
+# --------
+# 画像のレッスンは Day7・Day8 の2本。1本で最低3枚
+# （最初の1枚＋条件を足した1枚＋自分の課題で1枚）作る。
+#
+#   登録前   … 3枚 = 1本ぶん。試してみて、続きは登録してから
+#   登録済み … 8枚 = 2本を通して、少しやり直せる
+#
+# ここの数は**仮置き**。実際の単価が分かったら、1日に許してよい金額から
+# 逆に決めること。全部 env で差し替えられる。
+#
+# 0以下にすると「上限なし」。**画像では使わないこと。**
+AI_IMAGE_RUNS_PER_IP_PER_DAY = int(
+    os.getenv("AI_IMAGE_RUNS_PER_IP_PER_DAY", "20")
+)
+AI_IMAGE_RUNS_PER_DAY = int(os.getenv("AI_IMAGE_RUNS_PER_DAY", "200"))
+AI_IMAGE_DAILY_REQUEST_LIMIT_USER = int(
+    os.getenv("AI_IMAGE_DAILY_REQUEST_LIMIT_USER", "8")
+)
+AI_IMAGE_DAILY_REQUEST_LIMIT_GUEST = int(
+    os.getenv("AI_IMAGE_DAILY_REQUEST_LIMIT_GUEST", "3")
+)
 
 # ロードバランサ配下に置くときだけ true にする。
 # 直接公開している状態で true にすると、接続元を詐称して上限を回避できる。

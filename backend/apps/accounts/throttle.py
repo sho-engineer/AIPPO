@@ -43,6 +43,19 @@ from apps.lessons.services.quota import client_ip, fingerprint
 logger = logging.getLogger(__name__)
 
 
+def cooldown_seconds(action: str) -> int:
+    """**続けて送るまでの間隔。** 0以下なら間隔なし。
+
+    上の `Rule`（窓ごとの回数）とは別の軸。窓の数えは「1時間に5回」の
+    ような総量を押さえるもので、**連続した2回のあいだ**は押さえない。
+    窓が切り替わる瞬間をまたげば、続けて2通送れてしまう。
+
+    再設定の案内は他人の受信箱へ届くので、総量とは別に間隔も要る。
+    ここは滑り窓ではなく、**最後に送った時刻からの経過**で見る。
+    """
+    return int(getattr(settings, f"AUTH_COOLDOWN_{action.upper()}", 0))
+
+
 @dataclass(frozen=True)
 class Rule:
     """1つの用途の上限。0以下なら「上限なし」。
@@ -87,11 +100,15 @@ def rules() -> dict[str, Rule]:
     - 登録    … 宛先という概念が無い（毎回ちがうメールアドレス）ので
                  接続元だけ。1時間に10回。研修で数人まとめて登録する場面を
                  通しつつ、機械的な大量作成は当たる
+    - 2段階   … **いちばん狭くする。** 6桁は当てられる短さで、
+                 100万通りを15分で回されると当たってしまう。
+                 打ち間違いと時計のずれで数回は要るので、10回で切る
     """
     return {
         "signin": _rule("signin", source=30, target=10, window=15 * 60),
         "password_reset": _rule("password_reset", source=20, target=5, window=60 * 60),
         "signup": _rule("signup", source=10, target=0, window=60 * 60),
+        "mfa": _rule("mfa", source=20, target=10, window=15 * 60),
     }
 
 
@@ -156,12 +173,71 @@ def _counters(action: str, request, identity: str | None, rule: Rule) -> list[tu
     return counters
 
 
+#: 間隔を数えるための、窓の数えとは別の場所。
+#: 同じ表を使うが、`window_start` の意味が違う（窓の頭ではなく
+#: **最後に送った時刻**）。混ざらないように前置きを分ける。
+_COOLDOWN_PREFIX = "cooldown"
+
+
+def _consume_cooldown(scope: str, seconds: int) -> None:
+    """最後の1回から `seconds` 経つまで断る。
+
+    経過で見るので、窓の切り替わりをまたいでも抜けられない。
+
+    競合したときは断る側へ倒す
+    --------------------------
+    「読んで、まだなら書く」のあいだに別の要求が入ることがある。
+    書き込みが自分のものでなかったら、相手が先に送ったということなので
+    こちらは断る。取りこぼして2通送るより、1通遅れるほうが害が小さい。
+    """
+    if seconds <= 0:
+        return
+
+    now = timezone.now()
+    last = (
+        AuthThrottle.objects.filter(scope=scope)
+        .order_by("-window_start")
+        .values_list("window_start", flat=True)
+        .first()
+    )
+
+    if last is not None:
+        elapsed = (now - last).total_seconds()
+        if elapsed < seconds:
+            raise TooManyAttempts(max(1, int(seconds - elapsed)))
+
+        # 冷めた。時刻を進める。進められるのは1つの要求だけ
+        updated = AuthThrottle.objects.filter(scope=scope, window_start=last).update(
+            window_start=now, count=F("count") + 1
+        )
+        if not updated:
+            raise TooManyAttempts(seconds)
+        return
+
+    try:
+        AuthThrottle.objects.create(scope=scope, window_start=now, count=1)
+    except IntegrityError:
+        # ほぼ同時に別の要求が作った。先に送ったのは相手
+        raise TooManyAttempts(seconds) from None
+
+
 def consume(action: str, request, identity: str | None = None) -> None:
     """1回ぶん消費する。上限に達していれば `TooManyAttempts`。
 
     `identity` は狙われている相手（メールアドレス）。
     実在するかは見ない。見ると、断り方で登録済みかどうかが漏れる。
+
+    間隔（`cooldown_seconds`）を**先に**見る。窓の数えを先に増やすと、
+    間隔で断られた要求まで総量を減らしてしまい、待って押し直した人が
+    そのぶん早く上限に当たる。断る要求は数に入れない。
     """
+    interval = cooldown_seconds(action)
+    if interval > 0 and identity:
+        _consume_cooldown(
+            f"{action}:{_COOLDOWN_PREFIX}:{fingerprint(identity.strip().lower())}",
+            interval,
+        )
+
     rule = rules()[action]
     for scope, limit in _counters(action, request, identity, rule):
         _consume(scope, limit, rule)
@@ -178,3 +254,12 @@ def clear(action: str, request, identity: str | None = None) -> None:
         scope__in=[scope for scope, _ in _counters(action, request, identity, rule)],
         window_start=_window_start(rule),
     ).delete()
+
+    """
+    間隔の記録は**消さない。**
+
+    ここが呼ばれるのは「成功したとき」。ログインの打ち間違いを
+    帳消しにするのは正しいが、間隔のほうは「もう1通送った」という
+    事実そのもので、成功したからこそ残す必要がある。
+    消すと、送信に成功した直後だけ間隔を空けずに送り直せてしまう。
+    """

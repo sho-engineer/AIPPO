@@ -34,6 +34,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts import emails
+from apps.accounts.mfa import device_is_trusted, mfa_is_required, start_pending
 from apps.accounts.migration import (
     MIGRATION_COMPLETED,
     MIGRATION_FAILED,
@@ -42,6 +43,7 @@ from apps.accounts.migration import (
     record_migration_event,
 )
 from apps.accounts.models import UserProfile, learner_keys_for
+from apps.accounts.scope import device_key
 from apps.accounts.serializers import (
     TERMS_VERSION,
     EmailVerifySerializer,
@@ -53,10 +55,11 @@ from apps.accounts.serializers import (
     SignUpSerializer,
     describe_user,
 )
-from apps.accounts.throttle import TooManyAttempts
+from apps.accounts.throttle import TooManyAttempts, cooldown_seconds
 from apps.accounts.throttle import clear as clear_attempts
 from apps.accounts.throttle import consume as consume_attempt
-from apps.lessons.models import LearningEventType, LearningSession
+from apps.lessons.models import AiActionType, LearningEvent, LearningEventType, LearningSession
+from apps.lessons.services import credits
 from apps.lessons.services.quota import client_ip
 from apps.ops import audit
 
@@ -92,6 +95,60 @@ def _too_many(exc: TooManyAttempts) -> Response:
     )
     response["Retry-After"] = str(exc.retry_after)
     return response
+
+
+
+def _record_account_event(request: Request, event_type: str) -> None:
+    """アカウントまわりの出来事を、操作ログに1行残す。
+
+    レッスンの外で起きるので、セッションは作らない——架空の
+    セッションを作ると、学習の数え上げ（何本進めたか）に中身の無い
+    1本が混ざる。誰のことかは端末の鍵で持つ。
+
+    **本文もメールアドレスも残さない。** 見たいのは「どこで詰まるか」
+    であって、誰が詰まったかではない。
+
+    記録に失敗しても、呼び出し元の処理は続ける。ログのために
+    登録や再設定を落とさない。
+    """
+    try:
+        LearningEvent.objects.create(
+            session=None,
+            learner_key=device_key(request),
+            event_type=event_type,
+        )
+    except Exception:  # noqa: BLE001 - 記録のために本筋を落とさない
+        logger.warning("accounts.event.record_failed type=%s", event_type)
+
+
+
+def award_registration_bonus(request, learner_key) -> None:
+    """登録したときに1回だけ、無料枠を足す。
+
+    **登録の口からだけ呼ぶ。** ログインの口から呼ぶと、入り直すたびに
+    もらえてしまう。二度足さないのは一意制約が受け持つので、ここが
+    もし二度呼ばれても増えないが、呼ぶ場所は絞っておく。
+
+    足せなくても登録は成功させる。「登録できませんでした」と言われた人は
+    もう一度登録しようとして「そのメールアドレスは使われています」に
+    当たり、そこで詰む。
+    """
+    if learner_key is None:
+        return
+    try:
+        granted = credits.grant_registration_bonus(learner_key)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("accounts.credit_bonus.failed error=%s", type(exc).__name__)
+        return
+
+    if granted.get(AiActionType.TEXT):
+        record_migration_event(
+            learner_key, LearningEventType.REGISTRATION_TEXT_BONUS_GRANTED
+        )
+    if granted.get(AiActionType.IMAGE_GENERATION):
+        record_migration_event(
+            learner_key, LearningEventType.REGISTRATION_IMAGE_BONUS_GRANTED
+        )
 
 
 class CsrfTokenView(APIView):
@@ -170,6 +227,8 @@ class SignUpView(APIView):
             return {"linked": False, "sessions": 0, "already_linked": False}
 
         record_migration_event(learner_key, MIGRATION_STARTED)
+        # 登録の特典。引き継ぎが失敗しても、こちらは足す
+        award_registration_bonus(None, learner_key)
         try:
             result = claim_guest_data(user, learner_key)
         except Exception as exc:  # noqa: BLE001
@@ -238,6 +297,20 @@ class SignInView(APIView):
                 },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+
+        """
+        2段階認証を入れている人は、ここではまだ入れない。
+
+        **先にログインさせてから聞かない。** 聞いている最中に他の画面が
+        使えてしまうと、追加の確認の意味が無くなる。
+
+        毎回は聞かない。1度通した端末は30日おぼえてあり、その間は
+        そのまま入れる（`apps/accounts/mfa.py`）。毎回聞くと、
+        入れた人ほど毎日面倒になり、切る方向に働く。
+        """
+        if mfa_is_required(user) and not device_is_trusted(request, user):
+            clear_attempts("signin", request, email)
+            return start_pending(request, user)
 
         login(request, user)
         # 入れた人の数えは消す。打ち間違いを数回した人が、
@@ -369,14 +442,71 @@ class PasswordResetRequestView(APIView):
         except TooManyAttempts as exc:
             return _too_many(exc)
 
-        user = User.objects.filter(email__iexact=email).first()
-        if user is not None:
-            emails.send_password_reset(user)
+        """
+        応答は登録の有無に関わらず同じにする（上のとおり）。
 
+        だからといって、実際に送れたかどうかを見ずに捨ててよいわけではない。
+        `send_password_reset` は成功/失敗を bool で返す。以前はこれを
+        受け取らずに捨てていたため、SMTP の設定が壊れていて
+        本当に送れていない登録済みユーザーにも「送信しました」がそのまま
+        返っていた——問い合わせが来るまで、運営側も気づけない状態だった。
+
+        戻り値は**応答には出さない**（出すと登録の有無が漏れる）。
+        ログにだけ残す。`accounts.email.failed` は emails.py 側でも
+        記録されるが、ここで「re用途で失敗した」という1行を足しておくと、
+        Sentry 等で `password_reset` 単位に絞って見張れる。
+        """
+        """
+        応答は登録の有無に関わらず同じにする（上のとおり）。
+
+        だからといって、実際に送れたかどうかを見ずに捨ててよいわけではない。
+        `send_password_reset` は成功/失敗を bool で返す。以前はこれを
+        受け取らずに捨てていたため、SMTP の設定が壊れていて
+        本当に送れていない登録済みユーザーにも「送信しました」がそのまま
+        返っていた——問い合わせが来るまで、運営側も気づけない状態だった。
+
+        戻り値は**応答には出さない**（出すと登録の有無が漏れる）。
+        ログにだけ残す。`accounts.email.failed` は emails.py 側でも
+        記録されるが、ここで「re用途で失敗した」という1行を足しておくと、
+        Sentry 等で `password_reset` 単位に絞って見張れる。
+        """
+        user = User.objects.filter(email__iexact=email).first()
+        sent = False
+        if user is not None:
+            sent = emails.send_password_reset(user)
+            if not sent:
+                logger.error("accounts.password_reset.send_failed")
+
+        """
+        実際に送れた回だけ、記録に1行残す（Analytics）。
+
+        画面側の `password_reset_requested`（押した回）と対にする。
+        押した数と送れた数が離れていれば、送り口が壊れている——
+        画面には出せない（登録の有無が漏れる）ので、ここでしか見えない。
+
+        **メールアドレスは残さない。** 誰が押したかではなく、
+        送り口が動いているかを見るための記録。
+        """
+        if sent:
+            _record_account_event(
+                request, LearningEventType.PASSWORD_RESET_SENT
+            )
+
+        """
+        次に送れるようになるまでの秒数も返す。
+
+        画面はこれで「再送は60秒後にできます」を出す（要件 P0-5）。
+        クライアント側に秒数を書き写すと、サーバーの設定を変えたときに
+        画面だけ古い数字を出し続ける。**決めるのは1か所**にする。
+
+        登録の有無では変わらない値なので、これを返しても
+        どのメールが登録済みかは分からない。
+        """
         return Response(
             {
                 "sent": True,
                 "detail": "登録があれば、再設定の案内をお送りしました。",
+                "retry_after": cooldown_seconds("password_reset"),
             }
         )
 
@@ -456,11 +586,19 @@ class DeleteLearningDataView(APIView):
         keys = learner_keys_for(request.user)
         deleted, _ = LearningSession.objects.filter(learner_key__in=keys).delete()
 
-        from apps.lessons.models import SkillProgress
+        from apps.lessons.models import SavedArtifact, SkillProgress
         from apps.profiles.models import LearnerProfile
+        from apps.rewards.models import XpEvent
 
         LearnerProfile.objects.filter(learner_key__in=keys).delete()
         SkillProgress.objects.filter(learner_key__in=keys).delete()
+        # 学んだ量も学習の記録。「消した」と言った以上、ここも消す
+        XpEvent.objects.filter(learner_key__in=keys).delete()
+        SavedArtifact.objects.filter(learner_key__in=keys).delete()
+        # セッションに繋がっていない操作ログ（登録・再設定・図鑑）
+        LearningEvent.objects.filter(
+            session__isnull=True, learner_key__in=keys
+        ).delete()
 
         # 「本当に消えたのか」とあとから聞かれたときに、答えられるようにする。
         # 消した本人の記憶しか残らないのは、答えとして弱い
@@ -486,12 +624,19 @@ class DeleteAccountView(APIView):
         user = request.user
         keys = learner_keys_for(user)
 
-        from apps.lessons.models import SkillProgress
+        from apps.lessons.models import SavedArtifact, SkillProgress
         from apps.profiles.models import LearnerProfile
+        from apps.rewards.models import XpEvent
 
         LearningSession.objects.filter(learner_key__in=keys).delete()
         LearnerProfile.objects.filter(learner_key__in=keys).delete()
         SkillProgress.objects.filter(learner_key__in=keys).delete()
+        XpEvent.objects.filter(learner_key__in=keys).delete()
+        SavedArtifact.objects.filter(learner_key__in=keys).delete()
+        # セッションに繋がっていない操作ログ（登録・再設定・図鑑）
+        LearningEvent.objects.filter(
+            session__isnull=True, learner_key__in=keys
+        ).delete()
 
         # 消す**前**に残す。消したあとでは user.pk が無くなり、
         # 「誰のアカウントが消えたか」を書けなくなる
@@ -607,6 +752,8 @@ class SocialCallbackView(APIView):
                 logger.error("social.migration.failed error=%s", type(exc).__name__)
 
         if created:
+            # **新しく作られたときだけ。** 入り直しただけの人には足さない
+            award_registration_bonus(request, learner_key)
             emails.send_welcome(user)
 
         return redirect(_front_with_success(provider, created))

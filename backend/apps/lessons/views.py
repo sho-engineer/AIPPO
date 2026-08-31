@@ -44,9 +44,6 @@ logger = logging.getLogger(__name__)
 
 REWRITE_LESSON_ID = "rewrite_text_001"
 
-#: レッスン完了時に記録する習得スキル（§3 step 8）。
-REWRITE_SKILLS = ("state_audience", "state_tone", "state_length", "review_output")
-
 
 class _SessionMixin:
     """いまの人の、進行中セッションを解決する。
@@ -197,14 +194,27 @@ class LearningEventView(_SessionMixin, APIView):
             return Response({"errors": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
         data = serializer.validated_data
-        session = self.get_or_create_session(request, data["lesson_id"])
 
-        if data["step"]:
+        """
+        レッスンの外で起きたことは、セッションを作らずに残す。
+
+        登録・パスワード再設定・図鑑を開いた——どれもレッスンの中の
+        出来事ではない。架空のセッションを作ると、学習の数え上げ
+        （何本進めたか）に中身の無い1本が混ざる。
+        """
+        session = (
+            self.get_or_create_session(request, data["lesson_id"])
+            if data["lesson_id"]
+            else None
+        )
+
+        if session is not None and data["step"]:
             session.current_step = data["step"]
             session.save(update_fields=["current_step", "updated_at"])
 
         LearningEvent.objects.create(
             session=session,
+            learner_key=device_key(request),
             lesson_id=data["lesson_id"],
             step=data["step"],
             event_type=data["event_type"],
@@ -215,24 +225,108 @@ class LearningEventView(_SessionMixin, APIView):
             duration_ms=data.get("duration_ms"),
         )
 
-        if data["event_type"] == LearningEventType.LESSON_COMPLETED:
-            self._complete(request, session)
+        if session is not None and data["event_type"] == LearningEventType.LESSON_COMPLETED:
+            """
+            終えた回だけ、**何が増えたか**を返す。
+
+            画面はこれで「新しく覚えた技」と「増えたXP」を出す。
+            画面側で数えさせない——技もXPも節目も判定はサーバーがしていて
+            （設計方針 §36）、画面が別に数えると必ず食い違う。
+
+            やり直しでは中身が空になる。祝う材料が無い回に演出を出さない
+            ためで、「増えなかった」を画面が言い分けられる。
+            """
+            return Response({"awarded": self._complete(request, session)})
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def _complete(self, request: Request, session: LearningSession) -> None:
+    def _complete(self, request: Request, session: LearningSession) -> dict[str, object]:
         session.completed_at = timezone.now()
         session.current_step = "COMPLETE"
         session.save(update_fields=["completed_at", "current_step", "updated_at"])
 
-        for skill_key in REWRITE_SKILLS:
-            SkillProgress.objects.get_or_create(
-                learner_key=session.learner_key,
-                skill_key=skill_key,
-                defaults={"lesson_id": session.lesson_id},
-            )
-
+        awarded = self._award_skills_and_xp(request, session)
         self._award_stamps_and_rewards(request, session)
+        return awarded
+
+    def _award_skills_and_xp(
+        self, request: Request, session: LearningSession
+    ) -> dict[str, object]:
+        """このレッスンで習得できるAI技を付け、XPを足す。
+
+        前はレッスンに関係なく固定の4つを付けていた。どのレッスンを
+        終えても同じ4つが付くので、図鑑は最初の1本で埋まり、そのあとは
+        何本やっても増えない——**していないことを習得したことにしていた**。
+        いまは `AiSkillLesson`（教材ごとの対応）から引く。
+
+        XPは、レッスン1本と、そこで新しく付いた技のぶん。
+        やり直しても二重には増えない（XpEvent の unique constraint）。
+        """
+        from apps.rewards import xp
+        from apps.rewards.models import XpKind
+        from apps.rewards.skills import award_lesson_skills
+
+        acquired = award_lesson_skills(session.learner_key, session.lesson_id)
+
+        gained = 0
+        event = xp.award(session.learner_key, XpKind.LESSON_COMPLETED, session.lesson_id)
+        if event is not None:
+            gained += event.amount
+
+        for slug in acquired:
+            event = xp.award(session.learner_key, XpKind.AI_SKILL_ACQUIRED, slug)
+            if event is not None:
+                gained += event.amount
+            self._log(session, LearningEventType.AI_SKILL_ACQUIRED)
+
+        """
+        コースの節目。
+
+        数えるのは読める鍵ぜんぶから——いまの端末だけで数えると、
+        別の端末で進めた分が抜けて、節目がいつまでも来ない。
+        """
+        reached = xp.award_course_checkpoint(
+            session.learner_key, readable_keys(request), session.lesson_id
+        )
+        if reached is not None:
+            gained += xp.XP_AMOUNTS[XpKind.COURSE_CHECKPOINT]
+            self._log(session, LearningEventType.COURSE_CHECKPOINT_COMPLETED, reached)
+
+        """
+        増えたぶんだけ記録する。
+
+        やり直しでは 0 になるので、そのときは残さない——0 の行が並ぶと、
+        「XPが増えた回数」を数えたときに実際より多く出る。
+        """
+        if gained > 0:
+            self._log(session, LearningEventType.XP_EARNED, gained)
+
+        return {
+            # 名前ではなく slug を返す。表示名は図鑑が持っている
+            "skills": acquired,
+            "xp": gained,
+            #: 節目に届いたなら、その本数。届いていなければ None
+            "checkpoint": reached,
+        }
+
+    @staticmethod
+    def _log(session: LearningSession, event_type: str, amount: int = 0) -> None:
+        """サーバー側で決めたことを、操作ログにも残す。
+
+        画面から送らせない。技もXPも節目も、判定はサーバーがしている
+        （設計方針 §36）。画面から送らせると、送られてこなかった回と
+        起きなかった回の区別が付かなくなる。
+
+        本文は入れない。数だけ（`input_length` を数の置き場に使う）。
+        """
+        LearningEvent.objects.create(
+            session=session,
+            learner_key=session.learner_key,
+            lesson_id=session.lesson_id,
+            step="COMPLETE",
+            event_type=event_type,
+            input_length=amount,
+        )
 
     @staticmethod
     def _award_stamps_and_rewards(request: Request, session: LearningSession) -> None:
@@ -336,6 +430,8 @@ class ProgressView(APIView):
                     .values_list("skill_key", flat=True)
                     .distinct()
                 ),
+                # 学んだ量。ここに載せておくと、ホームが1回で出せる
+                "xp": self._xp(keys),
                 # ログイン中かどうかで、画面の言い方を変えられるようにする
                 "signed_in": bool(
                     getattr(request, "user", None)
@@ -343,6 +439,23 @@ class ProgressView(APIView):
                 ),
             }
         )
+
+    @staticmethod
+    def _xp(keys: list) -> dict[str, object]:
+        """学んだ量と、いまの呼び名。
+
+        合計はいつも `XpEvent` の SUM。残高のカラムは持たない
+        （2か所に持つと必ずずれる）。
+        """
+        from apps.rewards import xp as xp_module
+
+        level = xp_module.level_for(xp_module.total_xp(keys))
+        return {
+            "total": level.total,
+            "level": level.name,
+            "next_level": level.next_name,
+            "to_next": level.to_next,
+        }
 
 
 class SurveyView(_SessionMixin, APIView):

@@ -46,6 +46,7 @@ from apps.accounts.models import Passkey, UserProfile
 from apps.accounts.serializers import TERMS_VERSION, describe_user
 from apps.accounts.throttle import TooManyAttempts
 from apps.accounts.throttle import consume as consume_attempt
+from apps.accounts.views import award_registration_bonus
 
 logger = logging.getLogger(__name__)
 User = get_user_model()
@@ -364,6 +365,9 @@ class PasskeySignUpVerifyView(APIView):
                 migration = claim_guest_data(user, learner_key).as_dict()
             except Exception as exc:  # noqa: BLE001
                 logger.error("passkey.signup.link_failed error=%s", type(exc).__name__)
+
+        # パスキーで作った人にも、同じ特典を足す
+        award_registration_bonus(None, learner_key)
 
         emails.send_verification(user)
         emails.send_welcome(user)

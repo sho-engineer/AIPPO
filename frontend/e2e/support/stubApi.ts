@@ -24,8 +24,30 @@ export interface StubOptions {
   /** 生成を失敗させる。回数を渡すと、その回だけ失敗する。 */
   failStatus?: number;
   failOnCall?: number;
+  /**
+   * 断りの種類を表す印。サーバーが返すのと同じ形で返す。
+   *
+   * `"FREE_CREDITS_EXHAUSTED"` を渡すと「無料で使える分を使い切った」。
+   * 画面はこれで「もう一度」ではなく「登録する／明日また続ける」を出す。
+   */
+  failCode?: string;
+  /** 断りの文。画面へそのまま出る。 */
+  failDetail?: string;
   /** ポーの発言。 */
   tutor?: Partial<TutorBody>;
+  /**
+   * 外部ログインの並び。既定は「設定なし」で、ボタンは1つも出ない。
+   *
+   * 実際の環境では鍵を入れた先だけが出る。既定を空にしておかないと、
+   * 設定していないボタンが出る状態を検査が見逃す。
+   */
+  social?: { name: string; label: string; start_url: string }[];
+  /** パスキーを使える端末として振る舞うか。既定は使えない。 */
+  passkey?: boolean;
+  /** AI技図鑑の中身。既定は「1つも覚えていない」。 */
+  skillDex?: unknown;
+  /** 取っておいた成果物。既定は「ゲストなので使えない」。 */
+  saved?: unknown;
 }
 
 export interface TutorBody {
@@ -41,6 +63,8 @@ export interface StubHandle {
   auth: { url: string; body: unknown }[];
   /** 完了時アンケートへ送られた答え。 */
   surveys: { lessonId: string; answers: Record<string, string> }[];
+  /** 取っておかれた成果物。 */
+  saved: Record<string, unknown>[];
 }
 
 const DEFAULT_TUTOR: TutorBody = {
@@ -63,7 +87,13 @@ export async function stubApi(
   page: Page,
   options: StubOptions = {},
 ): Promise<StubHandle> {
-  const handle: StubHandle = { calls: [], events: [], auth: [], surveys: [] };
+  const handle: StubHandle = {
+    calls: [],
+    events: [],
+    auth: [],
+    surveys: [],
+    saved: [],
+  };
   let callCount = 0;
   let signedIn = options.signedIn ?? false;
 
@@ -86,13 +116,18 @@ export async function stubApi(
         status: options.failStatus as number,
         contentType: "application/json",
         body: JSON.stringify({
+          ...(options.failCode ? { code: options.failCode } : {}),
           errors: {
-            detail: ["うまく届かなかったようです。もう一度おくってみましょう。"],
+            detail: [
+              options.failDetail ??
+                "うまく届かなかったようです。もう一度おくってみましょう。",
+            ],
           },
           tutor: {
-            message: "もう一度おくってみましょう。",
-            emotion: "warning",
-            action: "retry",
+            message:
+              options.failDetail ?? "もう一度おくってみましょう。",
+            emotion: options.failCode ? "celebrate" : "warning",
+            action: options.failCode ? "wait" : "retry",
           },
         }),
       });
@@ -152,6 +187,30 @@ export async function stubApi(
     });
   });
 
+  /*
+    外部ログインとパスキー。
+
+    どちらも「設定が入っていない先は出さない」作りなので、
+    既定では空・使えないを返す。実APIには絶対に行かせない
+    （行かせると、開発機に立っているバックエンドの設定で
+    検査の結果が変わる）。
+  */
+  await page.route("**/api/v1/accounts/social/providers/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ providers: options.social ?? [] }),
+    });
+  });
+
+  await page.route("**/api/v1/accounts/passkey/support/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ available: options.passkey ?? false }),
+    });
+  });
+
   await page.route("**/api/v1/accounts/csrf/", async (route: Route) => {
     await route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true}' });
   });
@@ -203,7 +262,30 @@ export async function stubApi(
         in_progress_count: 0,
         skills: [],
         signed_in: signedIn,
+        xp: { total: 0, level: "AI Starter", next_level: "AI Beginner", to_next: 100 },
       }),
+    });
+  });
+
+  /*
+    AI技図鑑。既定は「1つも覚えていない」。
+
+    ここを塞いでいないと、開発機に立っているバックエンドの中身で
+    検査の結果が変わる。
+  */
+  await page.route("**/api/v1/rewards/skills/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        options.skillDex ?? {
+          skills: [],
+          acquired_count: 0,
+          total_count: 0,
+          combos: [],
+          xp: { total: 0, level: "AI Starter", next_level: "AI Beginner", to_next: 100 },
+        },
+      ),
     });
   });
 
@@ -255,6 +337,81 @@ export async function stubApi(
       });
     });
   }
+
+  /*
+    学習の記録。
+
+    **上のまとめ塞ぎ（api/lessons/**）より後に置くこと。** 先に置くと
+    飲まれて `{"session": null}` が返り、学習記録の画面が
+    「作ったもの」を数えられなくなる。
+  */
+  await page.route("**/api/lessons/history/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        artifacts: [],
+        sessions: [],
+        ai_quota: { limit: null, used: 0, remaining: null },
+      }),
+    });
+  });
+
+  /*
+    取っておいた成果物。
+
+    既定はゲスト（`requires_account`）。取っておけるのは登録した人
+    だけなので、既定を「使える」にすると、その線が検査から消える。
+    **上のまとめ塞ぎより後に置くこと。**
+  */
+  await page.route("**/api/lessons/saved/**", async (route: Route) => {
+    const method = route.request().method();
+    if (method === "POST") {
+      if (!signedIn) {
+        await route.fulfill({
+          status: 403,
+          contentType: "application/json",
+          body: JSON.stringify({
+            errors: { requires_account: ["取っておくには、登録が必要です"] },
+          }),
+        });
+        return;
+      }
+      const body = route.request().postDataJSON() as {
+        lesson_id: string;
+        output: string;
+      };
+      const artifact = {
+        id: "saved-1",
+        lesson_id: body.lesson_id,
+        title: `${body.lesson_id}で作ったもの`,
+        output: body.output,
+        conditions: {},
+        skills: [],
+        created_at: "2026-08-20T10:00:00+09:00",
+      };
+      handle.saved.push(artifact);
+      await route.fulfill({
+        status: 201,
+        contentType: "application/json",
+        body: JSON.stringify({ artifact, already_saved: false }),
+      });
+      return;
+    }
+    if (method === "DELETE") {
+      handle.saved.length = 0;
+      await route.fulfill({ status: 204, body: "" });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        options.saved ??
+          (signedIn ? { items: handle.saved } : { items: [], requires_account: true }),
+      ),
+    });
+  });
 
   // 完了時アンケート。送り先の教材と、答えの中身を控える。
   //

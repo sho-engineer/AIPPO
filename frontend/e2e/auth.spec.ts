@@ -46,40 +46,98 @@ async function openAuth(page: Page): Promise<void> {
   await expect(page.getByTestId("auth-dialog")).toBeVisible();
 }
 
+/**
+ * 登録の1枚目で、メールアドレスを入れて2枚目へ進む。
+ *
+ * 登録は2枚になっている。1枚目で道を選び（Google / パスキー / メール）、
+ * 選んだ道に要るものだけを2枚目で聞く。
+ */
+async function toPasswordStep(page: Page, email = "learner@example.com"): Promise<void> {
+  await page.getByLabel("メールアドレス").fill(email);
+  await page.getByTestId("auth-submit").click();
+  await expect(page.getByLabel("パスワード（確認）")).toBeVisible();
+}
+
 test.describe("登録", () => {
-  test("同意しないと送らない", async ({ page }) => {
+  test("メールアドレスが空のうちは進めない", async ({ page }) => {
     const api = await stubApi(page);
     await openAuth(page);
-
-    await page.getByLabel("メールアドレス").fill("learner@example.com");
-    await page.getByLabel("パスワード", { exact: true }).fill("aippo-strong-pass-9");
-    await page.getByLabel("パスワード（確認）").fill("aippo-strong-pass-9");
 
     await expect(page.getByTestId("auth-submit")).toBeDisabled();
     expect(api.auth).toHaveLength(0);
   });
 
-  test("同意したら登録でき、アカウントが出る", async ({ page }) => {
+  test("1枚目には、自分の道に要らないものを出さない", async ({ page }) => {
+    /*
+      前は1枚だった。Google で登録する人にもパスワード欄が見えていて、
+      要らないものを数えてから始めることになっていた。
+    */
+    await stubApi(page, {
+      social: [
+        { name: "google", label: "Google", start_url: "/api/v1/accounts/social/google/start/" },
+      ],
+      passkey: true,
+    });
+    await openAuth(page);
+
+    await expect(page.getByTestId("social-google")).toBeVisible();
+    await expect(page.getByTestId("auth-to-passkey")).toBeVisible();
+    await expect(page.getByLabel("パスワード", { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel(/呼ばれたい名前/)).toHaveCount(0);
+
+    // 押せるボタンが、押す前に見える位置にある
+    const social = await page.getByTestId("social-google").boundingBox();
+    const email = await page.getByLabel("メールアドレス").boundingBox();
+    expect(social!.y).toBeLessThan(email!.y);
+  });
+
+  test("設定が入っていない環境では、区切りの線だけが残らない", async ({ page }) => {
+    // 既定のスタブは「外部ログインなし・パスキー無し」
     await stubApi(page);
     await openAuth(page);
 
-    await page.getByLabel("メールアドレス").fill("learner@example.com");
+    await expect(page.getByTestId("social-buttons")).toHaveCount(0);
+    await expect(page.getByTestId("auth-to-passkey")).toHaveCount(0);
+    await expect(page.getByTestId("auth-dialog")).not.toContainText("または");
+  });
+
+  test("メールで続けると登録でき、アカウントが出る", async ({ page }) => {
+    await stubApi(page);
+    await openAuth(page);
+
+    await toPasswordStep(page);
     await page.getByLabel("パスワード", { exact: true }).fill("aippo-strong-pass-9");
     await page.getByLabel("パスワード（確認）").fill("aippo-strong-pass-9");
-    await page.getByRole("checkbox").check();
     await page.getByTestId("auth-submit").click();
 
     await expect(page.getByTestId("account-email")).toContainText("learner@example.com");
+  });
+
+  test("どの道でも、同意は同じ形で取る", async ({ page }) => {
+    const api = await stubApi(page);
+    await openAuth(page);
+
+    // 押す前に、同じ一文が見えている
+    await expect(page.getByTestId("auth-consent")).toContainText("同意したことになります");
+    await toPasswordStep(page);
+    await expect(page.getByTestId("auth-consent")).toContainText("同意したことになります");
+
+    await page.getByLabel("パスワード", { exact: true }).fill("aippo-strong-pass-9");
+    await page.getByLabel("パスワード（確認）").fill("aippo-strong-pass-9");
+    await page.getByTestId("auth-submit").click();
+    await expect(page.getByTestId("account-email")).toBeVisible();
+
+    const signup = api.auth.find((call) => call.url.includes("/signup/"));
+    expect(signup?.body).toMatchObject({ accept_terms: true, accept_privacy: true });
   });
 
   test("パスワードも合言葉も端末に残さない", async ({ page }) => {
     await stubApi(page);
     await openAuth(page);
 
-    await page.getByLabel("メールアドレス").fill("learner@example.com");
+    await toPasswordStep(page);
     await page.getByLabel("パスワード", { exact: true }).fill("aippo-strong-pass-9");
     await page.getByLabel("パスワード（確認）").fill("aippo-strong-pass-9");
-    await page.getByRole("checkbox").check();
     await page.getByTestId("auth-submit").click();
     await expect(page.getByTestId("account-email")).toBeVisible();
 

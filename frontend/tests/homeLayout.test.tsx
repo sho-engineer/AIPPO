@@ -105,7 +105,7 @@ describe("ホームの並び", () => {
     const user = userEvent.setup();
     await openHome(user);
 
-    expect(screen.queryByTestId("lesson-timeline")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("course-outline")).not.toBeInTheDocument();
 
     // 9本ぶんの行がホームに並んでいないこと
     const rows = screen
@@ -121,7 +121,7 @@ describe("ホームの並び", () => {
 
     await user.click(screen.getByTestId("open-path"));
 
-    expect(await screen.findByTestId("lesson-timeline")).toBeInTheDocument();
+    expect(await screen.findByTestId("course-outline")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: COURSE.title }),
     ).toBeInTheDocument();
@@ -139,7 +139,8 @@ describe("ホームの並び", () => {
   it("記録への入口は残す", async () => {
     /*
       節を畳んだときに、入口まで一緒に消さない。
-      下タブからも行けるが、数字を見て「もっと見たい」と思う場所はここ。
+      学習記録は下タブから外したので、**ここと その他 の2か所**が
+      入口になる。数字を見て「もっと見たい」と思う場所はここ。
     */
     const user = userEvent.setup();
     await openHome(user);
@@ -147,7 +148,7 @@ describe("ホームの並び", () => {
     await user.click(screen.getByTestId("open-record"));
 
     expect(
-      await screen.findByRole("heading", { name: "学習履歴" }),
+      await screen.findByRole("heading", { name: "学習記録" }),
     ).toBeInTheDocument();
   });
 });

@@ -28,16 +28,45 @@
 import { loadSettings } from "../lib/settings";
 
 /**
- * 鳴らす音。
+ * 鳴らす場面と、その音。
  *
- * 2音だけ、上がる形にする。1音だと「鳴った」しか伝わらず、下がる形は
- * 失敗の合図に聞こえる。和音にすると賑やかすぎて、19歩ぶん繰り返すと
- * 耳につく。
+ * 上がる形にそろえる。下がる形は失敗の合図に聞こえる。
+ * 和音にはしない——賑やかすぎて、19歩ぶん繰り返すと耳につく。
+ *
+ * **場面ごとに長さで差を付ける。** 高さを大きく変えると、どれかが
+ * 目立って「そこだけ大事」に見える。1歩進むたびの音がいちばん短く、
+ * コースを終えたときだけ3音になる。
+ *
+ *     step        1歩進んだ         2音・短い（いちばん多く鳴る）
+ *     result      AIの返事が届いた   1音・ごく短い
+ *     skill       AI技をおぼえた     3音・軽く上がる
+ *     complete    レッスンを終えた   3音・ゆっくり
+ *     milestone   節目・コース完走   3音・いちばん長い
  */
-const NOTES = [
-  { hz: 784, delay: 0, length: 0.09 }, // ソ
-  { hz: 1046, delay: 0.07, length: 0.16 }, // 高いド
-] as const;
+const CUES = {
+  step: [
+    { hz: 784, delay: 0, length: 0.09 }, // ソ
+    { hz: 1046, delay: 0.07, length: 0.16 }, // 高いド
+  ],
+  result: [{ hz: 880, delay: 0, length: 0.1 }], // ラ
+  skill: [
+    { hz: 784, delay: 0, length: 0.08 },
+    { hz: 988, delay: 0.06, length: 0.08 },
+    { hz: 1319, delay: 0.12, length: 0.2 },
+  ],
+  complete: [
+    { hz: 659, delay: 0, length: 0.12 },
+    { hz: 880, delay: 0.1, length: 0.12 },
+    { hz: 1319, delay: 0.2, length: 0.28 },
+  ],
+  milestone: [
+    { hz: 659, delay: 0, length: 0.14 },
+    { hz: 988, delay: 0.13, length: 0.14 },
+    { hz: 1319, delay: 0.26, length: 0.4 },
+  ],
+} as const;
+
+export type Cue = keyof typeof CUES;
 
 /** 音の大きさ。手応えとして分かる下限まで落とす。 */
 const VOLUME = 0.05;
@@ -82,10 +111,12 @@ export function isSuccessSoundOn(): boolean {
 
 /**
  * 設定を見て鳴らす。学習中はこちらを呼ぶ。
+ *
+ * 場面を省くと、1歩進んだときの音になる（いちばん多く鳴る場面）。
  */
-export function playSuccessSound(): void {
+export function playSuccessSound(cue: Cue = "step"): void {
   if (!isSuccessSoundOn()) return;
-  previewSuccessSound();
+  previewSuccessSound(cue);
 }
 
 /**
@@ -95,13 +126,13 @@ export function playSuccessSound(): void {
  * すぐには走らないので、その時点で端末に書かれているのはまだ**切**。
  * 「入れたのに鳴らない」を避けるため、確かめ用は設定を読まない口にする。
  */
-export function previewSuccessSound(): void {
+export function previewSuccessSound(cue: Cue = "step"): void {
   const context = audioContext();
   if (!context) return;
 
   try {
     const now = context.currentTime;
-    for (const note of NOTES) {
+    for (const note of CUES[cue]) {
       const oscillator = context.createOscillator();
       const gain = context.createGain();
 

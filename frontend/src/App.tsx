@@ -29,6 +29,8 @@ import { TopPage } from "./pages/TopPage";
 import { lookupLesson, useCourse, useCourses } from "./course/live";
 import { isStartable } from "./course/availability";
 import { loadPlace, savePlace } from "./app/session";
+import { takeReturn } from "./auth/returnTo";
+import { EVENTS, track } from "./lib/analytics";
 import { useSocialResult } from "./auth/useSocialResult";
 import { nextScreen, type Screen } from "./app/screens";
 import { RecordPage } from "./pages/RecordPage";
@@ -36,15 +38,28 @@ import { RecipePage } from "./pages/RecipePage";
 import { appliedTipById } from "./course/appliedTips";
 import { useCompletedLessons } from "./course/progress";
 import { SavedPage } from "./pages/SavedPage";
+import { SkillDexPage } from "./pages/SkillDexPage";
+import { WorksPage } from "./pages/WorksPage";
 
-/** 下タブのどれが光っているか。 */
+/**
+ * 下タブを出さない画面。
+ *
+ * タイトルは「押す場所は1つ」が売り、レッスン中は1画面1タスクの途中
+ * （戻る道は画面の中にある）。これ以外では必ず出す——下タブに無い画面
+ * でも、帯ごと消すと戻る道まで消える。
+ */
+const NO_TAB_BAR: Partial<Record<Screen, true>> = { TOP: true, LESSON: true };
+
+/** 下タブのどれが光っているか。無い画面ではどれも光らせない。 */
 const TAB_OF: Partial<Record<Screen, TabKey>> = {
   HOME: "home",
   COURSE: "course",
   // コースの中身も「コース」の中。下タブの光る場所は動かさない
   COURSE_DETAIL: "course",
-  RECORD: "record",
-  SAVED: "saved",
+  // 学習記録・あとで見るは、下タブから外した（その他とホームから開ける）。
+  // どのタブも光らせない——光っていないタブを押させないため
+  SKILLS: "skills",
+  WORKS: "works",
   SETTINGS: "more",
 };
 
@@ -52,8 +67,8 @@ const TAB_OF: Partial<Record<Screen, TabKey>> = {
 const SCREEN_OF_TAB: Partial<Record<TabKey, Screen>> = {
   home: "HOME",
   course: "COURSE",
-  record: "RECORD",
-  saved: "SAVED",
+  skills: "SKILLS",
+  works: "WORKS",
   more: "SETTINGS",
 };
 
@@ -80,6 +95,8 @@ const BACK_FALLBACK: Record<Screen, Screen> = {
   LESSON: "COURSE_DETAIL",
   RECIPE: "COURSE_DETAIL",
   RECORD: "HOME",
+  SKILLS: "HOME",
+  WORKS: "HOME",
   SAVED: "HOME",
   SETTINGS: "HOME",
 };
@@ -90,7 +107,24 @@ export function App() {
   const [initial] = useState(() => {
     const browser = window.history.state;
     if (isAippoHistoryState(browser)) return browser;
-    const restored = loadPlace();
+    /*
+      外部サービス（Google）から戻ってきた回。
+
+      押した瞬間に控えた場所を、いつもの「最後に見ていた画面」より
+      先に見る。別のタブで AIPPO を開いていると、そちらが place を
+      上書きするので、押した本人が違う画面へ着いてしまう
+      （auth/returnTo.ts）。
+
+      読んだら消えるので、次に開いたときは いつもどおり place に従う。
+    */
+    const returning = takeReturn();
+    /*
+      戻れた回を数える。ここまで来て初めて「登録して続きができた」と
+      言える。押した回（auth_google_clicked）と対にすると、
+      外へ出たまま帰ってこなかった人が何人かが出る。
+    */
+    if (returning) track(EVENTS.returnedToLesson, { lessonId: returning.lessonId });
+    const restored = returning ?? loadPlace();
     return {
       aippo: true as const,
       depth: 0,
@@ -253,6 +287,7 @@ export function App() {
             // 「道のりを見る」から、いま学んでいるコースの中身へ直行する
             onOpenPath={(id) => openCourse(id, "HOME")}
             onOpenRecord={() => navigate(nextScreen("HOME", "OPEN_RECORD"))}
+            onOpenSkills={() => navigate(nextScreen("HOME", "OPEN_SKILLS"))}
             onOpenAccount={() => navigate(nextScreen("HOME", "OPEN_SETTINGS"))}
           />
         );
@@ -309,11 +344,29 @@ export function App() {
         );
       }
 
+      case "WORKS":
+        return (
+          <WorksPage
+            onSelectLesson={(id) => openLesson(id, "WORKS")}
+            onOpenCourse={() => navigate(nextScreen("WORKS", "OPEN_COURSE"))}
+          />
+        );
+
+      case "SKILLS":
+        return (
+          <SkillDexPage
+            onSelectLesson={(id) => openLesson(id, "SKILLS")}
+            onOpenCourse={() => navigate(nextScreen("SKILLS", "OPEN_COURSE"))}
+          />
+        );
+
       case "RECORD":
         return (
           <RecordPage
             onSelectLesson={(id) => openLesson(id, "RECORD")}
             onOpenCourse={() => navigate(nextScreen("RECORD", "OPEN_COURSE"))}
+            onOpenSkills={() => navigate(nextScreen("RECORD", "OPEN_SKILLS"))}
+            onOpenWorks={() => navigate(nextScreen("RECORD", "OPEN_WORKS"))}
           />
         );
 
@@ -327,7 +380,13 @@ export function App() {
         );
 
       case "SETTINGS":
-        return <SettingsPage onBack={() => goBack("HOME")} />;
+        return (
+          <SettingsPage
+            onBack={() => goBack("HOME")}
+            onOpenRecord={() => navigate(nextScreen("SETTINGS", "OPEN_RECORD"))}
+            onOpenSaved={() => navigate(nextScreen("SETTINGS", "OPEN_SAVED"))}
+          />
+        );
 
       case "LESSON": {
         // 知らない id が入っても画面を落とさない。先頭のレッスンへ倒す
@@ -345,6 +404,7 @@ export function App() {
               onOpenCourse={() => navigate("COURSE")}
               onOpenPath={(id) => openCourse(id, "HOME")}
               onOpenRecord={() => navigate("RECORD")}
+              onOpenSkills={() => navigate("SKILLS")}
               onOpenAccount={() => navigate("SETTINGS")}
             />
           );
@@ -389,7 +449,7 @@ export function App() {
         </div>
       )}
       {body}
-      {tab && (
+      {!NO_TAB_BAR[screen] && (
         <BottomTabBar
           current={tab}
           onSelect={(key) => navigate(SCREEN_OF_TAB[key] ?? screen)}

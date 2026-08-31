@@ -9,6 +9,8 @@ from __future__ import annotations
 from django.contrib import admin
 
 from apps.rewards.models import (
+    AiSkill,
+    AiSkillLesson,
     AiTaskPricing,
     CreditTransaction,
     CreditWallet,
@@ -21,6 +23,7 @@ from apps.rewards.models import (
     StampDefinition,
     UserRewardClaim,
     UserStamp,
+    XpEvent,
 )
 
 
@@ -160,3 +163,48 @@ class AiTaskPricingAdmin(admin.ModelAdmin):
     list_display = ("task_type", "credit_cost", "active", "note")
     list_editable = ("credit_cost", "active")
     search_fields = ("task_type",)
+
+
+class AiSkillLessonInline(admin.TabularInline):
+    """どのレッスンで習得できるか。**技だけ足して繋ぎ忘れる**のを防ぐ。
+
+    繋がっていない技は図鑑に出さない作りなので、忘れても画面は壊れない。
+    壊れないぶん気づけないので、技の編集画面から一緒に触れるようにする。
+    """
+
+    model = AiSkillLesson
+    extra = 1
+    autocomplete_fields = ("lesson",)
+
+
+@admin.register(AiSkill)
+class AiSkillAdmin(admin.ModelAdmin):
+    list_display = ("order", "slug", "name", "one_line", "lesson_count")
+    list_editable = ("name", "one_line")
+    search_fields = ("slug", "name")
+    ordering = ("order", "slug")
+    inlines = [AiSkillLessonInline]
+
+    @admin.display(description="習得できるレッスン数")
+    def lesson_count(self, obj: AiSkill) -> int:
+        return obj.lesson_links.count()
+
+
+@admin.register(XpEvent)
+class XpEventAdmin(admin.ModelAdmin):
+    """見るだけ。XPは減らさないし、手で足しもしない。
+
+    手で触れるようにすると、「学んだ量」が学習以外の理由で動く。
+    数の意味が変わるので、ここは読み取り専用にしておく。
+    """
+
+    list_display = ("created_at", "kind", "source_id", "amount")
+    list_filter = ("kind",)
+    readonly_fields = [f.name for f in XpEvent._meta.fields]
+    date_hierarchy = "created_at"
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+    def has_change_permission(self, request, obj=None) -> bool:
+        return False

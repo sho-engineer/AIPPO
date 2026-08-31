@@ -102,6 +102,16 @@ def _use_mock(settings):
     settings.AI_RUNS_PER_IP_PER_DAY = 0
     settings.AI_RUNS_PER_DAY = 0
     settings.AI_DAILY_REQUEST_LIMIT_GUEST = 0
+    """
+    無料の持ち分も外す。
+
+    ここで見たいのは「どの教材からでもアクションが通るか」であって、
+    1日に何回試せるかではない。11本を続けて通すので、登録前の10回では
+    途中で足りなくなる——**それは持ち分が正しく効いている証拠**で、
+    ここで落ちても教材の問題は見つからない。回数のほうは
+    `tests/test_ai_credits.py` が見張っている。
+    """
+    settings.GUEST_INITIAL_TEXT_ACTIONS = 1000
 
 
 def _lessons_for(action_id: str) -> tuple[str, ...]:
@@ -110,33 +120,41 @@ def _lessons_for(action_id: str) -> tuple[str, ...]:
 
 @pytest.mark.django_db
 class TestEveryLessonIsShipped:
-    def test_all_nine_lessons_are_startable(self, seeded):
-        """このコースの9本は、すべて始められること。
+    #: まだ開けない教材。
+    #:
+    #: 仕組みが無いからではなく、費用の見通しを先に立てるため
+    #: （docs/image-lessons.md）。開けるときにここから外す。
+    NOT_OPEN_YET = {"image_generation", "image_edit"}
+
+    def test_every_finished_lesson_is_startable(self, seeded):
+        """中身のある教材は、すべて始められること。
 
         数えるのはこのコースの分だけにする。教材の表には
         「これから増えるコース」の分も入っていて、そちらは
         中身がまだ無いので**始められないのが正しい**。
         全件で数えると、正しい追加のたびにここが落ちる。
         """
-        stuck = list(
+        stuck = set(
             seeded.lessons.exclude(
                 availability_status=AvailabilityStatus.AVAILABLE
             ).values_list("slug", flat=True)
         )
 
-        assert seeded.lessons.count() == 9
-        assert stuck == [], f"始められない教材が残っている: {stuck}"
+        assert stuck == self.NOT_OPEN_YET, f"始められない教材が変わった: {stuck}"
 
-    def test_every_lesson_ships_steps(self, api_client, seeded):
-        """中身が空の教材が無いこと。
+    def test_every_open_lesson_ships_steps(self, api_client, seeded):
+        """開けている教材に、中身が空のものが無いこと。
 
         押せるのに何も起きない教材は、止まっているより悪い。
         「壊れているのか、自分の操作が悪いのか」が分からない。
         """
         lessons = api_client.get(CATALOG_URL).data["courses"][0]["lessons"]
 
-        assert len(lessons) == 9
-        empty = [entry["id"] for entry in lessons if not entry.get("steps")]
+        empty = [
+            entry["id"]
+            for entry in lessons
+            if entry["availability"] == "available" and not entry.get("steps")
+        ]
         assert empty == [], f"中身の無い教材: {empty}"
 
 

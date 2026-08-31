@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import uuid
 
 from django.conf import settings
 from django.core.cache import cache
@@ -43,11 +44,13 @@ from apps.ai.serializers import GenerateRequestSerializer, store_raw_input
 from apps.ai.tutor import build_tutor, failure_tutor, limit_tutor
 from apps.catalog.access import LessonNotStartable, require_startable
 from apps.lessons.models import (
+    AiActionType,
     Attempt,
     AttemptStatus,
     LearningEventType,
     LearningSession,
 )
+from apps.lessons.services import credits
 from apps.lessons.services.quota import (
     QuotaExceeded,
     consume_ai_run,
@@ -100,7 +103,17 @@ class GenerateView(APIView):
                 )
             # 教材が DB に無いだけなら止めない（取り込み前の環境で動かなくなる）
 
-        if self._is_duplicate(request, data, values):
+        """
+        同じ内容の送り直しを、5秒だけ弾く。
+
+        **`request_id` が来ているときは通す。** あちらは「同じ操作か」を
+        名前で見分けるので、こちらの当て推量より正確で、しかも
+        「同じ文章でもう一度作ってみる」を邪魔しない——入力の中身で
+        判定すると、**わざと同じ条件で作り直す人まで止めてしまう**。
+
+        古い画面（`request_id` を送らない）のためだけに残す。
+        """
+        if not data.get("request_id") and self._is_duplicate(request, data, values):
             logger.info("ai.generate.duplicate lesson=%s", data["lesson_id"])
             return Response(
                 {
@@ -145,6 +158,14 @@ class GenerateView(APIView):
 
         session = self._session(request, data["lesson_id"])
 
+        """
+        費用の安全弁。**その人の持ち分とは別のもの。**
+
+        こちらは全体・接続元・1日の合計を頭打ちにするためのもので、
+        当たったときに言うのは「いま混み合っています」。
+        持ち分（下の reserve）に当たったときの「今日はここまで」とは
+        原因も次にすることも違う。
+        """
         try:
             consume_ai_run(request)
         except QuotaExceeded as exc:
@@ -156,6 +177,44 @@ class GenerateView(APIView):
                     if exc.is_global
                     else status.HTTP_429_TOO_MANY_REQUESTS
                 ),
+            )
+
+        """
+        その人の持ち分を1つ**押さえる**（まだ減らさない）。
+
+        減らすのは成果を返せたときだけ。前はここで数えて、失敗しても
+        戻していなかった——provider が落ちた日は、押しただけで回数を
+        失っていた。
+
+        押さえたものは、この下のどの道を通っても必ず閉じる
+        （成功なら確定、失敗なら戻す）。閉じ忘れると、その人の
+        持ち分が減ったまま残る。
+        """
+        learner_key = device_key(request)
+        reservation = None
+        credit_type = credits.credit_type_for(action.id)
+        if learner_key is not None and self._counts_against_credits(
+            request, credit_type
+        ):
+            credits.ensure_ready(learner_key)
+            # そのレッスンで渡すものがあれば、ここで渡す。
+            # 二度は渡らない（AiCreditGrant の一意制約）
+            credits.grant_for_lesson(learner_key, data["lesson_id"])
+            try:
+                reservation = credits.reserve(
+                    learner_key,
+                    credit_type,
+                    data.get("request_id") or uuid.uuid4(),
+                    lesson_id=data["lesson_id"],
+                )
+            except credits.AlreadyDone as done:
+                return self._replay(done, session, data)
+            except credits.NoCreditsLeft:
+                return self._out_of_credits(request, session, data)
+            session.events.create(
+                lesson_id=data["lesson_id"],
+                step=data["step_id"],
+                event_type=LearningEventType.AI_ACTION_RESERVED,
             )
 
         ai_request = AIRequest(
@@ -177,10 +236,18 @@ class GenerateView(APIView):
             result = provider.generate_structured(ai_request, action.schema)
             text = self._validate(action, result)
         except (AIProviderError, AITimeoutError) as exc:
+            # 成果を受け取っていないので、押さえた分は戻す
+            if reservation is not None:
+                credits.release(reservation, note=getattr(exc, "kind", "failed"))
+                session.events.create(
+                    lesson_id=data["lesson_id"],
+                    step=data["step_id"],
+                    event_type=LearningEventType.AI_ACTION_RELEASED,
+                )
             return self._on_failure(session, data, action, values, exc)
 
         sequence = session.attempts.count() + 1
-        Attempt.objects.create(
+        attempt = Attempt.objects.create(
             session=session,
             sequence=sequence,
             lesson_id=data["lesson_id"],
@@ -207,6 +274,20 @@ class GenerateView(APIView):
         session.attempt_count = sequence
         session.current_step = data["step_id"]
         session.save(update_fields=["attempt_count", "current_step", "updated_at"])
+
+        """
+        成果を返せた。**ここで初めて減る。**
+
+        作った結果を予約に結び付けておく。通信が切れて画面が受け取れず、
+        同じ `request_id` で送り直されたときに、作り直さずこれを返す。
+        """
+        if reservation is not None:
+            credits.commit(reservation, attempt=attempt)
+            session.events.create(
+                lesson_id=data["lesson_id"],
+                step=data["step_id"],
+                event_type=LearningEventType.AI_ACTION_COMPLETED,
+            )
 
         session.events.create(
             lesson_id=data["lesson_id"],
@@ -320,6 +401,89 @@ class GenerateView(APIView):
             pass
 
         return False
+
+
+    @staticmethod
+    def _counts_against_credits(request: Request, credit_type: str) -> bool:
+        """その人の持ち分から引くか。
+
+        文章は**登録前の人だけ**。登録した人は
+        `AI_DAILY_REQUEST_LIMIT_USER`（1日50回）が上限で、持ち分では
+        数えない。登録したら「毎日たくさん試せる」に変わる、という線を
+        そのまま残すため。
+
+        画像は**登録の有無を問わず**持ち分で数える。毎日の配りが無く、
+        レッスンで1回ずつ渡すものなので、登録しても増え方は変わらない。
+        """
+        if credit_type != AiActionType.TEXT:
+            return True
+        user = getattr(request, "user", None)
+        return not (user is not None and user.is_authenticated)
+
+    def _replay(
+        self, done: credits.AlreadyDone, session: LearningSession, data: dict
+    ) -> Response:
+        """同じ操作で、もう作ってあるものを返す。
+
+        通信が切れて画面が結果を受け取れず、送り直されたときの道。
+        **作り直さない**——作り直すと、成功しているのにもう1回ぶんの
+        費用がかかり、持ち分も2つ減る。
+
+        肝心の結果が見つからないときだけ、ふつうの失敗として返す。
+        作り直すよりは、もう一度押してもらうほうがよい。
+        """
+        attempt = (
+            Attempt.objects.filter(pk=done.attempt_id).first()
+            if done.attempt_id
+            else None
+        )
+        if attempt is None or not attempt.generated_output:
+            logger.warning("ai.generate.replay_missing lesson=%s", data["lesson_id"])
+            return Response(
+                {
+                    "errors": {
+                        "detail": ["うまく届かなかったようです。もう一度おくってみましょう。"]
+                    },
+                    "tutor": failure_tutor(),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        logger.info("ai.generate.replayed lesson=%s", data["lesson_id"])
+        return Response(
+            {
+                "result": attempt.generated_output,
+                "tutor": build_tutor(
+                    get_action(data["action"]), is_retry=attempt.sequence > 1
+                ),
+                "replayed": True,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def _out_of_credits(
+        self, request: Request, session: LearningSession, data: dict
+    ) -> Response:
+        """持ち分を使い切った。**失敗ではない。**
+
+        押し直せば直るものではないので、画面は「もう一度」を出さない。
+        次にできることは2つだけ——明日また来るか、いま登録するか。
+        その2つを選べるように、`code` で見分けが付く形で返す。
+        """
+        session.events.create(
+            lesson_id=data["lesson_id"],
+            step=data["step_id"],
+            event_type=LearningEventType.GUEST_TEXT_LIMIT_REACHED,
+        )
+        message = "今日はここまで！　また明日、続きから試してみましょう。"
+        return Response(
+            {
+                "code": "FREE_CREDITS_EXHAUSTED",
+                "errors": {"detail": [message]},
+                "tutor": limit_tutor(message),
+            },
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+        )
 
     @staticmethod
     def _validate(action: Action, result: AIResult) -> str:

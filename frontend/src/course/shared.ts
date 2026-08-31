@@ -82,15 +82,56 @@ export interface FlowOptions {
   working: string;
   /** 観察の選択肢。省略すると共通のものを使う。 */
   observationOptions?: StepOption[];
+  /**
+   * 「条件を一つ足す」の選択肢。省略すると共通のものを使う。
+   *
+   * 共通のもの（もっと短く・もっと丁寧に・やわらかく…）は**文章を直す**
+   * 言い回しで、文章以外を扱う回には当たらない。比べる回に「もっと丁寧に」
+   * を出しても、足す条件として意味をなさない。
+   */
+  conditionOptions?: StepOption[];
   /** 短い解説。**3枚まで**。 */
   conceptCards: ConceptCard[];
+  /**
+   * その解説で覚える技の名前。`conceptCards` と同じ並び。
+   *
+   * カードの見出しは**やさしい言い方**（「誰向けかを伝える」）で、
+   * こちらは**技の名前**（「ターゲット指定」）。分けているのは、
+   * 名前だけ見せても何のことか分からず、やさしい言い方だけでは
+   * 他所で通じないため。画面は名前を先に、言い換えを下に出す。
+   *
+   * AI分野で普通に使われている言葉にする。AIPPO だけの造語は使わない
+   * ——ここで覚えた言葉が、外の記事や同僚との会話で通じなくなる。
+   *
+   * 省いてよい。無ければ、その解説では技の名前を渡さない。
+   */
+  conceptSkills?: string[];
   /** 結果を見るときの着眼点。 */
   reviewPoints: string[];
+
+  /**
+   * 技をもう少し深める回。**自分の文章を書く前**に置く。
+   *
+   * ここに来るのは、条件を選ぶ回と、その技の解説。前は
+   * `realTaskSteps` に入れて自分の文章を書いた**あと**に置いていたが、
+   * そうすると「自分の文章を書く → 誰向け？ → トーンの解説 →
+   * トーンを選ぶ → 反復の解説 → 送る」となり、書き終えた人を
+   * 4画面ぶん足止めしてから送ることになる。
+   *
+   * 条件も解説も、自分の文章とは関係なく決められる。先に済ませて、
+   * 自分の文章を書いてからは**書く → 確かめる → 送る**を続けさせる。
+   */
+  deepenSteps?: LessonStep[];
 
   // -- 自分の課題 --------------------------------------------------------
   realTaskLabel: string;
   realTaskPlaceholder: string;
-  /** 自分の課題で追加で聞くこと。1画面1判断で並べる。 */
+  /**
+   * 自分の課題を書いた**あと**に聞くこと。
+   *
+   * 書いた文章そのものを見ないと答えられないことだけを置く。
+   * 条件や解説は上の `deepenSteps` へ。
+   */
   realTaskSteps?: LessonStep[];
 
   takeaway: string;
@@ -102,16 +143,21 @@ export interface FlowOptions {
 /** 解説カードは3枚まで。増えた時点で講義に戻っている。 */
 export const MAX_CONCEPT_CARDS = 3;
 
-function conceptSteps(cards: ConceptCard[]): LessonStep[] {
+function conceptSteps(cards: ConceptCard[], skills: string[] = []): LessonStep[] {
   return cards.slice(0, MAX_CONCEPT_CARDS).map((card, index) => ({
     id: `concept_${index + 1}`,
     type: "concept_card" as const,
-    phase: "try" as const,
+    /*
+      比べたあとに出るので、区切りは「比べる」に属する。
+      `try` のままだと、比べる画面の直後で帯が1つ戻って見える。
+    */
+    phase: "compare" as const,
     title: card.title,
     poMessage: card.body,
     poEmotion: "neutral" as const,
     // 解説は必ず飛ばせる。読みたくない人を足止めしない
     skippable: true,
+    skill: skills[index],
     card,
   }));
 }
@@ -126,7 +172,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
     {
       id: "outcome_preview",
       type: "outcome_preview",
-      phase: "outcome",
+      phase: "try",
       title: "今日つくるもの",
       poMessage: "まず、できあがりを見てみましょう。",
       poEmotion: "neutral",
@@ -171,7 +217,6 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       options: options.observationOptions ?? OBSERVATION_OPTIONS,
       meta: review,
     },
-    ...conceptSteps(options.conceptCards),
     {
       id: "add_condition",
       type: "condition_choice",
@@ -182,7 +227,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       poEmotion: "hint",
       key: "condition",
       required: true,
-      options: CONDITION_OPTIONS,
+      options: options.conditionOptions ?? CONDITION_OPTIONS,
       aiAction: { ...options.aiAction, action: "improve", inputs: {} },
     },
     {
@@ -206,6 +251,32 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       poEmotion: "talking",
       meta: { ...review, threeWay: true },
     },
+    /*
+      AI技の名前は、**使って、違いを見たあと**に出す。
+
+      前はここが `observe_result` の直後——条件を足す前・比べる前に
+      あった。「出力形式の指定とは」を、それが何の役に立つのか
+      分からないまま読ませていたことになる。
+
+      いまは順がこうなる:
+
+          条件を足す → 結果が変わる → 見比べる → 「今のが〜です」
+
+      名前が、たったいま自分で起こした変化に貼り付く。読む理由が
+      できてから読むので、飛ばす人も減る。
+
+      歩数は変わっていない。**入れ替えただけ**で、足しても引いてもいない。
+    */
+    ...conceptSteps(options.conceptCards, options.conceptSkills),
+    /*
+      技を深める回。**自分の文章を書く前**に置く。
+
+      前はここに何も無く、条件と解説は自分の文章を書いたあと
+      （`realTaskSteps`）に並んでいた。書き終えた人を4画面ぶん
+      足止めしてから送る形で、しかも「自分で試す」の区切りが
+      11歩になり、帯がそのあいだ止まっていた。
+    */
+    ...(options.deepenSteps ?? []),
     {
       id: "real_task_intro",
       type: "safety_check",
@@ -225,6 +296,15 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       id: "real_task",
       type: "real_task",
       phase: "own",
+      /*
+        次に何が来るかで、言うことが変わる。あとに何も挟まなければ
+        次は送る内容の確認なので、そう書ける。まだ並べ替えていない
+        教材では条件や解説が続くので、行き先を約束しない既定に任せる。
+      */
+      primaryLabel:
+        (options.realTaskSteps ?? []).length === 0
+          ? "AIに送る内容を見る"
+          : undefined,
       title: "自分の文章",
       instruction: options.realTaskLabel,
       poMessage: "自分の仕事のことで試すと、そのまま使えるようになります。",

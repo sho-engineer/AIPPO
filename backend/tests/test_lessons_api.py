@@ -57,6 +57,27 @@ def learner_key():
     return uuid.uuid4()
 
 
+@pytest.fixture
+def lesson_teaching_two_skills():
+    """この教材を終えると習得できる技を2つ用意する。
+
+    習得できる技は**その教材が教えたもの**だけになった。前はレッスンに
+    関係なく固定の4つが付いていたので、教材を用意しなくても数が合って
+    しまっていた。用意しないと 0 件になるのが、いまの正しい姿。
+    """
+    from apps.catalog.models import Course, Lesson
+    from apps.rewards.models import AiSkill, AiSkillLesson
+
+    course = Course.objects.create(slug="foundation", title="はじめの一歩")
+    lesson = Lesson.objects.create(
+        course=course, slug=LESSON_ID, number=1, title="文章を分かりやすくする", goal="goal"
+    )
+    for order, slug in enumerate(("tone", "length")):
+        skill = AiSkill.objects.create(slug=slug, name=slug, one_line="ひとこと", order=order)
+        AiSkillLesson.objects.create(skill=skill, lesson=lesson)
+    return lesson
+
+
 def _client_with_key(api_client, learner_key):
     api_client.cookies["learner_key"] = str(learner_key)
     return api_client
@@ -226,7 +247,9 @@ class TestLearningEvents:
         field_names = {f.name for f in LearningEvent._meta.get_fields()}
         assert not (field_names & {"user_input", "text", "content"})
 
-    def test_completion_records_skills(self, api_client, learner_key):
+    def test_completion_records_the_skills_that_lesson_teaches(
+        self, api_client, learner_key, lesson_teaching_two_skills
+    ):
         client = _client_with_key(api_client, learner_key)
 
         client.post(
@@ -237,7 +260,29 @@ class TestLearningEvents:
 
         session = LearningSession.objects.get()
         assert session.completed_at is not None
-        assert SkillProgress.objects.filter(learner_key=learner_key).count() == 4
+        assert sorted(
+            SkillProgress.objects.filter(learner_key=learner_key).values_list(
+                "skill_key", flat=True
+            )
+        ) == ["length", "tone"]
+
+    def test_completion_records_nothing_when_the_lesson_teaches_nothing(
+        self, api_client, learner_key
+    ):
+        """診断のように、技の付かない教材もある。
+
+        前はここでも固定の4つが付いていた。**していないことを
+        習得したことにしていた**ので、図鑑が最初の1本で埋まっていた。
+        """
+        client = _client_with_key(api_client, learner_key)
+
+        client.post(
+            self.url,
+            {"lesson_id": LESSON_ID, "event_type": "lesson_completed", "completed": True},
+            format="json",
+        )
+
+        assert SkillProgress.objects.filter(learner_key=learner_key).count() == 0
 
     def test_unknown_event_type_returns_400(self, api_client, learner_key):
         client = _client_with_key(api_client, learner_key)
@@ -308,7 +353,9 @@ class TestSurvey:
 
 
 @pytest.mark.django_db
-def test_lesson_completes_with_stub_provider(api_client, learner_key, settings):
+def test_lesson_completes_with_stub_provider(
+    api_client, learner_key, settings, lesson_teaching_two_skills
+):
     """憲章 原則 III: AI が使えなくてもレッスンを完走できる。
 
     AI_PROVIDER=stub のまま、実行 → 改善 → 自分の文章 → 完了 を通す。
@@ -358,12 +405,13 @@ def test_lesson_completes_with_stub_provider(api_client, learner_key, settings):
             {"lesson_id": LESSON_ID, "event_type": "lesson_completed", "completed": True},
             format="json",
         ).status_code
-        == 204
+        # 終えた回だけ、何が増えたかを返す（204 ではない）
+        == 200
     )
 
     assert Attempt.objects.count() == 4
     assert LearningSession.objects.get().completed_at is not None
-    assert SkillProgress.objects.count() == 4
+    assert SkillProgress.objects.count() == 2
 
 @pytest.mark.django_db
 class TestEventStepIds:

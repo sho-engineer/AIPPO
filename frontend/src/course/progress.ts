@@ -27,12 +27,22 @@ export interface LessonProgress {
   updated_at: string;
 }
 
+/** 学んだ量と、いまの呼び名。減らない（`backend/apps/rewards/xp.py`）。 */
+export interface XpSummary {
+  total: number;
+  level: string;
+  next_level: string | null;
+  /** 次の呼び名まで、あといくつ。最後まで来ていれば null */
+  to_next: number | null;
+}
+
 export interface ProgressResponse {
   lessons: LessonProgress[];
   completed_count: number;
   in_progress_count: number;
   skills: string[];
   signed_in: boolean;
+  xp: XpSummary;
 }
 
 export function fetchProgress(signal?: AbortSignal): Promise<ProgressResponse> {
@@ -72,4 +82,37 @@ export function useCompletedLessons(): string[] {
   }, []);
 
   return ids;
+}
+
+/**
+ * 学んだ量と、覚えた技の数。
+ *
+ * 端末には持っていないので、届くまでは null。**0 を出さない**——
+ * 貯めた人に「0 XP」を一瞬見せると、消えたように見える。
+ * 出せないあいだは、その場所ごと出さないほうがよい。
+ *
+ * 届かなくても画面は動く。図鑑は学習の本筋ではないので、
+ * ここで行き止まりを作らない。
+ */
+export function useXpSummary(): { xp: XpSummary; skills: number } | null {
+  const [state, setState] = useState<{ xp: XpSummary; skills: number } | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    void fetchProgress(controller.signal)
+      .then((progress) => {
+        // 古い版のサーバーには xp が無い。その場合は出さない
+        if (progress.xp) {
+          setState({ xp: progress.xp, skills: progress.skills.length });
+        }
+      })
+      .catch(() => {
+        // 届かなかった。この節は出さない
+      });
+
+    return () => controller.abort();
+  }, []);
+
+  return state;
 }

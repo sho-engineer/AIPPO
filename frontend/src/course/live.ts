@@ -19,7 +19,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
-import { COURSE as BUNDLED } from "./catalog";
+import { COURSE as BUNDLED, MOVED_OUT_LESSONS } from "./catalog";
 import { getJson } from "../api/http";
 import type { Course, Lesson } from "./types";
 
@@ -147,9 +147,26 @@ export function allCourses(): Course[] {
  * id から1本引く。
  *
  * 描画の外からも呼ぶ（画面遷移のとき、開いてよい教材かを見る）。
+ *
+ * いま学んでいるコースの外まで探す
+ * --------------------------------
+ * 学習記録には、**いまのコースに無いレッスン**が並ぶ。カリキュラムの
+ * 見直しで別のコースへ移したもの（「AIへの頼み方」「計画を立てる」）や、
+ * 一覧から下げたものがそれで、終えた記録のほうは消えていない。
+ *
+ * ここを `current` だけで探すと、記録に出ているのに押すと
+ * 「ありません」になる。終えた人が自分の記録から締め出される形で、
+ * いちばんよくない。全コースと、控えの外した分まで見る。
  */
 export function lookupLesson(lessonId: string): Lesson | null {
-  return current.lessons.find((lesson) => lesson.id === lessonId) ?? null;
+  const inCurrent = current.lessons.find((lesson) => lesson.id === lessonId);
+  if (inCurrent) return inCurrent;
+
+  for (const course of all) {
+    const found = course.lessons.find((lesson) => lesson.id === lessonId);
+    if (found) return found;
+  }
+  return MOVED_OUT_LESSONS.find((lesson) => lesson.id === lessonId) ?? null;
 }
 
 /** いまの教材。サーバーから届いたら、自動で描き直る。 */

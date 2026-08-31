@@ -137,6 +137,73 @@ test.describe("ポーの絵", () => {
     expect(loaded.size, "表情がほとんど出ていない。通せていない可能性がある").toBeGreaterThan(2);
   });
 
+  test("毎画面には出ない（出る場面のほうが少ない）", async ({ page }) => {
+    /*
+      ここが本題。前は19画面のうち17画面にポーが居た。
+      居るのが当たり前になると、居ること自体が何も言わなくなる。
+
+      決めているのは src/course/poPresence.ts だが、そこを直しても
+      画面が別の場所でポーを描いていれば意味がない。**実際に通して
+      数える。**
+
+      送信中は数えない。押していないのに勝手に出入りするので、
+      取った瞬間で結果が変わる。
+    */
+    await stubApi(page);
+    await openRewrite(page);
+
+    let screens = 0;
+    let withPo = 0;
+    const scenes = new Set<string>();
+
+    /*
+      刻み方は、上の検査と同じにする。切り替えの動き（220〜350ms）と
+      自動で送る回をまたぐには、1歩ごとに少し置いて何度か見るのが要る。
+      置かずに押すと、動いている最中のボタンを押して通しが止まる。
+    */
+    for (let i = 0; i < 40; i++) {
+      let scene: string | null = null;
+      let thinking = false;
+      for (let shot = 0; shot < 3; shot++) {
+        if (await page.locator('[data-po-scene="thinking"]').count()) thinking = true;
+        /*
+          先に数える。`getAttribute` は**要素が現れるまで待つ**ので、
+          ポーが居ない画面でそのまま呼ぶと、居ないことを確かめるために
+          既定の待ち時間ぶん止まる。ここでは「居ないこと」も答えの
+          ひとつなので、待ってはいけない。
+        */
+        const here = page.locator("[data-po-scene]").first();
+        const found = (await here.count())
+          ? await here.getAttribute("data-po-scene")
+          : null;
+        if (found) scene = found;
+        await page.waitForTimeout(90);
+      }
+
+      // 送っている最中は数えない。押していないのに出入りする
+      if (!thinking) {
+        screens += 1;
+        if (scene) {
+          withPo += 1;
+          scenes.add(scene);
+        }
+      }
+
+      if (await page.getByTestId("completion-view").isVisible().catch(() => false)) break;
+      if (!(await advance(page))) break;
+    }
+
+    expect(screens, "1本を通せていない").toBeGreaterThan(10);
+    expect(
+      withPo * 2,
+      `${screens}画面のうち${withPo}画面にポーが居る`,
+    ).toBeLessThan(screens);
+
+    // 出ない側へ倒れきってもいけない。はじまりとおわりには居ること
+    expect([...scenes]).toContain("start");
+    expect([...scenes]).toContain("celebrate");
+  });
+
   test("まばたきで blink の絵へ切り替わる", async ({ page }) => {
     /*
       まばたきは5〜8秒に1回、140ミリ秒だけ。

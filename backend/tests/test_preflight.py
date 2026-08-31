@@ -33,6 +33,10 @@ SOUND = {
     # env だけ置いても、起動時に読み終わった settings は変わらない
     "EMAIL_HOST": "smtp.example.com",
     "DEFAULT_FROM_EMAIL": "noreply@example.com",
+    # パスキーは、署名に混ぜるドメインが画面のアドレスと合っていないと
+    # ブラウザ側で止まる。整っている本番は https のはず
+    "PASSKEY_RP_ID": "aippo.example.com",
+    "PASSKEY_ORIGINS": ["https://aippo.example.com"],
 }
 
 SOUND_ENV = {
@@ -235,3 +239,126 @@ class TestTheCacheTable:
     def test_a_working_cache_table_passes(self, sound):
         text, _ = run()
         assert "OK   キャッシュ表" in text
+
+
+@pytest.mark.django_db
+class TestSocialLoginRedirectUri:
+    """外部ログインの戻り先。
+
+    `redirect_uri_mismatch` は、向こうに登録した文字列とこちらが送る
+    文字列が1文字でも違えば出る。しかもエラーの文面からは、何がどう
+    違うかが分からない。突き合わせるために、**こちらが送る文字列**を
+    見られるようにしてある。
+
+    いちばん危ないのは `BACKEND_URL` が空のとき。戻り先が「要求が届いた
+    ときの Host」から組み立てられるので、配置ごとに違うホスト名が付く
+    Vercel では、プレビューからのログインが必ず mismatch になる。
+    手元と本番では通ってしまうぶん、再現しにくい。
+    """
+
+    def test_prints_the_exact_uri_to_register(self, sound, monkeypatch):
+        monkeypatch.setenv("BACKEND_URL", "https://aippo.example.com")
+        monkeypatch.setattr(
+            "django.conf.settings.BACKEND_URL", "https://aippo.example.com", raising=False
+        )
+        monkeypatch.setattr("django.conf.settings.GOOGLE_CLIENT_ID", "id", raising=False)
+        monkeypatch.setattr(
+            "django.conf.settings.GOOGLE_CLIENT_SECRET", "secret", raising=False
+        )
+
+        text, _ = run()
+
+        # そのまま貼れる形で出ていること
+        assert (
+            "https://aippo.example.com/api/v1/accounts/social/google/callback/" in text
+        )
+
+    def test_empty_backend_url_is_ng_when_a_provider_is_configured(
+        self, sound, monkeypatch
+    ):
+        """空のままにしない。ここが本番で起きていた壊れ方そのもの。"""
+        monkeypatch.setattr("django.conf.settings.BACKEND_URL", "", raising=False)
+        monkeypatch.setattr("django.conf.settings.GOOGLE_CLIENT_ID", "id", raising=False)
+        monkeypatch.setattr(
+            "django.conf.settings.GOOGLE_CLIENT_SECRET", "secret", raising=False
+        )
+
+        text, _ = run()
+
+        assert any("BACKEND_URL" in line for line in ng_lines(text)), text
+
+    def test_stays_quiet_when_no_provider_is_configured(self, sound, monkeypatch):
+        """鍵が無い先はボタンごと出ない。困りごとが無いので NG にしない。
+
+        ここを NG にすると、外部ログインを使わない配置がいつも赤くなり、
+        本当に困る NG が埋もれる。
+        """
+        monkeypatch.setattr("django.conf.settings.BACKEND_URL", "", raising=False)
+        monkeypatch.setattr("django.conf.settings.GOOGLE_CLIENT_ID", "", raising=False)
+        monkeypatch.setattr("django.conf.settings.GOOGLE_CLIENT_SECRET", "", raising=False)
+        monkeypatch.setattr("django.conf.settings.LINE_CLIENT_ID", "", raising=False)
+        monkeypatch.setattr("django.conf.settings.LINE_CLIENT_SECRET", "", raising=False)
+
+        text, _ = run()
+
+        assert not any("BACKEND_URL" in line for line in ng_lines(text)), text
+
+
+@pytest.mark.django_db
+class TestPasskeyDomain:
+    """パスキーの署名に混ぜるドメイン。
+
+    いま開いているアドレスと食い違うとブラウザ側で止まるが、画面に出るのは
+    「この画面のアドレスでは、パスキーを作れません」だけで、**何がどう
+    食い違っているかは分からない**。判断の材料をここで出す。
+    """
+
+    def test_shows_the_domain_in_use(self, sound, monkeypatch):
+        monkeypatch.setattr(
+            "django.conf.settings.PASSKEY_RP_ID", "aippo.example.com", raising=False
+        )
+        monkeypatch.setattr(
+            "django.conf.settings.PASSKEY_ORIGINS",
+            ["https://aippo.example.com"],
+            raising=False,
+        )
+
+        text, _ = run()
+
+        assert "aippo.example.com" in text
+
+    def test_empty_domain_is_ng(self, sound, monkeypatch):
+        """空だと、パスキーの登録が必ず失敗する。"""
+        monkeypatch.setattr("django.conf.settings.PASSKEY_RP_ID", "", raising=False)
+
+        text, _ = run()
+
+        assert any("パスキー" in line for line in ng_lines(text)), text
+
+    def test_plain_http_origin_is_ng(self, sound, monkeypatch):
+        """localhost 以外の HTTP は、そもそもパスキーが動かない。"""
+        monkeypatch.setattr(
+            "django.conf.settings.PASSKEY_RP_ID", "aippo.example.com", raising=False
+        )
+        monkeypatch.setattr(
+            "django.conf.settings.PASSKEY_ORIGINS",
+            ["http://aippo.example.com"],
+            raising=False,
+        )
+
+        text, _ = run()
+
+        assert any("HTTPS" in line for line in ng_lines(text)), text
+
+    def test_localhost_over_http_is_fine(self, sound, monkeypatch):
+        """手元の開発を止めない。localhost だけは HTTP でも使える。"""
+        monkeypatch.setattr("django.conf.settings.PASSKEY_RP_ID", "localhost", raising=False)
+        monkeypatch.setattr(
+            "django.conf.settings.PASSKEY_ORIGINS",
+            ["http://localhost:5173"],
+            raising=False,
+        )
+
+        text, _ = run()
+
+        assert not any("HTTPS" in line for line in ng_lines(text)), text

@@ -17,8 +17,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { generate, AiRequestError, type AiUsage } from "../api/ai";
-import { sendLearningEvent } from "../api/lesson";
+import { completeLesson, sendLearningEvent, type LessonAward } from "../api/lesson";
+import { missionStateOf, type MissionState } from "./missions";
 import { rememberForReview } from "./review";
+import { playSuccessSound } from "./sound";
 import {
   clearDraft,
   countRealTask,
@@ -27,6 +29,7 @@ import {
   saveDraft,
 } from "../lib/draft";
 import { isBlocking, scanForSensitive, type PrivacyFinding } from "../lib/privacy";
+import { newRequestId } from "../lib/requestId";
 import {
   buildAiInput,
   canGoBack,
@@ -36,6 +39,7 @@ import {
   nextStepId,
   previousStepId,
   progressOf,
+  stepIndex,
   summaryOf,
   type StepIssue,
 } from "./engine";
@@ -60,12 +64,27 @@ export interface CourseLessonApi {
   values: StepValues;
   po: PoMessage;
   runs: RunRecord[];
+  /**
+   * 終えたときに増えた分。終える前と、届かなかったときは null。
+   *
+   * 完了画面はこれで「新しく覚えた技」と「増えたXP」を出す。
+   */
+  award: LessonAward | null;
   progress: { current: number; total: number };
+  /** レッスンの中の区切り（ミッション）と、いまどこにいるか。 */
+  missions: MissionState;
   summary: { stepId: string; label: string; value: string }[];
   issue: StepIssue | null;
   canBack: boolean;
   isSubmitting: boolean;
   error: string | null;
+  /**
+   * 失敗の種類。`error` の文だけでは、押し直せば直る失敗（"failed"）と、
+   * 押しても意味が無い失敗（"limit"）を画面側が区別できない
+   * ——結果、上限に達しても「AIに送る」を出し続けてしまっていた。
+   * `error` が null のときは常に null。
+   */
+  errorKind: AiRequestError["kind"] | null;
   findings: PrivacyFinding[];
   hintIndex: number;
   realTaskSkipped: boolean;
@@ -137,9 +156,12 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
   const [po, setPo] = useState<PoMessage>(() => poOf(lesson.steps[0]));
   const [isSubmitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorKind, setErrorKind] = useState<AiRequestError["kind"] | null>(null);
   const [findings, setFindings] = useState<PrivacyFinding[]>([]);
   const [hintIndex, setHintIndex] = useState(0);
   const [realTaskSkipped, setRealTaskSkipped] = useState(false);
+  /* 終えたときに増えた分。サーバーが決める（画面では数えない） */
+  const [award, setAward] = useState<LessonAward | null>(null);
   const [restored, setRestored] = useState(false);
 
   /**
@@ -149,6 +171,18 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
   const inFlight = useRef(false);
   /** 追い越された古い返事を捨てるための世代番号。 */
   const generation = useRef(0);
+  /**
+   * いま送ろうとしている操作の合言葉（`lib/requestId.ts`）。
+   *
+   * 持ち続けるあいだが「ひとつの操作」。**成功したら捨てる**ので、
+   * そのあと同じ画面でもう一度押した人には、ちゃんと新しい結果が出る。
+   * 逆に、送ったのに返事が来なくて押し直した人には同じ合言葉が付き、
+   * サーバーは作り直さずに前の結果を返す（持ち分が2つ減らない）。
+   *
+   * `key` は「何を送ろうとしているか」。中身が変われば別の操作なので、
+   * 合言葉も引き直す。
+   */
+  const pendingRequest = useRef<{ key: string; id: string } | null>(null);
 
   const step = useMemo(
     () => findStep(lesson, stepId) ?? lesson.steps[0],
@@ -211,6 +245,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     (key: string, value: string) => {
       setValues((current) => ({ ...current, [key]: value }));
       setError(null);
+      setErrorKind(null);
       void sendLearningEvent({
         lessonId: lesson.id,
         eventType: value.length > 0 && key.endsWith("_text") ? "text_entered" : "option_selected",
@@ -225,13 +260,32 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     (nextId: string) => {
       const target = findStep(lesson, nextId);
       if (!target) return;
+
+      /*
+        区切り（ミッション）を1つ終えたか。
+
+        進んだときだけ数える。戻ったときに数えると、行き来した回数が
+        そのまま「終えた区切りの数」になる。
+      */
+      const from = missionStateOf(lesson, stepIndex(lesson, stepId));
+      const to = missionStateOf(lesson, stepIndex(lesson, nextId));
+      if (to.current > from.current) {
+        void sendLearningEvent({
+          lessonId: lesson.id,
+          eventType: "mission_completed",
+          step: stepId,
+          inputLength: from.current,
+        });
+      }
+
       setStepId(nextId);
       setPo(poOf(target));
       setHintIndex(0);
       setError(null);
+      setErrorKind(null);
       setFindings([]);
     },
-    [lesson],
+    [lesson, stepId],
   );
 
   const goNext = useCallback(() => {
@@ -358,8 +412,25 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       generation.current += 1;
       const mine = generation.current;
 
+      /*
+        この送りの合言葉を決める。
+
+        送ろうとしている中身（どの回・どの頼み方・何の文章）が
+        さっきと同じなら、同じ操作の送り直しとみなして引き継ぐ。
+        違っていれば別の操作なので引き直す。
+
+        成功したら下で捨てる。捨てるからこそ、同じ内容でもう一度
+        押した人には**新しい結果**が返る。
+      */
+      const key = `${step.id}|${action}|${JSON.stringify(input)}`;
+      if (pendingRequest.current?.key !== key) {
+        pendingRequest.current = { key, id: newRequestId() };
+      }
+      const requestId = pendingRequest.current.id;
+
       setSubmitting(true);
       setError(null);
+      setErrorKind(null);
       setFindings([]);
       setPo({
         message: step.poMessage,
@@ -373,11 +444,30 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
           stepId: step.id,
           action,
           input,
+          requestId,
           // 将来のモデル比較コース用。通常の教材では指定しない
           provider: step.aiAction?.provider,
           model: step.aiAction?.model,
         });
         if (mine !== generation.current) return "busy" as const;
+
+        /*
+          届いた。合言葉はここで捨てる。
+
+          持ったままにすると、同じ内容で押し直した人にサーバーが
+          前の結果を返してしまう——押しても何も変わらない画面になる。
+          「もう一度」は新しい操作。
+        */
+        pendingRequest.current = null;
+
+        /*
+          AIの返事が届いた。既定は無音で、入れた人にだけ短く1音。
+
+          いちばん待たされる場面なので、届いたことが画面を見ていない
+          人にも分かるようにする。文字（結果そのもの）は必ず出るので、
+          音はその上乗せ。
+        */
+        playSuccessSound("result");
 
         setRuns((current) => [
           ...current,
@@ -411,10 +501,23 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
             : new AiRequestError("うまく届かなかったようです。", "failed");
         // 入力は消さない。同じことをもう一度書かせない（要件 §6.8）
         setError(failure.detail);
+        setErrorKind(failure.kind);
+        /*
+          「今日はここまで」と「うまく届かなかった」を分ける。
+
+          前者は押し直しても意味が無く、後者は押し直せば直ることが多い。
+          持ち分を使い切った（`out_of_credits`）のも、その日の上限に
+          当たった（`limit`）のも、次にすることは同じ——今日はここまで。
+        */
+        const done = failure.kind === "limit" || failure.kind === "out_of_credits";
         setPo({
           message: failure.detail,
-          emotion: "warning",
-          action: failure.kind === "limit" ? "wait" : "retry",
+          /*
+            上限に達しただけなのに、押しても直らない「失敗」として
+            出さない。ここまでよく練習した、という事実は変わらない。
+          */
+          emotion: done ? "celebrate" : "warning",
+          action: done ? "wait" : "retry",
         });
         return "busy" as const;
       } finally {
@@ -487,17 +590,18 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
 
   const complete = useCallback(() => {
     markCompleted(lesson.id);
-    void sendLearningEvent({
-      lessonId: lesson.id,
-      eventType: "lesson_completed",
-      step: stepId,
-      completed: true,
-    });
+    /*
+      何が増えたかはサーバーが決める（設計方針 §36）。
+      画面で数えると必ず食い違うので、返ってきた分をそのまま出す。
+      届かなくても学習は終わっている——祝いの材料が無いだけ。
+    */
+    void completeLesson(lesson.id, stepId).then(setAward);
     clearDraft(lesson.id);
   }, [lesson.id, stepId]);
 
   const restart = useCallback(() => {
     clearDraft(lesson.id);
+    setAward(null);
     setValues({});
     setRuns([]);
     setRealTaskSkipped(false);
@@ -509,12 +613,15 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     values,
     po,
     runs,
+    award,
     progress: progressOf(lesson, stepId),
+    missions: missionStateOf(lesson, progressOf(lesson, stepId).current - 1),
     summary: summaryOf(lesson, stepId, values),
     issue: checkStep(step, values),
     canBack: canGoBack(lesson, stepId),
     isSubmitting,
     error,
+    errorKind,
     findings,
     hintIndex,
     realTaskSkipped,

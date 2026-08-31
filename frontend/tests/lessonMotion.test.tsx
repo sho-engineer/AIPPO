@@ -21,17 +21,19 @@ import { StepDone } from "../src/components/course/StepDone";
 import { LessonCelebration } from "../src/components/course/LessonCelebration";
 
 describe("進み具合", () => {
-  it("何歩目かが読み上げに届く", () => {
+  it("進み具合が読み上げに届く", () => {
     /*
       帯の幅だけで伝えると、見えない人には何も残らない。
-      数字と、読み上げ用の文の両方を持たせる。
+      ただし**内部の歩数は渡さない**——19 は実装上の数で、
+      学習者にとって意味を持たない（下の「区切り」を参照）。
     */
     render(<LessonProgress current={3} total={19} />);
 
     const bar = screen.getByRole("progressbar", { name: "レッスンの進み具合" });
     expect(bar).toHaveAttribute("aria-valuenow", "3");
     expect(bar).toHaveAttribute("aria-valuemax", "19");
-    expect(bar).toHaveTextContent("3 / 19");
+    expect(bar).toHaveAttribute("aria-valuetext", "16パーセント");
+    expect(bar).not.toHaveTextContent("3 / 19");
   });
 
   it("0本のレッスンでも壊れない", () => {
@@ -158,5 +160,66 @@ describe("完了の祝い", () => {
       "aria-hidden",
       "true",
     );
+  });
+});
+
+describe("進み具合の帯の区切り", () => {
+  /**
+   * 19歩の一本道に見えると、始めた人はまず「あと16回も押すのか」と
+   * 思う。実際の中身は4つのまとまりで、どれも数歩で終わる。
+   * その形を帯の割れ目と、区切りの名前で出す。
+   *
+   * **分数は1つのまま。** 「2 / 4」と「3 / 19」が並ぶと、どちらを
+   * 見ればよいのか決められなくなる（前に3段で同じことを言って
+   * 読まれなくなった件と同じ轍）。
+   */
+  const MISSIONS = [
+    { key: "try" as const, label: "試す", steps: 4 },
+    { key: "compare" as const, label: "変える", steps: 4 },
+    { key: "own" as const, label: "自分で使う", steps: 7 },
+  ];
+
+  it("いまいる区切りの名前を出す", () => {
+    render(
+      <LessonProgress current={3} total={10} missions={MISSIONS} currentMission={2} />,
+    );
+
+    expect(screen.getByTestId("lesson-mission")).toHaveTextContent("変える");
+  });
+
+  it("分数は1つだけ。しかも区切りの番号のほう", () => {
+    /*
+      内部の歩数（3 / 10）は出さない。学習者にとって意味を持つのは
+      「4つのうち2つ目」で、細かい進み具合は帯の幅が持っている。
+    */
+    render(
+      <LessonProgress current={3} total={10} missions={MISSIONS} currentMission={2} />,
+    );
+
+    const text = screen.getByTestId("lesson-progress").textContent ?? "";
+    expect(text.match(/\//g) ?? []).toHaveLength(1);
+    expect(text).toContain(`2 / ${MISSIONS.length}`);
+    expect(text).not.toContain("3 / 10");
+  });
+
+  it("読み上げにも、いまの区切りが伝わる", () => {
+    render(
+      <LessonProgress current={3} total={10} missions={MISSIONS} currentMission={2} />,
+    );
+
+    expect(screen.getByTestId("lesson-progress")).toHaveAttribute(
+      "aria-valuetext",
+      "3つのうち2つ目。いまは「変える」",
+    );
+  });
+
+  it("区切りが無くても、帯だけは必ず出る", () => {
+    // 区切りを持たない呼び出し側が残っていても、進み具合は消さない
+    render(<LessonProgress current={3} total={10} />);
+
+    const bar = screen.getByTestId("lesson-progress");
+    expect(bar).toHaveAttribute("aria-valuetext", "30パーセント");
+    // 名前も番号も出せないので、数字は置かない
+    expect(bar.textContent).toBe("");
   });
 });

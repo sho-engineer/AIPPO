@@ -37,17 +37,28 @@ export function GeneratingCard({
       {/*
         待っていることを、動きでも伝える。
 
+        **進み具合は出さない。** 前は幅40%の帯を流していたが、
+        「40%終わった」と読める。AIがどこまで進んだかはこちらには
+        分からないので、分かるふりをしない（偽の進捗は禁止）。
+
+        いまは幅いっぱいの帯の中を、細い光が左から右へ通り抜ける形。
+        動いていることだけを言い、どこまで来たかは言わない。
+
         止まっているときは動かさない。動いたままだと、まだ続いているのか
-        終わったのかが読めない。棒は残す——「ここまで進んで止まった」が
-        分かるほうが、消えるより落ち着く。
+        終わったのかが読めない。
       */}
-      <div className="mx-auto mt-5 h-2 w-48 overflow-hidden rounded-full bg-brand-soft">
-        <div
-          className={`h-full rounded-full ${failed ? "bg-line" : "bg-brand"} ${
-            busy ? "animate-drift-x" : ""
-          }`}
-          style={{ width: busy ? "40%" : "100%" }}
-        />
+      <div
+        className="mx-auto mt-5 h-2 w-48 overflow-hidden rounded-full bg-brand-soft"
+        data-testid="generating-bar"
+        data-busy={busy ? "true" : "false"}
+      >
+        {busy ? (
+          <div className="h-full w-1/3 rounded-full bg-brand animate-drift-x" />
+        ) : (
+          <div
+            className={`h-full w-full rounded-full ${failed ? "bg-line" : "bg-brand"}`}
+          />
+        )}
       </div>
 
       {/*

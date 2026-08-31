@@ -177,6 +177,8 @@ EXPLAIN = Action(
     fields=(
         ActionField("topic", "知りたいこと", max_length=500),
         ActionField("audience", "説明する相手"),
+        # どんな立場で答えるか（ロール指定）。教材が聞いたときだけ入る
+        ActionField("role", "答える立場", required=False),
         ActionField("style", "説明のしかた"),
         ActionField("example", "具体例の有無"),
         ActionField("length", "長さ"),
@@ -187,6 +189,7 @@ EXPLAIN = Action(
         "次のことを説明してください。",
         [
             ("説明する相手", v["audience"]),
+            ("答える立場", v.get("role", "")),
             ("説明のしかた", v["style"]),
             ("具体例", v["example"]),
             ("長さ", v["length"]),
@@ -222,7 +225,10 @@ COMPARE = Action(
     },
     fields=(
         ActionField("options_text", "比べたいもの", max_length=2000),
-        ActionField("criteria", "比べる基準", max_length=500),
+        # 最初の1回は基準を決めずに聞く（「どれがおすすめ？」）。
+        # 基準を決めると答えが変わることを、その差で見せる回なので、
+        # ここを必須にすると最初から基準ありになってしまう。
+        ActionField("criteria", "比べる基準", required=False, max_length=500),
         ActionField("priority", "いちばん大事にしたいこと"),
         ActionField("as_table", "表にするか"),
         ActionField("instruction", "追加の条件", required=False),
@@ -231,7 +237,7 @@ COMPARE = Action(
     build=lambda v: _compose(
         "次の選択肢を比べてください。",
         [
-            ("比べる基準", v["criteria"]),
+            ("比べる基準", v.get("criteria", "")),
             ("いちばん大事にしたいこと", v["priority"]),
             ("表にするか", v["as_table"]),
             ("追加の条件", v.get("instruction", "")),
@@ -316,6 +322,8 @@ BRAINSTORM = Action(
     fields=(
         ActionField("topic", "考えたいテーマ", max_length=1000),
         ActionField("audience", "対象"),
+        # どんな立場で案を出すか（ロール指定）。教材が聞いたときだけ入る
+        ActionField("role", "考える立場", required=False),
         ActionField("constraints", "条件", required=False, max_length=500),
         ActionField("count", "案の数"),
         ActionField("instruction", "追加の条件", required=False),
@@ -325,6 +333,7 @@ BRAINSTORM = Action(
         "次のテーマのアイデアを広げてください。",
         [
             ("対象", v["audience"]),
+            ("考える立場", v.get("role", "")),
             ("条件", v.get("constraints", "")),
             ("案の数", v["count"]),
             ("追加の条件", v.get("instruction", "")),
@@ -348,7 +357,9 @@ ORGANIZE = Action(
     fields=(
         ActionField("original_text", "整理したい情報", max_length=5000),
         ActionField("purpose", "使う目的"),
-        ActionField("categories", "分ける見出し", max_length=500),
+        # 最初の1回は見出しを決めずに通す。分けると見やすくなることを
+        # その差で見せる回なので、ここを必須にすると最初から分け済みになる。
+        ActionField("categories", "分ける見出し", required=False, max_length=500),
         ActionField("format", "出力形式"),
         ActionField("instruction", "追加の条件", required=False),
     ),
@@ -357,7 +368,7 @@ ORGANIZE = Action(
         "次の情報を整理してください。",
         [
             ("使う目的", v["purpose"]),
-            ("分ける見出し", v["categories"]),
+            ("分ける見出し", v.get("categories", "")),
             ("出力形式", v["format"]),
             ("追加の条件", v.get("instruction", "")),
         ],

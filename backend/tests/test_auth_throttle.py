@@ -51,6 +51,14 @@ def _tight_limits(settings):
     settings.AUTH_THROTTLE_PASSWORD_RESET_WINDOW = 3600
     settings.AUTH_THROTTLE_SIGNUP_MAX_SOURCE = 2
     settings.AUTH_THROTTLE_SIGNUP_WINDOW = 3600
+    """
+    間隔（cooldown）はここでは切る。
+
+    窓ごとの回数と間隔は別の軸で、混ぜると**どちらで断られたのか**が
+    分からなくなる。窓の数えを見ているテストは間隔なしで動かし、
+    間隔そのものは TestResendInterval で見る。
+    """
+    settings.AUTH_COOLDOWN_PASSWORD_RESET = 0
 
 
 @pytest.fixture(autouse=True)
@@ -282,3 +290,86 @@ class TestTheCounterItself:
         )
 
         consume("signin", request, "a@example.com")  # 例外にならない
+
+
+@pytest.mark.django_db
+class TestResendInterval:
+    """続けて送るまでの間隔（AUTH_COOLDOWN_PASSWORD_RESET）。
+
+    窓ごとの回数とは別の軸。窓の数えは「1時間に5回」のような総量を
+    押さえるが、**続いた2回のあいだ**は押さえない。窓が切り替わる
+    瞬間をまたげば、続けて2通送れてしまう。
+
+    再設定の案内は他人の受信箱へ届くので、総量とは別に間隔も要る。
+    画面側にも残り秒数を出すが、そちらは手元でいくらでも外せるので、
+    **数えるのはサーバー**。
+    """
+
+    @pytest.fixture(autouse=True)
+    def _interval_on(self, settings):
+        settings.AUTH_COOLDOWN_PASSWORD_RESET = 60
+        # 間隔だけを見たいので、窓の数えでは断られないようにする
+        settings.AUTH_THROTTLE_PASSWORD_RESET_MAX_SOURCE = 0
+        settings.AUTH_THROTTLE_PASSWORD_RESET_MAX_TARGET = 0
+
+    def test_a_second_send_right_away_is_refused(self, client):
+        body = {"email": "someone@example.com"}
+
+        first = _post(client, RESET, body)
+        second = _post(client, RESET, body)
+
+        assert first.status_code == 200
+        assert second.status_code == 429
+        # 断ったぶんは送らない
+        assert len(mail.outbox) == 0 or len(mail.outbox) == 1
+
+    def test_it_says_how_long_to_wait(self, client):
+        """「しばらく」ではなく秒数を返す。画面はこれで残りを出す。"""
+        body = {"email": "someone@example.com"}
+        _post(client, RESET, body)
+
+        second = _post(client, RESET, body)
+
+        assert second["Retry-After"] == "60" or int(second["Retry-After"]) <= 60
+        assert int(second["Retry-After"]) >= 1
+
+    def test_it_opens_again_once_the_interval_has_passed(self, client, monkeypatch):
+        """待てば送れること。**永久に断らない。**"""
+        from datetime import timedelta
+
+        from django.utils import timezone as django_timezone
+
+        body = {"email": "someone@example.com"}
+        assert _post(client, RESET, body).status_code == 200
+
+        # 61秒進める（_steady_clock で止めた時計を、そのぶんだけ動かす）
+        later = django_timezone.now() + timedelta(seconds=61)
+        monkeypatch.setattr("apps.accounts.throttle.timezone.now", lambda: later)
+
+        assert _post(client, RESET, body).status_code == 200
+
+    def test_another_address_is_not_blocked(self, client):
+        """1人が送ったせいで、別の人が待たされないこと。"""
+        _post(client, RESET, {"email": "one@example.com"})
+
+        response = _post(client, RESET, {"email": "two@example.com"})
+
+        assert response.status_code == 200
+
+    def test_the_interval_does_not_reveal_whether_the_address_exists(self, client):
+        """登録済みでも未登録でも、同じ断り方になること。
+
+        間隔は「送った回数」で数える。実在を見てから数えると、
+        429 が返るかどうかで登録済みかが分かってしまう。
+        """
+        _post(client, SIGNUP, ACCOUNT)
+        mail.outbox.clear()
+
+        _post(client, RESET, {"email": ACCOUNT["email"]})
+        known = _post(client, RESET, {"email": ACCOUNT["email"]})
+
+        _post(client, RESET, {"email": "nobody@example.com"})
+        unknown = _post(client, RESET, {"email": "nobody@example.com"})
+
+        assert known.status_code == unknown.status_code == 429
+        assert known.json() == unknown.json()

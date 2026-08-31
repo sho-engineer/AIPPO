@@ -18,11 +18,32 @@ import type { LessonStep } from "../src/course/types";
 const REWRITE = getLesson("rewrite_text")!;
 
 describe("教材データ", () => {
-  it("Lesson 0〜7 と Final Challenge が揃っている", () => {
-    expect(COURSE.lessons.map((lesson) => lesson.number)).toEqual([
-      0, 1, 2, 3, 4, 5, 6, 7, 8,
-    ]);
-    expect(getLesson("final_challenge")).not.toBeNull();
+  it("現在地チェックは Day として数えない", () => {
+    // 診断は始める前に自分の位置を見るもので、コースの1日目ではない。
+    // Day に数えると、受けなかった人の進み具合が最初から欠ける
+    const check = COURSE.lessons.find((lesson) => lesson.id === "diagnosis")!;
+    expect(check.number).toBe(0);
+    expect(check.stageKey).toBe("orientation");
+  });
+
+  it("Day は1から続きの番号で並ぶ", () => {
+    const days = COURSE.lessons.filter((lesson) => lesson.number > 0);
+    expect(days.map((lesson) => lesson.number)).toEqual(
+      [...days.map((lesson) => lesson.number)].sort((a, b) => a - b),
+    );
+    expect(days.every((lesson) => lesson.stageKey)).toBe(true);
+  });
+
+  it("コースから外した教材も、id からは引ける", () => {
+    /*
+      一覧から外したのと、行き先ごと消したのは別のこと。
+      終えた人が学習記録から押したときに「ありません」になると、
+      やったことを取り上げる形になる。
+    */
+    for (const id of ["make_plan", "improve_answer", "final_challenge"]) {
+      expect(getLesson(id), `${id} が引けない`).not.toBeNull();
+      expect(COURSE.lessons.some((lesson) => lesson.id === id)).toBe(false);
+    }
   });
 
   it("id が重複していない", () => {
@@ -36,6 +57,48 @@ describe("教材データ", () => {
       expect(new Set(ids).size, `${lesson.title} で id が重複している`).toBe(
         ids.length,
       );
+    }
+  });
+
+  it("先に入っている既定値が、その質問の選択肢に無いことがない", () => {
+    /*
+      最初のお試しは、聞かなかった条件を `quickDefaults` が埋めて
+      成立させている（useCourseLesson が `values` に書く）。その値は
+      あとの画面まで残るので、同じキーを使う質問は**開いた時点で
+      答えが入っている**。
+
+      入っている値がその質問の選択肢のどれかなら、札が選ばれた形で
+      出るので筋は通る。**選択肢に無い値**だと、札はどれも選ばれて
+      いないのに `checkStep`（空かどうかしか見ない）は通ってしまい、
+      必須なのに選ばずに次へ進める。
+
+      Day3 でこれが起きた。「これがロール指定」と教えた直後の質問に
+      `style` を流用したせいで、立場を選ばないまま、立場の無い依頼が
+      AIへ送られていた。看板だけが残る。
+    */
+    for (const lesson of COURSE.lessons) {
+      const quick = lesson.steps.find((step) => step.id === "quick_try");
+      const defaults = (quick?.meta?.defaults ?? {}) as Record<string, string>;
+
+      for (const step of lesson.steps) {
+        if (step.id === "quick_try" || !step.required || !step.key) continue;
+        if (!step.options) continue;
+
+        const filled = defaults[step.key];
+        if (!filled) continue;
+
+        // 複数選べる回は「,」でつないだ形で持つ（Inputs.tsx と同じ読み方）
+        const chosen =
+          step.type === "multi_choice" ? filled.split(",").filter(Boolean) : [filled];
+        const values = step.options.map((one) => one.value);
+
+        for (const one of chosen) {
+          expect(
+            values,
+            `${lesson.title}/${step.id} は「${one}」が先に入るのに、それが選択肢に無い`,
+          ).toContain(one);
+        }
+      }
     }
   });
 
@@ -87,15 +150,77 @@ describe("教材データ", () => {
         "outcome_preview",
       );
       expect(kinds[1], `${lesson.title} がすぐ試せない`).toBe("quick_try");
-      // 観察 → 解説 の順。解説が先に来ていないこと
-      expect(kinds.indexOf("observation")).toBeLessThan(
+      /*
+        AI技の名前は、**使って、違いを見たあと**に出す。
+
+        観察より後、というだけでは足りなかった。以前はここが
+        「観察 → 解説 → 条件を足す → 比べる」で、条件を足す前・
+        比べる前に「〜とは」を読ませていた。何の役に立つのか
+        分からないまま読む説明は、飛ばされるか、読んでも残らない。
+
+        いまは 条件を足す → 結果が変わる → 見比べる → 「今のが〜です」。
+        名前が、たったいま自分で起こした変化に貼り付く。
+      */
+      expect(
         kinds.indexOf("concept_card"),
-      );
-      // 解説のあとは、すぐ操作へ戻る
-      const lastCard = kinds.lastIndexOf("concept_card");
-      expect(kinds[lastCard + 1], `${lesson.title} が解説の後に操作へ戻らない`).toBe(
-        "condition_choice",
-      );
+        `${lesson.title} の解説が、比べるより前に出ている`,
+      ).toBeGreaterThan(kinds.indexOf("result_compare"));
+
+      // 比べた直後であること。1画面でも空くと「さっきの話」になる
+      expect(
+        kinds[kinds.indexOf("result_compare") + 1],
+        `${lesson.title} の解説が、比べた直後に無い`,
+      ).toBe("concept_card");
+    }
+  });
+
+
+  it("解説が続いたら、そのあとは必ず操作へ戻る", () => {
+    /*
+      読むだけの画面が続いたあと、また読む画面が来ると講義になる。
+      解説の連続が切れたところで、必ず手を動かす画面が来ること。
+
+      解説そのものが続くのは止めない（骨格は3枚まで並べられる）。
+      見るのは**連続の終わり**だけ。
+    */
+    const reading = new Set(["concept_card", "reflection", "completion"]);
+
+    for (const lesson of COURSE.lessons) {
+      const kinds = lesson.steps.map((step) => step.type);
+      for (let index = 0; index < kinds.length; index += 1) {
+        if (kinds[index] !== "concept_card") continue;
+        if (kinds[index + 1] === "concept_card") continue; // まだ連続の途中
+
+        const next = kinds[index + 1];
+        expect(
+          next !== undefined && !reading.has(next),
+          `${lesson.title}/${lesson.steps[index].id} の後が「${next}」で、操作へ戻っていない`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("AI技の解説を、続けて2枚出さない", () => {
+    /*
+      新しい技を2つ続けて説明すると、どちらも身に付かないまま
+      次へ行く。技は**使う直前**に1つずつ出す。
+
+      骨格が最初に出す解説（concept_1〜3）は別。あれは同じ場面を
+      3通りに言い換えたもので、新しい技を並べているのではない。
+    */
+    const fromSkeleton = (id: string) => /^concept_[123]$/.test(id);
+
+    for (const lesson of COURSE.lessons) {
+      for (let index = 0; index < lesson.steps.length - 1; index += 1) {
+        const here = lesson.steps[index];
+        const next = lesson.steps[index + 1];
+        if (here.type !== "concept_card" || next.type !== "concept_card") continue;
+
+        expect(
+          fromSkeleton(here.id) && fromSkeleton(next.id),
+          `${lesson.title} で解説が続いている（${here.id} → ${next.id}）`,
+        ).toBe(true);
+      }
     }
   });
 
@@ -282,6 +407,15 @@ describe("AI へ渡す値", () => {
 
 describe("入力済みのまとめ", () => {
   it("現在地より前の、答えた分だけを出す", () => {
+    /*
+      `real_tone`（言い方を選ぶ回）に居るときの持ち物。
+
+      自分の文章は**まだ書いていない**。条件と解説を自分の文章より
+      前へ移したので、ここに来る時点では手元にあるのは
+      「お試しで選んだ相手」「足した条件」「誰向けか」の3つだけ。
+      渡しても出ないことを見張る——出てしまうと、書いていない文章を
+      「答えた」ことにしてしまう。
+    */
     const summary = summaryOf(REWRITE, "real_tone", {
       audience: "上司",
       condition: "もっと短く",
@@ -293,7 +427,6 @@ describe("入力済みのまとめ", () => {
     expect(summary.map((entry) => entry.value)).toEqual([
       "上司",
       "もっと短く",
-      "自分の文章",
       "上司",
     ]);
   });
@@ -317,12 +450,20 @@ describe("入力済みのまとめ", () => {
     for (const entry of summary) {
       expect(entry.value).not.toMatch(/^[a-z_]+$/);
     }
-    expect(summary.map((entry) => entry.value)).toContain("文章を書くことが多い");
+    /*
+      札に書いてある言葉がそのまま出ること。
+
+      文言は短くしたので（折り返し対策で「文章を書くことが多い」→
+      「文章を書く」）、ここも合わせる。見ているのは**記号ではなく
+      人の言葉が出るか**で、文言そのものではない。
+    */
+    expect(summary.map((entry) => entry.value)).toContain("文章を書く");
   });
 
   it("自分で書いた言葉は、そのまま出す", () => {
-    // 選択肢のどれにも一致しない。書いた文字が答えそのもの
-    const summary = summaryOf(REWRITE, "real_tone", {
+    // 選択肢のどれにも一致しない。書いた文字が答えそのもの。
+    // 見るのは書いた**あと**の回（送る内容を確かめるところ）
+    const summary = summaryOf(REWRITE, "prompt_preview", {
       real_task_text: "来週の打ち合わせの件です",
     });
 

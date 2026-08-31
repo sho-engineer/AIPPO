@@ -129,7 +129,7 @@ export interface AiAction {
 }
 
 /**
- * レッスンの大きな区切り。
+ * レッスンの大きな区切り。帯の見出しに出る。
  *
  * 20歩ぶんの点を並べても「あとどれくらいか」は読めるが、
  * 「いま何をしている最中か」は分からない。4つに束ねて名前を付けると、
@@ -137,12 +137,33 @@ export interface AiAction {
  *
  * 付けるのは骨格を組む buildLessonFlow。手書きのレッスン
  * （Lesson 0・7）には付けない。付いていなければ点の目盛りに戻る。
+ *
+ * `deepen` を足した理由
+ * ---------------------
+ * 前の4つで Day1 を数えると
+ * **完成イメージ1歩 / お試し3歩 / 比較4歩 / 自分で試す11歩**。
+ * 最後の1つが全体の6割近くを占めていて、帯は8画面目で「4 / 4」に
+ * 達したあと、**11画面ぶん止まったまま**だった。あと何回押すのかが
+ * 分からない時間が、レッスンの後半ずっと続く。
+ *
+ * 中身を見ると、後半は性質の違う2つが混ざっていた。
+ *
+ *   条件を足して技を覚える（誰向けか・トーン・反復）
+ *   自分の文章でやってみる（書く・送る・確かめる）
+ *
+ * 前半を `deepen` として分ける。**歩数は増えない。**
  */
 export const LESSON_PHASES = [
-  { key: "outcome", label: "完成イメージ" },
-  { key: "try", label: "お試し" },
-  { key: "compare", label: "比較" },
-  { key: "own", label: "自分で試す" },
+  /*
+    「完成イメージ」という区切りは無くした。**1歩しか入っていない**ので、
+    帯は開いた瞬間に「1 / 5」を出し、次を押すと即「2 / 5」になる。
+    始まる前に終わる区切りは、あと何回押すのかを教えてくれない。
+    今日つくるものを見るところは、試す前のひと呼吸として「試す」に含める。
+  */
+  { key: "try", label: "試す" },
+  { key: "compare", label: "変える" },
+  { key: "deepen", label: "深める" },
+  { key: "own", label: "自分で使う" },
 ] as const;
 
 export type LessonPhase = (typeof LESSON_PHASES)[number]["key"];
@@ -178,6 +199,17 @@ export interface LessonStep {
   meta?: Record<string, unknown>;
   /** 飛ばせるか。解説カードは必ず飛ばせる。 */
   skippable?: boolean;
+  /**
+   * 画面の下のボタンに出す文言。
+   *
+   * 省くと種類ごとの既定になる（`course/primaryLabel.ts`）。
+   * 同じ種類でも場面で言うことが変わるときに書く——Day1 の
+   * 「誰向けか決めた」と「この言い方で書く」は、どちらも
+   * `single_choice` だが別のことをしている。
+   *
+   * **押すと何が起きるかを書く。** 「次へ」は何も言っていない。
+   */
+  primaryLabel?: string;
   /** concept_card の中身。 */
   card?: ConceptCard;
 }
@@ -254,12 +286,30 @@ export type LessonAvailability = "available" | "coming_soon";
  */
 export type Difficulty = "beginner" | "intermediate" | "advanced";
 
+/**
+ * コースの中の STEP。
+ *
+ * 8本を平らに並べると、8回ぶんの一本道に見える。3つに束ねて名前を
+ * 付けると「いま何をしている最中か」が言葉で分かる。
+ *
+ * 束はサーバーが決める（`Lesson.stage_key` が続くひとかたまり）。
+ * 画面はここに来た順にそのまま描く——並べ替えない。
+ */
+export interface CourseStage {
+  key: string;
+  title: string;
+  /** この束に入るレッスンの id。コースの並び順そのまま。 */
+  lessonIds: string[];
+}
+
 export interface Lesson {
   id: string;
-  /** 一覧に出す番号。「Lesson 1」など。 */
+  /** 一覧に出す番号。「Day 1」など。0 は Day として数えない（診断）。 */
   number: number;
   title: string;
   goal: string;
+  /** どの STEP に属するか。属さないものは空か省略。 */
+  stageKey?: string;
 
   /**
    * 一覧やカードに出す絵。`public/` からの道筋。
@@ -312,6 +362,20 @@ export interface Course {
   id: string;
   title: string;
   description: string;
+  /**
+   * 終えると何ができるようになるか。**1文。**
+   *
+   * レッスンごとの成果を全部並べると、始める前の人には長すぎる。
+   * 1本ずつの詳しい話は、レッスンの最初の画面（完成イメージ）が持つ。
+   */
+  outcome?: string;
+  /**
+   * STEP の束。
+   *
+   * 省略されていたら束にしない（古い応答との互換）。そのときは
+   * レッスンが平らに並ぶだけで、画面は壊れない。
+   */
+  stages?: CourseStage[];
   /** 一覧のカードに出す目安。レッスンごとの難易度とは別。 */
   difficulty?: Difficulty;
   /**

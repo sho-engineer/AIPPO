@@ -47,6 +47,7 @@ import { useEffect, useState } from "react";
 
 import { AppHeader, IconMark } from "../components/AppShell";
 import { HomeStats } from "../components/aippo/HomeStats";
+import { SkillSummary } from "../components/aippo/SkillSummary";
 import { PoGreeting } from "../components/aippo/PoGreeting";
 import { PrimaryButton } from "../components/aippo/PrimaryButton";
 import { ReviewPrompt } from "../components/ReviewPrompt";
@@ -65,7 +66,7 @@ import { CATEGORIES, lookOf } from "../course/presentation";
 import { LessonThumbnail } from "../components/lessons/LessonThumbnail";
 import { lessonThumbnail } from "../course/lessonThumbnail";
 import { recommendationsForHome } from "../course/recommend";
-import { useCompletedLessons } from "../course/progress";
+import { useCompletedLessons, useXpSummary } from "../course/progress";
 import { readStreak, touchStreak } from "../lib/draft";
 import type { Lesson } from "../course/types";
 
@@ -77,6 +78,8 @@ export interface HomePageProps {
   onOpenPath: (courseId: string) => void;
   /** 学習記録タブへ。 */
   onOpenRecord: () => void;
+  /** AI技図鑑へ。何ができるようになったかを見る場所 */
+  onOpenSkills: () => void;
   onOpenAccount: () => void;
 }
 
@@ -222,6 +225,7 @@ export function HomePage({
   onOpenCourse,
   onOpenPath,
   onOpenRecord,
+  onOpenSkills,
   onOpenAccount,
 }: HomePageProps) {
   /*
@@ -230,6 +234,8 @@ export function HomePage({
   */
   const course = useCourse();
   const completed = useCompletedLessons();
+  /* 学んだ量。届くまでは null で、この節ごと出さない */
+  const learned = useXpSummary();
   const [recommended, setRecommended] = useState<string[]>([]);
   const [streak, setStreak] = useState({ days: 0, realTaskCount: 0 });
 
@@ -290,6 +296,20 @@ export function HomePage({
             onOpenRecord={onOpenRecord}
           />
         </div>
+
+        {/*
+          何ができるようになったか。終えた本数とは別のことを言う。
+          1つも覚えていないうちは出さない（SkillSummary が判断する）。
+        */}
+        {learned && (
+          <div className="mt-3">
+            <SkillSummary
+              xp={learned.xp}
+              skills={learned.skills}
+              onOpen={onOpenSkills}
+            />
+          </div>
+        )}
 
         {nextLesson && (
           <div className="mt-4">

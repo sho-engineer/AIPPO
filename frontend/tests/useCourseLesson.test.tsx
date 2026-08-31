@@ -68,6 +68,28 @@ async function toFirstResult(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
 }
 
+/**
+ * 解説（AI技の名前）が出るところまで進める。
+ *
+ * 解説は**比べたあと**に出る。観察 → 条件を足す → 再実行 → 比べる、
+ * を通らないと辿り着かない。歩数を数えるより、通る画面を名前で
+ * 書いたほうが、また並びが変わったときに直しやすい。
+ */
+async function toConceptCard(
+  user: ReturnType<typeof userEvent.setup>,
+  observation = "短くなった",
+) {
+  await toFirstResult(user);
+  await user.click(await screen.findByRole("button", { name: observation }));
+  await user.click(screen.getByTestId("primary-action")); // 観察 → 条件を足す
+
+  await user.click(await screen.findByRole("button", { name: "もっと短く" }));
+  await user.click(screen.getByTestId("primary-action")); // 再実行（自動送信）
+  await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+
+  await user.click(screen.getByTestId("primary-action")); // 比べる → 解説
+}
+
 beforeEach(() => {
   window.localStorage.clear();
   generate = vi.fn().mockResolvedValue(okResponse());
@@ -76,14 +98,44 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 describe("成果物ファースト", () => {
-  it("最初に完成イメージを見せる", () => {
+  it("最初の画面は、絵と「はじめる」だけ", async () => {
+    /*
+      絵の上下に長い説明を積まない。積むと、絵を見る前に読み下す
+      ことになり、1枚で伝える意味が消える。
+
+      詳しい話（ねらい・完成イメージ・流れ・覚えるAI技）はこの画面が
+      持っているが、**畳んである**。持ち主がここなのと、最初から
+      広げておくのは別のこと。
+    */
+    const user = userEvent.setup();
     renderLesson();
+
     expect(screen.getByTestId("outcome-preview")).toBeInTheDocument();
-    // Before / After を1組見せる。抽象的な目標だけにしない
-    expect(screen.getByTestId("outcome-before")).toBeInTheDocument();
-    expect(screen.getByTestId("outcome-after")).toBeInTheDocument();
+    expect(screen.getByTestId("outcome-before")).not.toBeVisible();
     // 先に長い説明を読ませない
     expect(screen.queryByTestId("concept-card")).toBeNull();
+
+    await user.click(screen.getByTestId("outcome-detail-toggle"));
+
+    /*
+      開くのを待つ。<details> の開閉は、押した直後ではなく
+      次の順番で効く（jsdom も同じ）。待たずに見ると、
+      押したのに閉じたまま、という形で落ちる。
+    */
+    // Before / After を1組見せる。抽象的な目標だけにしない
+    await waitFor(() => expect(screen.getByTestId("outcome-before")).toBeVisible());
+    expect(screen.getByTestId("outcome-after")).toBeVisible();
+  });
+
+  it("コースの一覧から移した詳しい話が、ここに揃っている", async () => {
+    // 消したのではなく、持ち主のところへ戻した
+    const user = userEvent.setup();
+    renderLesson();
+    await user.click(screen.getByTestId("outcome-detail-toggle"));
+
+    await waitFor(() => expect(screen.getByTestId("outcome-goal")).toBeVisible());
+    expect(screen.getByTestId("outcome-flow")).toBeVisible();
+    expect(screen.getByTestId("outcome-after-lesson")).toBeVisible();
   });
 
   it("最初に選ばせるのは1つだけ", async () => {
@@ -133,16 +185,17 @@ describe("観察してから解説する", () => {
     await user.click(await screen.findByRole("button", { name: "よく分からない" }));
     await user.click(screen.getByTestId("primary-action"));
 
-    expect(await screen.findByTestId("concept-card")).toBeInTheDocument();
+    // 気づけなくても止めない。次（条件を足す）へ進めること
+    expect(
+      await screen.findByRole("button", { name: "もっと短く" }),
+    ).toBeInTheDocument();
   });
 
   it("解説カードは飛ばせる", async () => {
     const user = userEvent.setup();
     const { sendLearningEvent } = await import("../src/api/lesson");
     renderLesson();
-    await toFirstResult(user);
-    await user.click(await screen.findByRole("button", { name: "短くなった" }));
-    await user.click(screen.getByTestId("primary-action"));
+    await toConceptCard(user);
 
     await user.click(await screen.findByRole("button", { name: "解説を飛ばす" }));
 
@@ -165,11 +218,7 @@ describe("条件を一つ足す", () => {
     await user.click(await screen.findByRole("button", { name: "短くなった" }));
     await user.click(screen.getByTestId("primary-action"));
 
-    // 解説を3枚ぶん進める
-    for (let i = 0; i < 3; i++) {
-      await user.click(screen.getByTestId("primary-action"));
-    }
-
+    // 解説はこの後（比べたあと）に出るので、ここでは通らない
     await user.click(await screen.findByRole("button", { name: "もっと短く" }));
     await user.click(screen.getByTestId("primary-action"));
     await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
@@ -273,6 +322,84 @@ describe("失敗しても続けられる", () => {
   });
 });
 
+describe("今日の上限に達したとき", () => {
+  /*
+    前は違った。上限に達しても「AI送信中」の画面
+    （`止まっています` + 押し直せる「AIに送る」）がそのまま出続け、
+    ポーの吹き出しにだけ上限の知らせが乗っていた——
+    3つの矛盾するメッセージが同時に画面へ出ていた。
+
+    上限は押し直しても直らない。押せる送信ボタンを残さず、
+    専用の画面（`components/course/LessonPaused.tsx`）へ切り替わる
+    ことを確かめる。
+  */
+  it("送信中の画面ではなく、専用の『今日はここまで』画面が出る", async () => {
+    const user = userEvent.setup();
+    const { AiRequestError } = await import("../src/api/ai");
+    generate = vi
+      .fn()
+      .mockRejectedValue(
+        new AiRequestError(
+          "今日はたくさん練習しましたね。続きは、また明日ここから試してみてください。",
+          "limit",
+        ),
+      );
+
+    renderLesson();
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action")); // 送信へ（自動送信・失敗）
+
+    expect(await screen.findByTestId("lesson-paused")).toHaveTextContent(
+      "今日はたくさん練習しましたね",
+    );
+
+    // 押しても必ずまた上限に当たるだけのボタンを残さない
+    expect(screen.queryByTestId("primary-action")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("step-error")).not.toBeInTheDocument();
+
+    // 同じ文言が2か所（吹き出しと画面本文）に重複して出ない
+    expect(
+      screen.getAllByText(/今日はたくさん練習しましたね/).length,
+    ).toBe(1);
+  });
+
+  it("『ホームへ戻る』で、渡された行き先が呼ばれる", async () => {
+    const user = userEvent.setup();
+    const { AiRequestError } = await import("../src/api/ai");
+    generate = vi
+      .fn()
+      .mockRejectedValue(new AiRequestError("今日はここまでです。", "limit"));
+    const onExit = vi.fn();
+    const lesson = getLesson("rewrite_text")!;
+
+    render(<LessonRunner lesson={lesson} onFinish={vi.fn()} onExit={onExit} />);
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action"));
+    await screen.findByTestId("lesson-paused");
+
+    await user.click(screen.getByTestId("lesson-paused-exit"));
+
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("押し直せば直る失敗（limit以外）では、いつも通り送信中の画面が出る", async () => {
+    // 「上限だけを特別扱いする」の裏取り。他の失敗まで巻き込んでいない
+    const user = userEvent.setup();
+    const { AiRequestError } = await import("../src/api/ai");
+    generate = vi
+      .fn()
+      .mockRejectedValue(new AiRequestError("うまく届かなかったようです。", "failed"));
+
+    renderLesson();
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action"));
+
+    expect(await screen.findByTestId("step-error")).toBeInTheDocument();
+    expect(screen.queryByTestId("lesson-paused")).not.toBeInTheDocument();
+    expect(screen.getByTestId("primary-action")).toBeEnabled();
+  });
+});
+
 describe("送信前の確認（機密チェック）", () => {
   /*
     ここでは確認ダイアログそのものを確かめる。
@@ -348,19 +475,83 @@ describe("自分の課題", () => {
 });
 
 describe("ポーの状態", () => {
-  it("ステップに合わせて変わる", async () => {
+  it("はじまりでは案内し、入力の画面では引っこむ", async () => {
+    /*
+      前はここで「1画面目 → 2画面目でも表情が変わる」ことを見ていた。
+      つまり**どちらの画面にもポーが居る**ことが前提だった。
+
+      いまは居る場面を決めてある（course/poPresence.ts）。
+      毎画面に居ると、居ること自体が何も言わなくなるため。
+      見張るのは「変わること」ではなく「**居るべき場面に居ること**」。
+    */
     const user = userEvent.setup();
     renderLesson();
 
-    const po = screen.getByTestId("po-avatar");
-    expect(po).toHaveAttribute("data-emotion", REWRITE.steps[0].poEmotion);
+    expect(screen.getByTestId("po-avatar")).toHaveAttribute(
+      "data-emotion",
+      REWRITE.steps[0].poEmotion,
+    );
+    expect(screen.getByTestId("po-hero")).toHaveAttribute(
+      "data-po-scene",
+      "start",
+    );
 
+    // 次は「どんな相手に送りますか」。聞いているのは画面の中身なので、下がる
     await user.click(screen.getByTestId("primary-action"));
+    await waitFor(() =>
+      expect(screen.queryByTestId("po-avatar")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("AIへ送っている間だけ、考えている顔で戻ってくる", async () => {
+    const user = userEvent.setup();
+    let release: (value: unknown) => void = () => {};
+    generate = vi.fn().mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          release = resolve;
+        }),
+    );
+
+    renderLesson();
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action"));
+
     await waitFor(() =>
       expect(screen.getByTestId("po-avatar")).toHaveAttribute(
         "data-emotion",
-        "question",
+        "thinking",
       ),
     );
+    expect(screen.getByTestId("po-hero")).toHaveAttribute(
+      "data-po-scene",
+      "thinking",
+    );
+
+    release(okResponse());
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+  });
+
+  it("失敗したときは顔だけ出して、同じ文を二度言わない", async () => {
+    /*
+      失敗の文は、ポーの吹き出しと下のエラー欄に**同じ文字**が入る。
+      同じ文が2か所にあると、2つ別のことが起きたのかと読んでしまう。
+    */
+    const user = userEvent.setup();
+    const { AiRequestError } = await import("../src/api/ai");
+    generate = vi
+      .fn()
+      .mockRejectedValue(new AiRequestError("うまく届かなかったようです。", "failed"));
+
+    renderLesson();
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action"));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("うまく届かなかった");
+    expect(screen.getByTestId("po-avatar")).toHaveAttribute(
+      "data-emotion",
+      "warning",
+    );
+    expect(screen.queryByTestId("po-hero-message")).not.toBeInTheDocument();
   });
 });

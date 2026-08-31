@@ -13,13 +13,16 @@ import { useEffect, useState } from "react";
 
 import { Card, CardHeading, IconBadge } from "../../AppShell";
 import { SaveProgressCard } from "../../auth/SaveProgressCard";
+import { CourseCheckpoint } from "../CourseCheckpoint";
+import { LessonAwardCard } from "../LessonAwardCard";
+import { playSuccessSound } from "../../../course/sound";
+import { KeepArtifactButton } from "../KeepArtifactButton";
 import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
 import { AppliedTips } from "../AppliedTips";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 import { lessonThumbnailById } from "../../../course/lessonThumbnail";
 import { CourseStampRow, MilestoneLegend } from "../CourseStamps";
-import { PoAvatar } from "../../../po/PoAvatar";
 import { appliedTipsFor } from "../../../course/appliedTips";
 import { lookupLesson } from "../../../course/live";
 import { milestonesCrossed, milestonesFor } from "../../../course/milestones";
@@ -34,6 +37,7 @@ import {
   IconStar,
 } from "../../Icons";
 import type { Course } from "../../../course/types";
+import type { LessonAward } from "../../../api/lesson";
 
 // ------------------------------------------------------------- 完了画面
 
@@ -66,6 +70,7 @@ import type { Course } from "../../../course/types";
 export function CompletionView({
   course,
   skills,
+  outcomes,
   outcomeText,
   outcomeLabel,
   lessonId,
@@ -77,10 +82,17 @@ export function CompletionView({
   onSelectLesson,
   onOpenCourseCatalog,
   onOpenRecipe,
+  award = null,
 }: {
   /** スタンプの絵と、節目の中身を決めるのに使う。 */
   course: Course;
   skills: string[];
+  /**
+   * このレッスンを終えて、できるようになったこと。
+   *
+   * 完了画面のいちばん上に出す。**この画面の主役**で、XP より前。
+   */
+  outcomes?: string[];
   outcomeText?: string;
   outcomeLabel: string;
   lessonId: string;
@@ -102,6 +114,12 @@ export function CompletionView({
   onOpenCourseCatalog?: () => void;
   /** 「やり方をくわしく見る」を押したとき。 */
   onOpenRecipe?: (tipId: string) => void;
+  /**
+   * 終えたときに増えた分（XPとAI技）。サーバーが決める。
+   *
+   * 無い回（やり直し・届かなかったとき）は、その節ごと出さない。
+   */
+  award?: LessonAward | null;
 }) {
   /*
     このレッスンで、新しく超えた節目。
@@ -114,6 +132,27 @@ export function CompletionView({
   */
   const crossed = milestonesCrossed(course, done - 1, done);
   const courseComplete = done >= total && total > 0;
+
+  /*
+    コースを完走した回だけ、節目と同じ長い音を鳴らす。
+
+    節目のまとめ（CourseCheckpoint）は完走の回には出さないので、
+    ここで鳴らさないと、いちばん大きな回だけ音が短くなる。
+  */
+  useEffect(() => {
+    if (courseComplete) playSuccessSound("milestone");
+  }, [courseComplete]);
+
+  /*
+    節目のまとめに、**いま終えた1本**を必ず含める。
+
+    `completedIds` はサーバーと端末から取った一覧で、この画面を
+    出している時点ではまだ今回の分が入っていないことがある。
+    そのまま渡すと、節目を起こした当の1本だけが抜けたまとめが出る。
+  */
+  const doneSoFar = completedIds.includes(lessonId)
+    ? completedIds
+    : [...completedIds, lessonId];
   return (
     /*
       `relative` は紙吹雪の親。紙はこの枠の中だけで散り、
@@ -121,9 +160,39 @@ export function CompletionView({
     */
     <div data-testid="completion-view" className="relative space-y-4">
       <LessonCelebration />
+
+      {/*
+        いちばん上は「できるようになったこと」。
+
+        前はここが XP のカードだった。数が主役だと、その回に**何が
+        できるようになったのか**が下へ押しやられる。数は増えたことしか
+        言えず、増えた先に何があるかは言えない。
+
+        いま出すのは、教材が約束していた到達点そのもの
+        （`lesson.outcomes`）。「長い文章を、目的に合わせて短く
+        まとめられるようになりました」——この1〜2行が主役。
+      */}
+      {outcomes && outcomes.length > 0 && (
+        <Card testId="completion-outcomes" className="border-brand-line bg-brand-soft/40">
+          <p className="text-base font-bold text-brand-dark">できるようになりました</p>
+          <ul className="mt-3 space-y-2" role="list">
+            {outcomes.map((line) => (
+              <li key={line} className="flex items-start gap-2.5 text-sm leading-7">
+                <IconCheckCircle className="mt-1.5 h-4 w-4 shrink-0 text-brand" />
+                {line}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/*
+        次に 覚えたAI技 → 作ったもの。XP はそのあと（下）。
+        並びは「できるようになった → 技 → 成果物 → 次 → 数」。
+      */}
       <Card>
         <CardHeading icon={IconStar} tone="plain">
-          スキルを身につけました
+          覚えたAI技
         </CardHeading>
         <ul className="mt-4 space-y-2.5" role="list">
           {skills.map((skill) => (
@@ -144,7 +213,14 @@ export function CompletionView({
               <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7">
                 {outcomeText}
               </p>
-              <div className="mt-3 flex justify-end">
+              {/*
+                いま貼るのと、あとで出すのは別のこと。両方を並べて置く。
+                取っておくには登録が要るが、ボタンは出しておき、
+                押したときに理由を返す（先に消すと、そういう場所が
+                あること自体が伝わらない）。
+              */}
+              <div className="mt-3 flex items-start justify-end gap-2">
+                <KeepArtifactButton lessonId={lessonId} output={outcomeText} />
                 <CopyButton text={outcomeText} />
               </div>
             </div>
@@ -188,24 +264,30 @@ export function CompletionView({
         毎レッスンで祝うと、19歩ぶんの手応えの重さが均されて、
         逆に薄くなる。節目にだけ乗せるほうが効く。
       */}
+      {/*
+        コースの節目。**ここまでで何ができるようになったか**をまとめる。
+
+        前はスタンプの数と特典の予告だけを出していた。数と、まだ
+        使えない特典の話しか無く、積み上がったことが見えなかった。
+        積み上がっていることは、積み上げた本人がいちばん気づきにくい。
+      */}
       {crossed.length > 0 && !courseComplete && (
-        <Card testId="milestone-reached">
-          {/*
-            吹き出しは compact（2行ぶんで切れる）。
-            「近日公開」は、獲得済みでないことを言う唯一の言葉なので、
-            ここが切れて見えなくなると、そのまま獲得の報告に見えてしまう。
-            必ず収まる短さにする——長い言い回しにしない。
-          */}
-          <PoAvatar
-            po={{
-              message: `${crossed[0].atCount}個目のスタンプ、できた！ ${crossed[0].label}（近日公開）`,
-              emotion: "celebrate",
-              action: "wait",
-            }}
-            compact
-          />
-        </Card>
+        <CourseCheckpoint
+          course={course}
+          completedIds={doneSoFar}
+          atCount={crossed[0].atCount}
+          rewardLabel={crossed[0].label}
+        />
       )}
+
+      {/*
+        XP はここ。**できるようになったことの下**に置く。
+
+        増えた数は励みになるが、主役ではない。上に置くと、その回に
+        何ができるようになったのかより先に数が目に入る。
+        「+100 XP!!!」が完了画面の主役、という形にしない。
+      */}
+      <LessonAwardCard award={award} />
 
       {/*
         登録の誘いは、ここ以外に置かない。

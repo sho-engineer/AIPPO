@@ -180,6 +180,30 @@ class LearningEventType(models.TextChoices):
     GUEST_DATA_MIGRATION_COMPLETED = "guest_data_migration_completed"
     GUEST_DATA_MIGRATION_FAILED = "guest_data_migration_failed"
     LOGIN_COMPLETED = "login_completed"
+    # 無料枠の出入り。予約と結末を別々に数えないと、
+    # 「送ったのに結果が返らなかった」回が見えない
+    AI_ACTION_RESERVED = "ai_action_reserved"
+    AI_ACTION_COMPLETED = "ai_action_completed"
+    AI_ACTION_RELEASED = "ai_action_released"
+    # 無料枠を足した場面
+    GUEST_INITIAL_CREDIT_GRANTED = "guest_initial_credit_granted"
+    DAILY_TEXT_CREDIT_GRANTED = "daily_text_credit_granted"
+    REGISTRATION_TEXT_BONUS_GRANTED = "registration_text_bonus_granted"
+    REGISTRATION_IMAGE_BONUS_GRANTED = "registration_image_bonus_granted"
+    DAY7_IMAGE_CREDIT_GRANTED = "day7_image_credit_granted"
+    DAY8_IMAGE_EDIT_CREDIT_GRANTED = "day8_image_edit_credit_granted"
+    # 使い切ったところと、そこからどちらへ進んだか
+    GUEST_TEXT_LIMIT_REACHED = "guest_text_limit_reached"
+    REGISTER_NOW_CLICKED = "register_now_clicked"
+    WAIT_TOMORROW_CLICKED = "wait_tomorrow_clicked"
+    # 登録・ログインの入口で、どの道を押したか。
+    # 押した先は外部（Google）や OS の画面なので、戻ってこなかった人は
+    # この1件だけが記録に残る——どこで落ちたかは、ここでしか見えない
+    AUTH_GOOGLE_CLICKED = "auth_google_clicked"
+    AUTH_PASSKEY_CLICKED = "auth_passkey_clicked"
+    # 認証を終えて、元のレッスンへ戻れた回。
+    # ここまで来て初めて「登録して続きができた」と言える
+    RETURNED_TO_LESSON = "returned_to_lesson"
     COMING_SOON_VIEWED = "coming_soon_viewed"
 
     # 成果物ファーストの各ステップ。
@@ -193,6 +217,27 @@ class LearningEventType(models.TextChoices):
     RESULT_OBSERVATION_SUBMITTED = "result_observation_submitted"
     CONCEPT_CARD_VIEWED = "concept_card_viewed"
     CONCEPT_CARD_SKIPPED = "concept_card_skipped"
+
+    """第一リリースの見張り（Analytics 14種）。
+
+    足りていなかったのは、**詰まる場所と、続く理由**の両方。
+
+      - 登録の途中で何に当たって落ちたか（Google・パスキー・再設定）
+      - 学習の中でどこまで進んだか（区切り・技・XP・節目）
+      - 作ったものを取っておいたか
+
+    どれも画面は止まらずに進むので、記録が無いと気づけない。
+    """
+    GOOGLE_AUTH_FAILED = "google_auth_failed"
+    PASSKEY_REGISTRATION_FAILED = "passkey_registration_failed"
+    PASSWORD_RESET_REQUESTED = "password_reset_requested"
+    PASSWORD_RESET_SENT = "password_reset_sent"
+    MISSION_COMPLETED = "mission_completed"
+    AI_SKILL_ACQUIRED = "ai_skill_acquired"
+    XP_EARNED = "xp_earned"
+    ARTIFACT_SAVED = "artifact_saved"
+    SKILL_DICTIONARY_OPENED = "skill_dictionary_opened"
+    COURSE_CHECKPOINT_COMPLETED = "course_checkpoint_completed"
 
     # 旧レッスンから使っているもの。消すと過去のログが読めなくなる。
     LESSON_STARTED = "lesson_started"
@@ -229,7 +274,23 @@ class LearningEvent(models.Model):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    session = models.ForeignKey(LearningSession, on_delete=models.CASCADE, related_name="events")
+    """
+    どのレッスンの中の出来事か。**アカウントまわりの記録には無い。**
+
+    登録・パスワード再設定・図鑑を開いた、はレッスンの外で起きる。
+    そのために架空のセッションを作ると、学習の数え上げ（何本進めたか）に
+    中身の無いセッションが混ざる。ここは空にできるようにして、
+    誰のことかは下の `learner_key` で持つ。
+    """
+    session = models.ForeignKey(
+        LearningSession,
+        on_delete=models.CASCADE,
+        related_name="events",
+        null=True,
+        blank=True,
+    )
+    #: セッションが無い記録の持ち主。ある記録では session 側が持っている
+    learner_key = models.UUIDField(null=True, blank=True, db_index=True)
     lesson_id = models.CharField(max_length=100, blank=True)
     step = models.CharField(max_length=50, blank=True)
     event_type = models.CharField(max_length=50, choices=LearningEventType.choices, db_index=True)
@@ -298,6 +359,178 @@ class AiUsageCounter(models.Model):
         return f"{self.date} {self.scope[:12]} = {self.count}"
 
 
+class AiActionType(models.TextChoices):
+    """何を1回作ったか。**枠を分けて数える。**
+
+    文章と画像を同じ「AI利用回数」にしない。画像1枚は文章1回の数十倍
+    かかるので、同じ枠にすると文章の目安で決めた回数がそのまま画像の
+    枚数を許してしまう。
+
+    費用だけの話でもない。混ぜると、画像を数枚作った人がその日の
+    **文章のレッスンまで使えなくなる**。逆も同じ。片方の使いすぎで
+    もう片方が止まるのは、学習者から見て理由が分からない。
+
+    画像を作るのと直すのも分ける。Day7 と Day8 で別々に1回ずつ渡すので、
+    ひとつの枠にすると片方で使い切れてしまう。
+    """
+
+    TEXT = "text", "文章"
+    IMAGE_GENERATION = "image_generation", "画像を作る"
+    IMAGE_EDIT = "image_edit", "画像を直す"
+
+
+class AiCreditGrantReason(models.TextChoices):
+    """なぜ足したか。**同じ理由では二度足さない**（一意制約）。"""
+
+    GUEST_INITIAL = "guest_initial", "登録前の最初の持ち出し"
+    REGISTRATION_BONUS = "registration_bonus", "登録したとき"
+    DAILY = "daily", "日が変わったとき"
+    DAY7_LESSON = "day7_lesson", "Day7 に初めて着いたとき"
+    DAY8_LESSON = "day8_lesson", "Day8 に初めて着いたとき"
+
+
+class AiCreditGrant(models.Model):
+    """足した記録。**二度足さないための鍵**でもある。
+
+    「登録の特典を2回もらう」「Day7 を開き直すたびに画像が増える」を、
+    アプリ側の判定ではなく**一意制約**で止める。判定で止めると、
+    同時に2本来たときにすり抜ける。
+
+    日次の分だけは日付も鍵に入れる（毎日1回ずつ足すため）。
+    それ以外は日付を空にして、一生に一度にする。
+    """
+
+    learner_key = models.UUIDField(db_index=True)
+    action_type = models.CharField(max_length=20, choices=AiActionType.choices)
+    reason = models.CharField(max_length=30, choices=AiCreditGrantReason.choices)
+    #: 日次のときだけ入れる。それ以外は空（＝一生に一度）
+    on_date = models.DateField(null=True, blank=True)
+    amount = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        """
+        一意制約を**2本に分ける**。
+
+        1本にまとめて `on_date` を含めると、日付の入らない付与
+        （登録の特典、最初の持ち出し、レッスンの1回）が
+        **まったく重複を止めない**。SQL では `NULL` どうしを
+        「違う値」として扱うので、`(鍵, text, guest_initial, NULL)` が
+        何行でも入る。
+
+        実際そうなっていて、1回押すたびに最初の10がもう一度配られていた。
+        気づいたのは、残りが減るはずの検査で**増えていた**から。
+
+        日付が入るもの（毎日のぶん）と、入らないもの（一生に一度）で
+        条件を分ければ、どちらも正しく止まる。
+        """
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["learner_key", "action_type", "reason", "on_date"],
+                condition=models.Q(on_date__isnull=False),
+                name="uniq_ai_credit_grant_daily",
+            ),
+            models.UniqueConstraint(
+                fields=["learner_key", "action_type", "reason"],
+                condition=models.Q(on_date__isnull=True),
+                name="uniq_ai_credit_grant_once",
+            ),
+        ]
+        verbose_name = "AI無料枠の付与"
+        verbose_name_plural = "AI無料枠の付与"
+
+    def __str__(self) -> str:
+        return f"{self.action_type} +{self.amount} ({self.reason})"
+
+
+class AiCreditBalance(models.Model):
+    """その人の持ち分。**残高はここだけが本当**。
+
+    `available` と `reserved` を分けて持つ。送る前に available から
+    reserved へ動かし、結果が返ってから consumed へ動かすか、
+    available へ戻す。こうしないと「送った瞬間に減って、失敗しても
+    戻らない」——いま実際にそうなっている（`AiUsageCounter` は
+    失敗しても戻さない）。
+
+    書き換えは `services/credits.py` を通してのみ行う。
+    """
+
+    learner_key = models.UUIDField(db_index=True)
+    action_type = models.CharField(max_length=20, choices=AiActionType.choices)
+    available = models.PositiveIntegerField(default=0)
+    #: 送っている最中のぶん。結果が返るまでここに置く
+    reserved = models.PositiveIntegerField(default=0)
+    #: これまでに使い切ったぶん。数え上げのためだけに持つ
+    consumed = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["learner_key", "action_type"], name="uniq_ai_credit_balance"
+            )
+        ]
+        verbose_name = "AI無料枠の残り"
+        verbose_name_plural = "AI無料枠の残り"
+
+    def __str__(self) -> str:
+        return f"{self.action_type}: {self.available}（予約 {self.reserved}）"
+
+
+class AiCreditStatus(models.TextChoices):
+    RESERVED = "reserved", "送っている最中"
+    CONSUMED = "consumed", "使った"
+    RELEASED = "released", "戻した"
+
+
+class AiCreditLedger(models.Model):
+    """1回ぶんの出入り。**request_id で二重を止める。**
+
+    残高だけでは、失敗して戻したのか最初から使っていないのかが
+    分からない。ここに1行ずつ残せば、あとから数え直せる。
+
+    `request_id` は画面が作る。同じ id で二度来たときは
+    **新しく予約しない**——連打、通信の切れた再送、途中で戻る操作、
+    どれでも1回として扱う。生成が成功したあとに切れた場合は、
+    その id の結果をそのまま返せる（`attempt` を指してある）。
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    learner_key = models.UUIDField(db_index=True)
+    action_type = models.CharField(max_length=20, choices=AiActionType.choices)
+    status = models.CharField(max_length=10, choices=AiCreditStatus.choices)
+    #: 画面が作る、この操作の名前。同じ操作の送り直しは同じ id
+    request_id = models.UUIDField(db_index=True)
+    lesson_id = models.CharField(max_length=60, blank=True)
+    #: 成功したときだけ入る。切れたあとの問い合わせで結果を返すため
+    attempt = models.ForeignKey(
+        "lessons.Attempt",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="credit_entries",
+    )
+    #: 戻したときの理由（provider_error / timeout / expired など）
+    note = models.CharField(max_length=40, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["learner_key", "action_type", "request_id"],
+                name="uniq_ai_credit_request",
+            )
+        ]
+        indexes = [models.Index(fields=["status", "created_at"])]
+        verbose_name = "AI無料枠の出入り"
+        verbose_name_plural = "AI無料枠の出入り"
+
+    def __str__(self) -> str:
+        return f"{self.action_type} {self.status} {self.request_id}"
+
+
 class Survey(models.Model):
     """完了時の簡易アンケート（AIPPO 開発概要 §11）。
 
@@ -364,3 +597,72 @@ class Bookmark(models.Model):
 
     def __str__(self) -> str:
         return f"{self.lesson_id} ({self.learner_key})"
+
+
+class SavedArtifact(models.Model):
+    """取っておいた成果物。
+
+    「作ったもの」（`views_history` が `Attempt` から組み立てるもの）とは
+    別に、**本人が取っておくと決めたもの**をここに持つ。
+
+    なぜ本文を写すのか
+    ------------------
+    `Attempt` への参照だけにすると、`prune_data` が古いセッションを
+    消したときに一緒に消える。取っておくと言った以上、元が消えても
+    残らなければ意味がない。だから本文を写す。
+
+    二重保存の防ぎ方
+    ----------------
+    同じ教材で、同じ出力を、何度でも取っておけるようにはしない。
+    やり直すと似た文が並び、あとから探せなくなる。
+    弾く単位は **(鍵, 教材, 出力のハッシュ)**。
+
+      - 同じ条件で作り直した物 … 同じ出力になるので増えない
+      - 違う条件で作った物     … 別物として残る
+
+    「教材ごとに1つ」にしなかったのは、条件を変えて作り分けたものが
+    上書きで消えるため。消えるほうが取り違えやすい。
+
+    取っておけるのは登録した人だけ
+    ------------------------------
+    ゲストの鍵は7日で切れる（`apps/accounts/scope.py` の `can_keep`）。
+    残らないものを取っておかせて黙って消すより、**取っておくには
+    登録が要る**とその場で言うほうがよい。目印・修了証と同じ線。
+
+    学ぶこと自体は止めない。ゲストのままでも教材は最後まで通るし、
+    作ったものは「作ったもの」の一覧から取り出せる。
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    learner_key = models.UUIDField(db_index=True)
+    #: 教材表とは外部キーで繋がない（教材を消しても記録が消えないように）
+    lesson_id = models.CharField(max_length=100)
+    title = models.CharField(
+        max_length=120, help_text="既定は「{教材名}で作ったもの」。あとから直せる"
+    )
+    #: AIが作ったもの。元の `Attempt` が消えても、ここは残る
+    output = models.TextField()
+    #: そのとき指定した条件。なぜその結果になったかが後から分かる
+    conditions = models.JSONField(default=dict, blank=True)
+    #: 使ったAI技の slug。図鑑から「この技で作ったもの」を辿るため
+    skills = models.JSONField(default=list, blank=True)
+    #: `output` の sha256。二重保存を弾くためだけに使う
+    output_hash = models.CharField(max_length=64)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["learner_key", "lesson_id", "output_hash"],
+                name="uniq_saved_artifact",
+            )
+        ]
+        indexes = [models.Index(fields=["learner_key", "-created_at"])]
+        verbose_name = "取っておいた成果物"
+        verbose_name_plural = "取っておいた成果物"
+
+    def __str__(self) -> str:
+        return self.title

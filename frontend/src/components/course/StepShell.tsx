@@ -23,6 +23,7 @@ import {
 import { PoHero } from "../aippo/PoHero";
 import { PrimaryButton } from "../aippo/PrimaryButton";
 import { LessonProgress } from "./LessonProgress";
+import type { Mission } from "../../course/missions";
 import { StepTransition } from "./StepTransition";
 import type { LessonPhase, PoMessage } from "../../course/types";
 
@@ -32,6 +33,9 @@ export interface StepShellProps {
   eyebrow?: { icon: Icon; label: string };
   instruction?: string;
   progress: { current: number; total: number };
+  /** レッスンの中の区切り。帯を割り、いまいる区切りの名前を出す。 */
+  missions?: Mission[];
+  currentMission?: number;
   /**
    * いまどの区切りか。
    *
@@ -86,8 +90,18 @@ export interface StepShellProps {
    * 進む前に、進むと分かる合図を出す（Learning UX §2 / §3）。
    */
   autoAdvancing?: boolean;
-  /** ポーを出すか。本文が同じことを言う画面では下げる。 */
+  /**
+   * ポーを出すか。
+   *
+   * 決めるのは `course/poPresence.ts`。ここでは受け取るだけにする——
+   * 「どの画面に居るか」を各画面が個別に決め始めると、全部足したときに
+   * 何画面に居るのかが誰にも分からなくなる。
+   */
   showPo?: boolean;
+  /** ポーが喋るか。顔だけ出して黙る場面がある（失敗のとき）。 */
+  poSpeaks?: boolean;
+  /** ポーが出ている理由。`data-po-scene` として出す。 */
+  poScene?: string;
   children: ReactNode;
 }
 
@@ -105,6 +119,8 @@ export function StepShell({
   eyebrow,
   instruction,
   progress,
+  missions,
+  currentMission,
   phase,
   po,
   summary,
@@ -120,6 +136,8 @@ export function StepShell({
   busy = false,
   autoAdvancing = false,
   showPo = true,
+  poSpeaks = true,
+  poScene,
   children,
 }: StepShellProps) {
   /*
@@ -140,11 +158,17 @@ export function StepShell({
         分かるのか決められず、結局どれも読まれない。上が説明で埋まって
         本文が下へ押し出される問題もあった。
 
-        phase は受け取るが、ここでは描かない。区切りの名前は
-        見出しと本文で伝わる（読み上げ向けに data 属性で残す）。
+        いまは帯を区切りで割り、その名前を左に小さく出す
+        （`LessonProgress`）。分数は1つのまま——「2 / 4」と「3 / 19」を
+        並べると、どちらを見ればよいのか決められなくなる。
       */}
       <div className="pt-1" data-phase={phase ?? undefined}>
-        <LessonProgress current={progress.current} total={progress.total} />
+        <LessonProgress
+          current={progress.current}
+          total={progress.total}
+          missions={missions}
+          currentMission={currentMission}
+        />
       </div>
 
       {/* 入力済みの内容。折りたたんでおく（要件 §6.4） */}
@@ -187,6 +211,9 @@ export function StepShell({
         前はポーを画面のいちばん下（ボタンのすぐ上）に置いていた。
         案内役の言葉は**読み始める前**に要るもので、読み終えた後に
         出てきても遅い。支給デザインも6枚とも、ポーは見出しの右にいる。
+
+        ポーが居ない画面では、見出しだけがここに残る。居ないぶんの
+        余白は返すので、本文がその高さぶん上がる。
       */}
       <div className="mt-4">
         <PoHero
@@ -200,9 +227,11 @@ export function StepShell({
           }
           title={title}
           description={instruction}
-          message={showPo ? po.message : undefined}
+          message={poSpeaks ? po.message : undefined}
           emotion={po.emotion}
           compact={!eyebrow}
+          showPo={showPo}
+          scene={poScene}
         />
       </div>
 

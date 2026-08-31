@@ -57,7 +57,7 @@ beforeEach(() => {
 const open = async () => {
   render(
     <AuthProvider>
-      <SettingsPage onBack={() => {}} />
+      <SettingsPage onBack={() => {}} onOpenRecord={() => {}} onOpenSaved={() => {}} />
     </AuthProvider>,
   );
   await act(async () => {});
@@ -135,7 +135,11 @@ describe("開ける項目は、開いたままにする", () => {
 describe("設定の一覧", () => {
   it("止めた項目も一覧からは消さない", async () => {
     await open();
-    const list = screen.getAllByRole("list")[0];
+    /*
+      一覧は2つある。上は下タブから外した2つ（学習記録・あとで見る）、
+      下が設定そのもの。準備中の行が並ぶのは後者。
+    */
+    const list = screen.getAllByRole("list")[1];
 
     // 消すと「その機能は考えていない」に見える。
     // 来る予定があるものは、押せない形で置いておく

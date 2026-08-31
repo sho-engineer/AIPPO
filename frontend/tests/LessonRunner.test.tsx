@@ -45,10 +45,17 @@ describe("自分の課題のステップ", () => {
     );
     await user.click(screen.getByTestId("primary-action"));
 
-    // 次のステップ（誰が読むか）へ移っていること
+    /*
+      次のステップ（送る内容の確認）へ移っていること。
+
+      前はここが「誰が読みますか」だった。相手や言い方を聞く回は
+      自分の文章より**前**へ移したので、書き終えたあとは
+      「書く → 確かめる → 送る」が続く。
+    */
+    // 見出しは画面の上と本文の中に2つ出る。ここでは移ったことだけ見る
     expect(
-      await screen.findByRole("heading", { name: "誰が読みますか" }),
-    ).toBeInTheDocument();
+      await screen.findAllByRole("heading", { name: "AIにはこう伝えます" }),
+    ).not.toHaveLength(0);
 
     // ここでは AI を呼ばない。送るのは prompt_preview のあと
     const aiCalls = fetchSpy.mock.calls.filter((call) =>

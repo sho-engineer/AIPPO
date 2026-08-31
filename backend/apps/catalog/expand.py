@@ -52,7 +52,9 @@ def _flow_options(lesson: Lesson) -> dict[str, Any]:
         "quickDefaults": lesson.quick_defaults,
         "working": lesson.working,
         "observationOptions": lesson.observation_options,
+        "conditionOptions": lesson.condition_options,
         "conceptCards": lesson.concept_cards,
+        "conceptSkills": lesson.concept_skills,
         "reviewPoints": lesson.review_points,
         "realTaskLabel": lesson.real_task_label,
         "realTaskPlaceholder": lesson.real_task_placeholder,
@@ -69,6 +71,7 @@ def step_row_to_dict(row: LessonStep) -> dict[str, Any]:
         "type": row.step_type,
         "phase": row.phase,
         "title": row.title,
+        "primaryLabel": row.primary_label,
         "instruction": row.instruction,
         "poMessage": row.po_message,
         "poEmotion": row.po_emotion,
@@ -99,6 +102,7 @@ def _assemble(
         row.step_key: row for row in rows if row.placement == StepPlacement.OVERRIDE
     }
     lead_in = [row for row in rows if row.placement == StepPlacement.LEAD_IN]
+    deepen = [row for row in rows if row.placement == StepPlacement.DEEPEN]
     after_real = [
         row for row in rows if row.placement == StepPlacement.AFTER_REAL_TASK
     ]
@@ -106,6 +110,16 @@ def _assemble(
     result = [drop_empty(step_row_to_dict(row)) for row in lead_in]
 
     for step in generated:
+        # 技を深める回は、「自分の文章」へ入る**前**に差し込む。
+        # 骨格側（shared.ts の deepenSteps）と同じ位置。
+        if step["id"] == "real_task_intro":
+            result.extend(drop_empty(step_row_to_dict(row)) for row in deepen)
+
+        # あとに問いを挟むなら、「送る内容を見る」は嘘になる。
+        # 骨格は次が送信前の確認である前提で書いているので、ここで外す
+        if step["id"] == "real_task" and after_real:
+            step = {**step, "primaryLabel": ""}
+
         row = overrides.get(step["id"])
         if row is not None:
             patch = {
@@ -165,6 +179,8 @@ def lesson_to_dict(lesson: Lesson, *, with_steps: bool = True) -> dict[str, Any]
                 "afterExample": lesson.after_example,
                 "learnedSkills": lesson.learned_skills,
                 "thumbnail": lesson.thumbnail,
+                # どの STEP に属するか。束そのものは course 側が持つ
+                "stageKey": lesson.stage_key,
                 "mode": lesson.mode,
                 "plannedReleaseDate": (
                     lesson.planned_release_date.isoformat()
@@ -178,20 +194,50 @@ def lesson_to_dict(lesson: Lesson, *, with_steps: bool = True) -> dict[str, Any]
     return payload
 
 
+def _stages(lessons: list[Lesson]) -> list[dict[str, Any]]:
+    """レッスンの並びから、STEP の束を読み取る。
+
+    束を別の表として持たない（`Lesson.stage_key` の注記を参照）。
+    **同じ key が続くひとかたまり**を1つの束として読む。
+    順序はレッスンの並び1つで決まるので、束とレッスンで順が
+    食い違うことが起こりえない。
+
+    key が空のレッスンは、どの束にも入らない。
+    同じ key が離れた場所に2度出てきたら、別の束として扱う——
+    黙って1つにまとめると、あいだのレッスンを飛び越える束ができ、
+    画面には「連続していないのに1つ」という読めない形で出る。
+    """
+    stages: list[dict[str, Any]] = []
+    for lesson in lessons:
+        if not lesson.stage_key:
+            continue
+        if stages and stages[-1]["key"] == lesson.stage_key:
+            stages[-1]["lessonIds"].append(lesson.slug)
+            continue
+        stages.append(
+            {
+                "key": lesson.stage_key,
+                "title": lesson.stage_title,
+                "lessonIds": [lesson.slug],
+            }
+        )
+    return stages
+
+
 def course_to_dict(course) -> dict[str, Any]:
     """コース1つを、画面の形へ。
 
     公開済みのレッスンだけを入れる。近日公開のものは一覧に**出す**が、
     ステップは配らない（始められないものの中身を先に渡さない）。
     """
-    lessons = [
-        lesson_to_dict(lesson, with_steps=lesson.is_startable)
-        for lesson in course.lessons.filter(status="published").prefetch_related("steps")
-    ]
+    rows = list(course.lessons.filter(status="published").prefetch_related("steps"))
+    lessons = [lesson_to_dict(lesson, with_steps=lesson.is_startable) for lesson in rows]
     return {
         "id": course.slug,
         "title": course.title,
         "description": course.description,
+        "outcome": course.outcome,
+        "stages": _stages(rows),
         "difficulty": course.difficulty,
         # 出すことと始められることは別。画面はこの2つを見て、
         # 一覧に出しつつ開かせない、を実現する

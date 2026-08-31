@@ -24,6 +24,15 @@ class GenerateRequestSerializer(serializers.Serializer):
     """入れ子の `input` を、アクションの宣言に照らして検証する。"""
 
     session_id = serializers.UUIDField(required=False, allow_null=True)
+    #: この操作の名前。画面が作る。
+    #:
+    #: 同じ操作の送り直し（連打、通信が切れたあとの再送、戻る操作）は
+    #: **同じ id** で来る。無料枠を二度減らさないための鍵で、
+    #: 生成が成功したあとに切れた場合は、この id で前の結果を返せる。
+    #:
+    #: 省いてもよい。古い画面から来た要求を落とさないためで、
+    #: そのときは毎回ちがう id を立てる（＝二重の判定が効かない）。
+    request_id = serializers.UUIDField(required=False, allow_null=True)
     lesson_id = serializers.CharField(max_length=100)
     step_id = serializers.CharField(max_length=100)
     action = serializers.CharField(max_length=50)

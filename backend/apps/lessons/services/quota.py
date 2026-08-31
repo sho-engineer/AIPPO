@@ -34,9 +34,35 @@ class QuotaScope:
     GLOBAL = "global"
 
 
+class RunKind:
+    """何を1回作ったか。**文章と画像で枠を分ける。**
+
+    画像1枚は文章1回の数十倍かかる（docs/image-lessons.md）。同じ枠で
+    数えると、文章の目安で決めた回数がそのまま画像の枚数を許してしまう。
+
+    分ける理由は費用だけではない。混ぜると、画像を数枚作った人が
+    その日の**文章のレッスンまで使えなくなる**。逆も同じ。
+    片方の使いすぎでもう片方が止まるのは、学習者から見て理由が分からない。
+    """
+
+    TEXT = "text"
+    IMAGE = "image"
+
+
 #: 学習者ごとのカウンタにだけ付ける印。
 #: IPのHMACと同じ長さの文字列なので、印が無いと区別できない。
 LEARNER_PREFIX = "learner:"
+
+#: 画像のカウンタにだけ付ける印。
+#:
+#: 文章側のカウンタ名は**変えない**。変えると、いま動いている枠が
+#: その日だけ作り直され、上限が一度リセットされる。
+IMAGE_PREFIX = "image:"
+
+
+def _scoped(kind: str, scope: str) -> str:
+    """その種類のカウンタ名にする。文章はそのまま、画像は印を足す。"""
+    return f"{IMAGE_PREFIX}{scope}" if kind == RunKind.IMAGE else scope
 
 
 class QuotaExceeded(Exception):
@@ -73,6 +99,12 @@ def fingerprint(value: str) -> str:
 
 
 def _scope_kind(scope: str) -> str:
+    """どの上限に当たったか。画像の印は先に外す。
+
+    外さないと `image:global` が「IPの上限」と読まれ、
+    全体の安全弁が落ちたときに出す文言が入れ替わる。
+    """
+    scope = scope.removeprefix(IMAGE_PREFIX)
     if scope == AiUsageCounter.GLOBAL_SCOPE:
         return QuotaScope.GLOBAL
     if scope.startswith(LEARNER_PREFIX):
@@ -125,7 +157,32 @@ def learner_scope(learner_key) -> str:
     return f"{LEARNER_PREFIX}{fingerprint(str(learner_key))}"
 
 
-def consume_ai_run(request) -> None:
+def _signed_in(request) -> bool:
+    user = getattr(request, "user", None)
+    return bool(user is not None and user.is_authenticated)
+
+
+def _learner_limit(request, kind: str) -> int:
+    """1人あたりの上限。登録しているかどうかで変える。
+
+    登録前に無制限で使えると、費用の見通しが立たないうえ、
+    登録する理由も無くなる。逆に登録した人を絞りすぎると、
+    せっかく登録したのに使えないことになる。
+    """
+    if kind == RunKind.IMAGE:
+        return (
+            settings.AI_IMAGE_DAILY_REQUEST_LIMIT_USER
+            if _signed_in(request)
+            else settings.AI_IMAGE_DAILY_REQUEST_LIMIT_GUEST
+        )
+    return (
+        settings.AI_DAILY_REQUEST_LIMIT_USER
+        if _signed_in(request)
+        else settings.AI_DAILY_REQUEST_LIMIT_GUEST
+    )
+
+
+def consume_ai_run(request, *, kind: str = RunKind.TEXT) -> None:
     """AIを1回実行する権利を消費する。
 
     上限に達していれば `QuotaExceeded` を投げる。
@@ -134,6 +191,9 @@ def consume_ai_run(request) -> None:
     消費する順は「広いほうから」。狭いほうで弾いたときは、
     先に消費した広いほうを戻す。戻さないと、1人の使いすぎで
     全体の安全弁が先に落ちてしまう。
+
+    `kind` で枠が分かれる。文章のカウンタ名は今までのままなので、
+    画像を足しても動いている枠は作り直されない。
     """
     consumed: list[str] = []
 
@@ -147,26 +207,35 @@ def consume_ai_run(request) -> None:
         if limit > 0:
             consumed.append(scope)
 
-    _take(AiUsageCounter.GLOBAL_SCOPE, settings.AI_RUNS_PER_DAY)
-    _take(fingerprint(client_ip(request)), settings.AI_RUNS_PER_IP_PER_DAY)
+    if kind == RunKind.IMAGE:
+        global_limit = settings.AI_IMAGE_RUNS_PER_DAY
+        ip_limit = settings.AI_IMAGE_RUNS_PER_IP_PER_DAY
+    else:
+        global_limit = settings.AI_RUNS_PER_DAY
+        ip_limit = settings.AI_RUNS_PER_IP_PER_DAY
 
-    """
-    1人あたりの上限は、登録しているかどうかで変える。
+    _take(_scoped(kind, AiUsageCounter.GLOBAL_SCOPE), global_limit)
+    _take(_scoped(kind, fingerprint(client_ip(request))), ip_limit)
 
-    登録前に無制限で使えると、費用の見通しが立たないうえ、
-    登録する理由も無くなる。逆に登録した人を絞りすぎると、
-    せっかく登録したのに使えないことになる。
-    """
     learner_key = getattr(request, "learner_key", None)
     if learner_key is not None:
-        user = getattr(request, "user", None)
-        signed_in = bool(user is not None and user.is_authenticated)
-        limit = (
-            settings.AI_DAILY_REQUEST_LIMIT_USER
-            if signed_in
-            else settings.AI_DAILY_REQUEST_LIMIT_GUEST
+        _take(
+            _scoped(kind, learner_scope(learner_key)),
+            _learner_limit(request, kind),
         )
-        _take(learner_scope(learner_key), limit)
+
+
+def consume_image_run(request) -> None:
+    """画像を1枚作る権利を消費する。
+
+    文章とは**別枠**で数える。呼び出し側は画像を作る直前に実行すること。
+
+    画像のレッスン（Day7・Day8）はまだ開いていないので、いまこれを
+    呼ぶ場所は無い。**先に置いてあるのは順番の問題**——歯止めの無い
+    まま口を開けると、開けた初日の請求が読めない
+    （docs/image-lessons.md）。
+    """
+    consume_ai_run(request, kind=RunKind.IMAGE)
 
 
 def _release(scope: str) -> None:
@@ -201,7 +270,7 @@ def limit_message(exc: QuotaExceeded) -> str:
     return IP_LIMIT_MESSAGE
 
 
-def remaining_today(request) -> dict[str, object]:
+def remaining_today(request, *, kind: str = RunKind.TEXT) -> dict[str, object]:
     """今日あと何回AIを使えるか。
 
     上限そのものは前からあったが、**本人には見えていなかった**。
@@ -220,18 +289,12 @@ def remaining_today(request) -> dict[str, object]:
     if learner_key is None:
         return {"limit": None, "used": 0, "remaining": None}
 
-    user = getattr(request, "user", None)
-    signed_in = bool(user is not None and user.is_authenticated)
-    limit = (
-        settings.AI_DAILY_REQUEST_LIMIT_USER
-        if signed_in
-        else settings.AI_DAILY_REQUEST_LIMIT_GUEST
-    )
+    limit = _learner_limit(request, kind)
     if limit <= 0:
         return {"limit": None, "used": 0, "remaining": None}
 
     row = AiUsageCounter.objects.filter(
-        scope=learner_scope(learner_key), date=timezone.localdate()
+        scope=_scoped(kind, learner_scope(learner_key)), date=timezone.localdate()
     ).first()
     used = row.count if row else 0
 

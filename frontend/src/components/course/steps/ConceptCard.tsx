@@ -5,6 +5,8 @@
  * 先に読ませない——読んでから試すと、読んだことの確認作業になる。
  */
 
+import { TeachingImage } from "../../lessons/TeachingImage";
+import type { TeachingImageEntry } from "../../../course/teachingImages";
 import type { ConceptCard } from "../../../course/types";
 
 // --------------------------------------------------------- ミニ解説カード
@@ -19,6 +21,7 @@ import type { ConceptCard } from "../../../course/types";
 export function ConceptCardView({
   card,
   headingShown = false,
+  image = null,
 }: {
   card: ConceptCard;
   /**
@@ -28,6 +31,15 @@ export function ConceptCardView({
    * 書くと、1画面に同じ言葉が2回並ぶ。実際そうなっていた。
    */
   headingShown?: boolean;
+  /**
+   * この技のために作った1枚。無ければ null。
+   *
+   * ある回は、**絵の中に説明が全部入っている**。だから下の図
+   * （before/after・三点・流れ）は出さない。同じことを2度見せると、
+   * どちらを読めばよいのか分からなくなる。本文の1行だけは残す
+   * ——読み上げと、絵が読み込めなかったときのために。
+   */
+  image?: TeachingImageEntry | null;
 }) {
   return (
     /*
@@ -42,7 +54,39 @@ export function ConceptCardView({
       )}
       <p className={`text-sm leading-7 ${headingShown ? "" : "mt-2"}`}>{card.body}</p>
 
-      {card.visual === "before_after" && card.before && card.after && (
+      {image && (
+        /*
+          技の絵は**畳めるようにする。既定は閉じておく。**
+
+          本文の1行で用は足りている（「同じ内容でも、丁寧・やわらかい・
+          カジュアルで伝わり方が変わります」）。絵はそれをもっと詳しく
+          知りたい人のためのもので、全員に毎回開いて見せるものではない。
+          ここは技の名前を受け取る場面なので、大きな絵で埋めると
+          名前より絵が主役になる。
+
+          最初の画面（全体図）とは向きが逆。あちらは今日やることを
+          知らせるので開いておき、こちらは補足なので閉じておく。
+        */
+        <details className="mt-4" data-testid="concept-visual">
+          <summary
+            data-testid="concept-visual-toggle"
+            className="row-tap cursor-pointer list-none text-sm font-bold text-brand
+                       transition hover:text-brand-dark"
+          >
+            くわしく見る（図）
+          </summary>
+          <div className="mt-3">
+            <TeachingImage
+              src={image.src}
+              alt={image.alt}
+              width={image.width}
+              height={image.height}
+            />
+          </div>
+        </details>
+      )}
+
+      {!image && card.visual === "before_after" && card.before && card.after && (
         <div className="mt-4 space-y-2">
           <p className="rounded-card bg-canvas px-4 py-2 text-sm leading-7 text-ink-muted">
             <span aria-hidden="true">− </span>
@@ -55,13 +99,13 @@ export function ConceptCardView({
         </div>
       )}
 
-      {card.visual === "highlight" && card.highlight && (
+      {!image && card.visual === "highlight" && card.highlight && (
         <p className="mt-4 rounded-card bg-brand-soft px-4 py-3 text-center text-base font-bold text-brand-dark">
           {card.highlight}
         </p>
       )}
 
-      {card.visual === "three_points" && card.points && (
+      {!image && card.visual === "three_points" && card.points && (
         <ul className="mt-4 grid gap-2 sm:grid-cols-3" role="list">
           {card.points.map((point) => (
             <li
@@ -74,7 +118,7 @@ export function ConceptCardView({
         </ul>
       )}
 
-      {card.visual === "simple_flow" && card.points && (
+      {!image && card.visual === "simple_flow" && card.points && (
         <ol className="mt-4 flex flex-wrap items-center gap-2" role="list">
           {card.points.map((point, index) => (
             <li key={point} className="flex items-center gap-2">

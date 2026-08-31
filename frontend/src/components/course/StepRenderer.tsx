@@ -18,6 +18,7 @@
 import { Card, CardHeading } from "../AppShell";
 import { IconCaution, IconSparkle } from "../Icons";
 import { SafetyNote } from "../SafetyNote";
+import { SkillGet } from "./SkillGet";
 import { StepDone } from "./StepDone";
 import {
   ChoiceStep,
@@ -39,7 +40,10 @@ import { buildAiInput } from "../../course/engine";
 import { lookupLesson } from "../../course/live";
 import { recommendLessons } from "../../course/recommend";
 import { startableLessons } from "../../course/availability";
-import { lessonThumbnail } from "../../course/lessonThumbnail";
+import { lessonOverview, lessonOverviewFallback } from "../../course/lessonOverview";
+import { teachingImage } from "../../course/teachingImages";
+import { TeachingImage } from "../lessons/TeachingImage";
+import { missionStateOf } from "../../course/missions";
 import { promptCards, promptText } from "../../course/promptSummary";
 import type { Course, Lesson } from "../../course/types";
 import type { useCourseLesson } from "../../course/useCourseLesson";
@@ -72,6 +76,14 @@ export function StepRenderer({
 }: StepRendererProps) {
   const { step, values, runs } = api;
   const completedCount = completedIds.length;
+  /*
+    この画面に添える教材の絵。
+
+    どのレッスンのどの画面に出すかは1か所の表が持つ
+    （course/teachingImages.ts）。無い組み合わせでは null で、
+    そのときは絵の場所ごと出さない。
+  */
+  const picture = teachingImage(lesson.id, step.id);
   /*
     次に勧める教材。
 
@@ -137,19 +149,45 @@ export function StepRenderer({
 
     case "intro":
       return (
-        <div className="rounded-card border border-brand-line bg-surface p-5">
-          <p className="text-sm leading-7">{step.poMessage}</p>
+        <div className="space-y-4">
+          {/*
+            絵があるときは、絵を先に置く。
+
+            この画面は「これから何が起きるか」を伝えるためだけにある。
+            1枚で伝わるなら、読む前に見せたほうが早い。
+            絵は説明の飾りではなく、説明そのもの。
+          */}
+          {picture && (
+            <TeachingImage
+              src={picture.src}
+              alt={picture.alt}
+              width={picture.width}
+              height={picture.height}
+            />
+          )}
+          <div className="rounded-card border border-brand-line bg-surface p-5">
+            <p className="text-sm leading-7">{step.poMessage}</p>
+          </div>
         </div>
       );
 
     case "outcome_preview":
       return (
+        /*
+          詳しい話は、この画面が持つ（コースの一覧から移した）。
+          流れは教材データが持っている区切りをそのまま出す——
+          ここで別の言葉を作ると、進行中の帯と食い違う。
+        */
         <OutcomePreview
           minutes={lesson.estimatedMinutes}
+          goal={lesson.goal}
           before={lesson.beforeExample}
           after={lesson.afterExample}
-          skills={lesson.learnedSkills ?? lesson.outcomes}
-          thumbnail={lessonThumbnail(lesson)}
+          skills={lesson.learnedSkills ?? []}
+          outcomes={lesson.outcomes}
+          flow={missionStateOf(lesson, 0).missions.map((mission) => mission.label)}
+          overview={lessonOverview(lesson)}
+          thumbnail={lessonOverviewFallback(lesson)}
         />
       );
 
@@ -159,10 +197,37 @@ export function StepRenderer({
         1画面に同じ言葉が2回並ぶ（実際そうなっていた）。
       */
       return step.card ? (
-        <ConceptCardView
-          card={step.card}
-          headingShown={step.card.title === step.title}
-        />
+        <div>
+          {/*
+            技の名前を受け取る場面。
+
+            並びは直したが（体験 → 変化 → 気づき → 名前）、**名前を
+            渡すところ**が画面に無かった。解説カードは「〜とは」で
+            始まるので、読んだ人は「説明を読んだ」としか思わない。
+
+            骨格が最初に出す解説（concept_1〜3）は、同じ場面を言い換えた
+            ものなので、名前を渡すのは**技として名前が付いている回**だけ。
+            見分けは教材データの `skill` が持っている。
+          */}
+          {step.skill && (
+            <SkillGet
+              name={step.skill}
+              /*
+                やさしい言い方は、カードの見出しが持っている
+                （「ターゲット指定」＋「誰向けかを伝える」）。
+                技の名前と同じ文字のときは繰り返さない。
+              */
+              summary={
+                step.card.title === step.skill ? undefined : step.card.title
+              }
+            />
+          )}
+          <ConceptCardView
+            card={step.card}
+            headingShown={step.card.title === step.title}
+            image={picture}
+          />
+        </div>
       ) : null;
 
     case "quick_try":
@@ -351,6 +416,25 @@ export function StepRenderer({
               improved={runs[runs.length - 1].outputText}
               condition={values.condition ?? ""}
             />
+            {/*
+              条件を足す前と後を、自分の結果で見比べた**あと**に、
+              同じことを図で1枚置く。
+
+              前はこの絵が上にあった。コメントには「先には出さない」と
+              書いてあったのに、読む順では絵が先に来ていた——答えを見て
+              から自分の結果を確かめる作業になる。自分の結果が主で、
+              図はその裏取り。
+            */}
+            {picture && (
+              <div className="mt-4">
+                <TeachingImage
+                  src={picture.src}
+                  alt={picture.alt}
+                  width={picture.width}
+                  height={picture.height}
+                />
+              </div>
+            )}
             <SafetyNote placement="output" />
             <RunHistory runs={runs} />
           </div>
@@ -435,6 +519,13 @@ export function StepRenderer({
         <CompletionView
           course={course}
           skills={lesson.learnedSkills ?? lesson.outcomes}
+          /*
+            できるようになったこと。完了画面のいちばん上に出す。
+
+            `learnedSkills` を技として出しているとき**だけ**渡す。
+            両方が同じ配列だと、同じ文が2枚のカードに並ぶ。
+          */
+          outcomes={lesson.learnedSkills ? lesson.outcomes : undefined}
           outcomeText={lastRun?.outputText}
           outcomeLabel={
             api.realTaskSkipped ? "AIが書いた文章（練習）" : "AIが書いた文章"
@@ -458,6 +549,7 @@ export function StepRenderer({
           onSelectLesson={onSelectLesson}
           onOpenCourseCatalog={onOpenCourseCatalog}
           onOpenRecipe={onOpenRecipe}
+          award={api.award}
         />
       );
 

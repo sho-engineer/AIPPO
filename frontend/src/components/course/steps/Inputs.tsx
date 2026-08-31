@@ -140,8 +140,16 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
                   active ? "chip-on" : "chip-off"
                 }`}
               >
-                {/* 選ばれていることを色だけで示さない */}
-                {active && <IconCheck className="h-3.5 w-3.5 shrink-0" />}
+                {/*
+                  選ばれていることを色だけで示さない。印を差し替える。
+
+                  **大きさは選ぶ前後で同じにする。** 以前はチェックが
+                  14px、用途の絵が 16px で、選ぶたびに 2px ぶん
+                  文字が左へ動いていた（実測 59 → 57）。P0-6 の
+                  「印が現れて文字が動く」と同じ種類で、こちらは
+                  現れるのではなく**差し替わる**ぶん気づきにくい。
+                */}
+                {active && <IconCheck className="h-4 w-4 shrink-0" />}
                 {Glyph && !active && <Glyph className="h-4 w-4 shrink-0 text-brand" />}
                 {option.label}
               </button>
