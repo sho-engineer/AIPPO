@@ -58,6 +58,7 @@ def _flow_options(lesson: Lesson) -> dict[str, Any]:
         "reviewPoints": lesson.review_points,
         "realTaskLabel": lesson.real_task_label,
         "realTaskPlaceholder": lesson.real_task_placeholder,
+        "realTaskHints": lesson.real_task_hints,
         "takeaway": lesson.takeaway,
         "nextSuggestion": lesson.next_suggestion,
         "factCheck": lesson.fact_check,

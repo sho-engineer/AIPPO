@@ -98,12 +98,50 @@ class MockProvider(AIProvider):
         AI が動いていない事故を見逃す。
         """
         condition, body = _split_prompt(user_content)
-        head = body[:80] + ("…" if len(body) > 80 else "")
+        chosen = [line for line in condition.splitlines() if line.startswith("- ")]
+        asked = " ".join(c[2:] for c in chosen)
+
+        """
+        頼まれた形を、**実際に**映す。
+
+        前は条件を文字として書き出すだけで、長さも形も変えていなかった。
+        「もっと短く」と頼んでも元の文章より長いものが返るので、
+        品質の検査（apps/ai/quality.py）から見ると
+        **「頼んだことが起きていない」**——実際そのとおりだった。
+
+        条件を書き写すだけでは足りない。この作り物が「条件を変えると
+        結果が変わる」を示せないと、教材の要そのものが確かめられない
+        （この module の冒頭で自分でそう書いてある）。
+        """
+        short = any(word in asked for word in ("短く", "半分", "1行"))
+        bullets = "箇条書き" in asked
+
+        cap = 20 if short else 80
+        head = body[:cap] + ("…" if len(body) > cap else "")
+
+        if bullets:
+            # 印を付ける。中身の良し悪しではなく、形が変わることを示す
+            return "\n".join(f"・{part}" for part in [head or "（対象なし）", asked or "条件なし"])
+
+        if short:
+            """
+            短くと頼まれたら、**必ず元より短く**返す。
+
+            「元の半分」と決め打ちにはしない。目印（「（テスト用）」）が
+            そのぶんの長さを持つので、元が短いときは目印だけで
+            はみ出す。**確実に短いところまで削る**——作り物が
+            「頼んだことをした」と言えなければ、教材の要を確かめられない。
+            """
+            mark = "（テスト用）"
+            room = len(body.replace(" ", "")) - len(mark) - 1
+            if room < 1:
+                # 目印すら入らないほど元が短い。目印だけを返す
+                return mark
+            return f"{mark}{body[:room]}"
 
         lines = ["（テスト用の応答です）"]
-        chosen = [line for line in condition.splitlines() if line.startswith("- ")]
         if chosen:
-            lines.append("指定された条件: " + " / ".join(c[2:] for c in chosen))
+            lines.append("指定された条件: " + asked)
         if head:
             lines.append(head)
         return "\n".join(lines)

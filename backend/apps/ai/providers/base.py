@@ -41,6 +41,36 @@ class AIMalformedError(AIProviderError):
     kind = "malformed"
 
 
+class AIQualityError(AIProviderError):
+    """形は合っているが、**そのレッスンの学習にならない**返答が来た。
+
+    `AIMalformedError` との違い
+    ---------------------------
+    あちらは「読めない」。こちらは**読めるが、役に立たない**。
+    元の文章をそのまま返す、前置きだけ返す、指定した長さを無視する
+    ——どれも JSON としては正しく、200 で返ってくる。
+
+    そのまま画面へ出すと、Day1 の学習（送る → 変わる → 見比べる）が
+    **「何も変わらなかった」で終わる**。AI のばらつきが、そのまま
+    レッスン体験の壊れになる。
+
+    `AIProviderError` の子にしてあるのが要。呼び出し側の
+    `except (AIProviderError, AITimeoutError)` がそのまま拾い、
+    押さえた持ち分を戻すところまで既存の道を通る——**分岐を
+    増やさずに済む。**
+
+    加えて、これは**利用者のせいではない**。画面に出す言葉で
+    「入力が悪い」と読めるものを使わないこと。
+    """
+
+    kind = "quality"
+
+    def __init__(self, reason: str = ""):
+        super().__init__(reason or "quality check failed")
+        #: どの検査で落ちたか。本文は残さないので、ここが手がかりになる。
+        self.reason = reason
+
+
 @dataclass(frozen=True)
 class AIRequest:
     """1回の呼び出しに必要なものだけを持つ。

@@ -111,6 +111,7 @@ def _flow_params(lesson: dict[str, Any]) -> dict[str, Any]:
         "review_points": review.get("reviewPoints", []),
         "real_task_label": real_task.get("instruction", ""),
         "real_task_placeholder": real_task.get("placeholder", ""),
+        "real_task_hints": real_task.get("hints", []),
         "takeaway": steps.get("reflection", {}).get("poMessage", ""),
         "next_suggestion": steps.get("completion", {}).get("poMessage", ""),
         "fact_check": bool(review.get("factCheck", False)),

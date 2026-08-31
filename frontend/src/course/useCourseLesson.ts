@@ -95,7 +95,25 @@ export interface CourseLessonApi {
   goTo: (stepId: string) => void;
   showHint: () => void;
   /** AI を実行する。機密チェックに引っかかったら送らずに知らせる。 */
-  run: (options?: { force?: boolean; label?: string }) => Promise<SubmitOutcome>;
+  run: (options?: {
+    force?: boolean;
+    label?: string;
+    /**
+     * 本文を差し替えて送る。詰まった人へ例文を渡す道で使う
+     * （`course/rescue.ts`）。
+     *
+     * 状態に入れてから送る形にはできない。`setValues` は次の描画まで
+     * 反映されないので、同じ呼び出しの中で送ると**古い本文**が飛ぶ。
+     */
+    body?: string;
+  }) => Promise<SubmitOutcome>;
+  /**
+   * 用意された例文を入れて、そのまま送る。
+   *
+   * 欄へ入れるだけで止めない。詰まっている人にもう一度「送る」を
+   * 探させると、そこでやめる。**成功体験まで連れていく。**
+   */
+  useSample: (text: string) => Promise<SubmitOutcome>;
   dismissFindings: () => void;
   /**
    * 注意を読んだうえで、そのまま次へ進む。
@@ -196,7 +214,37 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       setStepId(draft.stepId);
       setValues(draft.values);
       setRealTaskSkipped(Boolean(draft.realTaskSkipped));
+      /*
+        AI が返したものも戻す。
+
+        前は戻していなかった。ステップだけ戻すので、開き直した人は
+        「3つを比べる」の画面に着くのに**比べる中身が空**だった。
+        進み具合だけ残って、作ったものが消えている状態になる。
+
+        `usage` は覚えていないので、控えから戻した回には空を入れる。
+        画面はこれを出さないので、無くても困らない。
+      */
+      setRuns(
+        (draft.runs ?? []).map((run) => ({
+          ...run,
+          usage: {
+            provider: "",
+            model: "",
+            input_tokens: 0,
+            output_tokens: 0,
+            latency_ms: 0,
+          },
+          extras: {},
+        })),
+      );
       setPo(poOf(findStep(lesson, draft.stepId) as LessonStep));
+      /*
+        続きから戻ってきた回を数える。**最初の1回とは別に**——
+        混ぜると「何人が戻ってきたか」が出せない。
+      */
+      if (draft.stepId !== firstStepId(lesson)) {
+        void sendLearningEvent({ lessonId: lesson.id, eventType: "lesson_resumed" });
+      }
     }
     setRestored(true);
     void sendLearningEvent({ lessonId: lesson.id, eventType: "lesson_started" });
@@ -205,8 +253,25 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
   // 復元し終えてから保存する。しないと空の値で上書きしてしまう。
   useEffect(() => {
     if (!restored) return;
-    saveDraft({ lessonId: lesson.id, stepId, values, realTaskSkipped });
-  }, [restored, lesson.id, stepId, values, realTaskSkipped]);
+    saveDraft({
+      lessonId: lesson.id,
+      stepId,
+      values,
+      realTaskSkipped,
+      /*
+        作ったものも一緒に。**このレッスンの分だけ**で、終えたら
+        消える（`complete` / `restart` が `clearDraft` を呼ぶ）。
+        溜め続けると、共用の端末で前の人の文章が残る。
+      */
+      runs: runs.map((run) => ({
+        sequence: run.sequence,
+        stepId: run.stepId,
+        label: run.label,
+        inputText: run.inputText,
+        outputText: run.outputText,
+      })),
+    });
+  }, [restored, lesson.id, stepId, values, realTaskSkipped, runs]);
 
   /*
     最初の1回で使う例文と、選ばせない条件の既定値を先に入れておく。
@@ -230,6 +295,38 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       return next;
     });
   }, [restored, step]);
+
+  /*
+    このレッスンの**主要な成功体験**を通ったか。
+
+    Day1 でいえば「送った → 結果が出た → 条件を足した → 変わった →
+    見比べた」。ここまで来て初めて、この教材が教えたかったことが
+    起きている。
+
+    最後の画面に着いたこと（`lesson_completed`）とは**別に数える**。
+    完了は押した回数で決まるので、AIを一度も成功させないまま
+    最後まで押し進むことができてしまう——それを完了として数えると、
+    「何人ができるようになったか」が分からなくなる。
+
+    判定は画面の状態だけから出す。作文はしない：
+    **比べる回にいて、比べる材料が2つ以上ある。**
+
+    一度だけ送る。戻って見直すたびに数えると、熱心な人ほど
+    上手くいったことになる。
+  */
+  const reachedSuccess = useRef(false);
+  useEffect(() => {
+    if (!restored || reachedSuccess.current) return;
+    if (step.type !== "result_compare" || runs.length < 2) return;
+
+    reachedSuccess.current = true;
+    void sendLearningEvent({
+      lessonId: lesson.id,
+      eventType: "learning_success_reached",
+      step: step.id,
+      completed: true,
+    });
+  }, [restored, lesson.id, step.type, step.id, runs.length]);
 
   // 画面を見たことを記録する
   useEffect(() => {
@@ -358,17 +455,21 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
   );
 
   const run = useCallback(
-    async (options: { force?: boolean; label?: string } = {}) => {
+    async (
+      options: { force?: boolean; label?: string; body?: string } = {},
+    ) => {
       if (inFlight.current) return "busy" as const;
 
       const spec = step.aiAction;
       if (!spec) return "busy" as const;
 
+      // 差し替えが指定されていればそちらを本文にする（例文で試す道）
+      const body = options.body ?? bodyText(step);
       const input = buildAiInput(step, {
         ...values,
         // 自分の課題のステップでは、本文だけ差し替える
-        source_text: bodyText(step),
-        original_text: bodyText(step),
+        source_text: body,
+        original_text: body,
       });
       /*
         条件を足す回は、**直前の結果**を対象にする。
@@ -378,7 +479,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       const action = resolveAction(lesson, step, values);
       if (action === "improve") {
         const previous = runs[runs.length - 1];
-        input.original_text = previous?.outputText ?? bodyText(step);
+        input.original_text = previous?.outputText ?? body;
         input.improvement =
           values.condition || values.improvement || values.improvement_direction || "";
       }
@@ -469,6 +570,21 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
         */
         playSuccessSound("result");
 
+        /*
+          この人が、このレッスンで**初めて AI の結果を受け取った**回。
+
+          いちばん見たい数字がここから出る——「何人登録したか」ではなく
+          **何人が最初の成功体験まで行けたか**。名前は前からあったのに、
+          誰も送っていなかったので測れていなかった。
+        */
+        if (runs.length === 0) {
+          void sendLearningEvent({
+            lessonId: lesson.id,
+            eventType: "first_result_generated",
+            step: step.id,
+          });
+        }
+
         setRuns((current) => [
           ...current,
           {
@@ -526,6 +642,34 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       }
     },
     [bodyText, lesson, runs, step, values],
+  );
+
+  /**
+   * 用意された例文を入れて、そのまま送る。
+   *
+   * 詰まった人の逃げ道（`course/rescue.ts`）。欄へ入れるだけで
+   * 止めない——**成功体験まで連れていく**。もう一度「送る」を
+   * 探させると、詰まっている人はそこでやめる。
+   *
+   * 欄にも入れておく。戻ったときに何を送ったのかが見えないと、
+   * 次に自分の文章へ差し替えることができない。
+   */
+  const useSample = useCallback(
+    async (text: string) => {
+      if (!text) return "busy" as const;
+
+      /*
+        送るのは引数のほう。`setValues` は次の描画まで反映されないので、
+        状態を頼りにすると**古い本文**が飛ぶ。
+      */
+      setValues((current) => ({
+        ...current,
+        source_text: text,
+        real_task_text: text,
+      }));
+      return run({ body: text, label: "例文" });
+    },
+    [run],
   );
 
   /*
@@ -631,6 +775,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     goTo: move,
     showHint,
     run,
+    useSample,
     dismissFindings,
     continueAnyway,
     skipRealTask,
