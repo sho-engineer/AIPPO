@@ -16,7 +16,6 @@ import type { ReactNode } from "react";
 import { BrandLogo } from "./BrandLogo";
 import { useGoHome } from "../app/navigation";
 import {
-  IconBell,
   IconBook,
   IconChevronLeft,
   IconDocument,
@@ -43,20 +42,20 @@ export type AppHeaderProps = {
 /**
  * 上の帯。
  *
- * 中身はロゴと、お知らせ・本人の欄だけ。支給デザイン6枚とも同じ形で、
- * 左にロゴ（戻れる画面では戻るボタン＋中央ロゴ）、右にお知らせと似顔絵。
+ * 中身はロゴと、本人の欄だけ。左にロゴ（戻れる画面では戻るボタン＋
+ * 中央ロゴ）、右に似顔絵。
  *
  * 高さは 56px。前は 44px まで詰めていたが、支給デザインのロゴは
  * それより大きく、詰めると帯の中でロゴが窮屈に見える。
  * 上端には切り欠き（ノッチ）ぶんの余白を足す——足さないと、
  * iPhone では時計とロゴが重なる。
  *
- * お知らせの鈴は押せない
+ * お知らせの鈴は置かない
  * ----------------------
- * 知らせを配る仕組みがまだ無い。支給デザインには青い点（未読の印）が
- * 付いているが、**出さない**。届いていないのに未読の印を出すのは、
- * 押させたいだけの嘘になる。位置だけ確保して、押せないことを
- * 読み上げにも伝えておく。
+ * 知らせを配る仕組みがまだ無い。以前は「後で足したときに右上の並びが
+ * 動かないように」と、押せない鈴を置いていた。**まだ来ない機能の
+ * ために、全画面の右上を灰色の飾りで埋めていた**ことになる。
+ * 用意できたら、そのとき足す。
  *
  * 中央は「画面の中央」にする
  * --------------------------
@@ -152,19 +151,6 @@ export function AppHeader({ onBack, action, centered, onOpenAccount }: AppHeader
           </button>
         ) : (
           <div className="flex shrink-0 items-center gap-1">
-            {/*
-              鈴。配る仕組みが無いので押せない。
-              置かない手もあるが、後で足したときに右上の並びが動いて、
-              覚えた位置が変わってしまう。
-            */}
-            <span
-              className="flex h-10 w-10 items-center justify-center text-ink-muted/50"
-              title="お知らせは準備中です"
-            >
-              <IconBell className="h-5 w-5" aria-hidden="true" />
-              <span className="sr-only">お知らせ（準備中）</span>
-            </span>
-
             {/*
               似顔絵。登録していてもいなくても同じ場所から入る。
               行き先を渡していないときは、押せない印として出す。

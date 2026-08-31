@@ -1,7 +1,14 @@
 /**
- * Credit の残高と、これまでの動き。
+ * AI利用状況。あと何回使えるか、これまでどう動いたか。
  *
  * ここは「見るだけ」の画面。増やす・使うはここからは起きない。
+ *
+ * 「Credit」とは書かない
+ * ----------------------
+ * こちらの帳簿の言葉であって、使う人の言葉ではない。見に来た人が
+ * 知りたいのは「あと何回AIに頼めるか」なので、そう書く。
+ * データの名前（CreditState・credit-balance）はそのままにしてある——
+ * 画面の言葉を変えるたびに、裏の名前まで付け替えて回らない。
  *
  * ゲストのとき
  * ------------
@@ -13,7 +20,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Card } from "../AppShell";
+import { SettingsGroup } from "../settings/Controls";
 import {
   claimRewards,
   fetchCredits,
@@ -58,7 +65,7 @@ export function CreditPanel({ onOpenAuth, onNotice }: CreditPanelProps) {
       const result = await claimRewards();
       onNotice(
         result.granted > 0
-          ? `${result.granted} Credit を受け取りました。`
+          ? `${result.granted}回ぶん受け取りました。`
           : "いま受け取れる特典はありません。",
       );
       await load();
@@ -71,7 +78,7 @@ export function CreditPanel({ onOpenAuth, onNotice }: CreditPanelProps) {
 
   if (error) {
     return (
-      <Card className="mt-5">
+      <div className="mt-6">
         <p className="text-sm text-ink-muted">読み込めませんでした。</p>
         <button
           type="button"
@@ -81,16 +88,12 @@ export function CreditPanel({ onOpenAuth, onNotice }: CreditPanelProps) {
         >
           もう一度読み込む
         </button>
-      </Card>
+      </div>
     );
   }
 
   if (!credits || !stamps) {
-    return (
-      <Card className="mt-5">
-        <p className="text-sm text-ink-muted">読み込んでいます…</p>
-      </Card>
-    );
+    return <p className="mt-6 text-sm text-ink-muted">読み込んでいます…</p>;
   }
 
   const waiting = stamps.unclaimed_waiting;
@@ -103,10 +106,9 @@ export function CreditPanel({ onOpenAuth, onNotice }: CreditPanelProps) {
           「まだ持っていない」と「使い切った」は別のことなので、
           0 という数字そのものを見せない。
         */
-        <Card className="mt-5">
-          <h2 className="text-base font-bold">Credit</h2>
-          <p className="mt-2 text-sm leading-7 text-ink-muted">
-            Credit は、画像生成など一部のAI機能に使えます。
+        <SettingsGroup>
+          <p className="text-sm leading-7 text-ink-muted">
+            画像づくりなど、一部のAI機能を使うときに減ります。
           </p>
           {waiting ? (
             <p
@@ -114,7 +116,7 @@ export function CreditPanel({ onOpenAuth, onNotice }: CreditPanelProps) {
                          leading-7 text-brand-dark"
               data-testid="credit-waiting"
             >
-              スタンプは獲得しています。Credit を受け取るには、進捗の保存が必要です。
+              スタンプは集まっています。受け取るには、進捗の保存が必要です。
             </p>
           ) : (
             <p className="mt-3 text-sm leading-7 text-ink-muted">
@@ -129,29 +131,28 @@ export function CreditPanel({ onOpenAuth, onNotice }: CreditPanelProps) {
           >
             進捗を保存する
           </button>
-        </Card>
+        </SettingsGroup>
       ) : (
         <>
-          <Card className="mt-5">
-            <h2 className="text-base font-bold">いまの残高</h2>
-            <p className="mt-2 flex items-baseline gap-2">
+          <SettingsGroup title="使える回数">
+            <p className="flex items-baseline gap-2">
               <span
                 className="text-3xl font-bold text-brand"
                 data-testid="credit-balance"
               >
                 {credits.balance}
               </span>
-              <span className="text-sm text-ink-muted">Credits</span>
+              <span className="text-sm text-ink-muted">回</span>
             </p>
             <dl className="mt-4 flex gap-6 text-sm">
               <div>
-                <dt className="text-ink-muted">これまで獲得</dt>
+                <dt className="text-ink-muted">これまで受け取った</dt>
                 <dd className="mt-1 font-bold" data-testid="credit-earned">
                   {credits.lifetime_earned}
                 </dd>
               </div>
               <div>
-                <dt className="text-ink-muted">これまで使用</dt>
+                <dt className="text-ink-muted">これまで使った</dt>
                 <dd className="mt-1 font-bold" data-testid="credit-spent">
                   {credits.lifetime_spent}
                 </dd>
@@ -174,10 +175,9 @@ export function CreditPanel({ onOpenAuth, onNotice }: CreditPanelProps) {
                 </button>
               </div>
             )}
-          </Card>
+          </SettingsGroup>
 
-          <Card className="mt-4">
-            <h2 className="text-base font-bold">最近の動き</h2>
+          <SettingsGroup title="最近の動き">
             {credits.transactions.length === 0 ? (
               <p className="mt-2 text-sm leading-7 text-ink-muted">
                 まだありません。レッスンを進めると、節目で受け取れます。
@@ -205,15 +205,14 @@ export function CreditPanel({ onOpenAuth, onNotice }: CreditPanelProps) {
                 ))}
               </ul>
             )}
-          </Card>
+          </SettingsGroup>
         </>
       )}
 
-      {/* スタンプの埋まり具合。Credit の出どころが見えるようにする */}
+      {/* スタンプの埋まり具合。回数の出どころが見えるようにする */}
       {stamps.paths.length > 0 && (
-        <Card className="mt-4">
-          <h2 className="text-base font-bold">スタンプ</h2>
-          <ul className="mt-3 space-y-4" role="list">
+        <SettingsGroup title="スタンプ">
+          <ul className="space-y-4" role="list">
             {stamps.paths.map((path) => (
               <li key={path.path_id} data-testid={`credit-path-${path.path_id}`}>
                 <p className="text-sm font-bold">{path.title}</p>
@@ -223,7 +222,7 @@ export function CreditPanel({ onOpenAuth, onNotice }: CreditPanelProps) {
               </li>
             ))}
           </ul>
-        </Card>
+        </SettingsGroup>
       )}
     </div>
   );

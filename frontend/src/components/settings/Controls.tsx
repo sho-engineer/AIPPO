@@ -9,89 +9,128 @@
 
 import { useId, type ReactNode } from "react";
 
-import { IconBadge, IconMark } from "../AppShell";
+import { IconMark } from "../AppShell";
 import { IconCheck, IconChevronRight, type Icon } from "../Icons";
 
 // ------------------------------------------------------------------ 行
 
 /**
+ * 設定の一覧。
+ *
+ * カードにしない
+ * --------------
+ * 以前は行の束をひとつずつ `Card` に入れていた。白い面が影を落として
+ * 下地に浮き、それが4つ5つと縦に並ぶ。手元のアプリの設定を思い出すと、
+ * どれもそうなっていない——設定は「読むもの」ではなく「探すもの」で、
+ * 浮いた面が増えるほど、目は面の輪郭を数えることに使われる。
+ *
+ * ここは面を1枚だけ、画面の端まで伸ばす（`-mx-5` で本文の余白から
+ * はみ出し、行の中で同じだけ戻す）。影も角丸も付けない。
+ * 白い帯が下地の上に**続いている**だけに見えるのが正しい。
+ *
+ * 見出しは、束の外の小さな字にする。束の中に入れると、見出しの行と
+ * 項目の行が同じ面に並び、押せるものと押せないものの区別が消える。
+ */
+export function SettingsList({
+  label,
+  children,
+  testId,
+}: {
+  /** 束の名前。1つしか束が無いときは省く。 */
+  label?: string;
+  children: ReactNode;
+  testId?: string;
+}) {
+  return (
+    <section className="mt-7 first:mt-5">
+      {label && (
+        <h2 className="px-1 pb-2 text-xs font-bold text-ink-muted">{label}</h2>
+      )}
+      <ul
+        role="list"
+        data-testid={testId}
+        className="-mx-5 border-y border-line bg-surface"
+      >
+        {children}
+      </ul>
+    </section>
+  );
+}
+
+/**
  * 下位画面へ入る1行。
  *
- * 絵・見出し・説明・「＞」の4つを、この順で必ず並べる。
- * 支給デザインどおり、行は独立したカードにせず、1枚の面を線で区切る。
- * カードを積むと、行と行のあいだの余白のほうが目立ってしまう。
+ * 名前と「＞」だけ。説明は書かない
+ * --------------------------------
+ * 以前は1行ずつに説明を添えていた（「登録・ログイン・パスワード・退会」）。
+ * 12行あれば12本の説明が並び、**設定を探しているだけの人に、24行を
+ * 読ませる**ことになる。行の名前で分からないなら、直すべきは名前のほう。
+ *
+ * 印の色は揃える
+ * --------------
+ * 行ごとに色を変えていた（青・橙・翠・菫…）。並べると虹になり、
+ * 色が意味を持っていないことが見ればすぐ分かってしまう。
+ * ここでの絵は、目が行を拾い直すための足がかりでしかないので、
+ * 全部同じ濃さの線画にする。
  */
 export function SettingsRow({
   icon,
-  tone,
   title,
-  description,
   onClick,
-  disabled,
-  note,
 }: {
   icon: Icon;
-  tone?: Parameters<typeof IconBadge>[0]["tone"];
   title: string;
-  description: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  /** 押せない理由。黙って無反応にしない。 */
-  note?: string;
+  onClick: () => void;
 }) {
   return (
     <li className="border-b border-line last:border-b-0">
       <button
         type="button"
         onClick={onClick}
-        disabled={disabled}
-        className="flex w-full items-center gap-4 px-4 py-3.5 text-left transition
-                   enabled:hover:bg-brand-soft/50 enabled:active:bg-brand-soft
-                   disabled:cursor-not-allowed disabled:opacity-55"
+        className="flex w-full items-center gap-4 px-5 py-3.5 text-left transition
+                   hover:bg-brand-soft/40 active:bg-brand-soft"
       >
-        {/*
-          印は器に入れない。
-
-          設定は行が10ある。1行ずつ淡い色の角丸四角に絵を入れると、
-          同じ形の四角が縦に10個並び、そちらが項目名より強くなる。
-          見分けが付けばよいだけなので、線だけの印にする。
-        */}
-        <IconMark
-          icon={icon}
-          tone={tone === "plain" || tone === undefined ? "brand" : tone}
-          className="h-5 w-5"
-        />
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-bold">{title}</span>
-          <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
-            {disabled && note ? note : description}
-          </span>
-        </span>
-        {!disabled && (
-          <IconChevronRight className="h-5 w-5 shrink-0 text-ink-muted" />
-        )}
+        <IconMark icon={icon} tone="muted" className="h-5 w-5" />
+        <span className="min-w-0 flex-1 text-sm font-bold">{title}</span>
+        <IconChevronRight className="h-5 w-5 shrink-0 text-ink-muted/70" />
       </button>
     </li>
   );
 }
 
-/** 設定の1かたまり。見出し＋説明＋中身。 */
+/**
+ * 設定の1かたまり。
+ *
+ * `SettingsList` と同じ見え方（画面の端まで伸びた白い帯）にする。
+ * 一覧から1段潜っただけで浮いた角丸のカードが出てくると、
+ * 同じ設定の中で別のアプリへ移ったように見える。
+ *
+ * 見出しと説明は帯の**外**の小さな字。中に入れると、読むだけの行と
+ * 押せる行が同じ面に並び、どこを触ればよいのかが分かりにくくなる。
+ */
 export function SettingsGroup({
   title,
   description,
   children,
 }: {
-  title: string;
+  /** かたまりの名前。画面の見出しが同じことを言っているなら省く。 */
+  title?: string;
   description?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="border-b border-line px-4 py-5 last:border-b-0">
-      <h3 className="text-sm font-bold">{title}</h3>
-      {description && (
-        <p className="mt-0.5 text-xs leading-6 text-ink-muted">{description}</p>
+    <section className="mt-6">
+      {(title || description) && (
+        <div className="px-1 pb-2">
+          {title && <h3 className="text-xs font-bold text-ink-muted">{title}</h3>}
+          {description && (
+            <p className="mt-0.5 text-xs leading-6 text-ink-muted">{description}</p>
+          )}
+        </div>
       )}
-      <div className="mt-3">{children}</div>
+      <div className="-mx-5 border-y border-line bg-surface px-5 py-4">
+        {children}
+      </div>
     </section>
   );
 }

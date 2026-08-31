@@ -87,7 +87,11 @@ test.describe("AI技図鑑", () => {
     await toHome(page);
 
     await page.getByRole("button", { name: "AI技" }).click();
-    await page.getByRole("button", { name: "ホーム" }).click();
+    /*
+      名前は丸ごと一致で探す。帯のロゴにも「ホームへ戻る」が付いたので、
+      部分一致だと2つに当たる（ここで見たいのは下タブのほう）。
+    */
+    await page.getByRole("button", { name: "ホーム", exact: true }).click();
 
     await expect(page.getByTestId("next-up")).toBeVisible();
   });

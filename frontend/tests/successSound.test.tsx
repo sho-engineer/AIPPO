@@ -175,9 +175,8 @@ describe("設定画面", () => {
       </AuthProvider>,
     );
     await act(async () => {});
-    await userEvent.setup().click(
-      screen.getByRole("button", { name: /できたときの短い音/ }),
-    );
+    // 一覧の行は名前だけ（説明は添えない）。行の名前で開く
+    await userEvent.setup().click(screen.getByRole("button", { name: /^音$/ }));
   };
 
   it("つまみを入れると、端末に残る", async () => {

@@ -112,16 +112,24 @@ describe("設定から読む", () => {
     expect(screen.getByTestId("legal-open-privacy")).toBeInTheDocument();
   });
 
-  it("AIPPOについて、からも同じものを開ける", async () => {
-    const user = userEvent.setup();
+  /*
+    以前は設定のいちばん下に「AIPPOについて」を置き、3本の規約への
+    近道を並べていた。外した——**同じ行き先が1画面に2か所ある**と、
+    押した人は「別のものかもしれない」と考える。3本とも
+    「規約とポリシー」の中にあり、そこは上のテストが守っている。
+  */
+  it("規約への入口は、一覧の1行だけ", async () => {
     render(
       <AuthProvider>
         <SettingsPage onBack={() => {}} onOpenRecord={() => {}} onOpenSaved={() => {}} />
       </AuthProvider>,
     );
 
-    await user.click(screen.getByRole("button", { name: "AI利用上の注意" }));
-
-    expect(screen.getByTestId("legal-ai-notes")).toBeInTheDocument();
+    for (const document of LEGAL_DOCUMENTS) {
+      expect(
+        screen.queryByRole("button", { name: document.title }),
+      ).toBeNull();
+    }
+    expect(screen.getByRole("button", { name: /規約とポリシー/ })).toBeInTheDocument();
   });
 });

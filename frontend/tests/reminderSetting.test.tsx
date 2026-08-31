@@ -66,9 +66,9 @@ const shell = () => render(
   </AuthProvider>,
 );
 
-/** 通知設定の画面まで開く。 */
+/** 通知の画面まで開く。 */
 async function openNotifications(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(await screen.findByRole("button", { name: /通知設定/ }));
+  await user.click(await screen.findByRole("button", { name: /通知/ }));
   return screen.findByRole("switch", { name: /学習リマインダー/ });
 }
 
@@ -123,16 +123,22 @@ describe("ログインしているとき", () => {
     expect(await openNotifications(user)).not.toBeChecked();
   });
 
-  it("何が届くのかを正直に書く", async () => {
-    // 4つ並んでいるが、実際に届くのは1つだけ。全部届くように見せない
+  it("届かないつまみを並べない", async () => {
+    /*
+      前はここに4つ並べ、うち3つを「準備中」で止めたうえで、
+      「実際に届くのは学習リマインダーだけです」と断り書きを添えていた。
+
+      いまは届く1つしか出さない。断り書きが要らなくなったのは、
+      **断るようなものを置かなくなった**から。断り書きが戻ってきたら、
+      それは並べ直したということなので、ここで落ちてほしい。
+    */
     serve();
     const user = userEvent.setup();
     shell();
     await openNotifications(user);
 
-    expect(
-      screen.getByText(/実際に届くのは「学習リマインダー」だけ/),
-    ).toBeInTheDocument();
+    expect(screen.getAllByRole("switch")).toHaveLength(1);
+    expect(screen.queryByText(/準備中/)).toBeNull();
   });
 });
 

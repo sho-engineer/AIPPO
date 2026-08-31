@@ -8,12 +8,12 @@
  * 読み飛ばされる。読み飛ばされた同意は、同意として弱い。
  */
 
-import { Card } from "../AppShell";
+import { SettingsList } from "../settings/Controls";
 import { LEGAL_DOCUMENTS, type LegalDocument } from "../../content/legal";
 
 export function LegalView({ document }: { document: LegalDocument }) {
   return (
-    <Card className="mt-5" testId={`legal-${document.id}`}>
+    <article className="mt-6" data-testid={`legal-${document.id}`}>
       <p className="text-sm leading-7 text-ink-muted">{document.summary}</p>
       <p className="mt-1 text-xs text-ink-muted">{document.updatedAt} 現在</p>
 
@@ -31,7 +31,7 @@ export function LegalView({ document }: { document: LegalDocument }) {
           </section>
         ))}
       </div>
-    </Card>
+    </article>
   );
 }
 
@@ -58,25 +58,25 @@ export function LegalMenu({
   onOpen: (id: LegalDocument["id"]) => void;
 }) {
   return (
-    <Card className="mt-5" padded={false}>
-      <ul role="list">
-        {LEGAL_DOCUMENTS.map((document) => (
-          <li key={document.id} className="border-b border-line last:border-b-0">
-            <button
-              type="button"
-              data-testid={`legal-open-${document.id}`}
-              onClick={() => onOpen(document.id)}
-              className="w-full px-4 py-3.5 text-left transition
-                         hover:bg-brand-soft/50 active:bg-brand-soft"
-            >
-              <span className="block text-sm font-bold">{document.title}</span>
-              <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
-                {document.summary}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </Card>
+    <SettingsList>
+      {LEGAL_DOCUMENTS.map((document) => (
+        <li key={document.id} className="border-b border-line last:border-b-0">
+          <button
+            type="button"
+            data-testid={`legal-open-${document.id}`}
+            onClick={() => onOpen(document.id)}
+            className="w-full px-5 py-3.5 text-left text-sm font-bold transition
+                       hover:bg-brand-soft/40 active:bg-brand-soft"
+          >
+            {/*
+              3つとも中身の違いが題名で分かる（利用規約／プライバシー
+              ポリシー／AI利用上の注意）。要約を添えると、読むための
+              一覧が、読む前に読むものになる。
+            */}
+            {document.title}
+          </button>
+        </li>
+      ))}
+    </SettingsList>
   );
 }

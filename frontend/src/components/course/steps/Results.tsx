@@ -154,7 +154,12 @@ export function ResultCompare({
           </p>
           {reviewPoints.length > 1 && (
             <details className="mt-2">
-              <summary className="cursor-pointer list-none text-xs font-bold text-brand">
+              {/*
+                薄青の上なので brand（#1268E8）では 4.42:1 しか出ず、
+                本文の下限（4.5:1）に届かない。すぐ上の見出しと同じ
+                brand-dark にする（axe が見ている）。
+              */}
+              <summary className="cursor-pointer list-none text-xs font-bold text-brand-dark">
                 ほかの見どころ
               </summary>
               <ul className="mt-2 space-y-1 text-sm leading-6" role="list">

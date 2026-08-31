@@ -8,17 +8,21 @@
  * 押し忘れて戻ると、変えたはずの設定が消えている——それがいちばん困る。
  * 効いたことは画面の変化そのもので分かるようにしてある。
  *
- * 支給デザインにあって、ここに無いもの
- * ------------------------------------
- * 外部連携・サブスクリプション・ヘルプ・言語設定は、押せる形で置いたうえで
- * 「準備中」と書いて止めてある。課金も翻訳もまだこのアプリに無いため。
- * それらしい画面だけ作ると、触った人は「申し込んだのに反映されない」
- * 「英語にしたのに日本語のまま」と受け取る。無いものは無いと書く。
+ * まだ無いものは、載せない
+ * ------------------------
+ * AI設定・学習設定・言語設定・外部連携・サブスクリプション・ヘルプは、
+ * 以前ここに押せない行として並べていた（「来る予定がある」と伝えるため）。
+ * やめた。設定を開く人は予定を知りに来ていない。押せない行が半分を
+ * 占める画面は、探しものの邪魔にしかならない。
  *
- * 止め方は4つとも同じにする（行を disabled にして、説明の代わりに
- * 「準備中です」を出す）。同じ「まだ無い」を、ある行は開けて中で断り、
- * ある行は開けない、と分けると、開けた人は「こっちは動くのかもしれない」
- * と読む。1画面の中で扱いを揃えるほうが、言葉を尽くすより早く伝わる。
+ * 消したのは**画面から**で、端末に残っている値は消していない。
+ * 仕組みが用意できた日に、そのときの選択がそのまま効く。
+ *
+ * どこにも面を浮かせない
+ * ----------------------
+ * 行の束をカードに入れない。白い面が影を落として下地に浮き、それが
+ * 縦に4つ5つ並ぶ画面は、手元のどのアプリの設定とも違う見え方になる。
+ * 面は1枚だけ、画面の端まで伸ばす（components/settings/Controls.tsx）。
  *
  * アカウント設定は動く。登録なしでも教材は最後まで通るので、ここは
  * 「登録しないと始まらない入口」ではなく「残したくなったときの置き場」。
@@ -28,28 +32,23 @@
 
 import { useEffect, useState } from "react";
 
-import { AppHeader, Card, IconMark } from "../components/AppShell";
+import { AppHeader, IconMark } from "../components/AppShell";
 import { AuthDialog } from "../components/auth/AuthDialog";
 import { AccountPanel } from "../components/settings/AccountPanel";
 import { CreditPanel } from "../components/rewards/CreditPanel";
 import { LegalMenu, LegalView } from "../components/legal/LegalView";
 import {
-  LEGAL_DOCUMENTS,
   PRIVACY,
   findLegalDocument,
   type LegalDocument,
 } from "../content/legal";
 import {
   IconBell,
-  IconBook,
   IconBookmark,
   IconChat,
   IconClock,
   IconDocument,
-  IconFolder,
-  IconGlobe,
   IconPerson,
-  IconQuestion,
   IconRefresh,
   IconShield,
   IconSound,
@@ -57,6 +56,7 @@ import {
 } from "../components/Icons";
 import {
   SettingsGroup,
+  SettingsList,
   SettingsRow,
   Toggle,
 } from "../components/settings/Controls";
@@ -140,8 +140,9 @@ export function SettingsPage({ onBack, onOpenRecord, onOpenSaved }: SettingsPage
 
   const title = {
     account: "アカウント設定",
-    credit: "Credit",
-    notification: "通知設定",
+    // 帳簿の言葉（Credit）ではなく、見に来た人が知りたいことの名前
+    credit: "AI利用状況",
+    notification: "通知",
     sound: "音",
     privacy: "学習データ・プライバシー",
     legal: "規約とポリシー",
@@ -169,10 +170,6 @@ export function SettingsPage({ onBack, onOpenRecord, onOpenSaved }: SettingsPage
             onOpenRecord={onOpenRecord}
             onOpenSaved={onOpenSaved}
             onOpen={setPanel}
-            onOpenLegal={(id) => {
-              setPanel("legal");
-              setLegalId(id);
-            }}
           />
         ) : (
           /* key を付けて、画面が変わるたびに入りの動きをやり直す */
@@ -233,23 +230,44 @@ export function SettingsPage({ onBack, onOpenRecord, onOpenSaved }: SettingsPage
 
 // ------------------------------------------------------------------ 一覧
 
+/**
+ * 設定の一覧。
+ *
+ * 「まだ無いもの」は載せない
+ * --------------------------
+ * 以前は AI設定・学習設定・言語設定・外部連携・サブスクリプション・
+ * ヘルプの6行を、押せない形で並べていた。理由は「来る予定があると
+ * 伝えるため」だったが、**設定を開く人は予定を知りに来ていない**。
+ * 12行のうち半分が灰色で、押しても何も起きない画面は、探しものの
+ * 邪魔にしかならない。使えるものだけを並べ、増えたらそのとき足す。
+ *
+ * 「開発中の機能を設定に出さない」は、この画面の決まりとする。
+ * 通知の3つのつまみ（配信の仕組みがまだ無いもの）も同じ理由で外した。
+ *
+ * 3つに束ねる
+ * -----------
+ * 12行を1枚に流すと、どこに何があるかを毎回上から探すことになる。
+ *
+ *   学習          … 自分の記録
+ *   アカウント    … 本人まわり
+ *   アプリ        … この端末の振る舞い
+ */
 function MainMenu({
   onOpen,
-  onOpenLegal,
   onOpenRecord,
   onOpenSaved,
 }: {
   onOpen: (panel: Panel) => void;
-  onOpenLegal: (id: LegalDocument["id"]) => void;
   onOpenRecord: () => void;
   onOpenSaved: () => void;
 }) {
   return (
     <div className="animate-fade-up">
+      {/*
+        「学習環境や表示をカスタマイズできます。」は書かない。
+        設定画面を開いた人は、そこが設定だと知っている。
+      */}
       <h1 className="mt-2 text-xl font-bold sm:text-2xl">設定</h1>
-      <p className="mt-2 text-sm leading-7 text-ink-muted">
-        学習環境や表示をカスタマイズできます。
-      </p>
 
       {/*
         下タブから外した2つ。
@@ -257,183 +275,54 @@ function MainMenu({
         AI技とマイ成果物を入れるために外したが、行き先ごと消しては
         いない。探せば必ず見つかる場所を、ここに1つ残す。
       */}
-      <Card className="mt-5" padded={false}>
-        <ul role="list">
-          <SettingsRow
-            icon={IconClock}
-            tone="sky"
-            title="学習記録"
-            description="どの教材を、どこまで進めたか"
-            onClick={onOpenRecord}
-          />
-          <SettingsRow
-            icon={IconBookmark}
-            tone="amber"
-            title="あとで見る"
-            description="目印を付けた教材"
-            onClick={onOpenSaved}
-          />
-        </ul>
-      </Card>
+      <SettingsList label="学習" testId="settings-learning">
+        <SettingsRow icon={IconClock} title="学習記録" onClick={onOpenRecord} />
+        <SettingsRow icon={IconBookmark} title="あとで見る" onClick={onOpenSaved} />
+      </SettingsList>
 
-      <Card className="mt-5" padded={false}>
-        <ul role="list">
-          <SettingsRow
-            icon={IconPerson}
-            tone="sky"
-            title="アカウント設定"
-            description="登録・ログイン・パスワード・退会"
-            onClick={() => onOpen("account")}
-          />
-          {/*
-            Credit。上の帯には出さない。
-
-            常時大きく出すと、学習より残高のほうが目的に見えてくる。
-            見たい人が見に来られる場所に置くだけにする。
-          */}
-          <SettingsRow
-            icon={IconSparkle}
-            tone="sky"
-            title="Credit"
-            description="いまの残高と、これまでの動き"
-            onClick={() => onOpen("credit")}
-          />
-          {/*
-            AI設定は選ばせない。
-
-            モデル・口調・回答の長さ・出典表示のどれも、選んでも
-            **AIへの依頼には一切乗っていなかった**（実際に使うモデルは
-            教材データ側の指定で決まる）。とくにモデル選択は、サーバーから
-            一覧を取ってきて表示していたので、本物らしく見えるぶん質が悪い。
-            繋いだら onClick を戻して、下位画面をここへ足す。
-          */}
-          <SettingsRow
-            icon={IconSparkle}
-            tone="plain"
-            title="AI設定"
-            description="AIの答え方や、参考にした情報の見せ方"
-            disabled
-            note="準備中です。いまはレッスンごとの決まりで動きます"
-          />
-          {/*
-            学習設定も同じ。1日の目標時間も解説の自動展開も、
-            決めた値をどの画面も読んでいなかった。
-          */}
-          <SettingsRow
-            icon={IconBook}
-            tone="plain"
-            title="学習設定"
-            description="1日の目標や、解説の出し方"
-            disabled
-            note="準備中です"
-          />
-          <SettingsRow
-            icon={IconBell}
-            tone="amber"
-            title="通知設定"
-            description="受け取る知らせを選びます"
-            onClick={() => onOpen("notification")}
-          />
-          {/*
-            音は動く。既定は切で、入れた人にだけ鳴る。
-            「準備中」の行に挟まれるので、動くことが分かる説明を書く。
-          */}
-          <SettingsRow
-            icon={IconSound}
-            tone="rose"
-            title="音"
-            description="できたときの短い音の入り切り"
-            onClick={() => onOpen("sound")}
-          />
-          {/*
-            言語は選ばせない。
-
-            訳文を1語も用意していないので、English を選べる形にすると
-            「選んだのに変わらない」だけが起きる。以前はここを開けたうえで
-            画面の中に「まだ切り替わりません」と書いていたが、それは
-            **選ばせてから断る**形で、いちばん心証が悪い。
-            用意できたら onClick を戻して、下位画面をここへ足す。
-          */}
-          <SettingsRow
-            icon={IconGlobe}
-            tone="plain"
-            title="言語設定"
-            description="画面に出る言葉を選びます"
-            disabled
-            note="準備中です。いまは日本語のみです"
-          />
-          <SettingsRow
-            icon={IconShield}
-            tone="teal"
-            title="学習データ・プライバシー"
-            description="データの確認や削除"
-            onClick={() => onOpen("privacy")}
-          />
-          <SettingsRow
-            icon={IconFolder}
-            tone="plain"
-            title="外部連携"
-            description="カレンダーなどとのつなぎ込み"
-            disabled
-            note="準備中です"
-          />
-          <SettingsRow
-            icon={IconDocument}
-            tone="plain"
-            title="サブスクリプション"
-            description="プランの確認・変更・解約"
-            disabled
-            note="準備中です。いまは無料で全部使えます"
-          />
-          <SettingsRow
-            icon={IconDocument}
-            tone="violet"
-            title="規約とポリシー"
-            description="利用規約・プライバシーポリシー・AI利用上の注意"
-            onClick={() => onOpen("legal")}
-          />
-          <SettingsRow
-            icon={IconQuestion}
-            tone="plain"
-            title="ヘルプ・サポート"
-            description="使い方やよくある質問"
-            disabled
-            note="準備中です"
-          />
-        </ul>
-      </Card>
-
-      {/* AIPPO について */}
-      <Card className="mt-5">
-        <h2 className="text-base font-bold">AIPPOについて</h2>
-        <p className="mt-1 text-xs text-ink-muted">バージョン {APP_VERSION}</p>
+      <SettingsList label="アカウント">
+        <SettingsRow
+          icon={IconPerson}
+          title="アカウント設定"
+          onClick={() => onOpen("account")}
+        />
         {/*
-          外部の行き先へは飛ばさない。読むのはアプリの中。
-          飛ばすと、登録の途中で読みに行った人が戻れなくなる。
-        */}
-        <ul className="mt-3 flex flex-wrap gap-x-5 gap-y-2" role="list">
-          {LEGAL_DOCUMENTS.map((document) => (
-            <li key={document.id}>
-              <button
-                type="button"
-                onClick={() => onOpenLegal(document.id)}
-                /*
-                  当たり判定を広げる。py で伸ばし、同じだけ -my で戻すので
-                  見た目の位置は変わらない。
+          「Credit」とは書かない。
 
-                  文字の高さそのままだと 22px しかなく、WCAG 2.2 の
-                  最小（24×24）を下回る。指で押す前提の画面で、
-                  親指の腹より小さい的を並べない。
-                */
-                className="-my-2 inline-block py-2 text-xs text-brand-dark underline
-                           transition hover:text-brand"
-              >
-                {document.title}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Card>
+          こちらの帳簿の言葉で、使う人の言葉ではない。見に来る人が
+          知りたいのは「あと何回AIに頼めるか」なので、そう書く。
+          上の帯にも出さない——常時大きく出すと、学習より残りの回数の
+          ほうが目的に見えてくる。
+        */}
+        <SettingsRow
+          icon={IconSparkle}
+          title="AI利用状況"
+          onClick={() => onOpen("credit")}
+        />
+      </SettingsList>
+
+      <SettingsList label="アプリ">
+        <SettingsRow icon={IconBell} title="通知" onClick={() => onOpen("notification")} />
+        <SettingsRow icon={IconSound} title="音" onClick={() => onOpen("sound")} />
+        <SettingsRow
+          icon={IconShield}
+          title="学習データ・プライバシー"
+          onClick={() => onOpen("privacy")}
+        />
+        {/*
+          規約は1行にまとめる。以前はここに行を置いたうえで、画面の
+          いちばん下にも3本の近道を並べていた。同じ行き先が2か所に
+          あると、押した人は「別のものかもしれない」と考えてしまう。
+        */}
+        <SettingsRow
+          icon={IconDocument}
+          title="規約とポリシー"
+          onClick={() => onOpen("legal")}
+        />
+      </SettingsList>
+
+      {/* 版。囲わない——押すものではないので、面を与える理由が無い */}
+      <p className="mt-7 px-1 text-xs text-ink-muted">AIPPO バージョン {APP_VERSION}</p>
     </div>
   );
 }
@@ -473,76 +362,38 @@ function NotificationPanel({
     }
   }
 
+  /*
+    つまみは1つだけ。
+
+    以前はここに4つ並べ、うち3つ（おすすめ・新機能・メール）を
+    「準備中」で止めていた。届く仕組みがあるのは学習リマインダーだけ
+    なので、残りは**設定に出さない**。灰色のつまみが3つ並ぶ画面は、
+    1つしか動かないことを伝えるのに、いちばん回りくどい形だった。
+
+    設定に出さないだけで、端末に残っている値（notifyUpdates など）は
+    消していない。配信の仕組みができた日に、そのまま効く。
+  */
   return (
-    <Card className="mt-5" padded={false}>
-      <SettingsGroup
-        title="受け取る知らせ"
-        description="いつでも切り替えられます。"
-      >
-        {/*
-          学習リマインダーだけは、実際にメールが届く。
-          送るのはサーバーなので、切り替えもサーバーへ伝える
-          （端末にだけ持たせると「切ったのに届く」ことになる）。
-        */}
-        <Toggle
-          checked={auth.user ? remindStudy : settings.remindStudy}
-          onChange={(next) => {
-            onChange({ remindStudy: next });
-            if (auth.user) void saveRemindStudy(next);
-          }}
-          label="学習リマインダー"
-          description={
-            auth.user
-              ? "しばらく開いていないとき、続きのお知らせをメールで受け取る"
-              : "登録すると、続きのお知らせをメールで受け取れます"
-          }
-        />
-        {/*
-          残り3つは、配信の仕組みがまだ無い。
-
-          入れられるままにしておくと「受け取る設定にしたのに来ない」に
-          なる。届かないことを利用者の設定ミスに見せてしまうのが、
-          いちばんよくない。届く見込みが立つまでは触らせない。
-        */}
-        <Toggle
-          checked={settings.notifyRecommendations}
-          onChange={(notifyRecommendations) => onChange({ notifyRecommendations })}
-          label="おすすめ教材の通知"
-          description="あなたに合った教材の提案を受け取る"
-          disabled
-          note="準備中です"
-        />
-        <Toggle
-          checked={settings.notifyUpdates}
-          onChange={(notifyUpdates) => onChange({ notifyUpdates })}
-          label="新機能・アップデート情報"
-          description="新機能やお知らせを受け取る"
-          disabled
-          note="準備中です"
-        />
-        <Toggle
-          checked={settings.notifyByEmail}
-          onChange={(notifyByEmail) => onChange({ notifyByEmail })}
-          label="メール通知"
-          description="重要なお知らせをメールで受け取る"
-          disabled
-          note="準備中です"
-        />
-      </SettingsGroup>
-
-      {/*
-        届くのは「学習リマインダー」だけ。残り3つはまだ配信の仕組みが無い。
-        全部が届くように見せない——1つでも届かないものがあるなら、
-        どれが届くのかを書くほうが正直になる。
-      */}
-      <div className="px-4 pb-5">
-        <p className="rounded-card bg-brand-soft px-4 py-3 text-xs leading-6 text-brand-dark">
-          {auth.user
-            ? "いま実際に届くのは「学習リマインダー」だけです。残りは送る仕組みを用意しているところで、選んだ内容は残しておきます。"
-            : "お知らせを受け取るには登録が必要です。ここで選んだ内容は、登録したときにそのまま使います。"}
+    <SettingsGroup>
+      <Toggle
+        checked={auth.user ? remindStudy : settings.remindStudy}
+        onChange={(next) => {
+          onChange({ remindStudy: next });
+          if (auth.user) void saveRemindStudy(next);
+        }}
+        label="学習リマインダー"
+        description={
+          auth.user
+            ? "しばらく開いていないとき、続きのお知らせをメールで受け取る"
+            : "登録すると、続きのお知らせをメールで受け取れます"
+        }
+      />
+      {!auth.user && (
+        <p className="pt-4 text-xs leading-6 text-ink-muted">
+          お知らせを受け取るには登録が必要です。ここで選んだ内容は、登録したときにそのまま使います。
         </p>
-      </div>
-    </Card>
+      )}
+    </SettingsGroup>
   );
 }
 
@@ -570,44 +421,36 @@ function SoundPanel({
   onChange: (patch: Partial<Settings>) => void;
 }) {
   return (
-    <Card className="mt-5" padded={false}>
-      <SettingsGroup
-        title="画面の中で鳴る音"
-        description="端末ごとの設定です。音量は端末側で調整してください。"
-      >
-        <Toggle
-          checked={settings.successSound}
-          onChange={(successSound) => {
-            onChange({ successSound });
-            // 入れた瞬間に鳴らす。何が鳴るのか、その場で分かるようにする
-            if (successSound) previewSuccessSound();
-          }}
-          label="できたときの音"
-          description="1歩進むたびに、短い音を鳴らします"
-        />
-      </SettingsGroup>
+    <SettingsGroup description="音量は端末側で調整してください。">
+      <Toggle
+        checked={settings.successSound}
+        onChange={(successSound) => {
+          onChange({ successSound });
+          // 入れた瞬間に鳴らす。何が鳴るのか、その場で分かるようにする
+          if (successSound) previewSuccessSound();
+        }}
+        label="できたときの音"
+        description="1歩進むたびに、短い音を鳴らします"
+      />
 
-      <div className="px-4 pb-5">
-        {/*
-          切っているときも押せる。
-          どんな音かを聞いてから決められるようにする——入れないと試せない
-          作りだと、「よく分からないが一度入れてみる」しか道が無くなる。
-        */}
-        <button
-          type="button"
-          data-testid="sound-preview"
-          onClick={() => previewSuccessSound()}
-          className="min-h-[2.75rem] rounded-cta bg-surface px-5 py-2 text-sm
-                     font-bold text-brand-dark shadow-card transition
-                     hover:bg-brand-soft"
-        >
-          音を試す
-        </button>
-        <p className="mt-3 text-xs leading-6 text-ink-muted">
-          音が鳴らなくても、できたことは画面の文字で必ず分かります。
-        </p>
-      </div>
-    </Card>
+      {/*
+        切っているときも押せる。
+        どんな音かを聞いてから決められるようにする——入れないと試せない
+        作りだと、「よく分からないが一度入れてみる」しか道が無くなる。
+      */}
+      <button
+        type="button"
+        data-testid="sound-preview"
+        onClick={() => previewSuccessSound()}
+        className="mt-4 min-h-[2.75rem] rounded-cta border border-line px-5 py-2
+                   text-sm font-bold text-brand-dark transition hover:bg-brand-soft"
+      >
+        音を試す
+      </button>
+      <p className="mt-3 text-xs leading-6 text-ink-muted">
+        音が鳴らなくても、できたことは画面の文字で必ず分かります。
+      </p>
+    </SettingsGroup>
   );
 }
 
@@ -638,130 +481,115 @@ function PrivacyPanel({
   };
 
   return (
-    <div className="mt-5 space-y-4">
-      <Card padded={false}>
-        <SettingsGroup
-          title="いま預けているもの"
-          description="AIPPOは、入力した文章をサーバーに保存していません。"
-        >
-          <ul className="space-y-2 text-xs leading-6 text-ink-muted" role="list">
-            <li>・進み具合や設定は、この端末の中だけに置いています</li>
-            <li>・AIへ送った文章は、答えを作るあいだだけ使い、残しません</li>
-            <li>・どの画面を開いたかの記録は、名前と結び付けずに数えています</li>
-          </ul>
-        </SettingsGroup>
+    <div>
+      <SettingsGroup
+        title="いま預けているもの"
+        description="AIPPOは、入力した文章をサーバーに保存していません。"
+      >
+        <ul className="space-y-2 text-xs leading-6 text-ink-muted" role="list">
+          <li>・進み具合や設定は、この端末の中だけに置いています</li>
+          <li>・AIへ送った文章は、答えを作るあいだだけ使い、残しません</li>
+          <li>・どの画面を開いたかの記録は、名前と結び付けずに数えています</li>
+        </ul>
 
-        <div className="flex flex-wrap gap-3 px-4 pb-5">
-          <button
-            type="button"
-            onClick={download}
-            className="min-h-[2.75rem] rounded-cta bg-surface px-5 py-2 text-sm
-                       font-bold text-brand-dark shadow-card transition
-                       hover:bg-brand-soft"
+        <button
+          type="button"
+          onClick={download}
+          className="mt-4 min-h-[2.75rem] rounded-cta border border-line px-5 py-2
+                     text-sm font-bold text-brand-dark transition hover:bg-brand-soft"
+        >
+          学習データを書き出す
+        </button>
+      </SettingsGroup>
+
+      <SettingsGroup
+        title="学習データの削除"
+        description="進み具合・下書き・診断の結果を、この端末から消します。"
+      >
+        {/*
+          一度で消さない。取り消せない操作なので、2手に分ける。
+          「削除する」を押した時点では、まだ何も消えていない。
+        */}
+        {confirming ? (
+          <div
+            className="rounded-card bg-caution-soft p-4"
+            role="alertdialog"
+            aria-label="学習データの削除の確認"
           >
-            学習データを書き出す
-          </button>
-        </div>
-      </Card>
-
-      <Card padded={false}>
-        <SettingsGroup
-          title="学習データの削除"
-          description="進み具合・下書き・診断の結果を、この端末から消します。"
-        >
-          {/*
-            一度で消さない。取り消せない操作なので、2手に分ける。
-            「削除する」を押した時点では、まだ何も消えていない。
-          */}
-          {confirming ? (
-            <div
-              className="rounded-card bg-caution-soft p-4"
-              role="alertdialog"
-              aria-label="学習データの削除の確認"
-            >
-              <p className="text-sm font-bold leading-7 text-caution">
-                消すと元に戻せません。よろしいですか？
-              </p>
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
-                <button
-                  type="button"
-                  autoFocus
-                  onClick={() => setConfirming(false)}
-                  className="min-h-[2.75rem] flex-1 rounded-cta bg-brand px-5 py-2
-                             text-sm font-bold text-white shadow-raised transition
-                             hover:brightness-110"
-                >
-                  やめる
-                </button>
-                <button
-                  type="button"
-                  data-testid="confirm-delete"
-                  onClick={() => {
-                    const removed = clearLearningData();
-                    setConfirming(false);
-                    onNotice(
-                      removed.length === 0
-                        ? "消すデータはありませんでした。"
-                        : "学習データを消しました。",
-                    );
-                  }}
-                  className="min-h-[2.75rem] flex-1 rounded-cta bg-surface px-5 py-2
-                             text-sm font-bold text-caution shadow-card transition
-                             hover:bg-caution-soft"
-                >
-                  消す
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              data-testid="delete-data"
-              onClick={() => setConfirming(true)}
-              className="min-h-[2.75rem] rounded-cta bg-surface px-5 py-2 text-sm
-                         font-bold text-caution shadow-card transition
-                         hover:bg-caution-soft"
-            >
-              学習データを削除する
-            </button>
-          )}
-        </SettingsGroup>
-      </Card>
-
-      <Card padded={false}>
-        <SettingsGroup
-          title="設定を初期状態に戻す"
-          description="学習の記録は消えません。設定だけを既定へ戻します。"
-        >
-          <button
-            type="button"
-            onClick={() => {
-              onResetSettings();
-              onNotice("設定を初期状態に戻しました。");
-            }}
-            className="flex min-h-[2.75rem] items-center gap-2 rounded-cta bg-surface
-                       px-5 py-2 text-sm font-bold text-brand-dark shadow-card
-                       transition hover:bg-brand-soft"
-          >
-            <IconRefresh className="h-4 w-4 shrink-0" />
-            設定を戻す
-          </button>
-        </SettingsGroup>
-      </Card>
-
-      {/* 相談先。困ったときの行き先を必ず1つ置く */}
-      <Card>
-        <div className="flex items-center gap-3">
-          <IconMark icon={IconChat} className="h-5 w-5" />
-          <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold">データの扱いについて聞きたい</h2>
-            <p className="mt-0.5 text-xs leading-6 text-ink-muted">
-              {PRIVACY.title}に、預かるものと預からないものを書いています。
-              設定の「規約とポリシー」から読めます。
+            <p className="text-sm font-bold leading-7 text-caution">
+              消すと元に戻せません。よろしいですか？
             </p>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row-reverse">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setConfirming(false)}
+                className="min-h-[2.75rem] flex-1 rounded-cta bg-brand px-5 py-2
+                           text-sm font-bold text-white shadow-raised transition
+                           hover:brightness-110"
+              >
+                やめる
+              </button>
+              <button
+                type="button"
+                data-testid="confirm-delete"
+                onClick={() => {
+                  const removed = clearLearningData();
+                  setConfirming(false);
+                  onNotice(
+                    removed.length === 0
+                      ? "消すデータはありませんでした。"
+                      : "学習データを消しました。",
+                  );
+                }}
+                className="min-h-[2.75rem] flex-1 rounded-cta border border-caution/30
+                           bg-surface px-5 py-2 text-sm font-bold text-caution
+                           transition hover:bg-caution-soft"
+              >
+                消す
+              </button>
+            </div>
           </div>
-        </div>
-      </Card>
+        ) : (
+          <button
+            type="button"
+            data-testid="delete-data"
+            onClick={() => setConfirming(true)}
+            className="min-h-[2.75rem] rounded-cta border border-caution/30 px-5 py-2
+                       text-sm font-bold text-caution transition hover:bg-caution-soft"
+          >
+            学習データを削除する
+          </button>
+        )}
+      </SettingsGroup>
+
+      <SettingsGroup
+        title="設定を初期状態に戻す"
+        description="学習の記録は消えません。設定だけを既定へ戻します。"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onResetSettings();
+            onNotice("設定を初期状態に戻しました。");
+          }}
+          className="flex min-h-[2.75rem] items-center gap-2 rounded-cta border
+                     border-line px-5 py-2 text-sm font-bold text-brand-dark
+                     transition hover:bg-brand-soft"
+        >
+          <IconRefresh className="h-4 w-4 shrink-0" />
+          設定を戻す
+        </button>
+      </SettingsGroup>
+
+      {/* 相談先。困ったときの行き先を必ず1つ置く。囲わない——読むだけの文 */}
+      <div className="mt-6 flex items-start gap-3 px-1">
+        <IconMark icon={IconChat} className="mt-0.5 h-5 w-5" />
+        <p className="min-w-0 flex-1 text-xs leading-6 text-ink-muted">
+          {PRIVACY.title}に、預かるものと預からないものを書いています。
+          設定の「規約とポリシー」から読めます。
+        </p>
+      </div>
     </div>
   );
 }

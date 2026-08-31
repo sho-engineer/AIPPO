@@ -15,7 +15,6 @@
 
 import { useState } from "react";
 
-import { Card } from "../AppShell";
 import { SettingsGroup } from "./Controls";
 import { changePassword, deleteAccount } from "../../api/accounts";
 import { ApiError } from "../../api/http";
@@ -51,19 +50,14 @@ export function AccountPanel({ onOpenAuth, onNotice }: AccountPanelProps) {
   const auth = useAuth();
 
   if (auth.loading) {
-    return (
-      <Card className="mt-5">
-        <p className="text-sm text-ink-muted">読み込んでいます…</p>
-      </Card>
-    );
+    return <p className="mt-6 text-sm text-ink-muted">読み込んでいます…</p>;
   }
 
   if (!auth.user) return <GuestView onOpenAuth={onOpenAuth} />;
 
   return (
     <>
-      <Card className="mt-5" padded={false}>
-        <SettingsGroup title="ログイン中のアカウント">
+      <SettingsGroup title="ログイン中のアカウント">
           <dl className="space-y-2 text-sm">
             <div className="flex flex-wrap items-baseline gap-x-3">
               <dt className="text-xs text-ink-muted">メールアドレス</dt>
@@ -90,38 +84,35 @@ export function AccountPanel({ onOpenAuth, onNotice }: AccountPanelProps) {
               {AUTH_COPY.verifyPending}
             </p>
           )}
-        </SettingsGroup>
+      </SettingsGroup>
 
-        <NameGroup />
-        <PasswordGroup onNotice={onNotice} />
-
-        <SettingsGroup
-          title="ログアウト"
-          description="この端末での表示を、登録なしの状態へ戻します。記録は消えません。"
-        >
-          <button
-            type="button"
-            className={PLAIN}
-            onClick={async () => {
-              await auth.signOut();
-              onNotice(AUTH_COPY.signOutDone);
-            }}
-          >
-            {AUTH_COPY.signOut}
-          </button>
-        </SettingsGroup>
-      </Card>
+      <NameGroup />
+      <PasswordGroup onNotice={onNotice} />
 
       {/*
-        入り方の設定は1枚にまとめる。
+        入り方の設定は続けて置く。
 
         パスキーと2段階認証は、どちらも「どうやって本人だと分かるか」の
         話なので、離して置くと片方だけ見て帰ることになる。
       */}
-      <Card className="mt-5" padded={false}>
-        <PasskeyGroup onNotice={onNotice} />
-        <MfaGroup onNotice={onNotice} />
-      </Card>
+      <PasskeyGroup onNotice={onNotice} />
+      <MfaGroup onNotice={onNotice} />
+
+      <SettingsGroup
+        title="ログアウト"
+        description="この端末での表示を、登録なしの状態へ戻します。記録は消えません。"
+      >
+        <button
+          type="button"
+          className={PLAIN}
+          onClick={async () => {
+            await auth.signOut();
+            onNotice(AUTH_COPY.signOutDone);
+          }}
+        >
+          {AUTH_COPY.signOut}
+        </button>
+      </SettingsGroup>
 
       <DeleteGroup onNotice={onNotice} />
     </>
@@ -132,7 +123,7 @@ export function AccountPanel({ onOpenAuth, onNotice }: AccountPanelProps) {
 
 function GuestView({ onOpenAuth }: { onOpenAuth: () => void }) {
   return (
-    <Card className="mt-5">
+    <div className="mt-6">
       <h2 className="text-base font-bold">{AUTH_COPY.signUpTitle}</h2>
       <p className="mt-2 text-sm leading-7 text-ink-muted">{AUTH_COPY.signUpLead}</p>
 
@@ -150,7 +141,7 @@ function GuestView({ onOpenAuth }: { onOpenAuth: () => void }) {
       >
         {AUTH_COPY.submitSignUp}
       </button>
-    </Card>
+    </div>
   );
 }
 
@@ -293,8 +284,8 @@ function DeleteGroup({ onNotice }: { onNotice: (message: string) => void }) {
   const [busy, setBusy] = useState(false);
 
   return (
-    <Card className="mt-5">
-      <h2 className="text-base font-bold text-caution">退会する</h2>
+    <SettingsGroup title="退会">
+      <h3 className="text-sm font-bold text-caution">退会する</h3>
       <p className="mt-2 text-sm leading-7 text-ink-muted">
         アカウントと、これまでの学習の記録をすべて消します。
         <strong className="text-caution">取り消せません。</strong>
@@ -351,6 +342,6 @@ function DeleteGroup({ onNotice }: { onNotice: (message: string) => void }) {
           </div>
         </div>
       )}
-    </Card>
+    </SettingsGroup>
   );
 }

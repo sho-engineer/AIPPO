@@ -106,7 +106,7 @@ describe("ゲストのとき", () => {
     render(<CreditPanel onOpenAuth={() => {}} onNotice={() => {}} />);
 
     const waiting = await screen.findByTestId("credit-waiting");
-    expect(waiting).toHaveTextContent("スタンプは獲得しています");
+    expect(waiting).toHaveTextContent("スタンプは集まっています");
   });
 
   it("保存への導線がある（行き止まりにしない）", async () => {
@@ -189,7 +189,7 @@ describe("登録している人のとき", () => {
     await user.click(await screen.findByTestId("credit-claim"));
 
     await waitFor(() =>
-      expect(onNotice).toHaveBeenCalledWith("2 Credit を受け取りました。"),
+      expect(onNotice).toHaveBeenCalledWith("2回ぶん受け取りました。"),
     );
   });
 });
