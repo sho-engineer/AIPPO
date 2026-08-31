@@ -14,6 +14,7 @@
 import type { ReactNode } from "react";
 
 import { BrandLogo } from "./BrandLogo";
+import { useGoHome } from "../app/navigation";
 import {
   IconBell,
   IconBook,
@@ -68,10 +69,35 @@ export type AppHeaderProps = {
  * 帯の中で唯一の縦の基準がロゴなので、そこがずれると帯全体が傾いて見える。
  *
  * 直し方は、ロゴだけを帯に対して絶対配置にする。左右に何を足しても、
- * 何を外しても、真ん中は動かない。押せる部品ではないので
- * `pointer-events-none` を付けて、重なっても下の操作を邪魔しない。
+ * 何を外しても、真ん中は動かない。ただしロゴは**押せる**（ホームへ戻る）
+ * ので、重なった相手の操作を奪わないことは、`pointer-events-none` では
+ * なく「重ならない幅に収める」ことで守る（e2e/header.spec.ts）。
  */
 export function AppHeader({ onBack, action, centered, onOpenAccount }: AppHeaderProps) {
+  /*
+    ロゴを押したらホームへ。
+
+    上から配られていなければ押せないただの絵にする（`app/navigation.tsx`）。
+    **押せないボタンを出すより、ボタンでないほうがよい。**
+  */
+  const goHome = useGoHome();
+  const logo = goHome ? (
+    <button
+      type="button"
+      onClick={goHome}
+      aria-label="ホームへ戻る"
+      data-testid="brand-home"
+      className="-m-1 flex cursor-pointer items-center rounded-badge p-1
+                 transition active:scale-95
+                 focus-visible:outline focus-visible:outline-2
+                 focus-visible:outline-offset-2 focus-visible:outline-brand"
+    >
+      <BrandLogo className="h-8" />
+    </button>
+  ) : (
+    <BrandLogo className="h-8" />
+  );
+
   return (
     <header
       className="sticky top-0 z-20 border-b border-line bg-canvas/95 px-5
@@ -98,18 +124,21 @@ export function AppHeader({ onBack, action, centered, onOpenAccount }: AppHeader
               帯そのものの真ん中。左右に何があっても動かない。
               flex の並びから外すので、右の欄を右端へ押す枠を別に置く。
             */}
+            {/*
+              真ん中に置くが、**押せる状態のままにする**。
+              以前は `pointer-events-none` を付けていたので、
+              ロゴを押す道が構造的に塞がっていた。
+            */}
             <span
-              className="pointer-events-none absolute left-1/2 -translate-x-1/2"
+              className="absolute left-1/2 -translate-x-1/2"
               data-testid="brand-logo-centered"
             >
-              <BrandLogo className="h-8" />
+              {logo}
             </span>
             <div className="flex-1" />
           </>
         ) : (
-          <div className="flex-1">
-            <BrandLogo className="h-8" />
-          </div>
+          <div className="flex-1">{logo}</div>
         )}
 
         {action ? (

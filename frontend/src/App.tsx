@@ -33,6 +33,7 @@ import { takeReturn } from "./auth/returnTo";
 import { EVENTS, track } from "./lib/analytics";
 import { useSocialResult } from "./auth/useSocialResult";
 import { nextScreen, type Screen } from "./app/screens";
+import { GoHomeProvider } from "./app/navigation";
 import { RecordPage } from "./pages/RecordPage";
 import { RecipePage } from "./pages/RecipePage";
 import { appliedTipById } from "./course/appliedTips";
@@ -431,8 +432,14 @@ export function App() {
     }
   })();
 
+  /*
+    帯のロゴを押したらホームへ。行き先を持っているのはここだけなので、
+    ここから配る（理由は app/navigation.tsx）。
+  */
+  const goHome = useCallback(() => navigate("HOME"), [navigate]);
+
   return (
-    <>
+    <GoHomeProvider goHome={goHome}>
       {social.result && (
         <div className="mx-auto max-w-page px-5 pt-4">
           <p
@@ -455,6 +462,6 @@ export function App() {
           onSelect={(key) => navigate(SCREEN_OF_TAB[key] ?? screen)}
         />
       )}
-    </>
+    </GoHomeProvider>
   );
 }

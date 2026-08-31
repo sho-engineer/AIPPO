@@ -329,4 +329,46 @@ describe("下タブの出し入れ", () => {
 
     expect(screen.queryByTestId("tab-bar")).not.toBeInTheDocument();
   });
+
+  /**
+   * ロゴを押したらホームへ。
+   *
+   * どのアプリでも上のロゴは「最初の画面へ戻る印」として使われていて、
+   * 迷ったときに人はまずそこを押す。押しても何も起きないと、
+   * その画面から出る方法を探し直すことになる。
+   *
+   * 奥の画面（コースの中身）から見るのは、そこが**下タブの光る場所と
+   * 画面が食い違う**唯一の並びだから。下タブの「ホーム」で戻れるから
+   * よいのではなく、押した場所に応えることを確かめる。
+   */
+  it("帯のロゴを押すと、ホームへ戻る", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await start(user);
+
+    await user.click(await screen.findByRole("button", { name: "その他" }));
+    await screen.findByRole("heading", { name: "設定" });
+
+    await user.click(await screen.findByTestId("brand-home"));
+
+    expect(
+      await screen.findByRole("heading", { name: "学習の道のり" }),
+    ).toBeInTheDocument();
+  });
+
+  /**
+   * 読み上げでも、それが「ホームへ戻る」だと分かること。
+   *
+   * ロゴは画像なので、名前を付けないと読み上げは「ボタン」としか
+   * 言わない。押す前に行き先が分からないボタンは、押されない。
+   */
+  it("ロゴのボタンには、行き先の名前が付いている", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await start(user);
+
+    expect(
+      await screen.findByRole("button", { name: "ホームへ戻る" }),
+    ).toBeInTheDocument();
+  });
 });

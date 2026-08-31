@@ -55,7 +55,7 @@ export class ErrorBoundary extends Component<Props, State> {
           type="button"
           data-testid="crash-retry"
           onClick={() => window.location.reload()}
-          className="mt-6 rounded-xl bg-brand px-6 py-3 text-sm text-white"
+          className="mt-6 rounded-cta bg-brand px-6 py-3 text-sm text-white"
         >
           {CRASH.retry}
         </button>

@@ -28,7 +28,7 @@ export function SafetyNote({ placement }: SafetyNoteProps) {
   return (
     <div
       data-testid={`safety-${placement}`}
-      className="mt-3 rounded-xl border border-caution/20 bg-caution-soft px-3.5 py-2.5"
+      className="mt-3 rounded-card border border-caution/20 bg-caution-soft px-3.5 py-2.5"
     >
       <ul className="space-y-1">
         {notes.map((note) => (

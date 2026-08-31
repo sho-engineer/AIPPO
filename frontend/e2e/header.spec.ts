@@ -83,8 +83,11 @@ test.describe("上の帯", () => {
 
   test("戻るボタンは、ロゴの下敷きになっても押せる", async ({ page }) => {
     /*
-      絶対配置は、重なった相手の操作を奪う。ロゴは押す部品ではないので
-      pointer-events を切ってある。切り忘れると、戻れない画面ができる。
+      絶対配置は、重なった相手の操作を奪う。
+
+      ロゴは**押せる**（ホームへ戻る）ので、以前のように pointer-events を
+      切って逃げる手は使えない。重ならないことでしか守れない。
+      幅が狭いほうで確かめる。
     */
     await page.setViewportSize({ width: 375, height: 850 });
     await openSettings(page);
