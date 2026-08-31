@@ -7,12 +7,22 @@
  * 順番は上から:
  *
  *   1. ポーのひとこと（小さく・横並び）
- *   2. 続けた日数と終えた本数（1行）
- *   3. 今日のレッスン ← **この画面の主役**
- *   4. 学習の道のりの進み具合 ＋「道のりを見る」
- *   5. 見返しどき・飛ばした解説
- *   6. おすすめコース
- *   7. カテゴリから探す
+ *   2. 今日のレッスン ← **この画面の主役**
+ *   3. これまで（続けた日数・終えた本数・覚えた技・道のり）
+ *   4. 見返しどき・飛ばした解説
+ *   5. おすすめコース
+ *   6. カテゴリから探す
+ *
+ * 「これから」を先に、「これまで」を後に
+ * --------------------------------------
+ * 前は 3 の中身が今日の1本より上にあった。どれも「ここまでの自分」の
+ * 話で、**まだ今日を始めていない人に先に見せるもの**ではない。
+ * 開いた人が最初に触るものを、最初に置く。
+ *
+ * 面で囲うのは、今日の1本ひとつだけ
+ * --------------------------------
+ * 白い面が2つ3つと浮くと、どれが本題かが分からなくなる。
+ * 道のりも、おすすめも、探すも、線と余白で区切る。
  *
  * 何をやめたか
  * ------------
@@ -59,6 +69,7 @@ import {
   IconChevronRight,
   IconClock,
   IconSparkle,
+  IconStreak,
 } from "../components/Icons";
 import { useCourse } from "../course/live";
 import { startableLessons } from "../course/availability";
@@ -286,31 +297,14 @@ export function HomePage({
           }
         />
 
-        {/* 続けた日数と終えた本数。1行に収める */}
-        <div className="mt-3">
-          <HomeStats
-            days={streak.days}
-            done={completed.length}
-            total={startable.length}
-            tries={streak.realTaskCount}
-            onOpenRecord={onOpenRecord}
-          />
-        </div>
-
         {/*
-          何ができるようになったか。終えた本数とは別のことを言う。
-          1つも覚えていないうちは出さない（SkillSummary が判断する）。
-        */}
-        {learned && (
-          <div className="mt-3">
-            <SkillSummary
-              xp={learned.xp}
-              skills={learned.skills}
-              onOpen={onOpenSkills}
-            />
-          </div>
-        )}
+          今日やること。あいさつの次はこれ。
 
+          前は、続けた日数・AI技の数・…と3つはさんでいた。どれも
+          「ここまでの自分」の話で、**まだ今日を始めていない人に
+          先に見せるもの**ではなかった。開いた人が最初に触るものを、
+          最初に置く。ここまでの記録は、この下の「これまで」に集めた。
+        */}
         {nextLesson && (
           <div className="mt-4">
             <TodayCard
@@ -322,20 +316,53 @@ export function HomePage({
         )}
 
         {/*
-          学習の道のりの進み具合と、その入口。
+          ここまでの自分。数字・覚えた技・道のりを1つの節にまとめる。
 
-          一覧そのものはここに出さない。「全体の順番と現在地」は
-          道のりの画面が持ち、ホームは「次に何をするか」に徹する。
+          面では囲わない。今日の1本と同じ強さで浮かせると、
+          「済んだこと」が「これからやること」と並んでしまう。
         */}
-        <div className="mt-4">
-          <PathProgress
-            course={course}
-            done={completed.length}
-            total={startable.length}
-            showCourseTitle
-            onOpenPath={() => onOpenPath(course.id)}
-          />
-        </div>
+        <section className="mt-7" aria-labelledby="record-heading">
+          <SectionHeading icon={IconStreak} id="record-heading">
+            これまで
+          </SectionHeading>
+
+          <div className="mt-3 space-y-3">
+            <HomeStats
+              days={streak.days}
+              done={completed.length}
+              total={startable.length}
+              tries={streak.realTaskCount}
+              onOpenRecord={onOpenRecord}
+            />
+
+            {/*
+              何ができるようになったか。終えた本数とは別のことを言う。
+              1つも覚えていないうちは出さない（SkillSummary が判断する）。
+            */}
+            {learned && (
+              <SkillSummary
+                xp={learned.xp}
+                skills={learned.skills}
+                onOpen={onOpenSkills}
+              />
+            )}
+
+            {/*
+              道のりの進み具合と、その入口。
+
+              一覧そのものはここに出さない。「全体の順番と現在地」は
+              道のりの画面が持ち、ホームは「次に何をするか」に徹する。
+            */}
+            <PathProgress
+              course={course}
+              done={completed.length}
+              total={startable.length}
+              showCourseTitle
+              framed={false}
+              onOpenPath={() => onOpenPath(course.id)}
+            />
+          </div>
+        </section>
 
         {/*
           そろそろ見返しどきのもの。無ければ何も出ない。
@@ -364,46 +391,42 @@ export function HomePage({
               おすすめコース
             </SectionHeading>
 
-            <ul className="mt-3 space-y-3" role="list">
+            {/*
+              1件ずつ浮いたカードにしない。線で区切った行にする。
+              今日の1本と同じ形で並ぶと、どれが今日のぶんなのかが
+              一目で分からなくなる（囲ってよいのは今日の1本だけ）。
+            */}
+            <ul className="mt-2" role="list">
               {others.map((lesson) => {
                 const look = lookOf(lesson.id);
                 return (
-                  <li key={lesson.id}>
+                  <li key={lesson.id} className="border-b border-line last:border-b-0">
                     <button
                       type="button"
                       onClick={() => onSelectLesson(lesson.id)}
                       data-testid={`recommend-${lesson.id}`}
                       data-availability="available"
-                      className="flex w-full items-center gap-3 rounded-panel border
-                                 border-line bg-surface p-3 text-left shadow-card
-                                 transition hover:border-brand-line active:scale-[0.995]"
+                      className="row-tap flex w-full items-center gap-3 py-3.5
+                                 text-left transition hover:bg-brand-soft/40"
                     >
-                      {/*
-                        絵の代わりに、用途の印を淡い地に置く。
-                        写真もイラストも用意が無いので、無いものを
-                        それらしく埋めない。
-                      */}
-                      <span
-                        aria-hidden="true"
-                        className={`flex h-14 w-14 shrink-0 items-center justify-center
-                                    rounded-card ${look.wash}`}
-                      >
-                        <IconMark
-                          icon={look.icon}
-                          tone={look.tone === "plain" ? "brand" : look.tone}
-                          className="h-6 w-6"
-                        />
-                      </span>
+                      {/* 印は線だけ。淡色の器を並べると、行より器が目立つ */}
+                      <IconMark
+                        icon={look.icon}
+                        tone={look.tone === "plain" ? "brand" : look.tone}
+                        className="h-5 w-5"
+                      />
 
                       <span className="min-w-0 flex-1">
                         <span className="block text-sm font-bold leading-6">
                           {lesson.title}
                         </span>
-                        <span className="mt-0.5 block text-xs leading-5 text-ink-muted">
-                          {lesson.goal}
-                        </span>
+                        {/*
+                          ねらいは書かない。題で分かるものを二度書くと、
+                          並べたときに行の高さだけが増える。
+                          時間は「いま押せるか」を決める材料なので残す。
+                        */}
                         {lesson.estimatedMinutes !== undefined && (
-                          <span className="mt-1 flex items-center gap-1 text-xs text-ink-muted">
+                          <span className="mt-0.5 flex items-center gap-1 text-xs text-ink-muted">
                             <IconClock className="h-3.5 w-3.5" />約
                             {lesson.estimatedMinutes}分
                           </span>
@@ -425,7 +448,15 @@ export function HomePage({
             カテゴリから探す
           </SectionHeading>
 
-          <ul className="mt-3 grid grid-cols-2 gap-3" role="list">
+          {/*
+            2列のカードをやめて、札（chip）を折り返して並べる。
+
+            6枚のカードが2列に並ぶと、面積では画面のいちばん下の節が
+            いちばん大きくなる。ここは「見つからなかったときの逃げ道」
+            なので、そこまで場所を取ってよい節ではない。
+            札なら字の長さのぶんだけ幅を取り、6つで2〜3行に収まる。
+          */}
+          <ul className="mt-3 flex flex-wrap gap-2" role="list">
             {CATEGORIES.map((category) => {
               const look = lookOf(category.lessonId);
               return (
@@ -433,28 +464,18 @@ export function HomePage({
                   <button
                     type="button"
                     onClick={() => onSelectLesson(category.lessonId)}
-                    /*
-                      6つとも同じ大きさにする。字数（文章／情報整理）で
-                      高さが変わると、2列の並びがガタつく。
-                      印の大きさと文字の始まりも、行ごとにずらさない。
-                    */
-                    className="flex h-full min-h-[3.5rem] w-full items-center gap-2.5
-                               rounded-card border border-line bg-surface px-3 py-3
-                               text-left shadow-card transition
-                               hover:border-brand-line active:scale-[0.99]"
+                    /* 指で押せる高さ（44px）は、札でも下回らない */
+                    className="flex min-h-[2.75rem] items-center gap-2 rounded-badge
+                               border border-line bg-surface px-3.5 py-2 text-sm
+                               transition hover:border-brand-line hover:bg-brand-soft/40
+                               active:scale-[0.97]"
                   >
-                    {/* 印の列は幅を固定する。絵の形で文字の始まりを変えない */}
-                    <span className="flex w-5 shrink-0 justify-center">
-                      <IconMark
-                        icon={look.icon}
-                        tone={look.tone === "plain" ? "brand" : look.tone}
-                        className="h-5 w-5"
-                      />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm">
-                      {category.label}
-                    </span>
-                    <IconChevronRight className="h-4 w-4 shrink-0 text-ink-muted" />
+                    <IconMark
+                      icon={look.icon}
+                      tone={look.tone === "plain" ? "brand" : look.tone}
+                      className="h-4 w-4"
+                    />
+                    {category.label}
                   </button>
                 </li>
               );

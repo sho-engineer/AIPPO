@@ -39,6 +39,14 @@ export interface PathProgressProps {
   showCourseTitle?: boolean;
   /** 道のりの画面へ。渡さなければボタンは出ない。 */
   onOpenPath?: () => void;
+  /**
+   * 面で囲うか。
+   *
+   * ホームでは囲わない。1画面で囲ってよいのは「今日の1本」だけで、
+   * 白い面が2つ3つと浮くと、どれが本題かが分からなくなる。
+   * 道のりの画面ではそこが本題なので、囲ったままにする。
+   */
+  framed?: boolean;
 }
 
 export function PathProgress({
@@ -48,12 +56,17 @@ export function PathProgress({
   heading = "学習の道のり",
   showCourseTitle = false,
   onOpenPath,
+  framed = true,
 }: PathProgressProps) {
   return (
     <section
       aria-labelledby="path-progress-heading"
       data-testid="path-progress"
-      className="rounded-panel border border-line bg-surface px-4 py-3.5 shadow-card"
+      className={
+        framed
+          ? "rounded-panel border border-line bg-surface px-4 py-3.5 shadow-card"
+          : ""
+      }
     >
       <div className="flex items-baseline justify-between gap-3">
         <h2 id="path-progress-heading" className="text-sm font-bold">

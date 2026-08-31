@@ -4,12 +4,12 @@
  * ここは「ダッシュボード」ではなく、**次に何をするか**を出す画面。
  * 作り直しで守ると決めたのは6つ。
  *
- *   1. 今日の1本が主役。ポーのあいさつより前には何も置かない
+ *   1. 今日の1本が主役。あいさつのすぐ下に置き、記録より前に出す
  *   2. ポーは案内役。大きな見出しと吹き出しで1画面を使い切らない
  *   3. 今日の1本の絵は、横いっぱいに敷かない（1画面を占有しない）
  *   4. ホームに**全レッスンの一覧は出さない**（順番は道のりの画面が持つ）
  *   5. 道のりへの入口は、ホームから1回で届く
- *   6. 続けた日数と終えた本数は、上に小さく1行で出す
+ *   6. 続けた日数と終えた本数は、小さく1行で出す
  *
  * 4 と 5 は対になっている。一覧を畳んだ代わりに、入口は必ず残す
  * ——畳んだうえに入口も消すと、全体の順番を見る手段が無くなる。
@@ -40,15 +40,19 @@ describe("ホームの並び", () => {
     await screen.findByTestId("next-up");
   };
 
-  it("上から、あいさつ → 記録の1行 → 今日の1本 → 道のり の順に並ぶ", async () => {
+  it("上から、あいさつ → 今日の1本 → これまで の順に並ぶ", async () => {
     /*
       順番そのものを見る。「今日の1本」へ着くまでにスクロールが要る
       並びに戻っていないこと。
+
+      前は 記録の1行（progress-summary）が今日の1本より上にあった。
+      下げた——どれも「ここまでの自分」の話で、**まだ今日を始めて
+      いない人に先に見せるもの**ではない。
     */
     const user = userEvent.setup();
     await openHome(user);
 
-    const order = ["home-greeting", "progress-summary", "next-up", "path-progress"];
+    const order = ["home-greeting", "next-up", "progress-summary", "path-progress"];
     const positions = order.map((id) => {
       const el = screen.getByTestId(id);
       return { id, el };
@@ -134,6 +138,44 @@ describe("ホームの並び", () => {
     const stats = screen.getByTestId("progress-summary");
     expect(stats).toHaveTextContent("日連続");
     expect(stats).toHaveTextContent("レッスン完了");
+  });
+
+  it("面で囲うのは、今日の1本だけ", async () => {
+    /*
+      白い面が2つ3つと浮くと、どれが本題かが分からなくなる。
+      前は 今日の1本・道のり・おすすめ2件・カテゴリ6件 で、
+      **10枚の浮いた面**がホームに並んでいた。
+
+      影（shadow-card）の有無で数える。囲うかどうかを決めているのは
+      そこで、線や角丸は札にも付くため。
+    */
+    const user = userEvent.setup();
+    await openHome(user);
+
+    const floating = Array.from(
+      document.querySelectorAll<HTMLElement>(".shadow-card"),
+    );
+
+    expect(floating).toHaveLength(1);
+    expect(floating[0].dataset.testid).toBe("next-up");
+  });
+
+  it("カテゴリは、2列のカードではなく札で並べる", async () => {
+    /*
+      6枚のカードが2列に並ぶと、面積では画面のいちばん下の節が
+      いちばん大きくなる。ここは見つからなかったときの逃げ道で、
+      そこまで場所を取ってよい節ではない。
+    */
+    const user = userEvent.setup();
+    await openHome(user);
+
+    const list = screen
+      .getByRole("heading", { name: "カテゴリから探す" })
+      .closest("section")!
+      .querySelector("ul")!;
+
+    expect(list.className).not.toContain("grid-cols-2");
+    expect(list.className).toContain("flex-wrap");
   });
 
   it("記録への入口は残す", async () => {
