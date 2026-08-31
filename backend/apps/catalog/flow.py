@@ -131,7 +131,9 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "phase": "try",
             "title": options.get("quickTitle", ""),
             "instruction": options.get("quickInstruction", ""),
-            "poMessage": "ひとつ選ぶだけで、すぐ結果が見られます。",
+            # 見出しと quickInstruction が既に問いかけている。3回目は要らない。
+            # どの教材でも同じ骨格なので、Day1 の言い回しは書かない
+            "poMessage": "選んでみよう！",
             "poEmotion": "question",
             "key": options.get("quickKey", ""),
             "required": True,
@@ -146,9 +148,11 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "id": "generate_first",
             "type": "ai_generate",
             "phase": "try",
-            "title": "AIに送っています",
+            # 送信中は**1つのことだけ**言う。前は見出しと吹き出しで
+            # 同じことを2回言っていた（待つ人の読む量が増えるだけ）
+            "title": "書き直しています",
             "instruction": options.get("working", ""),
-            "poMessage": "送っています。少しだけ待ってください。",
+            "poMessage": "もう少し！",
             "poEmotion": "thinking",
             "aiAction": ai_action,
         },
@@ -156,21 +160,36 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "id": "observe_result",
             "type": "observation",
             "phase": "try",
-            "title": "どこが変わったと思いますか",
-            "instruction": "当てはまると思うものを選んでください。いくつでも大丈夫です。",
-            "poMessage": "正解を当てる問題ではありません。気づいたことを選んでください。",
+            # 結果を見た直後。**ここで聞くのは1つだけ。**
+            # 前は説明2行＋5択＋観点3つで151字あり、結果の本文と合わせると
+            # スマホで2〜3スクロール——いちばん手応えのある瞬間に
+            # いちばん読ませていた
+            "title": options.get("observeTitle") or "どこが変わった？",
+            "instruction": "",
+            "poMessage": "どうだった？",
             "poEmotion": "question",
             "key": "observation",
             "options": options.get("observationOptions") or OBSERVATION_OPTIONS,
-            "meta": review,
+            # 「まだ微妙」を選んだ人にだけ聞く、任意の理由。
+            # 2択に減らすと画面は軽くなるが、何に気づいたかが測れなく
+            # なる。困っている人にだけ聞けば両立できる
+            # 理由を持たない教材では、鍵ごと置かない。空の配列を入れると
+            # 画面側の骨格と姿が食い違う（drop_empty は浅くしか見ない）
+            "meta": (
+                {**review, "reasons": options["observeReasons"]}
+                if options.get("observeReasons")
+                else review
+            ),
         },
         {
             "id": "add_condition",
             "type": "condition_choice",
             "phase": "compare",
-            "title": "条件を一つ足してみましょう",
-            "instruction": "一度に一つだけ選ぶのがコツです。",
-            "poMessage": "一度で完成させなくて大丈夫です。足すたびに近づきます。",
+            # 「一度に一つだけ」は見出しが言っている。「一度で完成させ
+            # なくて大丈夫」は、この先の比べる画面で実際に見れば分かる
+            "title": "条件をひとつ足そう",
+            "instruction": "",
+            "poMessage": "どれにする？",
             "poEmotion": "hint",
             "key": "condition",
             "required": True,
@@ -181,9 +200,9 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "id": "generate_improved",
             "type": "ai_generate",
             "phase": "compare",
-            "title": "AIに送っています",
-            "instruction": "足した条件だけを直してもらっています。",
-            "poMessage": "送っています。少しだけ待ってください。",
+            "title": "直しています",
+            "instruction": "",
+            "poMessage": "もう少し！",
             "poEmotion": "thinking",
             "aiAction": improve_action,
         },
@@ -191,10 +210,12 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "id": "compare_results",
             "type": "result_compare",
             "phase": "compare",
-            "title": "変わり方を見比べる",
-            "instruction": "元の文章・1回目・条件を足したあと、の3つを比べます。",
-            "poMessage": "「誰向けか」と「どうしたいか」を伝えると、結果を調整できます。",
-            "poEmotion": "talking",
+            # 比べるところは**説明で分からせない**。並んだ2つと、
+            # 足した条件の札と、変わった箇所の色で分かる
+            "title": "こんなに変わった",
+            "instruction": "",
+            "poMessage": "変わった！",
+            "poEmotion": "celebrate",
             "meta": {**review, "threeWay": True},
         },
         # AI技の名前は、**使って、違いを見たあと**に出す。
@@ -278,9 +299,10 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "id": "generate_real",
             "type": "ai_generate",
             "phase": "own",
-            "title": "AIに送っています",
+            # 送信中の3画面は同じ扱いにする
+            "title": "書き直しています",
             "instruction": options.get("working", ""),
-            "poMessage": "送っています。少しだけ待ってください。",
+            "poMessage": "もう少し！",
             "poEmotion": "thinking",
             "aiAction": ai_action,
         },

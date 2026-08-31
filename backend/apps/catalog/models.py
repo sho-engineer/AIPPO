@@ -339,6 +339,17 @@ class Lesson(models.Model):
     #:
     #: 空でよい。空なら「ヒントを見る」は出ない。
     real_task_hints = models.JSONField(default=list, blank=True)
+    #: 結果を見たあとの問いかけ。**教材ごとに違う。**
+    #:
+    #: Day1 は「読みやすくなった？」、Day2 は「短くなった？」。
+    #: 骨格に書くと、どれか1本の言い回しが全部の教材に付く。
+    #: 空なら共通の「どこが変わった？」を使う。
+    observe_title = models.CharField(max_length=100, blank=True)
+    #: うまくいかなかった人にだけ聞く、任意の理由。
+    #:
+    #: 問いを2択に減らすと画面は軽くなるが、**何に気づいたかが
+    #: 測れなくなる**。困っている人にだけその場で聞けば両立できる。
+    observe_reasons = models.JSONField(default=list, blank=True)
     takeaway = models.CharField(max_length=200, blank=True)
     next_suggestion = models.CharField(max_length=200, blank=True)
     fact_check = models.BooleanField(

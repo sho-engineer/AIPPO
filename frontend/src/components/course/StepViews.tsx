@@ -33,7 +33,7 @@ export { PromptPreview } from "./steps/PromptPreview";
 export { GeneratingCard } from "./steps/Generating";
 export { ResultCompare, RunHistory } from "./steps/Results";
 export { ThreeWayCompare, ChangePoints } from "./steps/Compare";
-export { ObservationList } from "./steps/Observation";
+export { ObservationList, ObservationReason } from "./steps/Observation";
 export { ConceptCardView } from "./steps/ConceptCard";
 export { OutcomePreview } from "./steps/Outcome";
 export { ChoiceTiles, StartChoiceTiles } from "./steps/Tiles";

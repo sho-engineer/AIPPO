@@ -27,6 +27,7 @@ import {
   ConceptCardView,
   GeneratingCard,
   ObservationList,
+  ObservationReason,
   OutcomePreview,
   PromptPreview,
   QuizStep,
@@ -45,7 +46,7 @@ import { teachingImage } from "../../course/teachingImages";
 import { TeachingImage } from "../lessons/TeachingImage";
 import { missionStateOf } from "../../course/missions";
 import { promptCards, promptText } from "../../course/promptSummary";
-import type { Course, Lesson } from "../../course/types";
+import type { Course, Lesson, StepOption } from "../../course/types";
 import type { useCourseLesson } from "../../course/useCourseLesson";
 
 export interface StepRendererProps {
@@ -107,6 +108,8 @@ export function StepRenderer({
     factCheck?: boolean;
     answer?: string[];
     threeWay?: boolean;
+    /** 「まだ微妙」を選んだ人にだけ聞く、任意の理由（course/shared.ts）。 */
+    reasons?: StepOption[];
   };
 
   /** 最初の1回で使う例文。空欄から始めさせないために事前に入れておく。 */
@@ -275,6 +278,20 @@ export function StepRenderer({
               value={values[step.key ?? ""] ?? ""}
               onChange={(value) => api.setValue(step.key ?? "", value)}
             />
+            {/*
+              うまくいかなかった人にだけ、その場で理由を聞く。
+
+              結果の直後の問いを2択に減らすと画面は軽くなるが、
+              **何に気づいたかが測れなくなる**。全員に聞き直すと元の
+              重さに戻るので、困っている人にだけ出す。答えなくても進める。
+            */}
+            {(values[step.key ?? ""] ?? "").includes("まだ") && (
+              <ObservationReason
+                reasons={meta.reasons ?? []}
+                value={values.observation_reason ?? ""}
+                onChange={(value: string) => api.setValue("observation_reason", value)}
+              />
+            )}
           </div>
         </div>
       );

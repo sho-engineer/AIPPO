@@ -152,12 +152,34 @@ const LESSON_1: Lesson = {
     },
     sampleText:
       "明日の打ち合わせの件ですが、資料について確認していただきたいところがあるため、本日中に可能であれば見ていただけますでしょうか。",
-    quickTitle: "この文章は誰に送りますか？",
-    quickInstruction: "ひとつ選ぶと、すぐにAIが書き直します。",
+    quickTitle: "誰に送る文章？",
+    // 何が起きるかは下のボタンが言っている（「AIに書き直してもらう」）
+    quickInstruction: "",
     quickKey: "audience",
     quickOptions: AUDIENCE_OPTIONS,
     quickDefaults: { tone: "ていねいに", length: "3行くらい" },
-    working: "文章を書き直してもらっています。",
+    working: "",
+    /*
+      結果を見た直後に聞くのは1つだけ。**この教材のねらいそのもの**を聞く。
+
+      前は「どこが変わったと思いますか」で、5つの選択肢と観点3つが
+      並んでいた。気づきの中身は取れるが、いちばん手応えのある瞬間に
+      いちばん読ませる画面になっていた。
+
+      気づきの中身は、**うまくいかなかった人にだけ**その場で聞く。
+      答えなくても進める。
+    */
+    observeTitle: "読みやすくなった？",
+    observationOptions: [
+      { value: "うん", label: "うん" },
+      { value: "まだ微妙", label: "まだ微妙" },
+    ],
+    observeReasons: [
+      { value: "変わっていない", label: "変わっていない" },
+      { value: "意味が変わった", label: "意味が変わった" },
+      { value: "まだ長い", label: "まだ長い" },
+      { value: "かたい", label: "かたい" },
+    ],
     /*
       骨格が続けて出す解説は**1枚だけ**にしてある。
 
@@ -174,7 +196,7 @@ const LESSON_1: Lesson = {
     conceptCards: [
       {
         title: "誰向けかを伝える",
-        body: "同じ内容でも、上司・同僚・顧客で、ちょうどよい言い方は変わります。",
+        body: "「誰向けか」を伝えると、言い方が変わる。",
         visual: "before_after",
         before: "確認していただけますでしょうか。",
         after: "ご確認ください。",

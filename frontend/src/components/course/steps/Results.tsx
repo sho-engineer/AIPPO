@@ -132,14 +132,40 @@ export function ResultCompare({
         </details>
       )}
 
-      <section className="mt-5 rounded-card bg-brand-soft px-4 py-3">
-        <h3 className="text-xs font-bold text-brand-dark">ここを見てみましょう</h3>
-        <ul className="mt-2 space-y-1 text-sm leading-6" role="list">
-          {reviewPoints.map((point) => (
-            <li key={point}>・{point}</li>
-          ))}
-        </ul>
-      </section>
+      {/*
+        見るところは**1つだけ**渡す。
+
+        前は3つ並べていた（「元の意味が変わっていないか」「指定した
+        長さになっているか」「読む相手に合った言葉づかいか」）。
+        結果の本文のすぐ下に40字ぶんの確認事項が積まれるので、
+        **いちばん手応えのある瞬間に、いちばん読ませていた**。
+
+        3つとも見てほしいのは本当だが、3つ渡すと1つも見ない。
+        残りは畳んだ中に置いてある（上の `details`）。
+
+        教材データはこれまでどおり3つ持っている。**減らしたのは
+        一度に見せる数**であって、中身ではない。
+      */}
+      {reviewPoints.length > 0 && (
+        <section className="mt-5 rounded-card bg-brand-soft px-4 py-3">
+          <h3 className="text-xs font-bold text-brand-dark">ここを見て</h3>
+          <p className="mt-1 text-sm leading-6" data-testid="review-point">
+            {reviewPoints[0]}
+          </p>
+          {reviewPoints.length > 1 && (
+            <details className="mt-2">
+              <summary className="cursor-pointer list-none text-xs font-bold text-brand">
+                ほかの見どころ
+              </summary>
+              <ul className="mt-2 space-y-1 text-sm leading-6" role="list">
+                {reviewPoints.slice(1).map((point) => (
+                  <li key={point}>・{point}</li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+      )}
 
       {factCheck && (
         <p className="mt-3 flex items-start gap-2 rounded-card bg-caution-soft px-4 py-3 text-sm leading-6 text-caution">

@@ -70,3 +70,57 @@ export function ObservationList({
     </ul>
   );
 }
+
+/**
+ * うまくいかなかった人にだけ、その場で理由を聞く。
+ *
+ * なぜ要るか
+ * ----------
+ * 結果の直後の問いを2択（「うん」「まだ微妙」）に減らすと画面は軽く
+ * なるが、**何に気づいたかが測れなくなる**。前は5つの選択肢がその
+ * 役目を持っていた。
+ *
+ * 全員に聞き直すと元の重さに戻るので、**困っている人にだけ**聞く。
+ * 進んでいる人の画面は軽いまま、詰まっている人の情報は残る。
+ *
+ * 答えなくても進める。ここで止めると、理由を選べない人が
+ * 行き止まりになる。
+ */
+export function ObservationReason({
+  reasons,
+  value,
+  onChange,
+}: {
+  reasons: StepOption[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  if (reasons.length === 0) return null;
+
+  return (
+    <div className="mt-4" data-testid="observation-reason">
+      <p className="text-xs font-bold text-ink-muted">どこが？（任意）</p>
+      <ul className="mt-2 flex flex-wrap gap-2" role="list">
+        {reasons.map((reason) => {
+          const active = value === reason.value;
+          return (
+            <li key={reason.value}>
+              <button
+                type="button"
+                onClick={() => onChange(active ? "" : reason.value)}
+                aria-pressed={active}
+                className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                  active
+                    ? "border-brand bg-brand-soft text-brand-dark"
+                    : "border-line bg-surface hover:border-brand-line"
+                }`}
+              >
+                {reason.label}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}

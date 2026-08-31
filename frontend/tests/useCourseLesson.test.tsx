@@ -77,7 +77,7 @@ async function toFirstResult(user: ReturnType<typeof userEvent.setup>) {
  */
 async function toConceptCard(
   user: ReturnType<typeof userEvent.setup>,
-  observation = "短くなった",
+  observation = "うん",
 ) {
   await toFirstResult(user);
   await user.click(await screen.findByRole("button", { name: observation }));
@@ -144,7 +144,7 @@ describe("成果物ファースト", () => {
     await user.click(screen.getByTestId("primary-action"));
 
     expect(
-      await screen.findByRole("heading", { name: "この文章は誰に送りますか？" }),
+      await screen.findByRole("heading", { name: "誰に送る文章？" }),
     ).toBeInTheDocument();
     // 表現や長さはまだ聞かない
     expect(screen.queryByRole("button", { name: "ていねいに" })).toBeNull();
@@ -172,23 +172,58 @@ describe("観察してから解説する", () => {
     await toFirstResult(user);
 
     expect(
-      await screen.findByRole("heading", { name: "どこが変わったと思いますか" }),
+      await screen.findByRole("heading", { name: "読みやすくなった？" }),
     ).toBeInTheDocument();
     expect(screen.queryByTestId("concept-card")).toBeNull();
   });
 
-  it("「よく分からない」でも進める", async () => {
+  it("「まだ微妙」でも進める", async () => {
     const user = userEvent.setup();
     renderLesson();
     await toFirstResult(user);
 
-    await user.click(await screen.findByRole("button", { name: "よく分からない" }));
+    /*
+      うまくいかなかった人を止めない。**理由は任意**で、選ばなくても
+      次へ進める。ここで止めると、答えられない人が行き止まりになる。
+    */
+    await user.click(await screen.findByRole("button", { name: "まだ微妙" }));
     await user.click(screen.getByTestId("primary-action"));
 
     // 気づけなくても止めない。次（条件を足す）へ進めること
     expect(
       await screen.findByRole("button", { name: "もっと短く" }),
     ).toBeInTheDocument();
+  });
+
+  it("うまくいかなかった人にだけ、理由を聞く", async () => {
+    /*
+      問いを2択に減らすと画面は軽くなるが、**何に気づいたかが
+      測れなくなる**。全員に聞き直すと元の重さに戻るので、
+      困っている人にだけ出す。
+    */
+    const user = userEvent.setup();
+    renderLesson();
+    await toFirstResult(user);
+
+    // うまくいった人には出さない
+    await user.click(await screen.findByRole("button", { name: "うん" }));
+    expect(screen.queryByTestId("observation-reason")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "まだ微妙" }));
+
+    expect(await screen.findByTestId("observation-reason")).toBeInTheDocument();
+  });
+
+  it("理由を選ばなくても進める", async () => {
+    // 答えられない人を行き止まりにしない
+    const user = userEvent.setup();
+    renderLesson();
+    await toFirstResult(user);
+
+    await user.click(await screen.findByRole("button", { name: "まだ微妙" }));
+    await screen.findByTestId("observation-reason");
+
+    expect(screen.getByTestId("primary-action")).toBeEnabled();
   });
 
   it("解説カードは飛ばせる", async () => {
@@ -215,7 +250,7 @@ describe("条件を一つ足す", () => {
 
     renderLesson();
     await toFirstResult(user);
-    await user.click(await screen.findByRole("button", { name: "短くなった" }));
+    await user.click(await screen.findByRole("button", { name: "うん" }));
     await user.click(screen.getByTestId("primary-action"));
 
     // 解説はこの後（比べたあと）に出るので、ここでは通らない

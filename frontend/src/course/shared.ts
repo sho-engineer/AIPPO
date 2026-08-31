@@ -80,8 +80,23 @@ export interface FlowOptions {
 
   /** 生成中に出す一言。「考えています」だけにしない。 */
   working: string;
+  /**
+   * 結果を見たあとの問いかけ。省略すると共通のものを使う。
+   *
+   * **教材ごとに違う。** Day1 は「読みやすくなった？」、Day2 は
+   * 「短くなった？」。骨格に書くとどれか1本の言い回しが全部に付く。
+   */
+  observeTitle?: string;
   /** 観察の選択肢。省略すると共通のものを使う。 */
   observationOptions?: StepOption[];
+  /**
+   * 「まだ微妙」を選んだ人にだけ聞く、任意の理由。
+   *
+   * 選択肢を2つに減らすと画面は軽くなるが、**何に気づいたかが
+   * 測れなくなる**。困っている人にだけ、その場で1行聞く形にすれば
+   * 両立できる。答えなくても進める。
+   */
+  observeReasons?: StepOption[];
   /**
    * 「条件を一つ足す」の選択肢。省略すると共通のものを使う。
    *
@@ -195,7 +210,14 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       phase: "try",
       title: options.quickTitle,
       instruction: options.quickInstruction,
-      poMessage: "ひとつ選ぶだけで、すぐ結果が見られます。",
+      /*
+        見出しと `quickInstruction` が既に問いかけている。3回目は要らない。
+
+        ここは**どの教材でも同じ骨格**なので、Day1 の言い回し
+        （「誰向けかな？」）を書かない。Day2 は要約、Day5 は比較で、
+        聞いていることが違う。
+      */
+      poMessage: "選んでみよう！",
       poEmotion: "question",
       key: options.quickKey,
       required: true,
@@ -210,9 +232,16 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       id: "generate_first",
       type: "ai_generate",
       phase: "try",
-      title: "AIに送っています",
+      /*
+        送信中の画面。**1つのことだけ言う。**
+
+        前は「AIに送っています」（見出し）と「送っています。少しだけ
+        待ってください。」（吹き出し）で、**同じことを2回**言っていた。
+        待っている人が読む文が増えるだけで、増えた分の中身が無い。
+      */
+      title: "書き直しています",
       instruction: options.working,
-      poMessage: "送っています。少しだけ待ってください。",
+      poMessage: "もう少し！",
       poEmotion: "thinking",
       aiAction: options.aiAction,
     },
@@ -220,21 +249,53 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       id: "observe_result",
       type: "observation",
       phase: "try",
-      title: "どこが変わったと思いますか",
-      instruction: "当てはまると思うものを選んでください。いくつでも大丈夫です。",
-      poMessage: "正解を当てる問題ではありません。気づいたことを選んでください。",
+      /*
+        結果を見た直後。**ここで聞くのは1つだけ。**
+
+        前は「どこが変わったと思いますか」＋説明2行＋5つの選択肢＋
+        観点3つで、1画面に151字あった。結果の本文と合わせると
+        スマホで2〜3スクロール——いちばん手応えのある瞬間に、
+        いちばん読ませていた。
+
+        いまは「よくなった？」の2択だけ。何に気づいたかは、
+        **うまくいかなかった人にだけ**その場で聞く（`observeReasons`）。
+      */
+      /*
+        既定は短くするだけに留める。共通の選択肢（短くなった・丁寧に
+        なった…）は「どこが変わったか」を聞くものなので、既定の
+        問いかけもそれに合わせる。2択へ変えるのは、選択肢も一緒に
+        差し替える教材だけ（Day1）。
+      */
+      title: options.observeTitle ?? "どこが変わった？",
+      instruction: "",
+      poMessage: "どうだった？",
       poEmotion: "question",
       key: "observation",
       options: options.observationOptions ?? OBSERVATION_OPTIONS,
-      meta: review,
+      /*
+        理由を持たない教材では、鍵ごと置かない。
+
+        空の配列を入れると、サーバー側の展開（`drop_empty` は浅くしか
+        見ない）と姿が食い違い、`test_catalog_parity` が落ちる。
+        「空が入っている」と「指定されていない」を区別する作りなので、
+        指定していないなら置かない。
+      */
+      meta: options.observeReasons?.length
+        ? { ...review, reasons: options.observeReasons }
+        : review,
     },
     {
       id: "add_condition",
       type: "condition_choice",
       phase: "compare",
-      title: "条件を一つ足してみましょう",
-      instruction: "一度に一つだけ選ぶのがコツです。",
-      poMessage: "一度で完成させなくて大丈夫です。足すたびに近づきます。",
+      /*
+        「一度に一つだけ」は見出しが言っている（「ひとつ」）。
+        「一度で完成させなくて大丈夫」は、この先の比べる画面で
+        **実際に変わるのを見れば分かる**——先に文で言わない。
+      */
+      title: "条件をひとつ足そう",
+      instruction: "",
+      poMessage: "どれにする？",
       poEmotion: "hint",
       key: "condition",
       required: true,
@@ -245,9 +306,9 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       id: "generate_improved",
       type: "ai_generate",
       phase: "compare",
-      title: "AIに送っています",
-      instruction: "足した条件だけを直してもらっています。",
-      poMessage: "送っています。少しだけ待ってください。",
+      title: "直しています",
+      instruction: "",
+      poMessage: "もう少し！",
       poEmotion: "thinking",
       aiAction: { ...options.aiAction, action: "improve", inputs: {} },
     },
@@ -255,11 +316,15 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       id: "compare_results",
       type: "result_compare",
       phase: "compare",
-      title: "変わり方を見比べる",
-      instruction: "元の文章・1回目・条件を足したあと、の3つを比べます。",
-      poMessage:
-        "「誰向けか」と「どうしたいか」を伝えると、結果を調整できます。",
-      poEmotion: "talking",
+      /*
+        比べるところは**説明で分からせない**。並んだ2つと、足した条件の
+        札（Chip）と、変わった箇所の色で分かる。何が並んでいるかを
+        文で言い足すと、見る前に読むことになる。
+      */
+      title: "こんなに変わった",
+      instruction: "",
+      poMessage: "変わった！",
+      poEmotion: "celebrate",
       meta: { ...review, threeWay: true },
     },
     /*
@@ -367,9 +432,11 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       id: "generate_real",
       type: "ai_generate",
       phase: "own",
-      title: "AIに送っています",
+      // 送信中の3画面は同じ扱いにする。ここだけ長いと、
+      // 自分の文章のときだけ待ち時間が重く感じる
+      title: "書き直しています",
       instruction: options.working,
-      poMessage: "送っています。少しだけ待ってください。",
+      poMessage: "もう少し！",
       poEmotion: "thinking",
       aiAction: options.aiAction,
     },
