@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+import pathlib
+import re
 import uuid
 
 import pytest
@@ -68,6 +70,37 @@ class TestTheEventNames:
 
         assert response.status_code == 204
         assert LearningEvent.objects.filter(event_type=event_type).exists()
+
+
+class TestTheFrontendOnlySendsNamesWeKnow:
+    """画面が送る名前が、こちらの一覧に**全部**あること。
+
+    無い名前を送ると 400 で捨てられる。捨てても画面は止まらないので、
+    気づくのは集計を見たとき——実際に5種類がそうなっていた。
+
+    上の REQUIRED は「要件が挙げた14種」を固定するもので、
+    画面側が名前を足したかどうかは見ていない。ここでは
+    **画面のファイルそのもの**を読んで突き合わせる。片側だけ増えた
+    瞬間に落ちる。
+    """
+
+    SOURCE = (
+        pathlib.Path(__file__).resolve().parents[2]
+        / "frontend/src/lib/analytics.ts"
+    )
+
+    def test_every_name_the_screen_sends_is_known(self):
+        text = self.SOURCE.read_text(encoding="utf-8")
+        block = re.search(r"export const EVENTS = \{(.*?)\n\} as const;", text, re.S)
+        assert block, "EVENTS の形が変わった。この検査も直すこと"
+
+        names = re.findall(r':\s*"([a-z0-9_]+)"', block.group(1))
+        # 形が変わって0件になっても素通りしないこと
+        assert len(names) >= 8, f"名前を読み取れていない: {names}"
+
+        known = {value for value, _label in LearningEventType.choices}
+        unknown = sorted(set(names) - known)
+        assert unknown == [], f"画面が送るのに、こちらが知らない名前: {unknown}"
 
 
 class TestEventsOutsideALesson:

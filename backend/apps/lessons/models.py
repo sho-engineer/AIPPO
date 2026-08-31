@@ -180,6 +180,14 @@ class LearningEventType(models.TextChoices):
     GUEST_DATA_MIGRATION_COMPLETED = "guest_data_migration_completed"
     GUEST_DATA_MIGRATION_FAILED = "guest_data_migration_failed"
     LOGIN_COMPLETED = "login_completed"
+    # 登録・ログインの入口で、どの道を押したか。
+    # 押した先は外部（Google）や OS の画面なので、戻ってこなかった人は
+    # この1件だけが記録に残る——どこで落ちたかは、ここでしか見えない
+    AUTH_GOOGLE_CLICKED = "auth_google_clicked"
+    AUTH_PASSKEY_CLICKED = "auth_passkey_clicked"
+    # 認証を終えて、元のレッスンへ戻れた回。
+    # ここまで来て初めて「登録して続きができた」と言える
+    RETURNED_TO_LESSON = "returned_to_lesson"
     COMING_SOON_VIEWED = "coming_soon_viewed"
 
     # 成果物ファーストの各ステップ。

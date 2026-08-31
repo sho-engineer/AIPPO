@@ -9,13 +9,14 @@
  * 同じ誘いを繰り返すのは、締め出しと同じくらい嫌われる。
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AuthDialog } from "./AuthDialog";
 import { Card, CardHeading } from "../AppShell";
 import { IconCheckCircle, IconStar } from "../Icons";
 import { useAuth } from "../../auth/AuthContext";
 import { AUTH_COPY } from "../../content/ui";
+import { EVENTS, track } from "../../lib/analytics";
 
 /*
   挙げるのは、登録しないと**本当にできないこと**だけ。
@@ -37,6 +38,20 @@ export function SaveProgressCard() {
   const [open, setOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
+  // 読み込み中に出すと、ログイン済みの人にも一瞬見えてしまう
+  const shown = !auth.loading && !auth.user && !dismissed && !notice;
+
+  /*
+    誘いを**出した**回を数える。押した回（signup_started）だけでは、
+    見せた人のうち何人が押したのかが出せない。
+
+    **早い return より前に置く。** 下の分岐で先に return すると、
+    描き直しのたびに呼ばれる hook の数が変わって React が落ちる。
+  */
+  useEffect(() => {
+    if (shown) track(EVENTS.authPromptShown);
+  }, [shown]);
+
   if (notice) {
     return (
       <Card testId="save-progress-done">
@@ -48,8 +63,7 @@ export function SaveProgressCard() {
     );
   }
 
-  // 読み込み中に出すと、ログイン済みの人にも一瞬見えてしまう
-  if (auth.loading || auth.user || dismissed) return null;
+  if (!shown) return null;
 
   return (
     <>

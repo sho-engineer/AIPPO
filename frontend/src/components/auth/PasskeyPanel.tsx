@@ -74,6 +74,23 @@ export function PasskeyPanel({
   const available = usePasskeyAvailable();
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  /*
+    ログインで「見つからなかった」ときの案内。
+
+    ここは行き止まりだった。パスキーのボタンは**この端末が対応して
+    いるか**だけを見て出しており、その人が登録しているかは見ていない。
+    ログインは usernameless（サーバーが allow_credentials を渡さない）
+    なので、登録していない人が押すと OS の画面が「使えるパスキーが
+    ありません」で閉じ、ブラウザは NotAllowedError を返す。
+
+    それを「本人がやめた」と同じ扱いにして黙っていたので、
+    **押しても何も起きない**——しかもその状態が、ログイン画面の
+    いちばん上のボタンで起きていた。
+
+    やめたのか無かったのかはブラウザからは見分けられない。
+    どちらでも困らない一文にして、別の入口を指す。
+  */
+  const [notFound, setNotFound] = useState(false);
 
   if (!available) return null;
 
@@ -84,6 +101,8 @@ export function PasskeyPanel({
     if (busy) return;
     setBusy(true);
     setFailure(null);
+    setNotFound(false);
+    track(EVENTS.authPasskeyClicked);
 
     try {
       if (mode === "signup") {
@@ -105,6 +124,11 @@ export function PasskeyPanel({
       */
       if (wasCancelled(error)) {
         setFailure(null);
+        /*
+          登録のときは黙っていてよい。あちらの OS 画面は「作りますか」
+          なので、閉じたのは本当に気が変わったとき。
+        */
+        if (mode === "signin") setNotFound(true);
       } else {
         /*
           やめた人は数えない。数えると「使えない端末が多い」ように
@@ -158,6 +182,25 @@ export function PasskeyPanel({
       {needsEmail && !ready && (
         <p className="mt-1 text-center text-xs text-ink-muted">
           メールアドレスを入れると押せます。
+        </p>
+      )}
+
+      {/*
+        押したのに何も起きなかった、を無くす。
+
+        この端末にパスキーが無いのか、途中でやめたのかは見分けられない
+        ので、どちらでも困らない一文にして、別の入口を指す。
+        「失敗」ではないので、注意の色は使わない。
+      */}
+      {notFound && (
+        <p
+          role="status"
+          data-testid="passkey-not-found"
+          className="mt-3 rounded-card bg-canvas px-4 py-3 text-sm leading-6 text-ink-muted"
+        >
+          この端末のパスキーが見つかりませんでした。はじめての端末なら、
+          下の Google かメールで入ってください。入ったあとに設定から
+          この端末のパスキーを作れます。
         </p>
       )}
 

@@ -26,6 +26,17 @@ export function savePlace(place: Place): void {
   }
 }
 
+/**
+ * いまいる場所。
+ *
+ * `savePlace` が書いたものをそのまま読む。外部サービスへ出る直前に
+ * 控えを取るために使う（auth/returnTo.ts）。読めなければホームを返す
+ * ——控えが取れないだけで、認証は止めない。
+ */
+export function currentPlace(): Place {
+  return loadPlace() ?? { screen: "HOME", lessonId: "" };
+}
+
 export function loadPlace(): Place | null {
   try {
     const parsed = JSON.parse(window.localStorage.getItem(KEY) ?? "null");

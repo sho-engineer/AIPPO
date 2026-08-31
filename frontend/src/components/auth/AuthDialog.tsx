@@ -407,15 +407,22 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
         {/*
           登録の1枚目。ここで道を選ぶ。
 
-          押せるボタンだけを出す。Google は押した先で全部済むので
-          一番上、パスキーはメールアドレスだけ次で聞く。
-          メールでの登録は、この下の欄から。
+          並びは **パスキー → Google → メール**。
+
+          パスキーを一番上に置く理由は、覚える合言葉が要らないこと。
+          流出しても使えず、打ち間違いも、使い回しも起こらない。
+          初心者にとっていちばん壊れにくい入り方が、いちばん上にある
+          べきだと決めた。
+
+          ただし**他の道を消さない。** パスキーは端末に紐づくので、
+          対応していない端末や、共用のパソコンから入る人が残る。
+          そして、どの道で作ったアカウントにも必ずメールアドレスが
+          付く——端末を失った人が、メールの再設定で戻ってこられる
+          ようにするため（パスキーだけのアカウントも例外ではない）。
         */}
         {view === "signup" && step === "method" && (
           <>
             <div className="mt-5 space-y-2" data-testid="auth-methods">
-              <SocialButtons bare disabled={busy} onCount={setSocialCount} />
-
               {passkeyReady && (
                 <button
                   type="button"
@@ -423,16 +430,28 @@ export function AuthDialog({ mode = "signup", onClose, onDone }: AuthDialogProps
                   disabled={busy}
                   onClick={() => setStep("passkey")}
                   className="flex min-h-[3rem] w-full items-center justify-center gap-2
-                             rounded-cta border border-brand bg-surface px-6 py-3 text-base
-                             font-bold text-brand-dark transition hover:bg-brand-soft
+                             rounded-cta border border-brand bg-brand px-6 py-3 text-base
+                             font-bold text-white transition hover:bg-brand-dark
                              disabled:cursor-not-allowed disabled:border-line
-                             disabled:text-ink-muted"
+                             disabled:bg-line disabled:text-ink-muted"
                 >
                   <IconKey className="h-5 w-5 shrink-0" />
                   {AUTH_COPY.continueWithPasskey}
                 </button>
               )}
+
+              <SocialButtons bare disabled={busy} onCount={setSocialCount} />
             </div>
+
+            {/*
+              パスキーが何なのかを、押す前に一行だけ添える。
+              知らない言葉が一番上にあると、知っている言葉のほうへ逃げる。
+            */}
+            {passkeyReady && (
+              <p className="mt-2 text-center text-xs leading-6 text-ink-muted">
+                {AUTH_COPY.passkeyLead}
+              </p>
+            )}
 
             {/* 上に何も出せなかった環境では、区切りの線だけを残さない */}
             {(socialCount > 0 || passkeyReady) && (

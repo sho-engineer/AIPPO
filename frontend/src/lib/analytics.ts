@@ -24,6 +24,30 @@ export const EVENTS = {
   signUpStarted: "signup_started",
   signUpCompleted: "signup_completed",
   googleAuthFailed: "google_auth_failed",
+  /*
+    登録までの道のりを、押した順に数える。
+
+    いちばん見たいのは「ゲストで試した人のうち、何人が登録まで来て、
+    元のレッスンへ戻れたか」。前は登録の**始まり**と**終わり**しか
+    無く、あいだで何人落ちたのか、どの入口で落ちたのかが見えなかった。
+  */
+  /*
+    名前は**サーバーが持っている一覧から選ぶ**
+    （backend/apps/lessons/models.py の LearningEventType）。
+    無い名前を送ると 400 で黙って捨てられ、集計を見るまで
+    気づけない——過去に5種類がそうなっていた。
+
+    誘いを出した回は、既にある `signup_prompt_viewed` を使う。
+    同じ出来事に2つ名前を作らない。
+
+    ログインできた回（`login_completed`）は**送らない**。
+    サーバーが自分で記録している（accounts/views.py）ので、
+    こちらからも送ると二重に数える。
+  */
+  authPromptShown: "signup_prompt_viewed",
+  authGoogleClicked: "auth_google_clicked",
+  authPasskeyClicked: "auth_passkey_clicked",
+  returnedToLesson: "returned_to_lesson",
   passkeyRegistrationFailed: "passkey_registration_failed",
   passwordResetRequested: "password_reset_requested",
   missionCompleted: "mission_completed",

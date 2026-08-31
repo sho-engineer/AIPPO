@@ -16,8 +16,11 @@
 import { useEffect, useRef, useState } from "react";
 
 import { fetchSocialProviders, type SocialProvider } from "../../api/accounts";
+import { currentPlace } from "../../app/session";
+import { rememberReturn } from "../../auth/returnTo";
 import { SOCIAL_COPY } from "../../content/ui";
 import { apiBaseUrl } from "../../api/config";
+import { EVENTS, track } from "../../lib/analytics";
 import { IconGlobe } from "../Icons";
 
 /*
@@ -54,6 +57,14 @@ export interface SocialButtonsProps {
 
 export function SocialButtons({ disabled, bare = false, onCount }: SocialButtonsProps) {
   const [providers, setProviders] = useState<SocialProvider[]>([]);
+  /*
+    押したあと、向こうへ移り始めるまでの数百ミリ秒。
+
+    `window.location.href` を入れてから実際に画面が変わるまでには間が
+    あり、そのあいだ**ボタンは押せたまま**だった。二度押すと外部への
+    往復が2本走る。押した直後に閉じて、何が起きているかを文で返す。
+  */
+  const [leaving, setLeaving] = useState<string | null>(null);
   /* 呼び出し側が毎回作り直す関数でも、取り直しにいかないようにする */
   const report = useRef(onCount);
   report.current = onCount;
@@ -99,9 +110,23 @@ export function SocialButtons({ disabled, bare = false, onCount }: SocialButtons
           <button
             key={provider.name}
             type="button"
-            disabled={disabled}
+            disabled={disabled || leaving !== null}
             data-testid={`social-${provider.name}`}
             onClick={() => {
+              if (leaving) return;
+              setLeaving(provider.name);
+              // 押した回を数える。ここから先は外部なので、戻って
+              // こなかった人はこの1件だけが記録に残る
+              track(EVENTS.authGoogleClicked);
+              /*
+                いる場所を控えてから出る。
+
+                戻ってくるのはアプリの入口（`/`）で、サーバーは
+                どこから出たかを知らない。控えておかないと、別のタブが
+                「最後に見ていた画面」を書き換えていたときに、
+                押した本人が違う画面へ着く（auth/returnTo.ts）。
+              */
+              rememberReturn(currentPlace());
               // 画面ごと移動する。戻ってきたときは Cookie で入っている
               window.location.href = `${apiBaseUrl()}${provider.start_url}`;
             }}
@@ -111,7 +136,9 @@ export function SocialButtons({ disabled, bare = false, onCount }: SocialButtons
                         ${LOOK[provider.name] ?? LOOK.google}`}
           >
             <IconGlobe className="h-4 w-4 shrink-0" aria-hidden="true" />
-            {SOCIAL_COPY.continueWith(provider.label)}
+            {leaving === provider.name
+              ? SOCIAL_COPY.leavingTo(provider.label)
+              : SOCIAL_COPY.continueWith(provider.label)}
           </button>
         ))}
       </div>

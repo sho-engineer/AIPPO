@@ -67,6 +67,11 @@ describe("名前の置き場", () => {
       "signup_started",
       "signup_completed",
       "google_auth_failed",
+      // 登録までの道のり。押した順に並べる
+      "signup_prompt_viewed",
+      "auth_google_clicked",
+      "auth_passkey_clicked",
+      "returned_to_lesson",
       "passkey_registration_failed",
       "password_reset_requested",
       "mission_completed",

@@ -23,6 +23,8 @@
 
 import { useState } from "react";
 
+import { AuthDialog } from "../auth/AuthDialog";
+import { AUTH_COPY } from "../../content/ui";
 import { ApiError } from "../../api/http";
 import { needsAccount, saveArtifact } from "../../api/artifacts";
 import { EVENTS, track } from "../../lib/analytics";
@@ -49,6 +51,7 @@ export function KeepArtifactButton({
   onKept,
 }: KeepArtifactButtonProps) {
   const [state, setState] = useState<State>({ kind: "idle" });
+  const [signingUp, setSigningUp] = useState(false);
 
   async function keep() {
     if (state.kind === "busy" || state.kind === "kept") return;
@@ -112,6 +115,41 @@ export function KeepArtifactButton({
         >
           {state.message}
         </p>
+      )}
+
+      {/*
+        断ったあとに、行き先を置く。
+
+        前は「取っておくには登録が要ります」で終わっていた。理由は
+        伝わるが、**そこから先が無い**——押した人は自分で設定を探しに
+        行くことになる。押したのは「取っておきたい」という意思表示
+        なので、そのまま進める口をその場に置く。
+      */}
+      {state.kind === "failed" && state.requiresAccount && (
+        <button
+          type="button"
+          data-testid="keep-artifact-signup"
+          onClick={() => setSigningUp(true)}
+          className="mt-1.5 text-xs font-bold text-brand underline
+                     transition hover:text-brand-dark"
+        >
+          {AUTH_COPY.submitSignUp}
+        </button>
+      )}
+
+      {signingUp && (
+        <AuthDialog
+          mode="signup"
+          onClose={() => setSigningUp(false)}
+          /*
+            登録できたら、押したかった操作をこちらでやり直す。
+            もう一度「取っておく」を探させない。
+          */
+          onDone={() => {
+            setSigningUp(false);
+            void keep();
+          }}
+        />
       )}
     </div>
   );

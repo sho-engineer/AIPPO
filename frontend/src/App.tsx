@@ -29,6 +29,8 @@ import { TopPage } from "./pages/TopPage";
 import { lookupLesson, useCourse, useCourses } from "./course/live";
 import { isStartable } from "./course/availability";
 import { loadPlace, savePlace } from "./app/session";
+import { takeReturn } from "./auth/returnTo";
+import { EVENTS, track } from "./lib/analytics";
 import { useSocialResult } from "./auth/useSocialResult";
 import { nextScreen, type Screen } from "./app/screens";
 import { RecordPage } from "./pages/RecordPage";
@@ -105,7 +107,24 @@ export function App() {
   const [initial] = useState(() => {
     const browser = window.history.state;
     if (isAippoHistoryState(browser)) return browser;
-    const restored = loadPlace();
+    /*
+      外部サービス（Google）から戻ってきた回。
+
+      押した瞬間に控えた場所を、いつもの「最後に見ていた画面」より
+      先に見る。別のタブで AIPPO を開いていると、そちらが place を
+      上書きするので、押した本人が違う画面へ着いてしまう
+      （auth/returnTo.ts）。
+
+      読んだら消えるので、次に開いたときは いつもどおり place に従う。
+    */
+    const returning = takeReturn();
+    /*
+      戻れた回を数える。ここまで来て初めて「登録して続きができた」と
+      言える。押した回（auth_google_clicked）と対にすると、
+      外へ出たまま帰ってこなかった人が何人かが出る。
+    */
+    if (returning) track(EVENTS.returnedToLesson, { lessonId: returning.lessonId });
+    const restored = returning ?? loadPlace();
     return {
       aippo: true as const,
       depth: 0,
