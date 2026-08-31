@@ -141,10 +141,16 @@ test.describe("レッスンを最後まで進める", () => {
     await openRewrite(page);
     await runToEnd(page);
 
-    // 完了画面の主役は「できるようになったこと」。技はその次
-    await expect(page.getByTestId("completion-outcomes")).toContainText(
-      "できるようになりました",
-    );
+    /*
+      完了画面の主役は「できるようになったこと」。技はその次。
+
+      見るのは**中身**にする。前は箱の見出しの文字を見ていたが、
+      その見出しは画面の見出しと同じ言葉で、**二度言っていた**ので
+      消した。言葉ではなく、教材が約束した到達点が並んでいることを見る。
+    */
+    const outcomes = page.getByTestId("completion-outcomes");
+    await expect(outcomes.getByRole("listitem").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "できるようになりました" })).toBeVisible();
     await expect(page.getByTestId("completion-view")).toContainText("覚えたAI技");
   });
 

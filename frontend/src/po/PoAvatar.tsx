@@ -36,6 +36,31 @@ const BLINK_DURATION_MS = 140;
 const MOUTH_MS = 160;
 
 /**
+ * 動きに使う絵を、先に読み込んでおく。
+ *
+ * まばたきも口の動きも、**別のファイルへ差し替える**やり方で作って
+ * ある。差し替えた先がまだ読み込まれていないと、そこだけ絵が出るのが
+ * 一拍遅れる——動きの途中で1コマ抜けるので、目には瞬きではなく
+ * ちらつきとして映る。
+ *
+ * ふだんの絵（neutral）は最初から画面に出ているので放っておいても
+ * 読み込まれる。問題は blink と talking で、**出るのは一瞬だけ**。
+ * 出る直前に取りに行く形だと、間に合わない回が必ず残る。
+ *
+ * 1回だけ。読み込んだ絵はブラウザが持っているので、
+ * 2枚目以降のポーは何もしなくてよい。
+ */
+let warmed = false;
+function warmFrames(): void {
+  if (warmed || typeof window === "undefined") return;
+  warmed = true;
+  for (const emotion of ["blink", "talking", "neutral"] as PoEmotion[]) {
+    const image = new Image();
+    image.src = poAssets[emotion];
+  }
+}
+
+/**
  * しゃべって見せる時間。
  *
  * 話し続けさせない。吹き出しの文は数秒で読み終わるのに、口だけ
@@ -54,10 +79,24 @@ function useBlink(emotion: PoEmotion): boolean {
   const [blinking, setBlinking] = useState(false);
   const timer = useRef<number>();
 
+  // 動きに使う絵を先に取っておく。最初の1回だけ働く
+  useEffect(() => warmFrames(), []);
+
   useEffect(() => {
-    // 考えている間・喜んでいる間はまばたきさせない。
-    // 表情の意味が伝わらなくなる。
-    if (emotion === "thinking" || emotion === "celebrate") {
+    /*
+      考えている間・喜んでいる間はまばたきさせない。
+      表情の意味が伝わらなくなる。
+
+      動きを減らす設定のときも止める。**CSS では止められない**——
+      まばたきは絵そのものを差し替える作りなので、`index.css` の
+      一括指定が効かない。口の動き（`useTalking`）は自分で見ている
+      のに、こちらだけ見ていなかった。
+    */
+    if (
+      emotion === "thinking" ||
+      emotion === "celebrate" ||
+      prefersReducedMotion()
+    ) {
       setBlinking(false);
       return;
     }
@@ -196,8 +235,26 @@ function PoImage({ emotion, className }: { emotion: PoEmotion; className: string
       data-po-frame={shown}
     >
       <img
-        // key を変えて、次の候補へ移ったときに必ず読み直させる
-        key={shown}
+        /*
+          目印は**代わりの絵へ移った回数**にする。表情そのものにしない。
+
+          表情を目印にすると、まばたきや口の動きのたびに
+          React がこの `<img>` を捨てて作り直す。作り直した直後の
+          `<img>` は**まだ何も描かれていない**ので、絵が一瞬消える。
+
+          ホームのポーは「話している」状態で、口は 160ms ごとに
+          入れ替わる。つまり 1.6 秒のあいだに 10 回作り直され、
+          そのたびに絵が消えていた——**画面ではチカチカ光って見える**。
+          まばたきのほうは 5〜8 秒ごとに、ずっと続く。
+
+          目印を `attempt` にすると、表情が変わっても同じ `<img>` の
+          `src` が差し替わるだけになる。ブラウザは次の絵を描けるまで
+          前の絵を出したままにするので、途切れない。
+
+          代わりの絵へ移るときは `attempt` が変わるので、
+          これまでどおり読み直される（そこが元の狙いだった）。
+        */
+        key={attempt}
         src={poAssets[shown]}
         alt={PO_ALT}
         data-testid="po-image"

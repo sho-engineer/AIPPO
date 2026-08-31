@@ -174,8 +174,17 @@ export function CompletionView({
       */}
       {outcomes && outcomes.length > 0 && (
         <Card testId="completion-outcomes" className="border-brand-line bg-brand-soft/40">
-          <p className="text-base font-bold text-brand-dark">できるようになりました</p>
-          <ul className="mt-3 space-y-2" role="list">
+          {/*
+            見出しを書かない。
+
+            画面の見出し（この回の `title`）が既に
+            「できるようになりました」で、**同じ言葉がすぐ下に
+            もう一度**出ていた。二度言われると、二つ別のことが
+            書いてあるのかと読み直すことになる。
+
+            この箱が何なのかは、上の見出しが言っている。
+          */}
+          <ul className="space-y-2" role="list">
             {outcomes.map((line) => (
               <li key={line} className="flex items-start gap-2.5 text-sm leading-7">
                 <IconCheckCircle className="mt-1.5 h-4 w-4 shrink-0 text-brand" />
