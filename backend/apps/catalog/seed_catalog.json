@@ -366,6 +366,25 @@
           "skill": "ターゲット指定"
         },
         {
+          "id": "real_task_intro",
+          "type": "safety_check",
+          "phase": "own",
+          "title": "自分の文章でも試す？",
+          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poEmotion": "hint",
+          "key": "real_task_choice",
+          "options": [
+            {
+              "value": "自分で入力する",
+              "label": "自分の文章で試す"
+            },
+            {
+              "value": "別のサンプルを試す",
+              "label": "別の例で試す"
+            }
+          ]
+        },
+        {
           "id": "real_audience",
           "type": "single_choice",
           "title": "誰が読みますか",
@@ -493,30 +512,6 @@
           "skippable": true,
           "primaryLabel": "自分の文章で試す",
           "skill": "反復（Iteration）"
-        },
-        {
-          "id": "real_task_intro",
-          "type": "safety_check",
-          "phase": "own",
-          "title": "次は、自分の文章で試してみましょう",
-          "instruction": "どうしますか？",
-          "poMessage": "会社の秘密や個人情報は入力しないようにしましょう。",
-          "poEmotion": "warning",
-          "key": "real_task_choice",
-          "options": [
-            {
-              "value": "自分で入力する",
-              "label": "自分で入力する"
-            },
-            {
-              "value": "貼り付ける",
-              "label": "貼り付ける"
-            },
-            {
-              "value": "別のサンプルを試す",
-              "label": "別のサンプルを試す"
-            }
-          ]
         },
         {
           "id": "real_task",
@@ -854,23 +849,18 @@
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
-          "title": "次は、自分の文章で試してみましょう",
-          "instruction": "どうしますか？",
-          "poMessage": "会社の秘密や個人情報は入力しないようにしましょう。",
-          "poEmotion": "warning",
+          "title": "自分の文章でも試す？",
+          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
             {
               "value": "自分で入力する",
-              "label": "自分で入力する"
-            },
-            {
-              "value": "貼り付ける",
-              "label": "貼り付ける"
+              "label": "自分の文章で試す"
             },
             {
               "value": "別のサンプルを試す",
-              "label": "別のサンプルを試す"
+              "label": "別の例で試す"
             }
           ]
         },
@@ -1316,23 +1306,18 @@
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
-          "title": "次は、自分の文章で試してみましょう",
-          "instruction": "どうしますか？",
-          "poMessage": "会社の秘密や個人情報は入力しないようにしましょう。",
-          "poEmotion": "warning",
+          "title": "自分の文章でも試す？",
+          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
             {
               "value": "自分で入力する",
-              "label": "自分で入力する"
-            },
-            {
-              "value": "貼り付ける",
-              "label": "貼り付ける"
+              "label": "自分の文章で試す"
             },
             {
               "value": "別のサンプルを試す",
-              "label": "別のサンプルを試す"
+              "label": "別の例で試す"
             }
           ]
         },
@@ -1797,23 +1782,18 @@
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
-          "title": "次は、自分の文章で試してみましょう",
-          "instruction": "どうしますか？",
-          "poMessage": "会社の秘密や個人情報は入力しないようにしましょう。",
-          "poEmotion": "warning",
+          "title": "自分の文章でも試す？",
+          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
             {
               "value": "自分で入力する",
-              "label": "自分で入力する"
-            },
-            {
-              "value": "貼り付ける",
-              "label": "貼り付ける"
+              "label": "自分の文章で試す"
             },
             {
               "value": "別のサンプルを試す",
-              "label": "別のサンプルを試す"
+              "label": "別の例で試す"
             }
           ]
         },
@@ -2271,23 +2251,18 @@
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
-          "title": "次は、自分の文章で試してみましょう",
-          "instruction": "どうしますか？",
-          "poMessage": "会社の秘密や個人情報は入力しないようにしましょう。",
-          "poEmotion": "warning",
+          "title": "自分の文章でも試す？",
+          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
             {
               "value": "自分で入力する",
-              "label": "自分で入力する"
-            },
-            {
-              "value": "貼り付ける",
-              "label": "貼り付ける"
+              "label": "自分の文章で試す"
             },
             {
               "value": "別のサンプルを試す",
-              "label": "別のサンプルを試す"
+              "label": "別の例で試す"
             }
           ]
         },
@@ -2691,23 +2666,18 @@
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
-          "title": "次は、自分の文章で試してみましょう",
-          "instruction": "どうしますか？",
-          "poMessage": "会社の秘密や個人情報は入力しないようにしましょう。",
-          "poEmotion": "warning",
+          "title": "自分の文章でも試す？",
+          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
             {
               "value": "自分で入力する",
-              "label": "自分で入力する"
-            },
-            {
-              "value": "貼り付ける",
-              "label": "貼り付ける"
+              "label": "自分の文章で試す"
             },
             {
               "value": "別のサンプルを試す",
-              "label": "別のサンプルを試す"
+              "label": "別の例で試す"
             }
           ]
         },
@@ -3357,23 +3327,18 @@
           "id": "real_task_intro",
           "type": "safety_check",
           "phase": "own",
-          "title": "次は、自分の文章で試してみましょう",
-          "instruction": "どうしますか？",
-          "poMessage": "会社の秘密や個人情報は入力しないようにしましょう。",
-          "poEmotion": "warning",
+          "title": "自分の文章でも試す？",
+          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
             {
               "value": "自分で入力する",
-              "label": "自分で入力する"
-            },
-            {
-              "value": "貼り付ける",
-              "label": "貼り付ける"
+              "label": "自分の文章で試す"
             },
             {
               "value": "別のサンプルを試す",
-              "label": "別のサンプルを試す"
+              "label": "別の例で試す"
             }
           ]
         },

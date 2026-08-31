@@ -213,19 +213,30 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             options.get("conceptCards") or [],
             options.get("conceptSkills") or [],
         ),
+        # ここが**主導線の終わり**。この先は任意。
+        #
+        # 前はこの手前に「技を深める回」が並び、そのあと自分の文章が
+        # 続いて、**全部通らないと終われなかった**。19画面で7〜9分。
+        # 仕事終わりに開ける長さではない。
+        #
+        # いまはここまでの9画面で1つの技が身についている
+        # （送る → 変わる → 見比べる → 名前を知る）。そこで一度
+        # 終われるようにする。続けたい人だけが下へ進む。
+        #
+        # 深める回を**消したのではない**。位置を変えただけ。
         {
             "id": "real_task_intro",
             "type": "safety_check",
             "phase": "own",
-            "title": "次は、自分の文章で試してみましょう",
-            "instruction": "どうしますか？",
-            "poMessage": "会社の秘密や個人情報は入力しないようにしましょう。",
-            "poEmotion": "warning",
+            "title": "自分の文章でも試す？",
+            # 注意はここでは出さない。**まだ何も書いていない。**
+            # 入力欄のところで出るので、書く直前にちょうど届く。
+            "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+            "poEmotion": "hint",
             "key": "real_task_choice",
             "options": [
-                {"value": "自分で入力する", "label": "自分で入力する"},
-                {"value": "貼り付ける", "label": "貼り付ける"},
-                {"value": "別のサンプルを試す", "label": "別のサンプルを試す"},
+                {"value": "自分で入力する", "label": "自分の文章で試す"},
+                {"value": "別のサンプルを試す", "label": "別の例で試す"},
             ],
         },
         {

@@ -329,7 +329,32 @@ describe("進み方", () => {
   it("進み具合を数えられる", () => {
     const progress = progressOf(REWRITE, "outcome_preview");
     expect(progress.current).toBe(1);
-    expect(progress.total).toBe(REWRITE.steps.length);
+    // 分母は主導線のぶん。任意の回は入っていない（下の2件が理由）
+    expect(progress.total).toBeLessThan(REWRITE.steps.length);
+    expect(progress.total).toBeGreaterThan(1);
+  });
+
+  it("**主導線だけで終えた人が「途中」に見えない**", () => {
+    /*
+      任意の回（「自分の文章でも試す？」から先）を分母に入れると、
+      9画面をやり切った人が「9 / 19」で終わることになり、
+      最後まで来たのに途中でやめたように見える。
+    */
+    const end = progressOf(REWRITE, "completion");
+
+    expect(end.current).toBe(end.total);
+  });
+
+  it("任意の回へ入った人には、そのぶんも数える", () => {
+    /*
+      入った以上は道のりの一部。隠すと今度は
+      「進んでいるのに増えない」になる。
+    */
+    const main = progressOf(REWRITE, "real_task_intro");
+    const inside = progressOf(REWRITE, "real_task");
+
+    expect(inside.total).toBeGreaterThan(main.total);
+    expect(inside.total).toBe(REWRITE.steps.length);
   });
 });
 

@@ -492,7 +492,16 @@ export function LessonRunner({
         hintNearButton={api.issue?.reason ?? null}
         error={api.error}
         secondary={
-          step.type === "real_task"
+          /*
+            主導線の終わり。ここから先は任意。
+
+            「自分の文章で試す」は続き、「次のレッスンへ」は
+            まとめの画面へ飛ぶ。**どちらも本当に終われる**
+            ——押した先が無いほうを置くと、任意にした意味が消える。
+          */
+          step.id === "real_task_intro"
+            ? { label: "次のレッスンへ", onClick: api.finishEarly }
+            : step.type === "real_task"
             ? { label: "今回はスキップする", onClick: api.skipRealTask }
             : step.type === "completion"
               ? // 同じレッスンをもう一度。身についたか確かめたい人の逃げ道

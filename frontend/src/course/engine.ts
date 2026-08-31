@@ -55,11 +55,60 @@ export function canGoBack(lesson: Lesson, currentId: string): boolean {
 }
 
 /** いま何番目か。1始まりで返す。進捗バーに使う。 */
+/**
+ * 主導線の外にある回。
+ *
+ * 「自分の文章でも試す？」（`real_task_intro`）で続きを選んだ人だけが
+ * 通る。通らなくてもレッスンは終わる——まとめの画面へ直接飛べる
+ * （`useCourseLesson` の `finishEarly`）。
+ *
+ * 教材データには印を持たせない。**並びから導く。** 印を持たせると
+ * 画面側とサーバー側の骨格の両方に書くことになり、片方だけ直した日に
+ * ずれる（`test_catalog_parity` が固定しているのはそこ）。
+ */
+function optionalRange(lesson: Lesson): { from: number; to: number } | null {
+  const branch = lesson.steps.findIndex((step) => step.id === "real_task_intro");
+  if (branch < 0) return null;
+  const end = lesson.steps.findIndex((step) => step.id === "completion");
+  return { from: branch, to: end < 0 ? lesson.steps.length : end };
+}
+
+/**
+ * 進み具合。**主導線だけで終えた人を「途中」に見せない。**
+ *
+ * 分母から任意の回を外す。外さないと、9画面をやり切った人が
+ * 「9 / 19」で終わることになり、**最後まで来たのに途中でやめた
+ * ように見える**。
+ *
+ * 任意の回へ入った人には、そのぶんも数える。入った以上は道のりの
+ * 一部で、隠すと今度は「進んでいるのに増えない」になる。
+ */
+/**
+ * 進み具合として数える回。
+ *
+ * **進み具合と区切りの帯は、同じ並びを見ること。** 別々に数えると、
+ * 「3歩目」と「試す 1 / 3」が食い違う（片方だけ任意の回を外すと、
+ * 実際にそうなった）。
+ */
+export function countedSteps(lesson: Lesson, currentId: string): LessonStep[] {
+  const optional = optionalRange(lesson);
+  if (optional === null) return lesson.steps;
+
+  const at = stepIndex(lesson, currentId);
+  const inside = at > optional.from && at < optional.to;
+  if (inside) return lesson.steps;
+
+  return lesson.steps.filter(
+    (_step, index) => index <= optional.from || index >= optional.to,
+  );
+}
+
 export function progressOf(lesson: Lesson, currentId: string) {
-  const index = stepIndex(lesson, currentId);
+  const counted = countedSteps(lesson, currentId);
+  const index = counted.findIndex((step) => step.id === currentId);
   return {
     current: Math.max(1, index + 1),
-    total: lesson.steps.length,
+    total: counted.length,
   };
 }
 

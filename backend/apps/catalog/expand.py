@@ -111,9 +111,16 @@ def _assemble(
     result = [drop_empty(step_row_to_dict(row)) for row in lead_in]
 
     for step in generated:
-        # 技を深める回は、「自分の文章」へ入る**前**に差し込む。
-        # 骨格側（shared.ts の deepenSteps）と同じ位置。
-        if step["id"] == "real_task_intro":
+        # 技を深める回は、「自分の文章でも試す？」の**あと**へ差し込む。
+        #
+        # 前はこの手前だった。そうすると深める回が主導線に入り、
+        # **全部通らないと終われない**。いまは「試す？」で分かれるので、
+        # あとに置けば、続けたい人だけが通る。
+        #
+        # 骨格側（shared.ts の deepenSteps）と同じ位置にすること。
+        # ずれると `test_catalog_parity` が落ちる——2か所に同じ骨格が
+        # あるので、片方だけ動かせない。
+        if step["id"] == "real_task":
             result.extend(drop_empty(step_row_to_dict(row)) for row in deepen)
 
         # あとに問いを挟むなら、「送る内容を見る」は嘘になる。

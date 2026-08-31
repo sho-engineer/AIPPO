@@ -34,6 +34,7 @@ import {
   buildAiInput,
   canGoBack,
   checkStep,
+  countedSteps,
   findStep,
   firstStepId,
   nextStepId,
@@ -123,6 +124,16 @@ export interface CourseLessonApi {
    */
   continueAnyway: () => void;
   skipRealTask: () => void;
+  /**
+   * 主導線を終えて、まとめの画面へ飛ぶ。
+   *
+   * 「自分の文章でも試す？」で「次のレッスンへ」を選んだ人の道。
+   * 1歩ずつ進む `skipRealTask` とは別で、**残りをまとめて飛ばす**。
+   *
+   * 飛ばした先でも完了として扱う。主導線だけで身につくように
+   * 組んであるので、ここで終わっても「途中でやめた」ではない。
+   */
+  finishEarly: () => void;
   /** 解説カードを飛ばす。飛ばしたことも記録する。 */
   skipConcept: () => void;
   complete: () => void;
@@ -732,6 +743,28 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     move(nextStepId(lesson, stepId));
   }, [lesson, move, step.id, stepId]);
 
+  /**
+   * 残りを飛ばして、まとめの画面へ。
+   *
+   * 「自分の文章でも試す？」で「次のレッスンへ」を選んだ人の道。
+   * **途中でやめたのではない**ので、飛ばしたことは記録するが、
+   * 完了はまとめの画面がふつうに扱う。
+   */
+  const finishEarly = useCallback(() => {
+    setRealTaskSkipped(true);
+    void sendLearningEvent({
+      lessonId: lesson.id,
+      eventType: "real_task_skipped",
+      step: step.id,
+    });
+    /*
+      行き先はまとめの画面。id で名指しする——歩数で数えると、
+      任意の回を1つ足した日にずれる。
+    */
+    const end = findStep(lesson, "completion");
+    move(end ? end.id : nextStepId(lesson, stepId));
+  }, [lesson, move, step.id, stepId]);
+
   const complete = useCallback(() => {
     markCompleted(lesson.id);
     /*
@@ -759,7 +792,17 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     runs,
     award,
     progress: progressOf(lesson, stepId),
-    missions: missionStateOf(lesson, progressOf(lesson, stepId).current - 1),
+    /*
+      区切りの帯も、進み具合と**同じ並び**で数える。
+
+      別々に数えると「3歩目」と「試す 1 / 3」が食い違う。主導線だけの
+      人には、通らない区切り（深める）を帯に出さない——出すと、
+      最後まで来ても点かない区切りが1つ残る。
+    */
+    missions: missionStateOf(
+      { ...lesson, steps: countedSteps(lesson, stepId) },
+      progressOf(lesson, stepId).current - 1,
+    ),
     summary: summaryOf(lesson, stepId, values),
     issue: checkStep(step, values),
     canBack: canGoBack(lesson, stepId),
@@ -779,6 +822,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     dismissFindings,
     continueAnyway,
     skipRealTask,
+    finishEarly,
     skipConcept,
     complete,
     restart,
