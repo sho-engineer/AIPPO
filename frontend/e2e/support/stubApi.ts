@@ -126,8 +126,14 @@ export async function stubApi(
           tutor: {
             message:
               options.failDetail ?? "もう一度おくってみましょう。",
-            emotion: options.failCode ? "celebrate" : "warning",
-            action: options.failCode ? "wait" : "retry",
+            /*
+              使い切ったのは失敗ではないので祝う顔。届かなかったのと
+              使えるものにならなかったのは、どちらも「困っている」側。
+            */
+            emotion:
+              options.failCode === "FREE_CREDITS_EXHAUSTED" ? "celebrate" : "warning",
+            action:
+              options.failCode === "FREE_CREDITS_EXHAUSTED" ? "wait" : "retry",
           },
         }),
       });

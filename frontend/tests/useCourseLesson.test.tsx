@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -311,14 +311,69 @@ describe("失敗しても続けられる", () => {
     await toQuickTry(user);
     await user.click(screen.getByTestId("primary-action"));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("うまく届かなかった");
+    /*
+      詰まったので、次にできることが並ぶ（`course/rescue.ts`）。
+      届かなかっただけなら、押し直しがその筆頭。
+    */
+    await screen.findByTestId("failure-rescue");
     expect(screen.getByTestId("po-avatar")).toHaveAttribute(
       "data-emotion",
       "warning",
     );
 
-    await user.click(screen.getByTestId("primary-action"));
+    await user.click(screen.getByTestId("rescue-retry"));
     await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+  });
+
+  it("行き止まりにしない（押せる道が必ずある）", async () => {
+    /*
+      前は「もう一度」1本だけだった。同じ頼み方ではまた同じになる
+      種類の失敗では、押し直しは道ではない——3回押して同じ画面を
+      見た人はそこでやめる。
+    */
+    const user = userEvent.setup();
+    const { AiRequestError } = await import("../src/api/ai");
+    generate = vi
+      .fn()
+      .mockRejectedValue(
+        new AiRequestError("うまく変わりませんでした。", "unusable"),
+      );
+
+    renderLesson();
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action"));
+
+    const rescue = await screen.findByTestId("failure-rescue");
+    const buttons = within(rescue).getAllByRole("button");
+    expect(buttons.length).toBeGreaterThan(0);
+    for (const button of buttons) expect(button).toBeEnabled();
+
+    // 押しても同じところへ戻るだけの道は出さない
+    expect(screen.queryByTestId("rescue-retry")).not.toBeInTheDocument();
+  });
+
+  it("学習者を評価する言葉を出さない", async () => {
+    /*
+      起きたのは AI の出力のばらつきで、書いた人のせいではない。
+      評価されたと感じた人は、次から自由入力を避けて例文だけを押す
+      ようになる——目的からいちばん遠いところへ行く。
+    */
+    const user = userEvent.setup();
+    const { AiRequestError } = await import("../src/api/ai");
+    generate = vi
+      .fn()
+      .mockRejectedValue(
+        new AiRequestError("うまく変わりませんでした。", "unusable"),
+      );
+
+    renderLesson();
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action"));
+
+    const rescue = await screen.findByTestId("failure-rescue");
+    for (const word of ["不正解", "失敗", "間違", "正しくありません"]) {
+      expect(rescue.textContent ?? "").not.toContain(word);
+    }
   });
 });
 
@@ -382,8 +437,15 @@ describe("今日の上限に達したとき", () => {
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
-  it("押し直せば直る失敗（limit以外）では、いつも通り送信中の画面が出る", async () => {
-    // 「上限だけを特別扱いする」の裏取り。他の失敗まで巻き込んでいない
+  it("押し直せば直る失敗を、『今日はここまで』と取り違えない", async () => {
+    /*
+      「上限だけを特別扱いする」の裏取り。他の失敗まで巻き込んで
+      いないこと。
+
+      届かなかっただけの人に「今日はここまで」と言うと、まだ1回も
+      使えていないのに今日が終わったことにされる。行き先は
+      詰まったときの画面のほうで、そこには押し直しが出る。
+    */
     const user = userEvent.setup();
     const { AiRequestError } = await import("../src/api/ai");
     generate = vi
@@ -394,9 +456,9 @@ describe("今日の上限に達したとき", () => {
     await toQuickTry(user);
     await user.click(screen.getByTestId("primary-action"));
 
-    expect(await screen.findByTestId("step-error")).toBeInTheDocument();
+    await screen.findByTestId("failure-rescue");
     expect(screen.queryByTestId("lesson-paused")).not.toBeInTheDocument();
-    expect(screen.getByTestId("primary-action")).toBeEnabled();
+    expect(screen.getByTestId("rescue-retry")).toBeEnabled();
   });
 });
 
@@ -547,11 +609,14 @@ describe("ポーの状態", () => {
     await toQuickTry(user);
     await user.click(screen.getByTestId("primary-action"));
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("うまく届かなかった");
+    const rescue = await screen.findByTestId("failure-rescue");
     expect(screen.getByTestId("po-avatar")).toHaveAttribute(
       "data-emotion",
       "warning",
     );
     expect(screen.queryByTestId("po-hero-message")).not.toBeInTheDocument();
+
+    // 失敗の文は1か所だけ。2か所にあると、2つ別のことが起きたと読める
+    expect(within(rescue).getAllByText(/うまく届かなかった/)).toHaveLength(1);
   });
 });

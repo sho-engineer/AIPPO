@@ -127,6 +127,17 @@ export interface FlowOptions {
   realTaskLabel: string;
   realTaskPlaceholder: string;
   /**
+   * 自分の文章の回で出すヒント。
+   *
+   * **答えを全部は言わない。** 次に試す条件を1つだけ示す。
+   * 「こう書けば正解」と渡すと、自分で条件を選ぶ練習にならない。
+   *
+   * 仕組み（`showHint` と「ヒントを見る」ボタン）は前からあったが、
+   * **どの教材もヒントを1つも持っていなかった**ので、ボタンごと
+   * 出ていなかった。詰まった人の逃げ道が、あるのに閉じていた。
+   */
+  realTaskHints?: string[];
+  /**
    * 自分の課題を書いた**あと**に聞くこと。
    *
    * 書いた文章そのものを見ないと答えられないことだけを置く。
@@ -311,6 +322,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       poEmotion: "hint",
       key: "real_task_text",
       placeholder: options.realTaskPlaceholder,
+      hints: options.realTaskHints,
       /*
         空のままでは進めない。
 

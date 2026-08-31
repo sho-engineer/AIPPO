@@ -12,8 +12,33 @@
 import type { StepValues } from "../course/types";
 
 const PREFIX = "aippo:draft:";
-/** 形が変わったら上げる。古い下書きを読み込んで壊れるのを防ぐ。 */
-const VERSION = 1;
+/**
+ * 形が変わったら上げる。古い下書きを読み込んで壊れるのを防ぐ。
+ *
+ * **上げるときは、古い形を読める道を必ず残すこと。** 版が違うだけで
+ * 捨てると、いま途中まで進めている人の続きがまるごと消える——
+ * 「レッスンを毎回最初からやり直させない」の正反対になる。
+ * 下の `migrate()` がその道。
+ */
+const VERSION = 2;
+
+/**
+ * AI の実行1回分。**続きから始めるために要る。**
+ *
+ * 前は覚えていなかった。ステップだけ戻すので、開き直した人は
+ * 「3つを比べる」の画面に着くのに**比べる中身が空**だった。
+ * 進み具合だけ残って、作ったものが消えている状態になる。
+ *
+ * `usage`（どのモデルを何トークン使ったか）は覚えない。続きを
+ * 始めるのに要らないし、端末に溜める理由も無い。
+ */
+export interface SavedRun {
+  sequence: number;
+  stepId: string;
+  label: string;
+  inputText: string;
+  outputText: string;
+}
 
 export interface Draft {
   version: number;
@@ -22,6 +47,8 @@ export interface Draft {
   values: StepValues;
   /** 自分の課題を飛ばしたか。飛ばしたことも記録する（要件 §6.10）。 */
   realTaskSkipped?: boolean;
+  /** AI が返したもの。無ければ空（古い下書きと、まだ送っていない回）。 */
+  runs?: SavedRun[];
   updatedAt: number;
 }
 
@@ -63,15 +90,32 @@ export function loadDraft(lessonId: string): Draft | null {
 
   try {
     const parsed = JSON.parse(raw) as Draft;
-    // 形が違うものは捨てる。読めない下書きで画面を壊さない
-    if (parsed.version !== VERSION || typeof parsed.stepId !== "string") {
-      return null;
-    }
+    // 読めない形のものは捨てる。壊れた下書きで画面を壊さない
+    if (typeof parsed.stepId !== "string") return null;
     if (typeof parsed.values !== "object" || parsed.values === null) return null;
-    return parsed;
+    return migrate(parsed);
   } catch {
     return null;
   }
+}
+
+/**
+ * 古い形の下書きを、いまの形として読む。
+ *
+ * **版が違うだけで捨てない。** 捨てると、いま途中まで進めている人の
+ * 続きがまるごと消える。中身が読めるなら読む。
+ *
+ *   版1 … `runs` を持っていない。空として読む。ステップと入力は
+ *          そのまま使えるので、続きからは始められる（比べる画面まで
+ *          戻っていた人だけ、中身が空になる）
+ *
+ * 知らない版が来たら捨てる。未来の形は読めないので、
+ * 読めたふりをすると壊れ方が読めなくなる。
+ */
+function migrate(draft: Draft): Draft | null {
+  if (draft.version === VERSION) return draft;
+  if (draft.version === 1) return { ...draft, version: VERSION, runs: [] };
+  return null;
 }
 
 export function clearDraft(lessonId: string): void {

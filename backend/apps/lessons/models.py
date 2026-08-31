@@ -126,6 +126,17 @@ class Attempt(models.Model):
     #: 失敗したときの種別（timeout / refused / malformed / provider_error）。
     #: 本文を残さない以上、あとから原因を追える手がかりはここだけ。
     error_kind = models.CharField(max_length=40, blank=True)
+    #: 学習として使えるものが返ってきたか（apps/ai/quality.py）。
+    #:
+    #: 空 = 一発で通った。値が入っている = **一度落ちた**——
+    #: `copy`（元の文章をそのまま返した）、`not_shorter`（短くならなかった）
+    #: など、どの検査で落ちたかの名前。
+    #:
+    #: 通ったかどうかは `status` が持つので、ここは「何が起きていたか」
+    #: 専用。作り直して通った回もこの名前が残る——**残さないと、
+    #: 直った回と最初から問題が無かった回を区別できず、
+    #: どれだけ救えているのかが分からなくなる。**
+    quality_kind = models.CharField(max_length=40, blank=True)
 
     # AI 利用料の記録（開発方針 §17）
     provider = models.CharField(max_length=40, blank=True)
@@ -196,6 +207,38 @@ class LearningEventType(models.TextChoices):
     GUEST_TEXT_LIMIT_REACHED = "guest_text_limit_reached"
     REGISTER_NOW_CLICKED = "register_now_clicked"
     WAIT_TOMORROW_CLICKED = "wait_tomorrow_clicked"
+
+    """
+    詰まった人を、どう救えたか。
+
+    見たいのは「何人登録したか」ではなく、**何人が最初の成功体験まで
+    行けたか**。そこへ行けなかった人が、どこで、どう詰まって、
+    何をして抜けたのか（あるいは抜けられなかったのか）を数える。
+
+    品質まわりの4つは**サーバーが送る**。判定しているのがサーバーなので、
+    画面からも送ると二重に数える。
+    """
+    GENERATION_QUALITY_FAILED = "generation_quality_failed"
+    INTERNAL_RETRY_STARTED = "internal_retry_started"
+    INTERNAL_RETRY_SUCCESS = "internal_retry_success"
+    FALLBACK_RESULT_USED = "fallback_result_used"
+    #: 詰まった人へ出した助け。押されたかどうかは別の名前で数える
+    INPUT_ASSIST_SHOWN = "input_assist_shown"
+    SAMPLE_FALLBACK_USED = "sample_fallback_used"
+    #: **いちばん重い1本。** レッスンの主要な成功体験を通ったか。
+    #: 最後の画面に着いたこと（`lesson_completed`）とは別に数える——
+    #: AIを一度も成功させずに最後まで押し進むことができてしまうので。
+    LEARNING_SUCCESS_REACHED = "learning_success_reached"
+    #: 続きから戻ってきた道のり
+    LESSON_RESUMED = "lesson_resumed"
+    RETURNED_NEXT_DAY = "returned_next_day"
+    NEXT_DAY_RESUME_CLICKED = "next_day_resume_clicked"
+    #: 次の1本へ渡せたか
+    NEXT_LESSON_PREVIEWED = "next_lesson_previewed"
+    NEXT_LESSON_STARTED = "next_lesson_started"
+    #: 覚えた技を、学習の外で使いに行ったか
+    PRACTICAL_REUSE_CLICKED = "practical_reuse_clicked"
+    ARTIFACT_REUSED = "artifact_reused"
     # 登録・ログインの入口で、どの道を押したか。
     # 押した先は外部（Google）や OS の画面なので、戻ってこなかった人は
     # この1件だけが記録に残る——どこで落ちたかは、ここでしか見えない

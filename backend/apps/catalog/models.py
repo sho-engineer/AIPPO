@@ -331,6 +331,14 @@ class Lesson(models.Model):
     )
     real_task_label = models.CharField(max_length=200, blank=True)
     real_task_placeholder = models.CharField(max_length=200, blank=True)
+    #: 自分の文章の回で出すヒント。順に1つずつ出す。
+    #:
+    #: **答えを全部は言わない。** 次に試す条件を1つだけ示す。
+    #: 「こう書けば正解」と渡すと、自分で条件を選ぶ練習にならない
+    #: ——それがこの教材で身に付けたいことそのもの。
+    #:
+    #: 空でよい。空なら「ヒントを見る」は出ない。
+    real_task_hints = models.JSONField(default=list, blank=True)
     takeaway = models.CharField(max_length=200, blank=True)
     next_suggestion = models.CharField(max_length=200, blank=True)
     fact_check = models.BooleanField(

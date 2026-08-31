@@ -34,7 +34,22 @@ import { recommendLessons, saveRecommendations } from "../course/recommend";
 import { saveProfile } from "../api/diagnosis";
 import { useCompletedLessons } from "../course/progress";
 import { useCourseLesson } from "../course/useCourseLesson";
+import { FailureRescue } from "../components/course/FailureRescue";
+import { rescuePaths, type RescuePath } from "../course/rescue";
+import { sendLearningEvent } from "../api/lesson";
 import type { Lesson } from "../course/types";
+
+/**
+ * この教材が持っている例文。
+ *
+ * 置き場は最初の回（`quick_try`）の `meta.sampleText`。詰まった人へ
+ * 渡すのも同じものにする——別に用意すると、画面によって違う文章が
+ * 出て「さっきのと違う」が起きる。
+ */
+function lessonSample(lesson: Lesson): string | undefined {
+  const first = lesson.steps.find((step) => step.type === "quick_try");
+  return (first?.meta as { sampleText?: string } | undefined)?.sampleText;
+}
 
 export interface LessonRunnerProps {
   lesson: Lesson;
@@ -323,6 +338,70 @@ export function LessonRunner({
     step.type === "ai_generate" &&
     (api.errorKind === "limit" || api.errorKind === "out_of_credits");
 
+  /*
+    詰まった。**行き止まりにしない。**
+
+    出るのは「もう一度」1本ではなく、押した先が本当にある道を並べる
+    （`course/rescue.ts` が決める）。出す条件は「AIを呼ぶ回で失敗した」
+    ——今日はここまで（上限）とは別で、あちらは別の画面が持つ。
+  */
+  const stuck =
+    step.type === "ai_generate" &&
+    !pausedForToday &&
+    (api.errorKind === "failed" || api.errorKind === "unusable");
+
+  /*
+    どこへ戻れば直せるか。
+
+    自由入力の回（自分の文章）まで戻る。無ければ、最初に条件を
+    選んだ回。**戻った先に必ず操作があること**が要で、無い回へ
+    戻すと、押した人はまた同じ画面へ進むしかない。
+  */
+  const editableStep =
+    [...lesson.steps]
+      .slice(0, lesson.steps.findIndex((entry) => entry.id === step.id) + 1)
+      .reverse()
+      .find((entry) => entry.type === "real_task" || entry.type === "text_input") ??
+    null;
+
+  const rescue = rescuePaths({
+    kind: api.errorKind ?? "failed",
+    step,
+    sampleText: lessonSample(lesson),
+    hintsLeft: (step.hints?.length ?? 0) - api.hintIndex,
+    editable: editableStep !== null,
+  });
+
+  const takeRescue = (path: RescuePath) => {
+    switch (path.id) {
+      case "retry":
+        void send();
+        return;
+      case "sample":
+        /*
+          例文を入れて、そのまま送る。**成功体験まで連れていく。**
+          欄へ入れるだけで止めると、詰まっている人はもう一度
+          「送る」を探すことになる。
+        */
+        void sendLearningEvent({
+          lessonId: lesson.id,
+          eventType: "sample_fallback_used",
+          step: step.id,
+        });
+        void api.useSample(lessonSample(lesson) ?? "").then((outcome) => {
+          if (outcome === "sent") api.goNext();
+        });
+        return;
+      case "adjust":
+        // 書き直せる回まで戻す。戻った先には前の文章が残っている
+        if (editableStep) api.goTo(editableStep.id);
+        return;
+      case "hint":
+        api.showHint();
+        return;
+    }
+  };
+
   return (
     <>
       {/*
@@ -369,6 +448,22 @@ export function LessonRunner({
           onResume={() => void send()}
           onExit={onExit}
         />
+      ) : stuck ? (
+        /*
+          詰まった。**「もう一度」1本で終わらせない。**
+
+          押した先が本当にある道だけを並べる。3回押して同じ画面を
+          見た人はそこでやめる——特に「同じ頼み方ではまた同じになる」
+          種類の失敗（`unusable`）では、押し直しは道ではない。
+        */
+        <div className="page">
+          <FailureRescue
+            kind={api.errorKind ?? "failed"}
+            paths={rescue}
+            onChoose={takeRescue}
+            po={api.po}
+          />
+        </div>
       ) : (
         <>
       <StepShell

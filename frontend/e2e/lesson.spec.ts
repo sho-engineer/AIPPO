@@ -200,14 +200,21 @@ test.describe("うまくいかないとき", () => {
     await openRewrite(page);
 
     for (let i = 0; i < 8; i++) {
-      if (await page.getByTestId("step-error").isVisible().catch(() => false)) break;
+      if (await page.getByTestId("failure-rescue").isVisible().catch(() => false)) break;
       if (!(await advance(page))) break;
       await page.waitForTimeout(150);
     }
 
-    await expect(page.getByTestId("step-error")).toBeVisible();
-    // 行き止まりにしない。もう一度押せる
-    await expect(page.getByTestId("primary-action").first()).toBeEnabled();
+    /*
+      行き止まりにしない。
+
+      前はここが「エラー文が出て、主ボタンがまだ押せる」だった。
+      それでも行き止まりではないが、出せる道は押し直し1本きり。
+      いまは次にできることが並ぶ（`components/course/FailureRescue.tsx`）
+      ——届かなかっただけなら、その筆頭が押し直し。
+    */
+    await expect(page.getByTestId("failure-rescue")).toBeVisible();
+    await expect(page.getByTestId("rescue-retry")).toBeEnabled();
   });
 });
 

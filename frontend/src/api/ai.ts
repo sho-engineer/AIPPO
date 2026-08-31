@@ -55,8 +55,23 @@ export interface AiGenerateParams {
 export class AiRequestError extends Error {
   /** 学習者へ見せる文。専門用語を含めない。 */
   readonly detail: string;
-  /** 上限に達したのか、通信が落ちたのか。画面の出し分けに使う。 */
-  readonly kind: "limit" | "duplicate" | "failed" | "out_of_credits";
+  /**
+   * どう駄目だったか。画面の出し分けに使う。
+   *
+   *   limit          … 全体が混み合っている。時間をおけば直る
+   *   out_of_credits … その人の分を使い切った。登録するか、明日
+   *   duplicate      … 同じ操作が二重に飛んだ
+   *   failed         … 届かなかった。**押し直せば直ることが多い**
+   *   unusable       … 届いたが、学習に使えるものにならなかった。
+   *                    **同じ頼み方ではまた同じになる**ので、
+   *                    押し直しではなく別の道を出す（course/rescue.ts）
+   */
+  readonly kind:
+    | "limit"
+    | "duplicate"
+    | "failed"
+    | "out_of_credits"
+    | "unusable";
 
   constructor(detail: string, kind: AiRequestError["kind"]) {
     super(detail);
@@ -136,6 +151,20 @@ export async function generate(
       }
       if (response.status === 409) {
         throw new AiRequestError(detailOf(payload), "duplicate");
+      }
+      /*
+        「届かなかった」と「届いたが使えるものにならなかった」を分ける。
+
+        前者は押し直せば直ることが多い。後者は**同じ頼み方では
+        たぶんまた同じになる**ので、押し直しを勧めると、3回押して
+        同じ画面を見た人がそこでやめる。画面は別の道を出す
+        （course/rescue.ts）。
+
+        サーバーは既に作り直しを1回試したうえで、それでも駄目な
+        ときにこれを返す（apps/ai/views.py の `_generate_usable`）。
+      */
+      if ((payload as { code?: string } | null)?.code === "AI_RESULT_UNUSABLE") {
+        throw new AiRequestError(detailOf(payload), "unusable");
       }
       throw new AiRequestError(detailOf(payload), "failed");
     }

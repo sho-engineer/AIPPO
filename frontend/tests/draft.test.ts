@@ -118,3 +118,93 @@ describe("変わったところ", () => {
     expect(() => diffSentences("", "書き直した文章。")).not.toThrow();
   });
 });
+
+describe("続きから始める", () => {
+  it("AIが返したものも覚えている", () => {
+    /*
+      前は覚えていなかった。ステップだけ戻すので、開き直した人は
+      「3つを比べる」の画面に着くのに**比べる中身が空**だった。
+      進み具合だけ残って、作ったものが消えている状態になる。
+    */
+    saveDraft({
+      lessonId: "rewrite_text",
+      stepId: "compare_results",
+      values: { audience: "上司" },
+      runs: [
+        {
+          sequence: 1,
+          stepId: "generate_first",
+          label: "1回目",
+          inputText: "元の文章",
+          outputText: "書き直した文章",
+        },
+      ],
+    });
+
+    const draft = loadDraft("rewrite_text");
+    expect(draft?.runs).toHaveLength(1);
+    expect(draft?.runs?.[0].outputText).toBe("書き直した文章");
+  });
+
+  it("**古い形の下書きを捨てない**", () => {
+    /*
+      版を上げたときに、いま途中まで進めている人の続きが
+      まるごと消えてはいけない。中身が読めるなら読む。
+
+      版1 は `runs` を持っていないので、そこだけ空にして残りは使う。
+      ここが壊れると「Lessonを毎回最初からやり直させる」になる。
+    */
+    window.localStorage.setItem(
+      "aippo:draft:rewrite_text",
+      JSON.stringify({
+        version: 1,
+        lessonId: "rewrite_text",
+        stepId: "add_condition",
+        values: { audience: "顧客" },
+        updatedAt: Date.now(),
+      }),
+    );
+
+    const draft = loadDraft("rewrite_text");
+    expect(draft?.stepId).toBe("add_condition");
+    expect(draft?.values.audience).toBe("顧客");
+    expect(draft?.runs).toEqual([]);
+  });
+
+  it("知らない版は捨てる", () => {
+    // 未来の形は読めない。読めたふりをすると壊れ方が読めなくなる
+    window.localStorage.setItem(
+      "aippo:draft:rewrite_text",
+      JSON.stringify({
+        version: 99,
+        lessonId: "rewrite_text",
+        stepId: "add_condition",
+        values: {},
+        updatedAt: Date.now(),
+      }),
+    );
+
+    expect(loadDraft("rewrite_text")).toBeNull();
+  });
+
+  it("終えたら消える（端末に溜め続けない）", () => {
+    // 共用の端末で、前の人の文章が残らないようにする
+    saveDraft({
+      lessonId: "rewrite_text",
+      stepId: "completion",
+      values: { real_task_text: "会社のお知らせ文" },
+      runs: [
+        {
+          sequence: 1,
+          stepId: "generate_real",
+          label: "自分の文章",
+          inputText: "会社のお知らせ文",
+          outputText: "書き直したお知らせ",
+        },
+      ],
+    });
+    clearDraft("rewrite_text");
+
+    expect(window.localStorage.getItem("aippo:draft:rewrite_text")).toBeNull();
+  });
+});

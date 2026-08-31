@@ -242,6 +242,11 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "poEmotion": "hint",
             "key": "real_task_text",
             "placeholder": options.get("realTaskPlaceholder", ""),
+            # 詰まった人へのヒント。**答えを全部は言わない**——次に試す
+            # 条件を1つだけ示す。仕組み（showHint と「ヒントを見る」）は
+            # 前からあったが、どの教材も1つも持っていなかったので、
+            # ボタンごと出ていなかった。逃げ道が、あるのに閉じていた
+            "hints": options.get("realTaskHints", []),
             # 空のままでは進めない。短いだけなら止めず提案にとどめる
             "required": True,
             "validationRules": {"suggestLength": 20, "maxLength": 5000},

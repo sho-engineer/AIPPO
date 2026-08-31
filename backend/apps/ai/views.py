@@ -29,11 +29,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.scope import device_key, readable_keys
+from apps.ai import quality
 from apps.ai.actions import Action, get_action
 from apps.ai.models_catalog import available_models
 from apps.ai.pricing import estimate_cost_usd
 from apps.ai.providers.base import (
     AIProviderError,
+    AIQualityError,
     AIRequest,
     AIResult,
     AITimeoutError,
@@ -233,8 +235,9 @@ class GenerateView(APIView):
         )
 
         try:
-            result = provider.generate_structured(ai_request, action.schema)
-            text = self._validate(action, result)
+            result, text, quality_kind = self._generate_usable(
+                provider, ai_request, action, values, session, data
+            )
         except (AIProviderError, AITimeoutError) as exc:
             # 成果を受け取っていないので、押さえた分は戻す
             if reservation is not None:
@@ -258,6 +261,8 @@ class GenerateView(APIView):
             conditions=self._conditions(action, values),
             generated_output=result.text or text,
             status=AttemptStatus.SUCCEEDED,
+            # 一発で通ったなら空。入っていれば「一度落ちて、直った」
+            quality_kind=quality_kind,
             provider=result.usage.provider,
             model_name=result.usage.model,
             token_usage={
@@ -485,6 +490,96 @@ class GenerateView(APIView):
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
 
+    def _generate_usable(
+        self,
+        provider,
+        ai_request: AIRequest,
+        action: Action,
+        values: dict,
+        session: LearningSession,
+        data: dict,
+    ) -> tuple[AIResult, str, str]:
+        """**使える結果**が返るまで作る。作り直しは1回だけ。
+
+        ここが「1回のUser Action」の中身。**呼び出し元は
+        `credits.reserve()` を既に1回だけ済ませていて、この中では
+        絶対に呼ばない**——だから内部で何回 provider を叩いても、
+        その人の持ち分は1つしか動かない。押した人から見て、
+        押した回数と減った数が一致する。
+
+        なぜ1回だけか
+        --------------
+        2回にすると、駄目な日は1アクションで3回叩くことになり、
+        費用が3倍になる。1回で戻らないものは、たいてい2回でも
+        戻らない——待たせるだけ長くなる。
+
+        直し方を添える
+        --------------
+        ただもう一度同じことを頼んでも、同じものが返る。**どこが
+        駄目だったかを、直し方の言葉で足して**から頼み直す。
+
+        戻り値の3つ目は、落ちた検査の名前。作り直して通ったときも
+        残す——**何が起きていたか**は、通ったかどうかとは別に要る
+        （Quality Failure Rate と Recovery Rate が、これで出る）。
+        """
+        result = provider.generate_structured(ai_request, action.schema)
+        text = self._validate(action, result)
+
+        verdict = quality.inspect(action.id, values, text)
+        if verdict.ok:
+            return result, text, ""
+
+        logger.info(
+            "ai.generate.quality_failed lesson=%s action=%s reason=%s",
+            data["lesson_id"],
+            action.id,
+            verdict.reason,
+        )
+        self._log_quality(session, data, LearningEventType.GENERATION_QUALITY_FAILED)
+        self._log_quality(session, data, LearningEventType.INTERNAL_RETRY_STARTED)
+
+        retried = provider.generate_structured(
+            AIRequest(
+                system_prompt=ai_request.system_prompt,
+                user_content=(
+                    f"{ai_request.user_content}\n\n"
+                    f"- 特に守ること: {quality.retry_hint(verdict.reason)}"
+                ),
+                model=ai_request.model,
+                timeout_seconds=ai_request.timeout_seconds,
+                max_output_tokens=ai_request.max_output_tokens,
+            ),
+            action.schema,
+        )
+        retried_text = self._validate(action, retried)
+
+        if quality.inspect(action.id, values, retried_text).ok:
+            self._log_quality(session, data, LearningEventType.INTERNAL_RETRY_SUCCESS)
+            return retried, retried_text, verdict.reason
+
+        """
+        作り直しても通らなかった。
+
+        **微妙な結果をそのまま見せない。** 見せると、学習者は
+        「AIとはこういうもの」と覚えて帰る。ここは失敗として扱い、
+        押さえた分は呼び出し元が戻す——**受け取っていないものに
+        課金しない**という約束のほうを守る。
+
+        行き止まりにはならない。画面が「別の方法で試す」を出す
+        （frontend の course/rescue.ts）。
+        """
+        raise AIQualityError(verdict.reason)
+
+    @staticmethod
+    def _log_quality(
+        session: LearningSession, data: dict, event_type: str
+    ) -> None:
+        session.events.create(
+            lesson_id=data["lesson_id"],
+            step=data["step_id"],
+            event_type=event_type,
+        )
+
     @staticmethod
     def _validate(action: Action, result: AIResult) -> str:
         """返ってきた中身を、こちら側でも確かめる。
@@ -548,6 +643,10 @@ class GenerateView(APIView):
                 else AttemptStatus.FAILED
             ),
             error_kind=kind,
+            # 品質で落ちた回は、どの検査だったかも残す。
+            # 「届かなかった」と「使えるものにならなかった」は別の問題で、
+            # 直し方も違う（前者は経路、後者は教材か指示）
+            quality_kind=getattr(exc, "reason", ""),
         )
         session.events.create(
             lesson_id=data["lesson_id"],
@@ -556,8 +655,33 @@ class GenerateView(APIView):
             input_length=self._body_length(action, values),
         )
 
-        # ここは AI の出力そのものが目的なので、固定文で代替できない。
-        # 画面は入力を保持したまま再実行させる。
+        """
+        ここは AI の出力そのものが目的なので、固定文で代替できない。
+        画面は入力を保持したまま再実行させる。
+
+        「届かなかった」と「使えるものにならなかった」を分ける。
+        前者は押し直せば直ることが多い。後者は**同じ頼み方では
+        たぶんまた同じになる**ので、画面は別の道（例文で試す・
+        頼み方を変える・ヒント）を出す（frontend の course/rescue.ts）。
+
+        **どちらの文も、利用者を評価しない。** 「入力が正しくありません」
+        とは書かない——起きたのは AI の出力のばらつきで、
+        書いた人のせいではない。
+        """
+        if kind == "quality":
+            return Response(
+                {
+                    "code": "AI_RESULT_UNUSABLE",
+                    "errors": {
+                        "detail": [
+                            "うまく変わりませんでした。別の頼み方で試してみましょう。"
+                        ]
+                    },
+                    "tutor": failure_tutor(),
+                },
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
         return Response(
             {
                 "errors": {"detail": ["うまく届かなかったようです。もう一度おくってみましょう。"]},
