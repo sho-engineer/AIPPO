@@ -36,6 +36,17 @@ export interface AiGenerateParams {
   stepId: string;
   action: string;
   input: StepValues;
+  /**
+   * この操作の名前。**同じ操作の送り直しは、同じ id で送る。**
+   *
+   * 連打、通信が切れたあとの再送、戻ってからの送り直し——どれも
+   * 「もう1回作ってほしい」ではないので、無料枠を二度減らさない。
+   * サーバーは同じ id を見たら、押さえ直さずに前の結果を返す。
+   *
+   * 逆に、**自分でもう一度押したときは新しい id** にする。
+   * そこは本当に「もう1回作る」なので、1回ぶん減ってよい。
+   */
+  requestId?: string;
   /** 将来のモデル比較コース用。通常の教材では指定しない。 */
   provider?: string;
   model?: string;
@@ -45,7 +56,7 @@ export class AiRequestError extends Error {
   /** 学習者へ見せる文。専門用語を含めない。 */
   readonly detail: string;
   /** 上限に達したのか、通信が落ちたのか。画面の出し分けに使う。 */
-  readonly kind: "limit" | "duplicate" | "failed";
+  readonly kind: "limit" | "duplicate" | "failed" | "out_of_credits";
 
   constructor(detail: string, kind: AiRequestError["kind"]) {
     super(detail);
@@ -89,6 +100,7 @@ export async function generate(
         step_id: params.stepId,
         action: params.action,
         input: params.input,
+        request_id: params.requestId ?? null,
         provider: params.provider ?? "",
         model: params.model ?? "",
       }),
@@ -97,6 +109,29 @@ export async function generate(
     if (!response.ok) {
       const payload = await response.json().catch(() => null);
       if (response.status === 429 || response.status === 503) {
+        /*
+          この2つの番号には、次にすることが違う3つが乗っている。
+          見分けはサーバーの `code` でする。文言で分けると、
+          文言を直した日に画面の出し分けが黙って壊れる。
+
+            FREE_CREDITS_EXHAUSTED … 自分の持ち分を使い切った。
+              押し直しても直らないので、「また明日」と「いま登録する」
+            AI_SERVICE_NOT_CONFIGURED … AI 側が止まっている。
+              **これは上限ではない。** 直ればまた使えるので「もう一度」
+            印なし … 全体が混み合っている。時間をおけば直る
+
+          真ん中を見落としていた。503 をまとめて「上限」にしていたので、
+          鍵が入っていない日や AI が落ちた日に、**何もしていない人へ
+          「今日の練習はここまで！」と出していた**——その人はまだ
+          1回も使えていない。実際に E2E の画面写しで見つかった。
+        */
+        const code = (payload as { code?: string } | null)?.code;
+        if (code === "FREE_CREDITS_EXHAUSTED") {
+          throw new AiRequestError(detailOf(payload), "out_of_credits");
+        }
+        if (code === "AI_SERVICE_NOT_CONFIGURED") {
+          throw new AiRequestError(detailOf(payload), "failed");
+        }
         throw new AiRequestError(detailOf(payload), "limit");
       }
       if (response.status === 409) {

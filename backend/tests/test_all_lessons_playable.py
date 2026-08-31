@@ -102,6 +102,16 @@ def _use_mock(settings):
     settings.AI_RUNS_PER_IP_PER_DAY = 0
     settings.AI_RUNS_PER_DAY = 0
     settings.AI_DAILY_REQUEST_LIMIT_GUEST = 0
+    """
+    無料の持ち分も外す。
+
+    ここで見たいのは「どの教材からでもアクションが通るか」であって、
+    1日に何回試せるかではない。11本を続けて通すので、登録前の10回では
+    途中で足りなくなる——**それは持ち分が正しく効いている証拠**で、
+    ここで落ちても教材の問題は見つからない。回数のほうは
+    `tests/test_ai_credits.py` が見張っている。
+    """
+    settings.GUEST_INITIAL_TEXT_ACTIONS = 1000
 
 
 def _lessons_for(action_id: str) -> tuple[str, ...]:

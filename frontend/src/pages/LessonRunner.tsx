@@ -310,10 +310,18 @@ export function LessonRunner({
   });
 
   /*
-    今日の実行上限に当たった。押し直せば直る失敗とは扱いを分ける
+    今日はここまで。押し直せば直る失敗とは扱いを分ける
     （`components/course/LessonPaused.tsx` 参照）。
+
+    止まり方は2つある。**その人の分**を使い切った（`out_of_credits`）のと、
+    サービス全体が今日の上限に達した（`limit`）の。画面の見た目は同じでも、
+    次にできることが違う——前者は登録すれば続けられ、後者は登録しても
+    増えない。取り違えると「登録したのに進めない」になるので、
+    どちらなのかを画面へ渡す。
   */
-  const pausedForToday = step.type === "ai_generate" && api.errorKind === "limit";
+  const pausedForToday =
+    step.type === "ai_generate" &&
+    (api.errorKind === "limit" || api.errorKind === "out_of_credits");
 
   return (
     <>
@@ -343,7 +351,24 @@ export function LessonRunner({
       <main className="min-h-screen">
 
       {pausedForToday ? (
-        <LessonPaused po={api.po} onExit={onExit} />
+        <LessonPaused
+          po={api.po}
+          lessonId={lesson.id}
+          canRegisterForMore={api.errorKind === "out_of_credits"}
+          /*
+            今日できるようになったこと。**通り終えた区切りだけ**を渡す。
+            いまいる区切りはまだ途中なので入れない。
+          */
+          done={api.missions.missions
+            .slice(0, Math.max(0, api.missions.current - 1))
+            .map((mission) => mission.label)}
+          /*
+            登録できたので、そのまま続きを送る。登録した人の文章は
+            持ち分ではなく登録済みの枠で数えるので、これで通る。
+          */
+          onResume={() => void send()}
+          onExit={onExit}
+        />
       ) : (
         <>
       <StepShell

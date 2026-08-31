@@ -58,7 +58,8 @@ from apps.accounts.serializers import (
 from apps.accounts.throttle import TooManyAttempts, cooldown_seconds
 from apps.accounts.throttle import clear as clear_attempts
 from apps.accounts.throttle import consume as consume_attempt
-from apps.lessons.models import LearningEvent, LearningEventType, LearningSession
+from apps.lessons.models import AiActionType, LearningEvent, LearningEventType, LearningSession
+from apps.lessons.services import credits
 from apps.lessons.services.quota import client_ip
 from apps.ops import audit
 
@@ -118,6 +119,36 @@ def _record_account_event(request: Request, event_type: str) -> None:
         )
     except Exception:  # noqa: BLE001 - 記録のために本筋を落とさない
         logger.warning("accounts.event.record_failed type=%s", event_type)
+
+
+
+def award_registration_bonus(request, learner_key) -> None:
+    """登録したときに1回だけ、無料枠を足す。
+
+    **登録の口からだけ呼ぶ。** ログインの口から呼ぶと、入り直すたびに
+    もらえてしまう。二度足さないのは一意制約が受け持つので、ここが
+    もし二度呼ばれても増えないが、呼ぶ場所は絞っておく。
+
+    足せなくても登録は成功させる。「登録できませんでした」と言われた人は
+    もう一度登録しようとして「そのメールアドレスは使われています」に
+    当たり、そこで詰む。
+    """
+    if learner_key is None:
+        return
+    try:
+        granted = credits.grant_registration_bonus(learner_key)
+    except Exception as exc:  # noqa: BLE001
+        logger.error("accounts.credit_bonus.failed error=%s", type(exc).__name__)
+        return
+
+    if granted.get(AiActionType.TEXT):
+        record_migration_event(
+            learner_key, LearningEventType.REGISTRATION_TEXT_BONUS_GRANTED
+        )
+    if granted.get(AiActionType.IMAGE_GENERATION):
+        record_migration_event(
+            learner_key, LearningEventType.REGISTRATION_IMAGE_BONUS_GRANTED
+        )
 
 
 class CsrfTokenView(APIView):
@@ -196,6 +227,8 @@ class SignUpView(APIView):
             return {"linked": False, "sessions": 0, "already_linked": False}
 
         record_migration_event(learner_key, MIGRATION_STARTED)
+        # 登録の特典。引き継ぎが失敗しても、こちらは足す
+        award_registration_bonus(None, learner_key)
         try:
             result = claim_guest_data(user, learner_key)
         except Exception as exc:  # noqa: BLE001
@@ -719,6 +752,8 @@ class SocialCallbackView(APIView):
                 logger.error("social.migration.failed error=%s", type(exc).__name__)
 
         if created:
+            # **新しく作られたときだけ。** 入り直しただけの人には足さない
+            award_registration_bonus(request, learner_key)
             emails.send_welcome(user)
 
         return redirect(_front_with_success(provider, created))

@@ -24,6 +24,15 @@ export interface StubOptions {
   /** 生成を失敗させる。回数を渡すと、その回だけ失敗する。 */
   failStatus?: number;
   failOnCall?: number;
+  /**
+   * 断りの種類を表す印。サーバーが返すのと同じ形で返す。
+   *
+   * `"FREE_CREDITS_EXHAUSTED"` を渡すと「無料で使える分を使い切った」。
+   * 画面はこれで「もう一度」ではなく「登録する／明日また続ける」を出す。
+   */
+  failCode?: string;
+  /** 断りの文。画面へそのまま出る。 */
+  failDetail?: string;
   /** ポーの発言。 */
   tutor?: Partial<TutorBody>;
   /**
@@ -107,13 +116,18 @@ export async function stubApi(
         status: options.failStatus as number,
         contentType: "application/json",
         body: JSON.stringify({
+          ...(options.failCode ? { code: options.failCode } : {}),
           errors: {
-            detail: ["うまく届かなかったようです。もう一度おくってみましょう。"],
+            detail: [
+              options.failDetail ??
+                "うまく届かなかったようです。もう一度おくってみましょう。",
+            ],
           },
           tutor: {
-            message: "もう一度おくってみましょう。",
-            emotion: "warning",
-            action: "retry",
+            message:
+              options.failDetail ?? "もう一度おくってみましょう。",
+            emotion: options.failCode ? "celebrate" : "warning",
+            action: options.failCode ? "wait" : "retry",
           },
         }),
       });

@@ -29,6 +29,7 @@ import {
   saveDraft,
 } from "../lib/draft";
 import { isBlocking, scanForSensitive, type PrivacyFinding } from "../lib/privacy";
+import { newRequestId } from "../lib/requestId";
 import {
   buildAiInput,
   canGoBack,
@@ -170,6 +171,18 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
   const inFlight = useRef(false);
   /** 追い越された古い返事を捨てるための世代番号。 */
   const generation = useRef(0);
+  /**
+   * いま送ろうとしている操作の合言葉（`lib/requestId.ts`）。
+   *
+   * 持ち続けるあいだが「ひとつの操作」。**成功したら捨てる**ので、
+   * そのあと同じ画面でもう一度押した人には、ちゃんと新しい結果が出る。
+   * 逆に、送ったのに返事が来なくて押し直した人には同じ合言葉が付き、
+   * サーバーは作り直さずに前の結果を返す（持ち分が2つ減らない）。
+   *
+   * `key` は「何を送ろうとしているか」。中身が変われば別の操作なので、
+   * 合言葉も引き直す。
+   */
+  const pendingRequest = useRef<{ key: string; id: string } | null>(null);
 
   const step = useMemo(
     () => findStep(lesson, stepId) ?? lesson.steps[0],
@@ -399,6 +412,22 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       generation.current += 1;
       const mine = generation.current;
 
+      /*
+        この送りの合言葉を決める。
+
+        送ろうとしている中身（どの回・どの頼み方・何の文章）が
+        さっきと同じなら、同じ操作の送り直しとみなして引き継ぐ。
+        違っていれば別の操作なので引き直す。
+
+        成功したら下で捨てる。捨てるからこそ、同じ内容でもう一度
+        押した人には**新しい結果**が返る。
+      */
+      const key = `${step.id}|${action}|${JSON.stringify(input)}`;
+      if (pendingRequest.current?.key !== key) {
+        pendingRequest.current = { key, id: newRequestId() };
+      }
+      const requestId = pendingRequest.current.id;
+
       setSubmitting(true);
       setError(null);
       setErrorKind(null);
@@ -415,11 +444,21 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
           stepId: step.id,
           action,
           input,
+          requestId,
           // 将来のモデル比較コース用。通常の教材では指定しない
           provider: step.aiAction?.provider,
           model: step.aiAction?.model,
         });
         if (mine !== generation.current) return "busy" as const;
+
+        /*
+          届いた。合言葉はここで捨てる。
+
+          持ったままにすると、同じ内容で押し直した人にサーバーが
+          前の結果を返してしまう——押しても何も変わらない画面になる。
+          「もう一度」は新しい操作。
+        */
+        pendingRequest.current = null;
 
         /*
           AIの返事が届いた。既定は無音で、入れた人にだけ短く1音。
@@ -463,14 +502,22 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
         // 入力は消さない。同じことをもう一度書かせない（要件 §6.8）
         setError(failure.detail);
         setErrorKind(failure.kind);
+        /*
+          「今日はここまで」と「うまく届かなかった」を分ける。
+
+          前者は押し直しても意味が無く、後者は押し直せば直ることが多い。
+          持ち分を使い切った（`out_of_credits`）のも、その日の上限に
+          当たった（`limit`）のも、次にすることは同じ——今日はここまで。
+        */
+        const done = failure.kind === "limit" || failure.kind === "out_of_credits";
         setPo({
           message: failure.detail,
           /*
             上限に達しただけなのに、押しても直らない「失敗」として
             出さない。ここまでよく練習した、という事実は変わらない。
           */
-          emotion: failure.kind === "limit" ? "celebrate" : "warning",
-          action: failure.kind === "limit" ? "wait" : "retry",
+          emotion: done ? "celebrate" : "warning",
+          action: done ? "wait" : "retry",
         });
         return "busy" as const;
       } finally {

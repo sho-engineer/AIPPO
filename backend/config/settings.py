@@ -509,6 +509,68 @@ AI_DAILY_REQUEST_LIMIT_USER = int(
 AI_DAILY_REQUEST_LIMIT_GUEST = int(
     os.getenv("AI_DAILY_REQUEST_LIMIT_GUEST", "10")
 )
+# --------------------------------------------------------------------------
+# 無料でAIを試せる回数
+# --------------------------------------------------------------------------
+#
+# 上の `AI_DAILY_REQUEST_LIMIT_*` とは**役割が違う**。
+#
+#     AI_DAILY_REQUEST_LIMIT_*   費用の安全弁。1日の合計を頭打ちにする
+#     ここの値                    その人の持ち分。使うと減り、付与で増える
+#
+# 混ぜない。安全弁は「サービスが壊れないこと」を守り、持ち分は
+# 「その人があと何回試せるか」を表す。前者に当たったときは
+# 「いま混み合っています」、後者は「今日はここまで」で、
+# 言うことも次にすることも別になる。
+#
+# 持ち分を数えるのは**登録前の人の文章**と、**画像（登録の有無を問わず）**。
+# 登録した人の文章は、これまでどおり `AI_DAILY_REQUEST_LIMIT_USER`
+# （1日50回）が上限になる——持ち分では数えない。登録したら
+# 「毎日たくさん試せる」に変わる、という線をそのまま残す。
+
+#: 登録前の人が、最初に持っている文章の回数。
+#:
+#: 毎日配られる分（下の FREE_DAILY_TEXT_ACTIONS）とは別の考え方で、
+#: **一度きりの持ち出し**。初日にレッスンを通せる量を渡して、
+#: 「試す前に登録させない」を成り立たせるためのもの。
+GUEST_INITIAL_TEXT_ACTIONS = int(os.getenv("GUEST_INITIAL_TEXT_ACTIONS", "10"))
+
+#: 登録したときに1回だけ足す文章の回数。
+#:
+#: 登録した瞬間から上限は1日50回になるので、ふだんは効かない。
+#: 効くのは**ログアウトして、また登録前として使うとき**——持ち分は
+#: learner_key に付いているので、そこで受け取れる。
+FREE_REGISTRATION_TEXT_BONUS = int(os.getenv("FREE_REGISTRATION_TEXT_BONUS", "3"))
+
+#: 登録前の人へ、日が変わるたびに足す文章の回数。
+FREE_DAILY_TEXT_ACTIONS = int(os.getenv("FREE_DAILY_TEXT_ACTIONS", "3"))
+
+#: 毎日足したぶんが貯まる上限。
+#:
+#: 上限を置くのは、しばらく来なかった人が大量に持って戻ってくるのを
+#: 防ぐため。**最初の持ち出し（10）はこの上限を超えて持てる**——
+#: あちらは別の考え方なので、ここで削らない。
+FREE_MAX_DAILY_TEXT_ACTIONS = int(os.getenv("FREE_MAX_DAILY_TEXT_ACTIONS", "6"))
+
+#: Day7 に初めて着いた人へ足す、画像を作れる回数。
+#: 同じ learner_key には二度足さない（AiCreditGrant の一意制約）。
+DAY7_FREE_IMAGE_GENERATIONS = int(os.getenv("DAY7_FREE_IMAGE_GENERATIONS", "1"))
+
+#: 登録したときに1回だけ足す、画像を作れる回数。
+FREE_REGISTRATION_IMAGE_BONUS = int(os.getenv("FREE_REGISTRATION_IMAGE_BONUS", "1"))
+
+#: Day8 に初めて着いた人へ足す、画像を直せる回数。
+DAY8_FREE_IMAGE_EDITS = int(os.getenv("DAY8_FREE_IMAGE_EDITS", "1"))
+
+#: 使われないまま残った予約を、これだけ経ったら解く（秒）。
+#:
+#: 予約したあとにプロセスが落ちると `RESERVED` の行が残り、その人の
+#: 持ち分が減ったままになる。掃除の常駐は置かない——読むたびに、
+#: 古い予約を解いてから数える。
+AI_CREDIT_RESERVATION_TTL_SECONDS = int(
+    os.getenv("AI_CREDIT_RESERVATION_TTL_SECONDS", "180")
+)
+
 # AI へ送ってよい本文の長さ。長いほど費用も待ち時間も増える
 AI_MAX_INPUT_CHARACTERS = int(os.getenv("AI_MAX_INPUT_CHARACTERS", "5000"))
 

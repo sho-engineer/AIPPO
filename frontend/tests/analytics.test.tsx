@@ -74,6 +74,9 @@ describe("名前の置き場", () => {
       "returned_to_lesson",
       "passkey_registration_failed",
       "password_reset_requested",
+      // 無料で使える分を使い切ったあと、その場で選んだ道
+      "register_now_clicked",
+      "wait_tomorrow_clicked",
       "mission_completed",
       "artifact_saved",
       "skill_dictionary_opened",
@@ -91,6 +94,11 @@ describe("名前の置き場", () => {
     expect(names).not.toContain("xp_earned");
     expect(names).not.toContain("course_checkpoint_completed");
     expect(names).not.toContain("password_reset_sent");
+    /*
+      断ったのはサーバー（apps/ai/views.py の `_out_of_credits`）で、
+      そこで既に記録している。画面からも送ると二重に数える。
+    */
+    expect(names).not.toContain("guest_text_limit_reached");
   });
 });
 

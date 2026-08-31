@@ -50,6 +50,20 @@ export const EVENTS = {
   returnedToLesson: "returned_to_lesson",
   passkeyRegistrationFailed: "passkey_registration_failed",
   passwordResetRequested: "password_reset_requested",
+  /*
+    無料で使える分を使い切ったあと、その場で選んだ道。
+
+    見たいのは「使い切った人のうち、何人が登録まで進み、何人が
+    また明日を選んだか」。どちらも**行き止まりではない**のが
+    この画面の狙いなので、両方を数える。
+
+    使い切ったこと自体（`guest_text_limit_reached`）はここから
+    送らない。断ったのはサーバーなので、サーバーが記録している
+    （apps/ai/views.py の `_out_of_credits`）。こちらからも送ると
+    二重に数える。
+  */
+  registerNowClicked: "register_now_clicked",
+  waitTomorrowClicked: "wait_tomorrow_clicked",
   missionCompleted: "mission_completed",
   artifactSaved: "artifact_saved",
   skillDictionaryOpened: "skill_dictionary_opened",
