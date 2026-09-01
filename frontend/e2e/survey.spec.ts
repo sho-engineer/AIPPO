@@ -17,6 +17,7 @@
 
 import { expect, test, type Page, type Locator } from "@playwright/test";
 
+import { dismissDayComplete } from "./support/dismissDayComplete";
 import { stubApi, type StubHandle } from "./support/stubApi";
 
 /**
@@ -69,6 +70,8 @@ async function runToCompletion(page: Page): Promise<void> {
   }
 
   await expect(page.getByTestId("completion-view")).toBeVisible();
+  // 初回は「Day1 終了！」が上に重なる。閉じないとアンケートを触れない
+  await dismissDayComplete(page);
 }
 
 test.describe("完了時のアンケート", () => {

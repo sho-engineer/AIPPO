@@ -9,6 +9,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissDayComplete } from "./support/dismissDayComplete";
 
 /**
  * 進めない状態か。
@@ -55,6 +56,8 @@ async function finishALesson(page: Page): Promise<void> {
   }
 
   await expect(page.getByTestId("completion-view")).toBeVisible();
+  // 初回は「Day1 終了！」が上に重なる。閉じないと下のボタンを押せない
+  await dismissDayComplete(page);
 }
 
 test.describe("作ったものを取っておく", () => {

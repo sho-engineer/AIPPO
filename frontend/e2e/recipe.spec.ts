@@ -20,6 +20,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissDayComplete } from "./support/dismissDayComplete";
 
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
 
@@ -37,7 +38,14 @@ async function openRewriteLesson(page: Page): Promise<void> {
 /** 完了画面まで、機械的に押し進める。 */
 async function runToCompletion(page: Page): Promise<void> {
   for (let i = 0; i < 40; i += 1) {
-    if (await page.getByTestId("completion-view").isVisible().catch(() => false)) return;
+    /*
+      完了画面に着いた。**ここで抜けずに break する。**
+
+      前は return していたので、関数の末尾に置いた「重ね画面を
+      閉じる」を素通りしていた。初回は「Day1 終了！」が上に重なる
+      ので、下のボタンを押す検査が24件まとめて時間切れになった。
+    */
+    if (await page.getByTestId("completion-view").isVisible().catch(() => false)) break;
 
     const primary = page.getByTestId("primary-action").first();
     if (!(await primary.isVisible().catch(() => false))) break;
@@ -64,6 +72,8 @@ async function runToCompletion(page: Page): Promise<void> {
     await page.waitForTimeout(150);
   }
   await expect(page.getByTestId("completion-view")).toBeVisible();
+  // 初回は「Day1 終了！」が上に重なる。閉じないと下のボタンを押せない
+  await dismissDayComplete(page);
 }
 
 test.describe("やり方のくわしい説明", () => {
