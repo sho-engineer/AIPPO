@@ -130,14 +130,37 @@ await scan("レッスン 観察");
 const primary = p.getByTestId("primary-action").first();
 const seen = new Set();
 for (let i = 0; i < 30; i++) {
-  const text = await p.locator("body").innerText();
-  if (text.includes("条件を一つ足して") && !seen.has("cond")) {
-    seen.add("cond"); await scan("レッスン 条件を足す");
+  /*
+    完了画面に着いたか。**文字ではなく目印で見る。**
+
+    ここは「スキルを身につけました」という文で探していた。その文は
+    成果物ファーストへ作り直したときに消えていて、以来ずっと
+    見つからないまま——完了画面は**一度も検査されていなかった**
+    （それでも「違反なし」と出るので、気づけない）。
+  */
+  if (await p.getByTestId("completion-view").count()) {
+    await scan("レッスン 完了");
+    break;
   }
-  if (text.includes("変わり方を見比べる") && !seen.has("cmp")) {
-    seen.add("cmp"); await scan("レッスン 3つを比べる");
+
+  /*
+    通った画面は、ぜんぶ調べる。
+
+    前はここに「この文が出たら調べる」を2つ置いていた
+    （「条件を一つ足して」「変わり方を見比べる」）。どちらの文も
+    いまは画面に無く、**2画面とも検査されていなかった**。
+    教材の文言は変わるものなので、文言に頼るのをやめる。
+
+    名前はその回の見出し（`PoHero` の h1）から取る。落ちたときに
+    どの画面か分かればよく、見出しが変わっても検査は止まらない。
+  */
+  const title = (
+    await p.locator("main h1").first().innerText().catch(() => "")
+  ).trim();
+  if (title && !seen.has(title)) {
+    seen.add(title);
+    await scan(`レッスン ${title}`);
   }
-  if (text.includes("スキルを身につけました")) { await scan("レッスン 完了"); break; }
 
   try { await primary.waitFor({ state: "visible", timeout: 8000 }); } catch { break; }
   const blocked = async () =>
@@ -157,6 +180,19 @@ for (let i = 0; i < 30; i++) {
   if (await blocked()) break;
   await primary.click();
   await p.waitForTimeout(800);
+}
+
+/*
+  Day 完了は、完了画面の「完了する」を押した先。
+
+  ほかの画面と作りが違う——面が広く、薄い地色の上に細い線を引く
+  ところがある（進み具合）。対比はここでも別に見ておく。
+*/
+if (await p.getByTestId("completion-view").count()) {
+  await p.getByTestId("primary-action").first().click();
+  // 段取り（0.8秒）が終わって、全部出そろってから測る
+  await p.waitForTimeout(1400);
+  await scan("Day 完了");
 }
 
 await b.close();
