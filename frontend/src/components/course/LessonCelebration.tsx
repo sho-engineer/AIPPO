@@ -25,7 +25,13 @@ import { playSuccessSound } from "../../course/sound";
 /** 紙の数。少ないほうが品よく収まる。 */
 const PIECES = 12;
 
-/** 出ている時間。仕様どおり 500〜800ms の範囲に収める。 */
+/**
+ * 出ている時間。仕様どおり 500〜800ms の範囲に収める。
+ *
+ * 秒数そのものは `animate-confetti`（tailwind.config.js）が持つ。
+ * ここは**片付けの時計**で、散り終わった紙を DOM から外すためのもの。
+ * 2つは同じ長さにしておくこと。
+ */
 const DURATION_MS = 800;
 
 /** 決め打ちの散り方。乱数だと、毎回違う出方になって落ち着かない。 */
@@ -60,11 +66,11 @@ export function LessonCelebration() {
       {SPREAD.slice(0, PIECES).map((offset, index) => (
         <span
           key={offset}
-          className="absolute left-1/2 top-4 block h-1.5 w-1.5 rounded-[1px] bg-brand"
+          className="animate-confetti absolute left-1/2 top-4 block h-1.5 w-1.5
+                     rounded-[1px] bg-brand"
           style={{
             // 色は2色だけ。増やすと子ども向けの画面に見える
             backgroundColor: index % 3 === 0 ? "var(--joy, #f0b429)" : undefined,
-            animation: `confetti ${DURATION_MS}ms ease-out forwards`,
             animationDelay: `${index * 18}ms`,
             // 散る向きは1片ずつ決めておく
             ["--confetti-x" as string]: `${offset * 3}px`,

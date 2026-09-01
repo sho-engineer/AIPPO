@@ -329,6 +329,20 @@ export default {
         "slide-in": "slide-in 0.22s ease-out both",
         "fade-up": "fade-up 0.28s ease-out both",
         "choice-pop": "choice-pop 0.24s ease-out",
+        /*
+          紙吹雪。**この行が要る。**
+
+          `keyframes` に書いただけでは、Tailwind は `@keyframes confetti`
+          を出力しない——どのユーティリティからも使われていない定義は
+          捨てられる。紙を出していた2か所（完了画面・Day完了）は
+          `style={{ animation: "confetti ..." }}` と素で書いていたので、
+          **定義そのものが CSS に存在せず**、紙は散らずに出た場所へ
+          固まったままだった。画面を見て初めて気づいた。
+
+          使う側は `animate-confetti` を付ける。1片ずつの遅れと向きは
+          `animationDelay` と `--confetti-x` で渡す。
+        */
+        confetti: "confetti 800ms ease-out forwards",
       },
     },
   },
