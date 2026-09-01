@@ -52,7 +52,7 @@ from apps.lessons.models import (
     LearningEventType,
     LearningSession,
 )
-from apps.lessons.services import credits
+from apps.lessons.services import credits, localtime
 from apps.lessons.services.quota import (
     QuotaExceeded,
     consume_ai_run,
@@ -198,7 +198,9 @@ class GenerateView(APIView):
         if learner_key is not None and self._counts_against_credits(
             request, credit_type
         ):
-            credits.ensure_ready(learner_key)
+            # request を渡す。その人の暦（毎日のぶんを配る境目）を、
+            # 配る直前に、いちばん新しい手がかりで確かめるため
+            credits.ensure_ready(learner_key, request)
             # そのレッスンで渡すものがあれば、ここで渡す。
             # 二度は渡らない（AiCreditGrant の一意制約）
             credits.grant_for_lesson(learner_key, data["lesson_id"])
@@ -481,11 +483,23 @@ class GenerateView(APIView):
             event_type=LearningEventType.GUEST_TEXT_LIMIT_REACHED,
         )
         message = "今日はここまで！　また明日、続きから試してみましょう。"
+        """
+        次に配られる時刻を、UTC の一点として添える。
+
+        「あと n 時間」とは書かない。**その人の 00:00** で切っているので、
+        時間で言うと、時計を見て計算し直さないと分からない。
+        画面側が受け取った時刻を、その端末の暦で書けばよい。
+
+        残りの数は返さない（ここは 0 と決まっている）。
+        """
         return Response(
             {
                 "code": "FREE_CREDITS_EXHAUSTED",
                 "errors": {"detail": [message]},
                 "tutor": limit_tutor(message),
+                "resets_at": localtime.local_midnight_utc(
+                    device_key(request)
+                ).isoformat(),
             },
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )

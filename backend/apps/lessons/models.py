@@ -709,3 +709,69 @@ class SavedArtifact(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+
+class TimezoneSource(models.TextChoices):
+    """どこから分かったか。**優先順位そのもの**（上ほど強い）。
+
+    弱い出どころが、強い出どころを上書きしないための札。
+    たとえば Cloudflare の国から推した席が、本人のブラウザが
+    言った席を押しのけると、旅行中に席が毎日入れ替わる。
+    """
+
+    BROWSER = "browser", "ブラウザが言ってきた"
+    GEO = "geo", "接続元から推した"
+    DEFAULT = "default", "既定（Asia/Tokyo）"
+
+
+class LearnerTimezone(models.Model):
+    """その人が住んでいる暦。**毎日のぶんを配る境目を決める。**
+
+    なぜ要るか
+    ----------
+    毎日のぶんは「最後に使ってから24時間後」ではなく、
+    **その人の 00:00** に配る。サーバーの時計（Asia/Tokyo）で切ると、
+    クアラルンプールの人は毎日 23:00 に日が変わることになる。
+    夜に少しだけ触る人は、1日ぶんを丸ごと落とす。
+
+    保存するのは席の名前だけ
+    ------------------------
+    ずれの分数（+09:00）ではなく IANA の名前（Asia/Tokyo）を持つ。
+    夏時間のある地域では、ずれが年に2回変わる。名前で持てば、
+    変換のたびに正しいずれが選ばれる。
+
+    DBの時刻はぜんぶ UTC のまま
+    ---------------------------
+    ここは**判定のときだけ**使う。保存する時刻の意味を地域ごとに
+    変えると、あとから集計できなくなる。
+
+    毎回は推し直さない
+    ------------------
+    一度決めたら、**より強い出どころが来たときだけ**入れ替える
+    （`TimezoneSource` の順）。要求のたびに接続元から推し直すと、
+    VPN を切り替えるだけで席が動く。席が動くと日付が動き、
+    日付が動くと毎日のぶんがもう一度配られる。
+    """
+
+    learner_key = models.UUIDField(unique=True)
+    #: IANA の名前（Asia/Tokyo）。ずれの分数では持たない
+    name = models.CharField(max_length=64)
+    source = models.CharField(max_length=10, choices=TimezoneSource.choices)
+    """最後に毎日のぶんを配った、その人の暦の日付。
+
+    **戻らない**ための控え。席が西へ動くと、その人の「今日」は
+    昨日へ戻りうる（東京の 9/1 朝は、ホノルルではまだ 8/31）。
+    戻ったところで配ると、`(鍵, 種類, daily, 日付)` の鍵が変わるので、
+    同じ1日に2回配られてしまう。ここより前の日付では配らない。
+    """
+    last_daily_date = models.DateField(null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "学習者のタイムゾーン"
+        verbose_name_plural = "学習者のタイムゾーン"
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.source})"

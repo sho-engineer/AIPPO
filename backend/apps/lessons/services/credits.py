@@ -57,6 +57,7 @@ from apps.lessons.models import (
     AiCreditLedger,
     AiCreditStatus,
 )
+from apps.lessons.services import localtime
 
 logger = logging.getLogger(__name__)
 
@@ -157,13 +158,23 @@ def grant_daily(learner_key: uuid.UUID) -> bool:
     最初の持ち出し（10）は上限を超えて持てる。あちらは別の考え方で、
     ここで削ると初日の途中で急に減ることになる——だから
     **「上限より少ないときだけ、上限まで」**足す。
+
+    「日が変わった」は誰の時計か
+    ----------------------------
+    **その人の暦**（`localtime.local_date_for`）。サーバーの時計では
+    ない。前は `timezone.localdate()`（＝ Asia/Tokyo）で切っていたので、
+    クアラルンプールの人は毎日 23:00 に日が変わっていた。
+    夜に少しだけ触る人は、1日ぶんを丸ごと落とす。
+
+    「最後に使ってから24時間後」でもない。00:00 で切るからこそ、
+    「明日また来てください」と言える。
     """
     limit = settings.FREE_MAX_DAILY_TEXT_ACTIONS
     amount = settings.FREE_DAILY_TEXT_ACTIONS
     if amount <= 0:
         return False
 
-    today = timezone.localdate()
+    today = localtime.local_date_for(learner_key)
     balance = AiCreditBalance.objects.filter(
         learner_key=learner_key, action_type=AiActionType.TEXT
     ).first()
@@ -184,15 +195,28 @@ def grant_daily(learner_key: uuid.UUID) -> bool:
             0,
             on_date=today,
         )
+        localtime.mark_daily_granted(learner_key, today)
         return False
 
-    return _grant(
+    granted = _grant(
         learner_key,
         AiActionType.TEXT,
         AiCreditGrantReason.DAILY,
         min(amount, limit - have),
         on_date=today,
     )
+    """
+    配った日付を控える。**席が動いても、この日より前へは戻らない。**
+
+    控えないと、東京で 9/1 を受け取った人がホノルルへ飛んだ瞬間、
+    その人の今日は 8/31 になり、鍵が変わってもう一度配られる
+    （`localtime.local_date_for` の説明）。
+
+    配れなかった回（すでにその日のぶんがある）でも控える。境目は
+    「配ったか」ではなく「その日まで進んだか」なので、同じでよい。
+    """
+    localtime.mark_daily_granted(learner_key, today)
+    return granted
 
 
 def grant_registration_bonus(learner_key: uuid.UUID) -> dict[str, bool]:
@@ -250,16 +274,28 @@ def grant_for_lesson(learner_key: uuid.UUID, lesson_id: str) -> bool:
     )
 
 
-def ensure_ready(learner_key: uuid.UUID) -> None:
+def ensure_ready(learner_key: uuid.UUID, request=None) -> None:
     """使う前に、配るべきものを配っておく。
 
     最初の持ち出しと、その日のぶん。どちらも二度は配られない。
 
     移行で全員へ先に配らないのは、まだ来ていない人のぶんまで行を
     作ることになるため。**来た人に、来たときに配る。**
+
+    暦を覚えるのもここ
+    ------------------
+    その人の席（タイムゾーン）を保存するのは、**この直前だけ**。
+    middleware で毎要求書くと、教材を1枚読むだけの要求にも書き込みが
+    増える。席が要るのは「今日はいつか」を決める一瞬なので、
+    決める直前に、いちばん新しい手がかりで確かめる。
+
+    `request` を渡さない呼び方（テストや管理コマンド）では、
+    すでに覚えている席——無ければ既定——をそのまま使う。
     """
     if learner_key is None:
         return
+    if request is not None:
+        localtime.remember(learner_key, request)
     grant_guest_initial(learner_key)
     grant_daily(learner_key)
 

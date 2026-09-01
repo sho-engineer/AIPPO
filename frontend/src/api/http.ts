@@ -22,6 +22,45 @@ import { apiBaseUrl } from "./config";
 const CSRF_COOKIE = "csrftoken";
 const CSRF_HEADER = "X-CSRFToken";
 
+/** その端末の暦を運ぶヘッダ。 */
+const TIMEZONE_HEADER = "X-AIPPO-Timezone";
+
+/**
+ * この端末が置かれている暦（Asia/Tokyo、Asia/Kuala_Lumpur …）。
+ *
+ * 何に使われるか
+ * --------------
+ * 毎日の無料ぶんを配る境目。サーバーは「最後に使ってから24時間後」
+ * ではなく、**その人の 00:00** で配る。サーバーの時計で切ると、
+ * クアラルンプールの人は毎日 23:00 に日が変わることになり、
+ * 夜に少しだけ触る人は1日ぶんを丸ごと落とす。
+ *
+ * ずれの分数（+09:00）ではなく名前を送る
+ * --------------------------------------
+ * 夏時間のある地域では、ずれが年に2回変わる。名前なら、
+ * 変換のたびに正しいずれが選ばれる。
+ *
+ * 毎回送ってよい
+ * --------------
+ * サーバーは**保存済みのものを優先**するので、毎回送っても席は
+ * 動き回らない（`apps/lessons/services/localtime.py`）。
+ * ここで送らないと、接続元から推すしかなくなる——VPN を通している
+ * 人は、住んでいる場所と違う暦で数えられる。
+ *
+ * 読めないことがある
+ * ------------------
+ * ごく古い環境では `Intl` が無い。そのときは何も送らない
+ * （サーバーが接続元から推す。最後は既定の Asia/Tokyo）。
+ */
+function timezoneHeader(): Record<string, string> {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return zone ? { [TIMEZONE_HEADER]: zone } : {};
+  } catch {
+    return {};
+  }
+}
+
 /** ブラウザの Cookie から1つ取り出す。無ければ空文字。 */
 function readCookie(name: string): string {
   if (typeof document === "undefined") return "";
@@ -58,6 +97,15 @@ export async function writeHeaders(
   const token = await ensureCsrfToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    /*
+      暦もここへ入れる。**`request()` を通らない道があるため。**
+
+      AIを呼ぶところ（api/ai.ts）は、返ってきた本文を自前で読み分ける
+      都合で `fetch` を直に叩いていて、ヘッダはこの関数からしか
+      受け取らない。ここに入れておかないと、**いちばん暦が要る道
+      （毎日のぶんを配るかどうかを決める道）だけ落ちる**。
+    */
+    ...timezoneHeader(),
     ...extra,
   };
   if (token) headers[CSRF_HEADER] = token;
@@ -156,6 +204,14 @@ async function request<T>(
     response = await fetch(`${apiBaseUrl()}${path}`, {
       credentials: "include",
       ...init,
+      /*
+        暦の名前を必ず添える。**読むだけの要求にも付ける。**
+
+        init を展開したあとに置く。前に置くと、書き込みが
+        `writeHeaders()` で組んだ headers に丸ごと差し替えられて、
+        暦が落ちる（CSRF の合言葉も同じ場所にある）。
+      */
+      headers: { ...(init.headers as Record<string, string>), ...timezoneHeader() },
     });
   } catch {
     // 通信自体が届かなかった。CORS の漏れでもここに来る
