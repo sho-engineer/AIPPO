@@ -175,8 +175,9 @@ describe("設定画面", () => {
       </AuthProvider>,
     );
     await act(async () => {});
-    // 一覧の行は名前だけ（説明は添えない）。行の名前で開く
-    await userEvent.setup().click(screen.getByRole("button", { name: /^音$/ }));
+    // 一覧の行は名前だけ（説明は添えない）。行の名前で開く。
+    // 「音」→「効果音」に広げた（押した音・選んだ音も鳴るようになったので）
+    await userEvent.setup().click(screen.getByRole("button", { name: /^効果音$/ }));
   };
 
   it("つまみを入れると、端末に残る", async () => {
@@ -280,18 +281,110 @@ describe("鳴らす場面", () => {
   });
 
   it("切っていれば、どの場面でも鳴らない", async () => {
-    const { playSuccessSound, resetAudioForTest } = await import(
-      "../src/course/sound"
-    );
+    const { playSound, resetAudioForTest } = await import("../src/course/sound");
     resetAudioForTest();
     window.localStorage.clear();
 
     const played = stubAudio();
 
-    for (const cue of ["step", "result", "skill", "complete", "milestone"] as const) {
-      playSuccessSound(cue);
+    for (const cue of [
+      "tap",
+      "choice",
+      "step",
+      "result",
+      "skill",
+      "complete",
+      "milestone",
+      "day",
+    ] as const) {
+      playSound(cue);
     }
 
+    expect(played).toHaveLength(0);
+  });
+
+  it("押した音は、いちばん短い", async () => {
+    /*
+      `tap` は**すべての主要ボタンで鳴る**ので、いちばん耳につきやすい。
+      1音・60ms に留める。ここが伸びると、画面を触るたびの音になる。
+    */
+    const { previewSuccessSound, resetAudioForTest } = await import(
+      "../src/course/sound"
+    );
+    resetAudioForTest();
+    const played = stubAudio();
+
+    previewSuccessSound("tap");
+    expect(played).toHaveLength(1);
+  });
+
+  it("Day を終えた音が、いちばん豊か", async () => {
+    /*
+      1本終えた `complete` と同じ音だと、Day の区切りがただの
+      レッスン完了と同じ重さに聞こえる。
+    */
+    const { previewSuccessSound, resetAudioForTest } = await import(
+      "../src/course/sound"
+    );
+    resetAudioForTest();
+    const played = stubAudio();
+
+    previewSuccessSound("complete");
+    const complete = played.length;
+    played.length = 0;
+
+    previewSuccessSound("day");
+    expect(played.length).toBeGreaterThan(complete);
+  });
+});
+
+describe("音は上乗せであって、必須ではない", () => {
+  /*
+    自動再生の制限、iOS の物理サイレントスイッチ、設定で切っている人。
+    どれでも学習は最後まで通る。**音だけが手がかりになる場面を作らない。**
+  */
+  it("押した音が鳴らせなくても、押した先へ進む", async () => {
+    const { PrimaryButton } = await import(
+      "../src/components/aippo/PrimaryButton"
+    );
+    // 音の箱が作れない環境
+    vi.stubGlobal(
+      "AudioContext",
+      class {
+        constructor() {
+          throw new Error("not allowed");
+        }
+      },
+    );
+    saveSettings({ ...DEFAULT_SETTINGS, successSound: true });
+
+    const onClick = vi.fn();
+    render(<PrimaryButton onClick={onClick}>次へ</PrimaryButton>);
+    await userEvent.setup().click(screen.getByRole("button", { name: "次へ" }));
+
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("押せないボタンでは、押した音を鳴らさない", async () => {
+    /*
+      進めなかったのに進んだときと同じ音が返ると、何が起きたのかが
+      分からなくなる。
+    */
+    const { PrimaryButton } = await import(
+      "../src/components/aippo/PrimaryButton"
+    );
+    const played = stubAudio();
+    saveSettings({ ...DEFAULT_SETTINGS, successSound: true });
+
+    const onBlockedClick = vi.fn();
+    render(
+      <PrimaryButton blocked onBlockedClick={onBlockedClick}>
+        次へ
+      </PrimaryButton>,
+    );
+    await userEvent.setup().click(screen.getByRole("button", { name: "次へ" }));
+
+    expect(onBlockedClick).toHaveBeenCalledTimes(1);
     expect(played).toHaveLength(0);
   });
 });

@@ -143,7 +143,7 @@ export function SettingsPage({ onBack, onOpenRecord, onOpenSaved }: SettingsPage
     // 帳簿の言葉（Credit）ではなく、見に来た人が知りたいことの名前
     credit: "AI利用状況",
     notification: "通知",
-    sound: "音",
+    sound: "効果音",
     privacy: "学習データ・プライバシー",
     legal: "規約とポリシー",
   };
@@ -303,7 +303,7 @@ function MainMenu({
 
       <SettingsList label="アプリ">
         <SettingsRow icon={IconBell} title="通知" onClick={() => onOpen("notification")} />
-        <SettingsRow icon={IconSound} title="音" onClick={() => onOpen("sound")} />
+        <SettingsRow icon={IconSound} title="効果音" onClick={() => onOpen("sound")} />
         <SettingsRow
           icon={IconShield}
           title="学習データ・プライバシー"

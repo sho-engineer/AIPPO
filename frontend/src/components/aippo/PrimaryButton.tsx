@@ -22,6 +22,8 @@
 
 import type { ReactNode } from "react";
 
+import { playSound } from "../../course/sound";
+
 export interface PrimaryButtonProps {
   children: ReactNode;
   onClick?: () => void;
@@ -89,7 +91,25 @@ export function PrimaryButton({
   return (
     <button
       type={blocked ? "button" : type}
-      onClick={blocked ? onBlockedClick : onClick}
+      /*
+        押した音は**ここだけ**で鳴らす。
+
+        主要なCTAは1画面に1つと決めてあるので、ここに置けば
+        「押した」の音が画面あたり1種類に収まる。設定行やタブ、
+        戻るボタンにまで付けると、設定画面を触るだけで連打音になる。
+
+        断られた回（blocked）は鳴らさない。進めなかったのに
+        進んだときと同じ音が返ると、何が起きたのか分からなくなる。
+      */
+      onClick={
+        blocked
+          ? onBlockedClick
+          : onClick &&
+            (() => {
+              playSound("tap");
+              onClick();
+            })
+      }
       disabled={disabled}
       aria-disabled={dim || undefined}
       aria-label={ariaLabel}

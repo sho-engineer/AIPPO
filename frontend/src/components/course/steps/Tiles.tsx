@@ -21,6 +21,7 @@ import {
   IconSkip,
 } from "../../Icons";
 import { isFreeValue } from "../../../course/engine";
+import { playSound } from "../../../course/sound";
 import type { LessonStep } from "../../../course/types";
 
 // --------------------------------------------------------- 条件のタイル
@@ -83,6 +84,8 @@ export function ChoiceTiles({
                 onClick={() => {
                   setShowFree(false);
                   setPopped(option.value);
+                  // 「触った」と「選ばれた」は別の出来事。押した音とは分ける
+                  playSound("choice");
                   onChange(option.value);
                 }}
                 /* 指で押せる高さ（44px）は、札でも下回らない */

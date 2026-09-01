@@ -37,7 +37,9 @@ import { loadSettings } from "../lib/settings";
  * 目立って「そこだけ大事」に見える。1歩進むたびの音がいちばん短く、
  * コースを終えたときだけ3音になる。
  *
- *     step        1歩進んだ         2音・短い（いちばん多く鳴る）
+ *     tap         押した            1音・ごく短い（いちばん多く鳴る）
+ *     choice      選んだ            1音・短い
+ *     step        1歩進んだ         2音・短い
  *     result      AIの返事が届いた   1音・ごく短い
  *     skill       AI技をおぼえた     3音・軽く上がる
  *     complete    レッスンを終えた   3音・ゆっくり
@@ -49,6 +51,21 @@ const CUES = {
     { hz: 784, delay: 0, length: 0.09 }, // ソ
     { hz: 1046, delay: 0.07, length: 0.16 }, // 高いド
   ],
+  /*
+    押した合図。**いちばん多く鳴るので、いちばん小さく短く。**
+
+    60ms・1音。他より音量も一段落とす（VOLUMES）。ここが大きいと、
+    画面を触るたびに鳴る音として耳につく。
+  */
+  tap: [{ hz: 660, delay: 0, length: 0.06 }],
+  /*
+    選んだ合図。押した音より少しだけ高く、少しだけ長い。
+
+    「触った」と「選ばれた」は別の出来事なので、同じ音にしない。
+    ただし差は小さくてよい——どちらも操作のすぐ後に返るものなので、
+    大きく変えると選ぶたびに音階が鳴っているように聞こえる。
+  */
+  choice: [{ hz: 880, delay: 0, length: 0.07 }],
   result: [{ hz: 880, delay: 0, length: 0.1 }], // ラ
   skill: [
     { hz: 784, delay: 0, length: 0.08 },
@@ -84,6 +101,17 @@ export type Cue = keyof typeof CUES;
 
 /** 音の大きさ。手応えとして分かる下限まで落とす。 */
 const VOLUME = 0.05;
+
+/**
+ * 場面ごとの音量。既定より小さくしたいものだけ書く。
+ *
+ * 押した音は**すべての主要ボタンで鳴る**ので、他と同じ大きさだと
+ * 画面を触るたびの音として耳につく。半分に落とす。
+ */
+const VOLUMES: Partial<Record<Cue, number>> = {
+  tap: VOLUME * 0.5,
+  choice: VOLUME * 0.7,
+};
 
 /**
  * 音を出す箱。
@@ -124,13 +152,31 @@ export function isSuccessSoundOn(): boolean {
 }
 
 /**
- * 設定を見て鳴らす。学習中はこちらを呼ぶ。
+ * 設定を見て鳴らす。**学習中はこれだけを呼ぶ。**
  *
- * 場面を省くと、1歩進んだときの音になる（いちばん多く鳴る場面）。
+ * 各部品が `AudioContext` を持たない。1つを使い回さないと、
+ * ブラウザが持てる数の上限（多くは6個）にすぐ当たって、
+ * 数回で鳴らなくなる。
+ *
+ * 鳴らなくても学習は進む
+ * ----------------------
+ * 自動再生の制限、iOS の物理サイレントスイッチ、設定で切っている人。
+ * どれでも黙って諦める。**音だけが手がかりになる場面を作らない**——
+ * できたことは必ず文字（`role="status"`）でも届く。
  */
-export function playSuccessSound(cue: Cue = "step"): void {
+export function playSound(cue: Cue): void {
   if (!isSuccessSoundOn()) return;
   previewSuccessSound(cue);
+}
+
+/**
+ * 昔からの名前。中身は `playSound` と同じ。
+ *
+ * 呼び出しが7か所あり、まとめて書き換えると音以外の変更が
+ * 差分に混ざる。新しく書くところは `playSound` を使う。
+ */
+export function playSuccessSound(cue: Cue = "step"): void {
+  playSound(cue);
 }
 
 /**
@@ -162,7 +208,10 @@ export function previewSuccessSound(cue: Cue = "step"): void {
       const start = now + note.delay;
       const end = start + note.length;
       gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(VOLUME, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(
+        VOLUMES[cue] ?? VOLUME,
+        start + 0.012,
+      );
       gain.gain.exponentialRampToValueAtTime(0.0001, end);
 
       oscillator.connect(gain);
