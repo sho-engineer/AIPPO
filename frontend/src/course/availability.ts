@@ -67,3 +67,27 @@ export function courseComingSoonNote(course: Course): string {
 export function startableLessons(lessons: Lesson[]): Lesson[] {
   return lessons.filter(isStartable);
 }
+
+/**
+ * このレッスンの次に勧める教材。
+ *
+ * **始められるものだけ**にする。近日公開のものを勧めると、押した先で
+ * 止まる。終わった直後の「次はこれ」で行き止まりに当たるのは、
+ * 何も勧めないより悪い。
+ *
+ * 完了画面（「次におすすめ」）と Day 完了の画面（「次のレッスンへ」）が
+ * 同じ答えを使う。別々に絞ると、片方だけが近日公開の教材を勧める日が
+ * 来る——2つは同じ流れの上に並んでいるので、食い違いはその場で見える。
+ */
+export function nextLessons(
+  lessons: Lesson[],
+  current: string,
+  completedIds: string[],
+): Lesson[] {
+  return startableLessons(lessons)
+    .filter(
+      (entry) =>
+        entry.id !== current && entry.usesAi && !completedIds.includes(entry.id),
+    )
+    .slice(0, 2);
+}

@@ -50,7 +50,7 @@ const fromPreview: Lesson = {
 const openPreview = () =>
   render(
     <AuthProvider>
-      <LessonRunner lesson={fromPreview} onFinish={() => {}} onExit={() => {}} />
+      <LessonRunner lesson={fromPreview} onExit={() => {}} onOpenCourse={() => {}} />
     </AuthProvider>,
   );
 

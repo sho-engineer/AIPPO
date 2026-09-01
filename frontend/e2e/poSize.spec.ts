@@ -40,7 +40,7 @@ import { stubApi } from "./support/stubApi";
 const VISIBLE_RATIO = 0.723;
 
 /** 段ごとの、見えてほしい背丈（`src/po/sizes.ts`）。 */
-const EXPECTED = { sm: 56, md: 96, lg: 112, celebration: 132 } as const;
+const EXPECTED = { sm: 56, md: 96, lg: 112, celebration: 160 } as const;
 
 /** 丸めと小数のぶれ。これ以上ずれたら理由がある。 */
 const TOLERANCE = 2;

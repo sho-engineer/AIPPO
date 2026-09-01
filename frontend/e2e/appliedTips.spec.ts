@@ -19,7 +19,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissDayComplete } from "./support/dismissDayComplete";
 
 const SAMPLE =
   "先月の売上について報告がありました。前年同月比で110%となり、新規顧客からの受注が伸びています。";
@@ -38,14 +37,7 @@ async function openLesson(page: Page, lessonId: string): Promise<void> {
 /** 完了画面まで、機械的に押し進める。 */
 async function runToCompletion(page: Page): Promise<void> {
   for (let i = 0; i < 40; i += 1) {
-    /*
-      完了画面に着いた。**ここで抜けずに break する。**
-
-      前は return していたので、関数の末尾に置いた「重ね画面を
-      閉じる」を素通りしていた。初回は「Day1 終了！」が上に重なる
-      ので、下のボタンを押す検査が24件まとめて時間切れになった。
-    */
-    if (await page.getByTestId("completion-view").isVisible().catch(() => false)) break;
+    if (await page.getByTestId("completion-view").isVisible().catch(() => false)) return;
 
     const primary = page.getByTestId("primary-action").first();
     if (!(await primary.isVisible().catch(() => false))) break;
@@ -71,8 +63,6 @@ async function runToCompletion(page: Page): Promise<void> {
     await page.waitForTimeout(150);
   }
   await expect(page.getByTestId("completion-view")).toBeVisible();
-  // 初回は「Day1 終了！」が上に重なる。閉じないと下のボタンを押せない
-  await dismissDayComplete(page);
 }
 
 test.describe("こんな使い方もできます", () => {

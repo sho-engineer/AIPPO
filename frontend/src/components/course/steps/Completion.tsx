@@ -19,7 +19,6 @@ import { playSuccessSound } from "../../../course/sound";
 import { KeepArtifactButton } from "../KeepArtifactButton";
 import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
-import { DayComplete } from "../DayComplete";
 import { AppliedTips } from "../AppliedTips";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 import { lessonThumbnailById } from "../../../course/lessonThumbnail";
@@ -78,7 +77,6 @@ export function CompletionView({
   lessonNumber,
   done,
   total,
-  onBackToCourse,
   next,
   completedIds,
   onSelectLesson,
@@ -101,8 +99,6 @@ export function CompletionView({
   lessonNumber: number;
   done: number;
   total: number;
-  /** Day完了の重ね画面から「コースに戻る」を押したとき。 */
-  onBackToCourse?: () => void;
   next: {
     id: string;
     number: number;
@@ -159,15 +155,16 @@ export function CompletionView({
     : [...completedIds, lessonId];
 
   /*
-    Day を終えた瞬間を、この画面の上に重ねる。
+    Day を終えた瞬間は、この画面には無い。
 
-    **初回だけ。** やり直すたびに祝われると、祝いが安くなる。
-    見分けは `completedIds` にこの教材が入っているかどうか——
-    入っていれば、前にもう終えている。
+    前はここへ重ねていた。祝いの下に、できるようになったこと・成果物・
+    スタンプ・アンケート・次におすすめが透けて並び、**1日やり切った
+    瞬間が、長い縦積みの前置き**になっていた。いまは下の「完了する」を
+    押した先が1画面まるごと持つ（`components/course/DayCompletePage.tsx`）。
 
-    重ねるのはこの1か所だけ。StepRenderer も LessonRunner も触らない。
+    この画面の役割は変えていない——できるようになったことを見せ、
+    成果物を持ち帰らせ、次の行き先を出すところ。
   */
-  const [dayShown, setDayShown] = useState(() => !completedIds.includes(lessonId));
 
   return (
     /*
@@ -176,43 +173,6 @@ export function CompletionView({
     */
     <div data-testid="completion-view" className="relative space-y-4">
       <LessonCelebration />
-
-      {dayShown && (
-        <DayComplete
-          day={lessonNumber}
-          /*
-            できるようになったことを1つだけ。教材が約束していた
-            到達点（`lesson.outcomes`）の1本目を使う。無ければ技の名前。
-          */
-          outcome={outcomes?.[0] ?? skills[0] ?? "1つできるようになりました"}
-          /*
-            技の名前。`award.skills` はサーバーが返す slug なので出せない
-            （表示名は図鑑が持っている）。教材データが持っている
-            読める名前をそのまま使う。
-          */
-          skill={skills[0]}
-          done={done}
-          total={total}
-          /*
-            次の1本。**始められるものだけ**が `next` に入っている
-            （StepRenderer が絞る）ので、押した先で止まらない。
-            コースを終えた回は空なので、ボタンを出さない。
-          */
-          onNext={
-            next[0] && onSelectLesson
-              ? () => {
-                  setDayShown(false);
-                  onSelectLesson(next[0].id);
-                }
-              : undefined
-          }
-          onBackToCourse={() => {
-            setDayShown(false);
-            onBackToCourse?.();
-          }}
-          onClose={() => setDayShown(false)}
-        />
-      )}
 
       {/*
         いちばん上は「できるようになったこと」。

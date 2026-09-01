@@ -39,7 +39,7 @@ import {
 import { buildAiInput } from "../../course/engine";
 import { lookupLesson } from "../../course/live";
 import { recommendLessons } from "../../course/recommend";
-import { startableLessons } from "../../course/availability";
+import { nextLessons, startableLessons } from "../../course/availability";
 import { lessonOverview, lessonOverviewFallback } from "../../course/lessonOverview";
 import { teachingImage } from "../../course/teachingImages";
 import { TeachingImage } from "../lessons/TeachingImage";
@@ -57,8 +57,6 @@ export interface StepRendererProps {
   revealed: boolean;
   setRevealed: (next: boolean) => void;
   onSelectLesson?: (lessonId: string) => void;
-  /** Day完了の重ね画面から「コースに戻る」を押したとき。 */
-  onBackToCourse?: () => void;
   /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
   onOpenCourseCatalog?: () => void;
   /** 「やり方をくわしく見る」を押したとき。 */
@@ -73,7 +71,6 @@ export function StepRenderer({
   revealed,
   setRevealed,
   onSelectLesson,
-  onBackToCourse,
   onOpenCourseCatalog,
   onOpenRecipe,
 }: StepRendererProps) {
@@ -87,22 +84,9 @@ export function StepRenderer({
     そのときは絵の場所ごと出さない。
   */
   const picture = teachingImage(lesson.id, step.id);
-  /*
-    次に勧める教材。
-
-    **始められるものだけ**にする。近日公開のものを勧めると、
-    押した先で止まる。終わった直後の「次はこれ」で行き止まりに当たるのは、
-    何も勧めないより悪い。
-  */
   const startable = startableLessons(course.lessons);
-  const nextLessons = startable
-    .filter(
-      (entry) =>
-        entry.id !== lesson.id &&
-        entry.usesAi &&
-        !completedIds.includes(entry.id),
-    )
-    .slice(0, 2);
+  /* 「次におすすめ」。絞り方は Day 完了の画面と共通（availability.ts） */
+  const upcoming = nextLessons(course.lessons, lesson.id, completedIds);
 
   const lastRun = runs[runs.length - 1];
   const meta = (step.meta ?? {}) as {
@@ -576,10 +560,9 @@ export function StepRenderer({
             画面によって「n/9」と「n/12」が出る。
           */
           total={startable.length}
-          next={nextLessons}
+          next={upcoming}
           completedIds={completedIds}
           onSelectLesson={onSelectLesson}
-          onBackToCourse={onBackToCourse}
           onOpenCourseCatalog={onOpenCourseCatalog}
           onOpenRecipe={onOpenRecipe}
           award={api.award}

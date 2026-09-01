@@ -33,8 +33,7 @@
  */
 
 import { PoFace } from "./PoAvatar";
-import { PO_REFERENCE } from "./assets";
-import { poFrame, type PoSize } from "./sizes";
+import { poInk, type PoSize } from "./sizes";
 import type { PoEmotion } from "../course/types";
 
 /** 見えている体から、しっぽの先までの距離。 */
@@ -43,13 +42,11 @@ const GAP = 12;
 /**
  * 枠の縁から、見えている体の縁までの余白（px）。
  *
- * どの表情でも `poTransform()` が neutral の箱へ揃えるので、
- * 見える範囲は常に neutral のもの。左右は対称ではない（中心が
- * 49.9% で、わずかに左寄り）が、1px 以下なので幅の半分で足りる。
+ * 出すのは `po/sizes.ts`。詰め方は Day 完了の画面も同じで、
+ * 同じ割り算を2か所に書くと、絵を差し替えた日に片方だけが残る。
  */
 function sidePadding(size: PoSize): number {
-  const frame = poFrame(size);
-  return (frame * (100 - PO_REFERENCE.width)) / 200;
+  return poInk(size).side;
 }
 
 /**
@@ -61,8 +58,7 @@ function sidePadding(size: PoSize): number {
  * 見える余白を一致させる。
  */
 function topPadding(size: PoSize): number {
-  const frame = poFrame(size);
-  return (frame * (PO_REFERENCE.cy - PO_REFERENCE.height / 2)) / 100;
+  return poInk(size).top;
 }
 
 export interface PoSpeechProps {

@@ -415,9 +415,16 @@ export function App() {
           <LessonRunner
             key={lesson.id}
             lesson={lesson}
-            onFinish={() => navigate(nextScreen("LESSON", "BACK_TO_HOME"))}
-            /* 1つ戻る先は、そのレッスンが入っているコースの中身 */
+            /*
+              帯の「×」と、Day 完了の「コースに戻る」の行き先。
+              そのレッスンが入っているコースの中身。
+            */
             onExit={() => goBack("COURSE_DETAIL")}
+            /*
+              Day 完了の「コースに戻る」。来た道ではなく、
+              **書いてあるとおりコースの中身**へ渡す。
+            */
+            onOpenCourse={() => navigate("COURSE_DETAIL")}
             // 完了画面から、そのまま次のレッスンへ入れるようにする
             onSelectLesson={(id) => openLesson(id, "LESSON")}
             // コース完走の締めくくりから、コース一覧へ

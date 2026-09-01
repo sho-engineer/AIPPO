@@ -51,7 +51,7 @@ function okResponse(result = "書き直した文章です。") {
 function renderLesson(lessonId = "rewrite_text") {
   const lesson = getLesson(lessonId)!;
   return render(
-    <LessonRunner lesson={lesson} onFinish={vi.fn()} onExit={vi.fn()} />,
+    <LessonRunner lesson={lesson} onExit={vi.fn()} onOpenCourse={vi.fn()} />,
   );
 }
 
@@ -462,7 +462,7 @@ describe("今日の上限に達したとき", () => {
     const onExit = vi.fn();
     const lesson = getLesson("rewrite_text")!;
 
-    render(<LessonRunner lesson={lesson} onFinish={vi.fn()} onExit={onExit} />);
+    render(<LessonRunner lesson={lesson} onExit={onExit} onOpenCourse={vi.fn()} />);
     await toQuickTry(user);
     await user.click(screen.getByTestId("primary-action"));
     await screen.findByTestId("lesson-paused");
@@ -558,8 +558,7 @@ describe("自分の課題", () => {
           // 自分の課題のステップから始める
           steps: REWRITE.steps.slice(REWRITE.steps.findIndex((s) => s.id === "real_task")),
         }}
-        onFinish={vi.fn()}
-        onExit={vi.fn()}
+        onExit={vi.fn()} onOpenCourse={vi.fn()}
       />,
     );
 

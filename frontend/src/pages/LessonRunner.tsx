@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { IconBook } from "../components/Icons";
 import { PrivacyDialog } from "../components/course/PrivacyDialog";
+import { DayCompletePage } from "../components/course/DayCompletePage";
 import { LessonHeader } from "../components/course/LessonHeader";
 import { LessonPaused } from "../components/course/LessonPaused";
 import { StepRenderer } from "../components/course/StepRenderer";
@@ -30,6 +31,8 @@ import {
 } from "../course/autoAdvance";
 import { poAppearance } from "../course/poPresence";
 import { primaryLabel } from "../course/primaryLabel";
+import { nextLessons } from "../course/availability";
+import { dayOutcomeLine } from "../course/dayOutcome";
 import { recommendLessons, saveRecommendations } from "../course/recommend";
 import { saveProfile } from "../api/diagnosis";
 import { useCompletedLessons } from "../course/progress";
@@ -53,8 +56,27 @@ function lessonSample(lesson: Lesson): string | undefined {
 
 export interface LessonRunnerProps {
   lesson: Lesson;
-  onFinish: () => void;
+  /**
+   * レッスンから出る。
+   *
+   * 帯の「×」と、Day 完了の画面の「コースに戻る」。行き先は
+   * そのレッスンが入っているコースの中身。
+   *
+   * 前はここに `onFinish`（＝ホームへ）もあった。完了の1押しで
+   * ホームまで飛ばしていたが、いまは Day 完了の画面が受け止め、
+   * 次のレッスンかコースかを**その人が選ぶ**。押した先が
+   * どこか分からないまま飛ばされる道は無くした。
+   */
   onExit: () => void;
+  /**
+   * このレッスンが入っているコースの中身をひらく。
+   *
+   * Day 完了の「コースに戻る」。`onExit`（来た道を1つ戻る）とは
+   * 分ける——ホームから直接1本を開いた人は、`onExit` だと
+   * ホームへ帰る。**ボタンに「コースに戻る」と書いてあるのに
+   * ホームへ着く**のは、行き先を約束していないのと同じ。
+   */
+  onOpenCourse: () => void;
   /** 完了画面から次のレッスンへ直接移る。行き止まりにしないため。 */
   onSelectLesson?: (lessonId: string) => void;
   /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
@@ -65,8 +87,8 @@ export interface LessonRunnerProps {
 
 export function LessonRunner({
   lesson,
-  onFinish,
   onExit,
+  onOpenCourse,
   onSelectLesson,
   onOpenCourseCatalog,
   onOpenRecipe,
@@ -76,11 +98,22 @@ export function LessonRunner({
   const [revealed, setRevealed] = useState(false);
 
   /*
+    Day を終えた画面を出しているか。
+
+    完了画面の「完了する」を押した先。**別の画面**であって、
+    完了画面の上に重ねる飾りではない（`DayCompletePage.tsx` の冒頭）。
+    帯の「←」で完了画面へ戻れる——祝われて行き止まり、にしない。
+  */
+  const [celebrating, setCelebrating] = useState(false);
+
+  /*
     完了画面で使う、コース全体の進み具合と次の行き先。
     端末に残っている分と、サーバーが数えている分の両方から取る。
   */
   const course = useCourse();
   const completedIds = useCompletedLessons();
+  /* 次の1本。絞り方は完了画面の「次におすすめ」と共通（availability.ts） */
+  const upcoming = nextLessons(course.lessons, lesson.id, completedIds);
   /* 帳面にしまえるのは登録した人だけ（course/keeping.ts）。 */
   const { canKeep } = useKeeping();
   const send = async (label?: string) => {
@@ -233,17 +266,6 @@ export function LessonRunner({
       revealed={revealed}
       setRevealed={setRevealed}
       onSelectLesson={onSelectLesson}
-      /*
-        Day完了の重ね画面から「コースに戻る」。
-
-        レッスンを閉じるのと同じ道だが、**記録の確定を先に済ませる**。
-        済ませないと、この出口から出た人のぶんだけ完了が残らない
-        （「次のコースを見る」で実際に起きた）。
-      */
-      onBackToCourse={() => {
-        finalizeCompletion();
-        onExit();
-      }}
       onOpenCourseCatalog={
         onOpenCourseCatalog
           ? () => {
@@ -312,8 +334,14 @@ export function LessonRunner({
         api.goNext();
         return;
       case "completion":
+        /*
+          レッスンを終える。押した先は Day 完了の画面。
+
+          記録はここで確定する。祝いの画面から先に何を選んでも
+          （次のレッスン・コースに戻る・帯の×）、終えたことは残る。
+        */
         finalizeCompletion();
-        onFinish();
+        setCelebrating(true);
         return;
       default:
         setRevealed(false);
@@ -429,7 +457,19 @@ export function LessonRunner({
       */}
       <LessonHeader
         title={lesson.title}
-        onBack={api.canBack ? api.goBack : undefined}
+        /*
+          祝いの画面からは、完了画面へ1歩戻る。
+
+          成果物を写し忘れた・アンケートに答えたい、はここでしか
+          戻れない。祝って行き止まり、にはしない。
+        */
+        onBack={
+          celebrating
+            ? () => setCelebrating(false)
+            : api.canBack
+              ? api.goBack
+              : undefined
+        }
         onExit={onExit}
         /*
           診断は受けなくても先へ進める。出ることが「スキップ」と同じ
@@ -438,9 +478,49 @@ export function LessonRunner({
         exitLabel={lesson.id === "diagnosis" ? "スキップ" : undefined}
       />
 
-      <main className="min-h-screen">
+      {/*
+        祝いの画面だけ `min-h-screen` を外す。
 
-      {pausedForToday ? (
+        帯（44px）とこの中身を足して画面ちょうどに収めたいので、
+        高さは中身が自分で決める（`calc(100dvh - 2.75rem)`）。
+        ここで最低高を足すと、そのぶん下へはみ出してスクロールが出る。
+      */}
+      <main className={celebrating ? "" : "min-h-screen"}>
+
+      {celebrating ? (
+        <DayCompletePage
+          day={lesson.number}
+          /*
+            できるようになったことを1行だけ。組み立て方と、その理由は
+            `course/dayOutcome.ts`。
+          */
+          outcome={dayOutcomeLine(lesson)}
+          /*
+            技の名前。サーバーが返す `award.skills` は slug なので出せない
+            （表示名は図鑑が持っている）。教材データが持っている
+            読める名前をそのまま使う。
+          */
+          skill={lesson.learnedSkills?.[0]}
+          nextDay={upcoming[0]?.number}
+          /*
+            次の行き先。押した先が本当にある道だけを出す。
+            次の1本が無ければコースを終えたということなので、
+            コース一覧へ渡す。それも無ければ、この段ごと出さない
+            （「コースに戻る」は必ず残る）。
+          */
+          primary={
+            upcoming[0] && onSelectLesson
+              ? {
+                  label: "次のレッスンへ",
+                  onClick: () => onSelectLesson(upcoming[0].id),
+                }
+              : onOpenCourseCatalog
+                ? { label: "次のコースを見る", onClick: onOpenCourseCatalog }
+                : undefined
+          }
+          onBackToCourse={onOpenCourse}
+        />
+      ) : pausedForToday ? (
         <LessonPaused
           po={api.po}
           lessonId={lesson.id}

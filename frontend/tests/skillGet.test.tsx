@@ -95,7 +95,7 @@ describe("レッスンの中で、実際に出る", () => {
   const openAt = (stepId: string) => {
     const index = DAY1.steps.findIndex((step) => step.id === stepId);
     const lesson: Lesson = { ...DAY1, steps: DAY1.steps.slice(index) };
-    render(<LessonRunner lesson={lesson} onFinish={() => {}} onExit={() => {}} />);
+    render(<LessonRunner lesson={lesson} onExit={() => {}} onOpenCourse={() => {}} />);
   };
 
   beforeEach(() => window.localStorage.clear());

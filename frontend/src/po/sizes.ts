@@ -49,7 +49,13 @@ const VISIBLE_HEIGHT: Record<PoSize, number> = {
   sm: 56,
   md: 96,
   lg: 112,
-  celebration: 132,
+  /*
+    Day 完了は1画面まるごとを持つようになった（`DayCompletePage`）。
+    重ね画面の上端から覗いていた頃の 132px では、画面の主役に見えない。
+    ここだけ、他の段と比べる相手が居ない——比べる先は**画面の高さ**で、
+    Pixel 5（727px）の 4分の1弱に当たる 160px にした。
+  */
+  celebration: 160,
 };
 
 /**
@@ -77,4 +83,35 @@ export function poVisibleHeight(size: PoSize): number {
  */
 export function poFrameStyle(size: PoSize): { width: string } {
   return { width: `${poFrame(size)}px` };
+}
+
+/**
+ * 枠に含まれる、見えない余白（px）。
+ *
+ * 台紙（512×512）のうち、絵が実際に写っているのは中央の一部だけ。
+ * neutral は上に 25.2%、下に 2.8%、左右に 20.5% ずつの透明な帯を
+ * 抱えている。枠をそのまま並べると、**空けたつもりの余白と、目に
+ * 見える余白が食い違う**——`md` なら上に 33px、余分に開く。
+ *
+ * 置く側は、返った数だけ負の margin で詰める。そうすると
+ * 「12px 空ける」と書いた通りに、見えている体から 12px になる。
+ *
+ * どの表情でも `poTransform()` が neutral の箱へ揃えるので、
+ * 見える範囲はいつも neutral のもの。左右は厳密には対称でない
+ * （中心が 49.8%）が、ずれは 1px 未満なので幅の半分で足りる。
+ */
+export interface PoInk {
+  top: number;
+  bottom: number;
+  side: number;
+}
+
+export function poInk(size: PoSize): PoInk {
+  const frame = poFrame(size);
+  const top = PO_REFERENCE.cy - PO_REFERENCE.height / 2;
+  return {
+    top: (frame * top) / 100,
+    bottom: (frame * (100 - top - PO_REFERENCE.height)) / 100,
+    side: (frame * (100 - PO_REFERENCE.width)) / 200,
+  };
 }

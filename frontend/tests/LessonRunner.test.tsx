@@ -36,7 +36,7 @@ describe("自分の課題のステップ", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
     render(
-      <LessonRunner lesson={lessonFromRealTask} onFinish={() => {}} onExit={() => {}} />,
+      <LessonRunner lesson={lessonFromRealTask} onExit={() => {}} onOpenCourse={() => {}} />,
     );
 
     await user.type(
@@ -66,7 +66,7 @@ describe("自分の課題のステップ", () => {
 
   it("空のままでは進めない（理由も出す）", async () => {
     render(
-      <LessonRunner lesson={lessonFromRealTask} onFinish={() => {}} onExit={() => {}} />,
+      <LessonRunner lesson={lessonFromRealTask} onExit={() => {}} onOpenCourse={() => {}} />,
     );
 
     /*
@@ -92,7 +92,7 @@ describe("自分の課題のステップ", () => {
   it("書きたくない人は飛ばせる", async () => {
     const user = userEvent.setup();
     render(
-      <LessonRunner lesson={lessonFromRealTask} onFinish={() => {}} onExit={() => {}} />,
+      <LessonRunner lesson={lessonFromRealTask} onExit={() => {}} onOpenCourse={() => {}} />,
     );
 
     await user.click(await screen.findByRole("button", { name: "今回はスキップする" }));
@@ -122,7 +122,7 @@ describe("自分の文章に秘密が混ざったとき", () => {
 
   it("パスワードを書いたら、そのステップで止まる", async () => {
     const user = userEvent.setup();
-    render(<LessonRunner lesson={fromRealTask} onFinish={() => {}} onExit={() => {}} />);
+    render(<LessonRunner lesson={fromRealTask} onExit={() => {}} onOpenCourse={() => {}} />);
 
     await user.type(
       screen.getByRole("textbox"),
@@ -137,7 +137,7 @@ describe("自分の文章に秘密が混ざったとき", () => {
 
   it("メールアドレスなら、読んだうえで進める", async () => {
     const user = userEvent.setup();
-    render(<LessonRunner lesson={fromRealTask} onFinish={() => {}} onExit={() => {}} />);
+    render(<LessonRunner lesson={fromRealTask} onExit={() => {}} onOpenCourse={() => {}} />);
 
     await user.type(
       screen.getByRole("textbox"),
@@ -158,7 +158,7 @@ describe("自分の文章に秘密が混ざったとき", () => {
 
   it("何も混ざっていなければ、そのまま進む", async () => {
     const user = userEvent.setup();
-    render(<LessonRunner lesson={fromRealTask} onFinish={() => {}} onExit={() => {}} />);
+    render(<LessonRunner lesson={fromRealTask} onExit={() => {}} onOpenCourse={() => {}} />);
 
     await user.type(screen.getByRole("textbox"), "来週の打ち合わせの資料をお願いします。");
     await user.click(screen.getByTestId("primary-action"));
