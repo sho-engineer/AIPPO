@@ -79,6 +79,7 @@ import { lessonThumbnail } from "../course/lessonThumbnail";
 import { recommendationsForHome } from "../course/recommend";
 import { useCompletedLessons, useXpSummary } from "../course/progress";
 import { readStreak, touchStreak } from "../lib/draft";
+import { EVENTS, track } from "../lib/analytics";
 import type { Lesson } from "../course/types";
 
 export interface HomePageProps {
@@ -255,6 +256,14 @@ export function HomePage({
     // 「今日ひらいた」ことをここで1回だけ数える
     const touched = touchStreak();
     setStreak({ days: touched.days, realTaskCount: readStreak().realTaskCount });
+    /*
+      開いた回。**この画面の分母。**
+
+      見たい問いは「開いた人のうち、何人がその日の1本を始めたか」で、
+      並びを変えたのはその率を上げるためだった。分母が無いと、
+      押された回が増えたのか、来た人が増えただけなのかが分からない。
+    */
+    track(EVENTS.homeOpened);
   }, []);
 
   /*
@@ -310,7 +319,17 @@ export function HomePage({
             <TodayCard
               lesson={nextLesson}
               started={completed.length > 0}
-              onStart={() => onSelectLesson(nextLesson.id)}
+              onStart={() => {
+                /*
+                  今日の1本を押した回。**この画面の分子。**
+
+                  ここだけを数える。下のおすすめやカテゴリから入った回は
+                  別の話（探して見つけた人）で、混ぜると「今日やること」
+                  が効いたのかどうかが分からなくなる。
+                */
+                track(EVENTS.continueLessonClicked, { lessonId: nextLesson.id });
+                onSelectLesson(nextLesson.id);
+              }}
             />
           </div>
         )}

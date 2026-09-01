@@ -80,7 +80,29 @@ describe("名前の置き場", () => {
       "mission_completed",
       "artifact_saved",
       "skill_dictionary_opened",
+      // ホームを作り直したあと、効いたかどうかを見る2本
+      "home_opened",
+      "continue_lesson_clicked",
     ]);
+  });
+
+  it("同じ出来事に、2つ名前を作らない", () => {
+    /*
+      作ると、どちらを数えるかで結果が変わり、後から見た人は
+      どちらが本当か決められない。
+
+      いま重なりそうなのは4つ。どれも既にある名前で足りる。
+
+        choice_selected        → option_selected
+        progress_advanced      → step_viewed
+        ai_result_viewed       → first_result_generated
+        lesson_overview_viewed → outcome_preview_viewed
+    */
+    const names = Object.values(EVENTS) as string[];
+    expect(names).not.toContain("choice_selected");
+    expect(names).not.toContain("progress_advanced");
+    expect(names).not.toContain("ai_result_viewed");
+    expect(names).not.toContain("lesson_overview_viewed");
   });
 
   it("サーバーが決めるものは、ここから送らない", () => {

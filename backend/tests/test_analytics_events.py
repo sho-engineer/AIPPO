@@ -84,19 +84,42 @@ class TestTheFrontendOnlySendsNamesWeKnow:
     瞬間に落ちる。
     """
 
-    SOURCE = (
-        pathlib.Path(__file__).resolve().parents[2]
-        / "frontend/src/lib/analytics.ts"
-    )
+    FRONTEND = pathlib.Path(__file__).resolve().parents[2] / "frontend/src"
+    SOURCE = FRONTEND / "lib/analytics.ts"
+    #: ステップの種類ごとの記録名。**画面側の名前の置き場は2つある。**
+    #:
+    #: 片方だけ見ていると、もう片方に足された名前が黙って捨てられる。
+    #: 実際 `compare_viewed` はこちらに足した。
+    STEP_SOURCE = FRONTEND / "course/useCourseLesson.ts"
+
+    def _names(self, path: pathlib.Path, pattern: str) -> list[str]:
+        text = path.read_text(encoding="utf-8")
+        block = re.search(pattern, text, re.S)
+        assert block, f"{path.name} の形が変わった。この検査も直すこと"
+        return re.findall(r':\s*"([a-z0-9_]+)"', block.group(1))
 
     def test_every_name_the_screen_sends_is_known(self):
-        text = self.SOURCE.read_text(encoding="utf-8")
-        block = re.search(r"export const EVENTS = \{(.*?)\n\} as const;", text, re.S)
-        assert block, "EVENTS の形が変わった。この検査も直すこと"
-
-        names = re.findall(r':\s*"([a-z0-9_]+)"', block.group(1))
+        names = self._names(
+            self.SOURCE, r"export const EVENTS = \{(.*?)\n\} as const;"
+        )
         # 形が変わって0件になっても素通りしないこと
         assert len(names) >= 8, f"名前を読み取れていない: {names}"
+
+        known = {value for value, _label in LearningEventType.choices}
+        unknown = sorted(set(names) - known)
+        assert unknown == [], f"画面が送るのに、こちらが知らない名前: {unknown}"
+
+    def test_the_step_names_are_known_too(self):
+        """ステップの種類ごとの名前も、同じように突き合わせる。
+
+        `EVENTS` だけを見ていた。ステップ側に足した名前は素通りして、
+        送られてくるのに 400 で捨てられる——`EVENTS` で一度起きたのと
+        まったく同じことが、もう1か所で起きうる状態だった。
+        """
+        names = self._names(
+            self.STEP_SOURCE, r"const STEP_EVENT: Record<string, string> = \{(.*?)\n\};"
+        )
+        assert len(names) >= 5, f"名前を読み取れていない: {names}"
 
         known = {value for value, _label in LearningEventType.choices}
         unknown = sorted(set(names) - known)

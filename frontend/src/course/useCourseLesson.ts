@@ -152,6 +152,12 @@ const STEP_EVENT: Record<string, string> = {
   observation: "result_observation_submitted",
   concept_card: "concept_card_viewed",
   condition_choice: "condition_added",
+  /*
+    比べる画面。このレッスンの山で、「ここまで来れば続く」と
+    見ている場所。前は step_viewed に混ざっていて、通ったかどうかが
+    分からなかった。
+  */
+  result_compare: "compare_viewed",
   real_task: "real_task_started",
 };
 

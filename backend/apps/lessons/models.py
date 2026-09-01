@@ -261,6 +261,34 @@ class LearningEventType(models.TextChoices):
     CONCEPT_CARD_VIEWED = "concept_card_viewed"
     CONCEPT_CARD_SKIPPED = "concept_card_skipped"
 
+    """ホームを作り直したあと、効いたかどうかを見るための4本。
+
+    見たい問いは1つだけ。**開いた人のうち、何人がその日の1本を
+    始めたか。** ホームの並びを変えた（今日やることを記録より上へ、
+    浮いた面を10枚から1枚へ）のは、この率を上げるためだった。
+
+        home_opened            … 分母。開いた回
+        continue_lesson_clicked… 分子。今日の1本を押した回
+
+    もう1つは、レッスンの山。**条件を足すと変わる**を見た回で、
+    ここまで来れば続くと見ている場所。前は `step_viewed` に
+    混ざっていて、通ったかどうかが分からなかった。
+
+        compare_viewed … 比べる画面に着いた
+
+    足さなかったもの
+    ----------------
+    `choice_selected` は `option_selected`、`progress_advanced` は
+    `step_viewed`、`ai_result_viewed` は `first_result_generated`、
+    `lesson_overview_viewed` は `outcome_preview_viewed` と
+    ほぼ同じ出来事になる。**同じ出来事に2つ名前を作らない**——
+    作ると、どちらを数えるかで結果が変わり、後から見た人は
+    どちらが本当か決められない。
+    """
+    HOME_OPENED = "home_opened"
+    CONTINUE_LESSON_CLICKED = "continue_lesson_clicked"
+    COMPARE_VIEWED = "compare_viewed"
+
     """第一リリースの見張り（Analytics 14種）。
 
     足りていなかったのは、**詰まる場所と、続く理由**の両方。

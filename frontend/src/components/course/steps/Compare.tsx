@@ -114,8 +114,8 @@ export function ThreeWayCompare({
       </h3>
       <p
         data-testid="result-first"
-        className="mt-2 whitespace-pre-wrap break-words rounded-card bg-canvas
-                   p-3.5 text-sm leading-7"
+        className="mt-2 whitespace-pre-wrap break-words rounded-card border
+                   border-line bg-surface p-3.5 text-sm leading-7"
       >
         {first || "（まだありません）"}
       </p>
@@ -161,10 +161,16 @@ export function ThreeWayCompare({
 
   return (
     <div data-testid="result-compare">
-      <section
-        className="rounded-panel border border-line bg-surface p-4 shadow-card"
-        data-layout={bothShort ? "side-or-stack" : "tabs-or-side"}
-      >
+      {/*
+        外枠を外した。
+
+        前は、囲った面の中に、また囲った本文の面が2つ入っていた。
+        面が二重になると、外側の枠が何を囲っているのかが分からなくなる。
+
+        ここで囲う意味があるのは**比べる2つの本文**のほうで、
+        それを束ねる枠ではない（束ねているのは画面そのもの）。
+      */}
+      <section data-layout={bothShort ? "side-or-stack" : "tabs-or-side"}>
         {bothShort ? (
           // 両方短い。狭い画面でも横に並べたほうが速い
           <div className="flex flex-row items-start gap-3">
@@ -215,9 +221,16 @@ export function ThreeWayCompare({
         **「何を変えたから、どう変わったのか」がひと目で組み上がらない**。
         1枚にして並べる。
       */}
+      {/*
+        面で囲うのは、比べているところ1つだけ。
+
+        前はここも下の「変わったところ」も、比べる面と同じ形で
+        浮いていた。**3枚の白い面が縦に並ぶ**と、どれが本題なのかが
+        分からなくなる。ここは比べた結果の読み解きなので、
+        比べる面のすぐ下に、線だけで続ける。
+      */}
       <section
-        className="mt-3 grid gap-3 rounded-panel border border-line bg-surface
-                   p-4 shadow-card sm:grid-cols-2"
+        className="mt-3 grid gap-3 border-t border-line pt-4 sm:grid-cols-2"
         data-testid="compare-why"
       >
         <div>
@@ -236,8 +249,17 @@ export function ThreeWayCompare({
         </div>
       </section>
 
-      {/* 何が変わったかは、1回目と改善後の差で見せる */}
-      <details className="mt-3 rounded-card border border-line bg-surface px-4 py-3 shadow-card">
+      {/*
+        消えたところは、ここにしか出ない。
+
+        上の改善後の面は**足された文**を目立たせるが、消えた文は
+        出しようがない（そこにもう無いので）。畳んだ中に、
+        足されたものと消えたものを並べて置いておく。
+
+        畳んだままでよい。ここまでで「何を変えたか」と「どう変わったか」
+        は分かる。1文ずつ確かめたい人だけが開ければよい。
+      */}
+      <details className="mt-4 border-t border-line pt-3">
         <summary className="cursor-pointer text-xs font-bold text-ink-muted">
           変わったところを見る
         </summary>
