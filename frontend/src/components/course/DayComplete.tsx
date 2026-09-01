@@ -34,6 +34,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { PoFace } from "../../po/PoAvatar";
+import { poFrame } from "../../po/sizes";
+import { PO_REFERENCE } from "../../po/assets";
 import { prefersReducedMotion } from "../../course/motion";
 import { playSuccessSound } from "../../course/sound";
 import { EVENTS, track } from "../../lib/analytics";
@@ -56,6 +58,24 @@ const STEPS = {
 
 /** 散る粒。12片。増やすと、祝いではなく演出そのものが目的に見える。 */
 const SPREAD = [-40, -31, -22, -13, -5, 3, 11, 20, 29, 37, 44, 50];
+
+/**
+ * ポーの置き方と、その下に空ける高さ。
+ *
+ * **数で当てない。** 最初 `-top-14`（56px上げ）と `pt-16`（64px空け）を
+ * 手で当てていたら、ポーの体が「Day1 終了！」の文字に丸ごとかぶった。
+ * 台紙には透明の余白が入っているので、枠の下端と**見えている体の
+ * 下端は 3% ぶんずれる**——目分量では合わない。
+ *
+ * 枠の大きさから出す。段（celebration）を変えても、ずれない。
+ */
+const FRAME = poFrame("celebration");
+/** 面の上へどれだけ出すか。半分弱を出すと「上から来た」に見える。 */
+const LIFT = Math.round(FRAME * 0.42);
+/** 枠の上端から、見えている体の下端まで（台紙に対する割合）。 */
+const BODY_BOTTOM = (PO_REFERENCE.cy + PO_REFERENCE.height / 2) / 100;
+/** 文字を置き始めてよい高さ。体の下端から 16px 空ける。 */
+const HEAD_ROOM = Math.round(FRAME * BODY_BOTTOM) - LIFT + 16;
 
 export interface DayCompleteProps {
   /** 何日目か。教材データの `lesson.number`。 */
@@ -158,7 +178,8 @@ export function DayComplete({
         aria-modal="true"
         aria-labelledby="day-complete-title"
         tabIndex={-1}
-        className="relative w-full max-w-sm rounded-panel bg-surface px-6 pb-6 pt-16
+        style={{ paddingTop: HEAD_ROOM }}
+        className="relative w-full max-w-sm rounded-panel bg-surface px-6 pb-6
                    shadow-dialog outline-none"
       >
         {/*
@@ -166,8 +187,9 @@ export function DayComplete({
           「上から出てきた」と見えるほうが、瞬間として残る。
         */}
         <div
-          className="pointer-events-none absolute -top-14 left-1/2 -translate-x-1/2"
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2"
           style={{
+            top: -LIFT,
             opacity: shown(STEPS.po) ? 1 : 0,
             transform: shown(STEPS.po)
               ? "translateX(-50%) scale(1)"

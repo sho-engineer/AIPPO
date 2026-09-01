@@ -52,6 +52,19 @@ function sidePadding(size: PoSize): number {
   return (frame * (100 - PO_REFERENCE.width)) / 200;
 }
 
+/**
+ * 枠の上端から、頭のてっぺんまでの余白（px）。
+ *
+ * 縦も横と同じ考え方で詰める。詰めないと、上の見出しとのあいだに
+ * **絵の余白ぶんの空白**（`md` で 33px）が開き、ポーだけが1人で
+ * 下がっているように見える。空けているつもりの余白と、実際に
+ * 見える余白を一致させる。
+ */
+function topPadding(size: PoSize): number {
+  const frame = poFrame(size);
+  return (frame * (PO_REFERENCE.cy - PO_REFERENCE.height / 2)) / 100;
+}
+
 export interface PoSpeechProps {
   emotion: PoEmotion;
   /** ひとこと。空なら吹き出しごと出さない（顔だけになる）。 */
@@ -117,16 +130,32 @@ export function PoSpeech({
   );
 
   if (!message) {
-    return <div className="flex justify-end">{face}</div>;
+    return (
+      <div
+        style={{ marginTop: -topPadding(size) }}
+        className="flex justify-end"
+      >
+        {face}
+      </div>
+    );
   }
 
   return (
     <div
-      style={{ gap: GAP }}
-      className={`flex items-end ${side === "right" ? "" : "flex-row-reverse"}`}
+      style={{ gap: GAP, marginTop: -topPadding(size) }}
+      className={`flex items-end justify-end ${
+        side === "right" ? "" : "flex-row-reverse"
+      }`}
       data-testid="po-speech"
     >
-      <div className="relative min-w-0 flex-1">
+      {/*
+        吹き出しは**中身のぶんだけ**。幅いっぱいに広げない。
+
+        「どうだった？」の5文字に画面の幅いっぱいの面を与えると、
+        短い言葉が長い宣言のように見える。話し言葉は、話した長さの
+        ぶんだけ場所を取るのが自然。
+      */}
+      <div className="relative min-w-0">
         <p
           className="rounded-panel border border-line bg-surface px-4 py-2.5
                      text-sm leading-6 shadow-card"
