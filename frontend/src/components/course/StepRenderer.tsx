@@ -249,16 +249,21 @@ export function StepRenderer({
 
     case "observation":
       return (
-        <div>
+        /*
+          見比べる面に「残りの高さ」を渡し、下の問いは自分の高さのまま
+          置く。AIの結果が長い日でも、問いと下のボタンは動かない。
+        */
+        <div className="flex min-h-0 flex-1 flex-col">
           {lastRun && (
             <ResultCompare
               before={lastRun.inputText}
               after={lastRun.outputText}
               reviewPoints={meta.reviewPoints ?? []}
               factCheck={meta.factCheck}
+              more={<RunHistory runs={runs} flat />}
             />
           )}
-          <div className="mt-6">
+          <div className="mt-3 shrink-0">
             <ObservationList
               step={step}
               value={values[step.key ?? ""] ?? ""}
@@ -284,14 +289,14 @@ export function StepRenderer({
 
     case "condition_choice":
       return (
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col">
           {/*
             直前の結果を上に置く。
             条件だけを並べても「何に対して足すのか」が画面から消えていて、
             思い出しながら選ばせることになっていた。
           */}
           {lastRun && (
-            <div className="mb-5">
+            <div className="mb-4 flex min-h-0 flex-1 flex-col">
               {/*
                 カードの中にカードを入れない。
 
@@ -304,20 +309,29 @@ export function StepRenderer({
                 手順を説明する言い方になっている。読む人から見れば、
                 これは「さっき出てきた文」でしかない。
               */}
-              <p className="text-xs font-bold text-ink-muted">さっき出てきた文</p>
+              <p className="shrink-0 text-xs font-bold text-ink-muted">
+                さっき出てきた文
+              </p>
+              {/*
+                残りの高さに収める。長い回答が来た日でも、下の条件の札と
+                「次へ」が画面から出ていかない。
+              */}
               <p
-                className="mt-2 whitespace-pre-wrap break-words rounded-card border
-                           border-line bg-surface p-4 text-sm leading-7"
+                className="mt-2 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap
+                           break-words rounded-card border border-line bg-surface p-3
+                           text-sm leading-7"
               >
                 {lastRun.outputText}
               </p>
             </div>
           )}
-          <ChoiceTiles
-            step={step}
-            value={values[step.key ?? ""] ?? ""}
-            onChange={(value) => api.setValue(step.key ?? "", value)}
-          />
+          <div className="shrink-0">
+            <ChoiceTiles
+              step={step}
+              value={values[step.key ?? ""] ?? ""}
+              onChange={(value) => api.setValue(step.key ?? "", value)}
+            />
+          </div>
         </div>
       );
 
@@ -346,7 +360,11 @@ export function StepRenderer({
     case "template_builder":
     case "real_task":
       return (
-        <>
+        /*
+          入力欄に「残りの高さ」を渡す。注意書きは自分の高さのまま
+          下に残るので、書く場所と「次へ」がいつも同時に見える。
+        */
+        <div className="flex min-h-0 flex-1 flex-col">
         <TextStep
           step={step}
           value={values[step.key ?? ""] ?? ""}
@@ -356,8 +374,10 @@ export function StepRenderer({
           hintsLeft={(step.hints?.length ?? 0) - api.hintIndex}
         />
         {/* 入れてはいけないものを、書き始める前に伝える（§15） */}
-        <SafetyNote placement="input" />
-        </>
+        <div className="shrink-0">
+          <SafetyNote placement="input" />
+        </div>
+        </div>
       );
 
     case "prompt_preview": {
@@ -424,13 +444,19 @@ export function StepRenderer({
       */
       if (meta.threeWay && runs.length >= 2) {
         return (
-          <div>
-            <StepDone label="AIが書き直しました" trigger={runs.length} />
+          <div className="flex min-h-0 flex-1 flex-col">
+            {/*
+              届いた合図。**見出しとポーが同じことを言っている**ので、
+              ここでは音と読み上げだけにする（`subtle`）。理由は
+              `StepDone.tsx` の `subtle` に書いた。
+            */}
+            <StepDone label="AIが書き直しました" trigger={runs.length} subtle />
             <ThreeWayCompare
               original={runs[0].inputText}
               first={runs[0].outputText}
               improved={runs[runs.length - 1].outputText}
               condition={values.condition ?? ""}
+              picture={picture}
             />
             {/*
               条件を足す前と後を、自分の結果で見比べた**あと**に、
@@ -441,25 +467,29 @@ export function StepRenderer({
               から自分の結果を確かめる作業になる。自分の結果が主で、
               図はその裏取り。
             */}
-            {picture && (
-              <div className="mt-4">
-                <TeachingImage
-                  src={picture.src}
-                  alt={picture.alt}
-                  width={picture.width}
-                  height={picture.height}
-                />
-              </div>
-            )}
-            <SafetyNote placement="output" />
-            <RunHistory runs={runs} />
+            {/*
+              図はここに置かない。
+
+              自分の結果で見比べたあとの裏取りとして要るものだが、
+              Pixel 5 で 235px あり、**この画面がはみ出す一番の原因**
+              だった。1画面＝1アクションに収めるため、「変わったところを
+              見る」の一枚（`MoreSheet`）の中へ移した。無くしてはいない。
+            */}
+            {/*
+              これまでの結果は「変わったところを見る」の一枚が持つ
+              （そこの「ここまでの道のり」が同じものを並べている）。
+            */}
+            <div className="shrink-0">
+              <SafetyNote placement="output" />
+            </div>
           </div>
         );
       }
       return (
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col">
+          {/* 届いた合図。音と読み上げだけ（理由は `StepDone` の `subtle`） */}
           {lastRun && (
-            <StepDone label="AIが書き直しました" trigger={runs.length} />
+            <StepDone label="AIが書き直しました" trigger={runs.length} subtle />
           )}
           {lastRun && (
             <ResultCompare
@@ -467,10 +497,12 @@ export function StepRenderer({
               after={lastRun.outputText}
               reviewPoints={meta.reviewPoints ?? ["元の意味が変わっていないか"]}
               factCheck={meta.factCheck}
+              /* これまでの結果は、画面ではなく一枚の中へ */
+              more={<RunHistory runs={runs} flat />}
             />
           )}
           {step.type === "improvement_choice" && (
-            <div className="mt-6">
+            <div className="mt-5 shrink-0">
               <ChoiceStep
                 step={step}
                 value={values.improvement ?? ""}
@@ -479,8 +511,9 @@ export function StepRenderer({
             </div>
           )}
           {/* AIの回答をそのまま信じないことを、結果のそばで伝える（§15） */}
-          <SafetyNote placement="output" />
-          <RunHistory runs={runs} />
+          <div className="shrink-0">
+            <SafetyNote placement="output" />
+          </div>
         </div>
       );
 

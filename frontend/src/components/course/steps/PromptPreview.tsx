@@ -33,18 +33,25 @@ interface PreviewProps {
  */
 export function PromptPreview({ cards, detail, onOpenDetail }: PreviewProps) {
   return (
-    <div>
-      <Card>
-        <CardHeading icon={IconSparkle} tone="plain">
-          AIにはこう伝えます
-        </CardHeading>
+    /*
+      縦の flex。項目の並びにだけ「残りの高さ」を渡す。
+      条件が増えても、下の「くわしく見る」と「次へ」は動かない。
+    */
+    <div className="flex min-h-0 flex-1 flex-col">
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <div className="shrink-0">
+          <CardHeading icon={IconSparkle} tone="plain">
+            AIにはこう伝えます
+          </CardHeading>
+        </div>
 
         {/*
           項目名と中身を左右に並べる。
           カードを縦に積むより、何を何に決めたのかが一覧で追える。
         */}
         <dl
-          className="mt-4 divide-y divide-line rounded-card bg-canvas px-4"
+          className="mt-4 min-h-0 flex-1 divide-y divide-line overflow-y-auto
+                     rounded-card bg-canvas px-4"
           data-testid="prompt-cards"
         >
           {cards.map((card) => (
@@ -78,14 +85,14 @@ export function PromptPreview({ cards, detail, onOpenDetail }: PreviewProps) {
         </dl>
 
         {cards.some((card) => card.added) && (
-          <p className="mt-3 text-xs leading-6 text-ink-muted">
+          <p className="mt-3 shrink-0 text-xs leading-6 text-ink-muted">
             色が付いているところが、さっき選んだ条件です。
           </p>
         )}
       </Card>
 
       <details
-        className="mt-4 rounded-card bg-surface px-4 py-3 shadow-card"
+        className="mt-4 shrink-0 rounded-card bg-surface px-4 py-3 shadow-card"
         onToggle={(event) => {
           if ((event.currentTarget as HTMLDetailsElement).open) onOpenDetail?.();
         }}

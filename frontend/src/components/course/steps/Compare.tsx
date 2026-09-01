@@ -9,15 +9,17 @@
  * 他のステップの都合で読みにくくならないよう、独立させてある。
  */
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 
 import {
   IconArrowDown,
   IconCheckCircle,
   IconDocument,
-  IconPlay,
   IconSparkle,
 } from "../../Icons";
+import { MoreButton, MoreSheet } from "../MoreSheet";
+import { TeachingImage } from "../../lessons/TeachingImage";
+import type { TeachingImageEntry } from "../../../course/teachingImages";
 import { diffSentences } from "../../../lib/diff";
 import { fitsSideBySide } from "../../../course/compareLayout";
 
@@ -34,11 +36,19 @@ export function ThreeWayCompare({
   first,
   improved,
   condition,
+  picture = null,
 }: {
   original: string;
   first: string;
   improved: string;
   condition: string;
+  /**
+   * 同じことを図で1枚。**開いた一枚の中に置く。**
+   *
+   * 自分の結果で見比べたあとの裏取りとして要るが、画面へ縦に積むと
+   * 235px を取り、この画面がはみ出す一番の原因になっていた。
+   */
+  picture?: TeachingImageEntry | null;
 }) {
   /**
    * 改善後の列だけ、変わった文を目立たせる。
@@ -102,36 +112,53 @@ export function ThreeWayCompare({
     `ResultCompare`）と同じ。
   */
   const [tab, setTab] = useState<"first" | "improved">("improved");
+  const [more, setMore] = useState(false);
 
-  const firstPanel = (
-    <div className="min-w-0 flex-1">
+  /*
+    面の中の見出しは、**タブで切り替えているときは出さない**。
+    すぐ上のタブが「最初 / 改善後」と同じことを言っていて、22px を
+    使って二度言うぶん、肝心の本文が縮む。
+  */
+  const firstPanel = (heading = true) => (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {heading && (
       <h3
-        className="flex items-center gap-1.5 text-sm font-bold text-brand"
+        className="flex shrink-0 items-center gap-1.5 text-sm font-bold text-brand"
         data-testid="result-first-heading"
       >
         <IconSparkle className="h-4 w-4 shrink-0" />
         最初のAI結果
       </h3>
+      )}
+      {/*
+        AIが返す長さは決まらない。**枠のほうで止める。**
+        止めないと、長い回答が来た日だけ画面が伸びて、下のボタンが
+        押せなくなる。長くてもこの面の中で送れる（画面は動かない）。
+      */}
       <p
         data-testid="result-first"
-        className="mt-2 whitespace-pre-wrap break-words rounded-card border
-                   border-line bg-surface p-3.5 text-sm leading-7"
+        className="mt-2 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap
+                   break-words rounded-card border border-line bg-surface p-3.5
+                   text-sm leading-7"
       >
         {first || "（まだありません）"}
       </p>
     </div>
   );
 
-  const improvedPanel = (
-    <div className="min-w-0 flex-1">
-      <h3 className="flex items-center gap-1.5 text-sm font-bold text-brand-dark">
+  const improvedPanel = (heading = true) => (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {heading && (
+      <h3 className="flex shrink-0 items-center gap-1.5 text-sm font-bold text-brand-dark">
         <IconCheckCircle className="h-4 w-4 shrink-0 text-brand" />
         {condition ? `改善後（${condition}）` : "改善後"}
       </h3>
+      )}
       <p
         data-testid="result-improved"
-        className="mt-2 whitespace-pre-wrap break-words rounded-card border
-                   border-brand-line bg-brand-soft/40 p-3.5 text-sm leading-7"
+        className="mt-2 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap
+                   break-words rounded-card border border-brand-line
+                   bg-brand-soft/40 p-3.5 text-sm leading-7"
       >
         {!improved
           ? "（まだありません）"
@@ -160,7 +187,11 @@ export function ThreeWayCompare({
   );
 
   return (
-    <div data-testid="result-compare">
+    /* 入りきらないときは、この面の中だけが送れる（理由は Results.tsx） */
+    <div
+      data-testid="result-compare"
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+    >
       {/*
         外枠を外した。
 
@@ -170,19 +201,26 @@ export function ThreeWayCompare({
         ここで囲う意味があるのは**比べる2つの本文**のほうで、
         それを束ねる枠ではない（束ねているのは画面そのもの）。
       */}
-      <section data-layout={bothShort ? "side-or-stack" : "tabs-or-side"}>
+      <section
+        className="flex min-h-0 flex-1 flex-col"
+        data-layout={bothShort ? "side-or-stack" : "tabs-or-side"}
+      >
         {bothShort ? (
           // 両方短い。狭い画面でも横に並べたほうが速い
-          <div className="flex flex-row items-start gap-3">
-            {firstPanel}
+          <div className="flex min-h-[8rem] flex-1 flex-row items-stretch gap-3">
+            {firstPanel()}
             {arrow}
-            {improvedPanel}
+            {improvedPanel()}
           </div>
         ) : (
           <>
             {/* 狭い画面：タブで入れ替える */}
-            <div className="sm:hidden" data-testid="compare-tabs">
-              <div role="tablist" className="flex gap-2">
+            {/* 読める下限は縮む鎖の外側に置く（理由は Results.tsx） */}
+            <div
+              className="flex min-h-[8rem] flex-1 flex-col sm:hidden"
+              data-testid="compare-tabs"
+            >
+              <div role="tablist" className="flex shrink-0 gap-2">
                 {(["first", "improved"] as const).map((name) => (
                   <button
                     key={name}
@@ -198,160 +236,140 @@ export function ThreeWayCompare({
                   </button>
                 ))}
               </div>
-              <div className="mt-3">
-                {tab === "first" ? firstPanel : improvedPanel}
+              <div className="mt-3 flex min-h-0 flex-1 flex-col">
+                {tab === "first" ? firstPanel(false) : improvedPanel(false)}
               </div>
             </div>
 
             {/* 広い画面：並べる */}
-            <div className="hidden sm:flex sm:flex-row sm:items-start sm:gap-3">
-              {firstPanel}
+            <div className="hidden min-h-[8rem] flex-1 sm:flex sm:flex-row sm:items-stretch sm:gap-3">
+              {firstPanel()}
               {arrow}
-              {improvedPanel}
+              {improvedPanel()}
             </div>
           </>
         )}
       </section>
 
       {/*
-        なぜ変わったのか。
+        画面に残すのは「何を変えたか」だけ。
 
-        前は「追加した条件」の札を矢印の下に、変わった中身を下の
-        「変わったところ」に置いていた。原因と結果が離れていて、
-        **「何を変えたから、どう変わったのか」がひと目で組み上がらない**。
-        1枚にして並べる。
+        比べた結果の読み解き（1文ずつの差分・どう変わったか・元の文章
+        からの道のり）は、**確かめたい人だけが要る**もの。ここへ縦に
+        積むと、この画面だけで8つの塊が並び、いちばん大事な
+        「2つを見比べる」が上へ押し出される。押したら開く一枚へ移した。
       */}
-      {/*
-        面で囲うのは、比べているところ1つだけ。
-
-        前はここも下の「変わったところ」も、比べる面と同じ形で
-        浮いていた。**3枚の白い面が縦に並ぶ**と、どれが本題なのかが
-        分からなくなる。ここは比べた結果の読み解きなので、
-        比べる面のすぐ下に、線だけで続ける。
-      */}
-      <section
-        className="mt-3 grid gap-3 border-t border-line pt-4 sm:grid-cols-2"
-        data-testid="compare-why"
-      >
-        <div>
-          <h3 className="text-xs font-bold text-ink-muted">何を変えた？</h3>
-          <p
-            className="mt-2 inline-block rounded-badge bg-brand-soft px-3 py-1
-                       text-sm font-bold text-brand-dark"
-            data-testid="added-condition"
-          >
-            {condition || "条件は足していません"}
-          </p>
-        </div>
-        <div>
-          <h3 className="text-xs font-bold text-ink-muted">どう変わった？</h3>
-          <ChangePoints before={first} after={improved} />
-        </div>
-      </section>
-
-      {/*
-        消えたところは、ここにしか出ない。
-
-        上の改善後の面は**足された文**を目立たせるが、消えた文は
-        出しようがない（そこにもう無いので）。畳んだ中に、
-        足されたものと消えたものを並べて置いておく。
-
-        畳んだままでよい。ここまでで「何を変えたか」と「どう変わったか」
-        は分かる。1文ずつ確かめたい人だけが開ければよい。
-      */}
-      <details className="mt-4 border-t border-line pt-3">
-        <summary className="cursor-pointer text-xs font-bold text-ink-muted">
+      <div className="mt-3 shrink-0">
+        <MoreButton testId="compare-more" onClick={() => setMore(true)}>
           変わったところを見る
-        </summary>
-        <p className="mt-3 text-sm leading-7">
-          {diffSentences(first, improved).map((part, index) =>
-            part.kind === "same" ? (
-              <span key={index}>{part.text}</span>
-            ) : (
-              <span
-                key={index}
-                className={
-                  part.kind === "added"
-                    ? "rounded bg-brand-soft px-1 font-bold text-brand-dark"
-                    : "rounded bg-caution-soft px-1 text-caution line-through"
-                }
-              >
-                {part.kind === "added" ? "＋" : "−"}
-                {part.text}
-              </span>
-            ),
-          )}
-        </p>
-      </details>
+        </MoreButton>
+      </div>
 
-      {/*
-        元の文章から、ここまでの道のり。
-
-        2つ並べただけだと「AIが何かした」で終わる。
-        自分が書いた文から2手かかっていることは、3つ並べて初めて分かる。
-      */}
-      {/*
-        横へ流す枠は、キーボードでも届くようにする。
-
-        マウスのホイールや指では動かせても、`tabIndex` が無いと
-        キーボードだけの人はスクロールできない——**中身が見えないまま**
-        になる（axe の scrollable-region-focusable）。
-      */}
-      <ol
-        className="-mx-1 mt-3 flex items-stretch gap-1 overflow-x-auto px-1 pb-1
-                   focus-visible:outline focus-visible:outline-2
-                   focus-visible:outline-offset-2 focus-visible:outline-brand"
-        role="list"
-        tabIndex={0}
-        aria-label="元の文章からの道のり"
-        data-testid="compare-journey"
-      >
-        {[
-          { id: "original" as const, label: "元の文章", body: original, icon: IconDocument },
-          { id: "first" as const, label: "1回目", body: first, icon: IconSparkle },
-          { id: "improved" as const, label: "改善後", body: improved, icon: IconCheckCircle },
-        ].map((panel, index) => (
-          <Fragment key={panel.id}>
-            {index > 0 && (
-              <span
-                aria-hidden="true"
-                className="flex shrink-0 items-center text-brand-line"
-              >
-                <IconPlay className="h-4 w-4" />
-              </span>
-            )}
-            <li
-              data-testid={`compare-${panel.id}`}
-              /*
-                390px で3列に割ると1列は約110px。仕様の「3列以上の
-                重要Cardを避ける」に触れるので、狭い画面では横へ流す。
-                広い画面（sm 以上）では今までどおり3つ並べる。
-              */
-              className={`w-32 shrink-0 rounded-card border p-2.5 sm:w-auto sm:min-w-0 sm:flex-1 ${
-                panel.id === "improved"
-                  ? "border-brand bg-brand-soft/60"
-                  : "border-line bg-surface"
-              }`}
+      {more && (
+        <MoreSheet title="変わったところ" onClose={() => setMore(false)}>
+          <section
+            className="flex items-center gap-3"
+            data-testid="compare-why"
+          >
+            <h3 className="shrink-0 text-xs font-bold text-ink-muted">何を変えた？</h3>
+            <p
+              className="min-w-0 rounded-badge bg-brand-soft px-3 py-1 text-sm
+                         font-bold text-brand-dark"
+              data-testid="added-condition"
             >
-              <p
-                className={`flex items-center gap-1 text-[0.6875rem] font-bold ${
-                  panel.id === "improved" ? "text-brand-dark" : "text-ink-muted"
-                }`}
-              >
-                <panel.icon className="h-3.5 w-3.5 shrink-0" />
-                {panel.label}
-              </p>
-              {/*
-                ここは道のりの目印なので、全文は出さない。
-                3列に全文を入れると、1列が細長い柱になって読めない。
-              */}
-              <p className="mt-1 line-clamp-3 break-words text-[0.6875rem] leading-5 text-ink-muted">
-                {panel.body || "（入力なし）"}
-              </p>
-            </li>
-          </Fragment>
-        ))}
-      </ol>
+              {condition || "条件は足していません"}
+            </p>
+          </section>
+
+          <section className="mt-5 border-t border-line pt-4">
+            <h3 className="text-xs font-bold text-ink-muted">どう変わった？</h3>
+            <div className="mt-2">
+              <ChangePoints before={first} after={improved} />
+            </div>
+          </section>
+
+          {/*
+            消えたところは、ここにしか出ない。上の改善後の面は
+            **足された文**を目立たせるが、消えた文は出しようがない
+            （そこにもう無いので）。足されたものと消えたものを並べる。
+          */}
+          <section className="mt-5 border-t border-line pt-4">
+            <h3 className="text-xs font-bold text-ink-muted">1文ずつ見る</h3>
+            <p className="mt-2 text-sm leading-7">
+              {diffSentences(first, improved).map((part, index) =>
+                part.kind === "same" ? (
+                  <span key={index}>{part.text}</span>
+                ) : (
+                  <span
+                    key={index}
+                    className={
+                      part.kind === "added"
+                        ? "rounded bg-brand-soft px-1 font-bold text-brand-dark"
+                        : "rounded bg-caution-soft px-1 text-caution line-through"
+                    }
+                  >
+                    {part.kind === "added" ? "＋" : "−"}
+                    {part.text}
+                  </span>
+                ),
+              )}
+            </p>
+          </section>
+
+          {picture && (
+            <section className="mt-5 border-t border-line pt-4">
+              <h3 className="text-xs font-bold text-ink-muted">図で見る</h3>
+              <div className="mt-2">
+                <TeachingImage
+                  src={picture.src}
+                  alt={picture.alt}
+                  width={picture.width}
+                  height={picture.height}
+                />
+              </div>
+            </section>
+          )}
+
+          {/*
+            元の文章から、ここまでの道のり。
+
+            2つ並べただけだと「AIが何かした」で終わる。自分が書いた文から
+            2手かかっていることは、3つ並べて初めて分かる。
+          */}
+          <section className="mt-5 border-t border-line pt-4">
+            <h3 className="text-xs font-bold text-ink-muted">ここまでの道のり</h3>
+            <ol className="mt-2 space-y-2" role="list">
+              {[
+                { id: "original" as const, label: "元の文章", body: original, icon: IconDocument },
+                { id: "first" as const, label: "1回目", body: first, icon: IconSparkle },
+                { id: "improved" as const, label: "改善後", body: improved, icon: IconCheckCircle },
+              ].map((panel) => (
+                <li
+                  key={panel.id}
+                  data-testid={`compare-${panel.id}`}
+                  className={`rounded-card border p-3 ${
+                    panel.id === "improved"
+                      ? "border-brand bg-brand-soft/60"
+                      : "border-line bg-surface"
+                  }`}
+                >
+                  <p
+                    className={`flex items-center gap-1.5 text-xs font-bold ${
+                      panel.id === "improved" ? "text-brand-dark" : "text-ink-muted"
+                    }`}
+                  >
+                    <panel.icon className="h-3.5 w-3.5 shrink-0" />
+                    {panel.label}
+                  </p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
+                    {panel.body || "（入力なし）"}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </section>
+        </MoreSheet>
+      )}
     </div>
   );
 }

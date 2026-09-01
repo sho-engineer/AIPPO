@@ -5,7 +5,7 @@
  * - 進み具合を上に。あとどれくらいかが分からないと不安になる
  * - 入力済みの内容は**小さなサマリーカード**にたたむ（要件 §6.4）。
  *   全部の欄を出しっぱなしにすると、いま何を聞かれているのか分からなくなる
- * - 次にやることは**画面下に固定**（要件 §6.11）。
+ * - 次にやることは**画面のいちばん下**（要件 §6.11）。
  *   スマートフォンでは、入力欄とボタンが同時に見えることが大事
  * - ポーは入力の邪魔をしない。狭いときは小さくする
  */
@@ -149,7 +149,30 @@ export function StepShell({
   useEffect(() => setRefused(false), [title]);
 
   return (
-    <div className="page pb-40 pt-2 sm:pb-32">
+    /*
+      1画面＝1アクション。**ページそのものは縦に伸ばさない。**
+
+      前は `min-h-screen` の中に長い1本の縦積みを置き、下の帯の分だけ
+      余白（`pb-40`＝160px）を空けていた。Pixel 5 で実測すると、
+      15画面のうち**14画面がはみ出していた**。うち8画面はぴったり
+      44px——帯（44px）の下に「画面の高さぶん」の面を置いていたので、
+      中身が何も無くても帯のぶんだけ必ず溢れる作りだった。
+
+      いまは帯の下いっぱいの高さを取り、縦に3つ積む。
+
+          進み具合・見出し・ポー   … 動かない
+          その回の中身            … ここだけ伸び縮みする
+          次にやること            … 動かない（`fixed` をやめた）
+
+      中身が入りきらない回では、**中身の枠の中だけ**が送れる。
+      ポーもボタンも画面から出ていかないので、いつでも次へ進める。
+      余白を数で当てる必要も無くなった（帯は同じ柱の中にある）。
+    */
+    <div
+      className="mx-auto flex h-[calc(100dvh-2.75rem)] w-full max-w-page flex-col
+                 px-5 pt-2"
+      data-testid="step-shell"
+    >
       {/*
         進み具合は細い帯ひとつ。
 
@@ -162,7 +185,7 @@ export function StepShell({
         （`LessonProgress`）。分数は1つのまま——「2 / 4」と「3 / 19」を
         並べると、どちらを見ればよいのか決められなくなる。
       */}
-      <div className="pt-1" data-phase={phase ?? undefined}>
+      <div className="shrink-0 pt-1" data-phase={phase ?? undefined}>
         <LessonProgress
           current={progress.current}
           total={progress.total}
@@ -173,7 +196,7 @@ export function StepShell({
 
       {/* 入力済みの内容。折りたたんでおく（要件 §6.4） */}
       {summary.length > 0 && (
-        <details className="mt-4 rounded-card border border-line bg-surface px-4 py-3">
+        <details className="mt-4 shrink-0 rounded-card border border-line bg-surface px-4 py-3">
           <summary className="cursor-pointer text-xs font-bold text-ink-muted">
             ここまでに答えた内容（{summary.length}件）
           </summary>
@@ -215,7 +238,7 @@ export function StepShell({
         ポーが居ない画面では、見出しだけがここに残る。居ないぶんの
         余白は返すので、本文がその高さぶん上がる。
       */}
-      <div className="mt-4">
+      <div className="mt-4 shrink-0">
         <PoHero
           eyebrow={
             eyebrow && (
@@ -255,17 +278,40 @@ export function StepShell({
         紙をめくる向きと同じで、「いま戻った」ことが文字を読まなくても
         分かる。秒数と加減速は course/motion.ts にまとめてある。
       */}
-      <div className="mt-6">
+      {/*
+        その回の中身。**ここだけが伸び縮みする。**
+
+        `min-h-0` が要る。flex の子は既定で中身より縮まないので、
+        これが無いと長い中身がそのまま柱を押し広げ、下の帯を画面の
+        外へ追い出す（＝ページごとスクロールする元の姿に戻る）。
+
+        縦の flex にしてある。中の回が `min-h-0 flex-1` を付ければ、
+        **残りの高さに収まるまで縮む**——AIの結果や教材の絵のように
+        長さの決まらないものは、そうやって画面へ収める。付けなければ
+        これまでどおり中身の高さで置かれる。
+
+        `overflow-y-auto` は逃げ道であって狙いではない。収まらない回が
+        出ても切り落とさないための保険で、ふだんの回は送らずに収まる
+        （`e2e/stepFits.spec.ts` が実寸で見張る）。
+      */}
+      <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto pb-2">
         <StepTransition stepKey={title}>{children}</StepTransition>
       </div>
 
       {/*
-        次にやること。画面の下に固定する。
-        safe-area を足さないと、iPhone のホームバーに隠れる。
+        次にやること。柱のいちばん下。
+
+        `fixed` をやめた。中身の上に浮かせる必要が無くなった——柱の中に
+        並んでいるので、中身がどれだけ長くてもこの帯を押し出さない。
+        浮かせていた頃は、その下に隠れないよう `pb-40` を空けていて、
+        帯の高さ（85〜159px と場面で違う）と食い違うたびに、
+        余白が余ったり足りなかったりしていた。
+
+        safe-area は残す。足さないと iPhone のホームバーに隠れる。
       */}
       <div
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface/95
-                   px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur"
+        className="-mx-5 shrink-0 border-t border-line bg-surface px-5
+                   pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3"
       >
         <div className="mx-auto max-w-page">
           {error && (

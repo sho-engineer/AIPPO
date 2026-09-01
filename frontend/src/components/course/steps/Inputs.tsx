@@ -249,7 +249,11 @@ export function TextStep({
   };
 
   return (
-    <div>
+    /*
+      縦の flex。入力欄にだけ「残りの高さ」を渡す。
+      入れ方の帯・見出し・文字数・ヒントは自分の高さのまま動かない。
+    */
+    <div className="flex min-h-0 flex-1 flex-col">
       {/*
         文章の入れ方。空の入力欄だけを出さない（要件 §6.2）。
 
@@ -258,7 +262,7 @@ export function TextStep({
         いま選んでいるものは、下線と色の両方で示す（色だけにしない）。
       */}
       <div
-        className="flex items-stretch gap-1 overflow-x-auto rounded-card border
+        className="flex shrink-0 items-stretch gap-1 overflow-x-auto rounded-card border
                    border-line bg-surface p-1 shadow-card"
         role="group"
         aria-label="文章の入れ方"
@@ -288,7 +292,7 @@ export function TextStep({
         )}
       </div>
 
-      <label htmlFor={inputId} className="mt-4 block text-sm font-bold">
+      <label htmlFor={inputId} className="mt-4 block shrink-0 text-sm font-bold">
         {step.title}
       </label>
       {/*
@@ -301,13 +305,22 @@ export function TextStep({
         value={value}
         onChange={(event) => onChange(event.target.value.slice(0, max))}
         placeholder={step.placeholder}
-        rows={6}
-        className="mt-2 w-full rounded-card border border-line bg-surface px-4 py-3
-                   text-base leading-7 shadow-card outline-none transition
-                   focus:border-brand focus:ring-2 focus:ring-brand-soft"
+        /*
+          高さは**残りぶん**。行数で決めない。
+
+          `rows={6}`（194px）を置くと、狭い端末では下の文字数表示と
+          安全の一言が画面から出る。残りに合わせて縮めば、書く場所と
+          「次へ」がいつも同時に見える（要件 §6.11）。狭すぎても
+          困るので、下限だけ決めておく。
+        */
+        rows={3}
+        className="mt-2 min-h-[4.5rem] w-full flex-1 resize-none rounded-card border
+                   border-line bg-surface px-4 py-3 text-base leading-7 shadow-card
+                   outline-none transition focus:border-brand
+                   focus:ring-2 focus:ring-brand-soft"
       />
 
-      <div className="mt-2 flex items-center justify-between gap-3">
+      <div className="mt-2 flex shrink-0 items-center justify-between gap-3">
         <p className="text-xs text-ink-muted">
           {value.length} / {max} 文字
         </p>

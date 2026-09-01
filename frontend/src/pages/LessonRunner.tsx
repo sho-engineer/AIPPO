@@ -479,13 +479,16 @@ export function LessonRunner({
       />
 
       {/*
-        祝いの画面だけ `min-h-screen` を外す。
+        高さは中身が決める。ここでは何も足さない。
 
-        帯（44px）とこの中身を足して画面ちょうどに収めたいので、
-        高さは中身が自分で決める（`calc(100dvh - 2.75rem)`）。
-        ここで最低高を足すと、そのぶん下へはみ出してスクロールが出る。
+        前は `min-h-screen`（＝画面の高さ）だった。帯（44px）の**下**に
+        置いた面に画面まるごとの高さを与えていたので、中身が何も無くても
+        44px はみ出す。Pixel 5 で測ると、レッスン15画面のうち8画面は
+        「ぴったり 44px はみ出す」状態で、原因はここ1か所だった。
+
+        いまは中の画面がそれぞれ `calc(100dvh - 2.75rem)` を取る。
       */}
-      <main className={celebrating ? "" : "min-h-screen"}>
+      <main>
 
       {celebrating ? (
         <DayCompletePage

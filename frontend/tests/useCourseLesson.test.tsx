@@ -262,8 +262,18 @@ describe("条件を一つ足す", () => {
     expect(generate.mock.calls[1][0].input.original_text).toBe("1回目の結果です。");
     expect(generate.mock.calls[1][0].input.improvement).toBe("もっと短く");
 
-    // 元・1回目・改善後の3つが並ぶ
-    expect(await screen.findByTestId("compare-original")).toBeInTheDocument();
+    // 1回目と改善後が、タブで見比べられる
+    expect(await screen.findByTestId("result-improved")).toHaveTextContent(
+      "短くした結果です。",
+    );
+
+    /*
+      元・1回目・改善後の3つは「変わったところを見る」の一枚の中。
+      画面に縦積みすると、比べる面がその分だけ潰れる
+      （`components/course/steps/Compare.tsx`）。
+    */
+    await user.click(screen.getByTestId("compare-more"));
+    expect(screen.getByTestId("compare-original")).toBeInTheDocument();
     expect(screen.getByTestId("compare-first")).toHaveTextContent("1回目の結果です。");
     expect(screen.getByTestId("compare-improved")).toHaveTextContent(
       "短くした結果です。",

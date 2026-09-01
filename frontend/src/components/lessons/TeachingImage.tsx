@@ -50,6 +50,14 @@ export interface TeachingImageProps {
   width?: number;
   height?: number;
   className?: string;
+  /**
+   * 残りの高さに収める。
+
+   * 既定（false）は幅いっぱい・高さは比なり。1画面に収める回で、
+   * 絵が下のボタンを押し出すときだけ true にする。高さのほうを
+   * 親に合わせ、幅は比なりに縮む。
+   */
+  fit?: boolean;
 }
 
 export function TeachingImage({
@@ -58,6 +66,7 @@ export function TeachingImage({
   width = TEACHING_IMAGE_WIDTH,
   height = TEACHING_IMAGE_HEIGHT,
   className = "",
+  fit = false,
 }: TeachingImageProps) {
   return (
     /*
@@ -66,7 +75,9 @@ export function TeachingImage({
     */
     <div
       data-testid="teaching-image"
-      className={`w-full max-w-full overflow-hidden rounded-card ${className}`}
+      className={`w-full max-w-full overflow-hidden rounded-card ${
+        fit ? "h-full min-h-0" : ""
+      } ${className}`}
     >
       <img
         src={src}
@@ -84,8 +95,19 @@ export function TeachingImage({
           効き、`h-auto` は読み込み後に実寸へ従わせる。片方だけだと、
           渡した実寸が間違っていたときに縦へ伸びる。
         */
-        style={{ aspectRatio: `${width} / ${height}` }}
-        className="block h-auto w-full max-w-full object-contain"
+        /*
+          比の指定は `fit` のときだけ外す。
+
+          `aspect-ratio` は**箱の形**を決めるものなので、高さを親に
+          合わせたいときと引っ張り合う。実際、親が 60px しか無い場所で
+          比が勝ち、絵は原寸のまま上だけ見えて切れていた（画面を見て
+          気づいた）。`fit` では箱を親いっぱいに広げ、中身の縮め方は
+          `object-contain` に任せる。
+        */
+        style={fit ? undefined : { aspectRatio: `${width} / ${height}` }}
+        className={`block max-w-full object-contain ${
+          fit ? "h-full w-full" : "h-auto w-full"
+        }`}
       />
     </div>
   );

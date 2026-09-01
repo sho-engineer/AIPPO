@@ -162,7 +162,7 @@ test.describe("続きから始める", () => {
 
     // 比べる画面まで進める
     for (let i = 0; i < 12; i++) {
-      if (await page.getByTestId("compare-first").isVisible().catch(() => false)) break;
+      if (await page.getByTestId("compare-more").isVisible().catch(() => false)) break;
       if (!(await advance(page))) break;
       await page.waitForTimeout(150);
     }
@@ -172,14 +172,27 @@ test.describe("続きから始める", () => {
       であって、改行の位置ではない。
     */
     const flat = (text: string) => text.replace(/\s+/g, "");
-    const before = flat(await page.getByTestId("compare-first").innerText());
+    /*
+      1回目の結果は「変わったところを見る」の一枚の中にある。
+      画面に縦積みすると比べる面が潰れるので移した
+      （`components/course/steps/Compare.tsx`）。
+    */
+    const readFirst = async () => {
+      await page.getByTestId("compare-more").click();
+      const text = flat(await page.getByTestId("compare-first").innerText());
+      // 開いた一枚は下から滑って出るので、×は動いている間クリックできない。
+      // Esc なら位置に関係なく閉じられる
+      await page.keyboard.press("Escape");
+      await page.getByTestId("more-sheet").waitFor({ state: "detached" });
+      return text;
+    };
+
+    const before = await readFirst();
     expect(before.length).toBeGreaterThan(0);
 
     await page.reload();
     await page.waitForTimeout(800);
 
-    await expect
-      .poll(async () => flat(await page.getByTestId("compare-first").innerText()))
-      .toBe(before);
+    await expect.poll(readFirst).toBe(before);
   });
 });

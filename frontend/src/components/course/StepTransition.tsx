@@ -82,6 +82,15 @@ export function StepTransition({ stepKey, children }: StepTransitionProps) {
     <div
       data-testid="step-transition"
       data-direction={back ? "back" : "forward"}
+      /*
+        高さをそのまま下へ渡す。
+
+        この包みが自分の高さを持ってしまうと、中の回が「残りいっぱい」を
+        取れなくなる（`flex-1` の当てにする相手がここで途切れる）。
+        AIの結果のように**長さの決まらないもの**を、残りの高さに
+        収める回があるので、ここは素通しにする。
+      */
+      className="flex min-h-0 flex-1 flex-col"
       style={{
         opacity: shown ? 1 : 0,
         transform: shown ? "translateX(0)" : `translateX(${offset}px)`,

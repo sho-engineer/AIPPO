@@ -12,6 +12,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { ConceptCardView } from "../src/components/course/steps/ConceptCard";
@@ -172,10 +173,14 @@ describe("必ず見せるものと、見たい人に見せるもの", () => {
     「作った絵だから毎回必ず全部見せる」にはしない。ただし畳む向きは
     絵によって逆になる。
 
-      全体図   … 今日やることを知らせる。**開いておく**（畳める）
+      全体図   … 今日やることを知らせる。**押したら大きく出す**
       技の絵   … 本文の補足。**閉じておく**（開ける）
+
+    全体図は前まで開いた状態で置いていた。1画面＝1アクションに
+    収めると、この絵に渡せる高さは 30px しか残らない（Pixel 5 で実測）。
+    読めない絵を置くより、一手ぶん押してもらって大きく見せる。
   */
-  it("最初の画面の全体図は、開いた状態で置く", () => {
+  it("最初の画面の全体図は、押したら大きく出す", async () => {
     render(
       <OutcomePreview
         skills={[]}
@@ -183,10 +188,13 @@ describe("必ず見せるものと、見たい人に見せるもの", () => {
       />,
     );
 
-    const box = screen.getByTestId("outcome-overview");
-    expect(box).toHaveAttribute("open");
-    // 畳めること自体も見る。押せないと、もう一度やる人には邪魔なまま
-    expect(screen.getByTestId("outcome-overview-toggle")).toBeInTheDocument();
+    // 押す前は絵そのものを置かない（読めない大きさで置かない）
+    expect(screen.queryByTestId("teaching-image")).toBeNull();
+
+    await userEvent.setup().click(screen.getByTestId("outcome-overview-toggle"));
+
+    expect(screen.getByTestId("more-sheet")).toBeInTheDocument();
+    expect(screen.getByTestId("teaching-image")).toBeInTheDocument();
   });
 
   it("技の絵は、閉じた状態で置く", () => {

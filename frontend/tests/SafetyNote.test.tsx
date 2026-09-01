@@ -19,9 +19,15 @@ describe("安全上の注意", () => {
   });
 
   it("AIの回答を読む場所では、そのまま信じないよう伝える", () => {
+    /*
+      2文を1つの段落に流している（1件ずつ改行すると、短い文でも
+      必ず2行ずつになり 44px 余分に取る）。**文は減らしていない**ので、
+      どちらも読めることをここで押さえる。
+    */
     render(<SafetyNote placement="output" />);
-    expect(screen.getByText(SAFETY.checkFacts)).toBeInTheDocument();
-    expect(screen.getByText(SAFETY.expertAdvice)).toBeInTheDocument();
+    const note = screen.getByTestId("safety-output");
+    expect(note).toHaveTextContent(SAFETY.checkFacts);
+    expect(note).toHaveTextContent(SAFETY.expertAdvice);
   });
 
   it("AIを使うレッスンには、自分の課題の前に確認のステップがある", () => {

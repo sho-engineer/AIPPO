@@ -34,12 +34,27 @@ export interface StepDoneProps {
    * AI の実行回数などを渡す。
    */
   trigger: string | number;
+  /**
+   * 目に見える印を出さず、音と読み上げだけにする。
+   *
+   * 結果の画面で使う。あそこは見出し（「こんなに変わった」）と
+   * ポーの一言（「変わった！」）が**同じことを既に言っている**ので、
+   * 3つ目の「AIが書き直しました」は繰り返しになる。
+   *
+   * それだけなら見た目の話だが、実害が出た。この印は 1.8 秒で
+   * 自分から消えるので、**その 1.8 秒だけ下の中身が 43px 押し縮められ、
+   * 比べる面が潰れて枠の外へ描かれていた**（画面を見て気づいた）。
+   * 出したり消えたりするものを、1画面に収める柱の中へ積まない。
+   *
+   * 音（AIの返事が届いた）と読み上げへの通知は、こちらでも同じ。
+   */
+  subtle?: boolean;
 }
 
 /** 出しっぱなしにしない。次の操作の邪魔になる。 */
 const VISIBLE_MS = 1800;
 
-export function StepDone({ label, trigger }: StepDoneProps) {
+export function StepDone({ label, trigger, subtle = false }: StepDoneProps) {
   const [shown, setShown] = useState(false);
   const [popped, setPopped] = useState(false);
 
@@ -57,6 +72,18 @@ export function StepDone({ label, trigger }: StepDoneProps) {
   }, [trigger]);
 
   if (!shown) return null;
+
+  /*
+    音と読み上げだけ。場所は取らない（`sr-only` は 1px の箱なので、
+    柱の高さを動かさない）。
+  */
+  if (subtle) {
+    return (
+      <p role="status" data-testid="step-done" className="sr-only">
+        {label}
+      </p>
+    );
+  }
 
   return (
     <p

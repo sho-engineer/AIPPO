@@ -5,9 +5,10 @@
  * どちらも「返ってきたあと」だけに出るので、まとめてある。
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { RevealText } from "../RevealText";
+import { MoreButton, MoreSheet } from "../MoreSheet";
 import { IconCaution } from "../../Icons";
 import { diffSentences, isMostlyUnchanged } from "../../../lib/diff";
 import type { RunRecord } from "../../../course/useCourseLesson";
@@ -19,6 +20,13 @@ interface ResultProps {
   after: string;
   reviewPoints: string[];
   factCheck?: boolean;
+  /**
+   * 「変わったところを見る」の一枚に足すもの。
+   *
+   * これまでの結果など、**確かめたい人だけが要る**もの。画面に
+   * 積むと、比べる面がその分だけ潰れる。
+   */
+  more?: ReactNode;
 }
 
 /**
@@ -32,8 +40,10 @@ export function ResultCompare({
   after,
   reviewPoints,
   factCheck = false,
+  more: extra,
 }: ResultProps) {
   const [tab, setTab] = useState<"before" | "after">("after");
+  const [more, setMore] = useState(false);
   const parts = diffSentences(before, after);
   const showDiff = before.trim().length > 0 && !isMostlyUnchanged(parts);
 
@@ -48,32 +58,115 @@ export function ResultCompare({
     文字は最初から DOM にある（変えるのは見え方だけ）ので、
     読み上げもコピーも途中の状態にはならない。
   */
-  const panel = (title: string, body: string, testId: string, reveal = false) => (
-    <section className="rounded-card border border-line bg-surface p-4">
-      <h3 className="text-xs font-bold text-ink-muted">{title}</h3>
-      {reveal ? (
-        <RevealText
-          text={body}
-          trigger={body}
-          testId={testId}
-          className="mt-2 whitespace-pre-wrap break-words text-sm leading-7"
-        />
-      ) : (
-        <p
-          data-testid={testId}
-          className="mt-2 whitespace-pre-wrap break-words text-sm leading-7"
-        >
-          {body}
-        </p>
+  /*
+    AIが返す文章の長さは決まらない。**枠のほうで止める。**
+
+    止めないと、長い回答が来た日だけ画面が伸びて、下のボタンが
+    押せなくなる。ここで区切っておけば、長くてもこの面の中で送れる
+    （画面は動かない）。24rem は 390px で 10行ぶん。
+  */
+  const panel = (
+    title: string,
+    body: string,
+    testId: string,
+    reveal = false,
+    heading = true,
+  ) => (
+    <section
+      className="flex min-h-0 flex-1 flex-col rounded-card border border-line
+                 bg-surface p-3.5"
+    >
+      {/*
+        タブで切り替えているときは、面の中の見出しを出さない。
+        すぐ上のタブが「元の文章 / AIの結果」と同じことを言っていて、
+        20px を使って二度言うぶん、肝心の本文が縮む。
+      */}
+      {heading && (
+        <h3 className="shrink-0 text-xs font-bold text-ink-muted">{title}</h3>
       )}
+      {/*
+        下限は置かない。ここで置くと、上の入れ物がすべて `min-h-0` な
+        ので**この面だけが縮まず、枠の外へ描かれる**（実際に重なった）。
+        潰れ止めは入れ物の側（`result-compare` の `min-h`）が持つ。
+      */}
+      <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
+        {reveal ? (
+          <RevealText
+            text={body}
+            trigger={body}
+            testId={testId}
+            className="whitespace-pre-wrap break-words text-sm leading-7"
+          />
+        ) : (
+          <p
+            data-testid={testId}
+            className="whitespace-pre-wrap break-words text-sm leading-7"
+          >
+            {body}
+          </p>
+        )}
+      </div>
     </section>
   );
 
+  /** 1文ずつの差分。開いた一枚の中にだけ出す。 */
+  const diff = (
+    <p className="text-sm leading-7">
+      {parts.map((part, index) => {
+        if (part.kind === "same") return <span key={index}>{part.text}</span>;
+        // 色だけで表さない。記号を必ず添える
+        const isAdded = part.kind === "added";
+        return (
+          <span
+            key={index}
+            className={
+              isAdded
+                ? "rounded bg-brand-soft px-1 font-bold text-brand-dark"
+                : "rounded bg-caution-soft px-1 text-caution line-through"
+            }
+          >
+            {isAdded ? "＋" : "−"}
+            {part.text}
+          </span>
+        );
+      })}
+    </p>
+  );
+
   return (
-    <div data-testid="result-compare">
+    /*
+      縦の flex。**本文の面にだけ「残りの高さ」を渡す。**
+
+      AIが返す長さは決まらないので、面の高さを数で決めても当たらない。
+      残りに合わせて縮み、入りきらないぶんは面の中で送る——画面は
+      動かないので、下のボタンはいつでも押せる。
+    */
+    /*
+      入りきらないときは、**この面の中だけ**が送れる。
+
+      前は `min-h` で潰れ止めだけ置いていた。潰れはしないが、下限に
+      届かないと中身が枠の外へ描かれて重なる（実測で、比べる面が
+      32px まで縮んで下の文と重なっていた）。送れるようにしておけば、
+      重ならずに全部読める——画面そのものは動かないので、ポーも
+      「次へ」も出ていかない。
+
+      ふだんは送らずに収まる。中の本文が `flex-1` で残りに合わせて
+      縮むので、ここが働くのは本当に場所が足りない端末だけ。
+    */
+    <div
+      data-testid="result-compare"
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+    >
       {/* 狭い画面：タブ */}
-      <div className="sm:hidden">
-        <div role="tablist" className="flex gap-2">
+      {/*
+        読める下限は、**縮む鎖のいちばん外側**に置く。
+
+        内側（本文の面）に置くと、外側は `min-h-0` で縮み続けるので
+        面だけが枠から食み出して重なる（実際に重なった）。ここに
+        置けば、足りないぶんは `result-compare` の側で送られる。
+      */}
+      <div className="flex min-h-[8rem] flex-1 flex-col sm:hidden">
+        <div role="tablist" className="flex shrink-0 gap-2">
           {(["before", "after"] as const).map((name) => (
             <button
               key={name}
@@ -89,47 +182,52 @@ export function ResultCompare({
             </button>
           ))}
         </div>
-        <div className="mt-3">
+        <div className="mt-3 flex min-h-0 flex-1 flex-col">
           {tab === "before"
-            ? panel("元の文章", before || "（入力なし）", "result-before-mobile")
-            : panel("AIの結果", after, "result-after-mobile", true)}
+            ? panel("元の文章", before || "（入力なし）", "result-before-mobile", false, false)
+            : panel("AIの結果", after, "result-after-mobile", true, false)}
         </div>
       </div>
 
       {/* 広い画面：並べる */}
-      <div className="hidden gap-4 sm:grid sm:grid-cols-2">
+      <div className="hidden min-h-[8rem] flex-1 gap-4 sm:grid sm:grid-cols-2">
         {panel("元の文章", before || "（入力なし）", "result-before")}
         {panel("AIの結果", after, "result-after", true)}
       </div>
 
+      {/*
+        差分は**その場で開かない**。開くとページが伸び、下のボタンが
+        画面から出ていく。押したら別の一枚が出る形にする。
+      */}
       {showDiff && (
-        <details className="mt-4 rounded-card border border-line bg-surface px-4 py-3">
-          <summary className="cursor-pointer text-xs font-bold text-ink-muted">
+        <div className="mt-4 shrink-0">
+          <MoreButton testId="result-more" onClick={() => setMore(true)}>
             変わったところを見る
-          </summary>
-          <p className="mt-3 text-sm leading-7">
-            {parts.map((part, index) => {
-              if (part.kind === "same") {
-                return <span key={index}>{part.text}</span>;
-              }
-              // 色だけで表さない。記号を必ず添える
-              const isAdded = part.kind === "added";
-              return (
-                <span
-                  key={index}
-                  className={
-                    isAdded
-                      ? "rounded bg-brand-soft px-1 font-bold text-brand-dark"
-                      : "rounded bg-caution-soft px-1 text-caution line-through"
-                  }
-                >
-                  {isAdded ? "＋" : "−"}
-                  {part.text}
-                </span>
-              );
-            })}
-          </p>
-        </details>
+          </MoreButton>
+        </div>
+      )}
+
+      {more && (
+        <MoreSheet title="変わったところ" onClose={() => setMore(false)}>
+          {diff}
+          <section className="mt-5 border-t border-line pt-4">
+            <h3 className="text-xs font-bold text-ink-muted">元の文章</h3>
+            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7">
+              {before || "（入力なし）"}
+            </p>
+          </section>
+          {reviewPoints.length > 1 && (
+            <section className="mt-5 border-t border-line pt-4">
+              <h3 className="text-xs font-bold text-ink-muted">ほかの見どころ</h3>
+              <ul className="mt-2 space-y-1 text-sm leading-6" role="list">
+                {reviewPoints.slice(1).map((point) => (
+                  <li key={point}>・{point}</li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {extra && <div className="mt-5 border-t border-line pt-4">{extra}</div>}
+        </MoreSheet>
       )}
 
       {/*
@@ -146,34 +244,26 @@ export function ResultCompare({
         教材データはこれまでどおり3つ持っている。**減らしたのは
         一度に見せる数**であって、中身ではない。
       */}
+      {/*
+        見るところは1つだけ、**1行で**。
+
+        前は薄青の面に見出しと本文と畳んだ一覧を積んでいて 110px
+        あった。1画面に収める柱の中では、その 110px がそのまま
+        「比べる面」から引かれる——実測で、比べる面が 32px まで
+        潰れていた。残りは「変わったところを見る」の一枚へ移した。
+      */}
       {reviewPoints.length > 0 && (
-        <section className="mt-5 rounded-card bg-brand-soft px-4 py-3">
-          <h3 className="text-xs font-bold text-brand-dark">ここを見て</h3>
-          <p className="mt-1 text-sm leading-6" data-testid="review-point">
-            {reviewPoints[0]}
-          </p>
-          {reviewPoints.length > 1 && (
-            <details className="mt-2">
-              {/*
-                薄青の上なので brand（#1268E8）では 4.42:1 しか出ず、
-                本文の下限（4.5:1）に届かない。すぐ上の見出しと同じ
-                brand-dark にする（axe が見ている）。
-              */}
-              <summary className="cursor-pointer list-none text-xs font-bold text-brand-dark">
-                ほかの見どころ
-              </summary>
-              <ul className="mt-2 space-y-1 text-sm leading-6" role="list">
-                {reviewPoints.slice(1).map((point) => (
-                  <li key={point}>・{point}</li>
-                ))}
-              </ul>
-            </details>
-          )}
-        </section>
+        <p
+          className="mt-3 shrink-0 text-xs leading-5 text-brand-dark"
+          data-testid="review-point"
+        >
+          <span className="font-bold">ここを見て：</span>
+          {reviewPoints[0]}
+        </p>
       )}
 
       {factCheck && (
-        <p className="mt-3 flex items-start gap-2 rounded-card bg-caution-soft px-4 py-3 text-sm leading-6 text-caution">
+        <p className="mt-3 flex shrink-0 items-start gap-2 rounded-card bg-caution-soft px-4 py-3 text-sm leading-6 text-caution">
           <IconCaution className="mt-1 h-4 w-4 shrink-0" />
           <span>数字・日付・価格・仕様は、AIの回答をそのまま信じず確認しましょう。</span>
         </p>
@@ -184,25 +274,51 @@ export function ResultCompare({
 
 // --------------------------------------------------------------- 履歴
 
-/** 前の結果を消さずに残す（要件 §6.9）。 */
-export function RunHistory({ runs }: { runs: RunRecord[] }) {
+/**
+ * 前の結果を消さずに残す（要件 §6.9）。
+ *
+ * `flat` は「くわしく見る」の一枚の中で使う形。畳む三角を出さない
+ * ——開いた先でもう一度開かせない。画面に置くときは畳んだまま出す。
+ */
+export function RunHistory({
+  runs,
+  flat = false,
+}: {
+  runs: RunRecord[];
+  flat?: boolean;
+}) {
   if (runs.length < 2) return null;
 
+  const list = (
+    <ol className="mt-2 space-y-3" role="list">
+      {runs.map((run) => (
+        <li key={run.sequence} data-testid={`run-${run.sequence}`}>
+          <p className="text-xs font-bold text-brand-dark">{run.label}</p>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
+            {run.outputText}
+          </p>
+        </li>
+      ))}
+    </ol>
+  );
+
+  if (flat) {
+    return (
+      <section>
+        <h3 className="text-xs font-bold text-ink-muted">
+          これまでの結果（{runs.length}件）
+        </h3>
+        {list}
+      </section>
+    );
+  }
+
   return (
-    <details className="mt-5 rounded-card border border-line bg-surface px-4 py-3">
+    <details className="mt-4 rounded-card border border-line bg-surface px-4 py-2.5">
       <summary className="cursor-pointer text-xs font-bold text-ink-muted">
         これまでの結果（{runs.length}件）
       </summary>
-      <ol className="mt-3 space-y-3" role="list">
-        {runs.map((run) => (
-          <li key={run.sequence} data-testid={`run-${run.sequence}`}>
-            <p className="text-xs font-bold text-brand-dark">{run.label}</p>
-            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
-              {run.outputText}
-            </p>
-          </li>
-        ))}
-      </ol>
+      {list}
     </details>
   );
 }

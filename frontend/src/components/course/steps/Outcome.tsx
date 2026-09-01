@@ -28,7 +28,10 @@
  * 「いま開いているか」が分からなくなる。
  */
 
+import { useState } from "react";
+
 import { Card, CardHeading, MetaPill } from "../../AppShell";
+import { MoreButton, MoreSheet } from "../MoreSheet";
 import {
   IconArrowDown,
   IconBars,
@@ -76,6 +79,8 @@ export function OutcomePreview({
   /** 専用の1枚が無いときに代わりに出す、一覧と同じ絵。 */
   thumbnail?: string | null;
 }) {
+  const [overviewOpen, setOverviewOpen] = useState(false);
+
   const hasDetail =
     Boolean(goal) ||
     Boolean(before && after) ||
@@ -84,7 +89,11 @@ export function OutcomePreview({
     (flow?.length ?? 0) > 0;
 
   return (
-    <div data-testid="outcome-preview" className="space-y-4">
+    /*
+      縦の flex にして、絵にだけ「残りの高さ」を渡す。
+      下の2つ（かかる時間・くわしく）は自分の高さのまま動かない。
+    */
+    <div data-testid="outcome-preview" className="flex min-h-0 flex-1 flex-col gap-4">
       {/*
         1枚の絵。この画面の主役。
 
@@ -97,34 +106,42 @@ export function OutcomePreview({
       */}
       {overview ? (
         /*
-          全体図は**畳めるようにする。既定は開いておく。**
+          全体図は**押したら開く一枚**にする。
 
-          「作った絵だから毎回必ず全部見せる」にはしない。1枚で
-          今日やることが分かる人には要るが、**もう一度やる人や、
-          今日は先へ進みたい人には邪魔**で、しかも大きいので
-          「はじめる」がその下へ押しやられる。
+          1画面＝1アクションに収めると、この絵に渡せる高さは 30px しか
+          残らない（Pixel 5 で実測）。読めない絵を置くくらいなら、
+          一手ぶん押してもらって**大きく**見せるほうがよい。
 
-          ただし最初から閉じてもいない。閉じて置くと、初めて開いた人が
-          「何をするのか分からないまま押す」ことになる。開いた状態から
-          畳める、が正しい向き——押せば消せるが、見ないことにはならない。
+          前は開いた状態で置いていた（畳める `<details>`）。原寸で
+          391px あり、この画面が 331px はみ出す一番の原因だった。
         */
-        <details open data-testid="outcome-overview">
-          <summary
-            data-testid="outcome-overview-toggle"
-            className="row-tap mb-2 cursor-pointer list-none text-sm font-bold
-                       text-brand transition hover:text-brand-dark"
+        <div className="shrink-0" data-testid="outcome-overview">
+          <MoreButton
+            testId="outcome-overview-toggle"
+            onClick={() => setOverviewOpen(true)}
           >
-            今日やることの全体図
-          </summary>
-          <TeachingImage
-            src={overview.src}
-            alt={overview.alt}
-            width={overview.width}
-            height={overview.height}
-          />
-        </details>
+            今日やることの全体図を見る
+          </MoreButton>
+          {overviewOpen && (
+            <MoreSheet
+              title="今日やることの全体図"
+              onClose={() => setOverviewOpen(false)}
+            >
+              <TeachingImage
+                src={overview.src}
+                alt={overview.alt}
+                width={overview.width}
+                height={overview.height}
+              />
+            </MoreSheet>
+          )}
+        </div>
       ) : (
-        thumbnail && <LessonThumbnail src={thumbnail} variant="banner" />
+        thumbnail && (
+          <div className="shrink-0">
+            <LessonThumbnail src={thumbnail} variant="banner" />
+          </div>
+        )
       )}
 
       {/*
@@ -139,7 +156,7 @@ export function OutcomePreview({
         やめる**のが先。絵の中の数字は動かせないので、下げるのは
         こちら側になる（course/teachingImages.ts の `showsMinutes`）。
       */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-panel bg-surface px-5 py-4 shadow-card">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 rounded-panel bg-surface px-5 py-4 shadow-card">
         {minutes !== undefined && !overview?.showsMinutes && (
           <MetaPill icon={IconClock} label="所要時間" value={`${minutes}分`} />
         )}
@@ -147,7 +164,7 @@ export function OutcomePreview({
       </div>
 
       {hasDetail && (
-        <details data-testid="outcome-detail" className="group">
+        <details data-testid="outcome-detail" className="group shrink-0">
           {/*
             何が出るかを書いておく。「くわしく」だけだと、中身が
             分からないので誰も押さない。
