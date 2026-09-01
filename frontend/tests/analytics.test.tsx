@@ -83,6 +83,9 @@ describe("名前の置き場", () => {
       // ホームを作り直したあと、効いたかどうかを見る2本
       "home_opened",
       "continue_lesson_clicked",
+      // Day を終えた瞬間と、そこから次へ進んだ回
+      "day_completed",
+      "day_complete_next_clicked",
     ]);
   });
 

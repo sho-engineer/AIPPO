@@ -289,6 +289,18 @@ class LearningEventType(models.TextChoices):
     CONTINUE_LESSON_CLICKED = "continue_lesson_clicked"
     COMPARE_VIEWED = "compare_viewed"
 
+    """Day を終えた瞬間。
+
+    完了画面の上に重ねる「Day1 終了！」（DayComplete.tsx）。
+    見たいのは「終えた人のうち、何人がそのまま次の1本へ入ったか」で、
+    重ねた画面を出した意味があったかは、この2つでしか出ない。
+
+    1本ごとの `lesson_completed` とは別物。あちらはレッスンの単位で、
+    こちらは Day の区切り。**やり直した回では出ない**（初回だけ祝う）。
+    """
+    DAY_COMPLETED = "day_completed"
+    DAY_COMPLETE_NEXT_CLICKED = "day_complete_next_clicked"
+
     """第一リリースの見張り（Analytics 14種）。
 
     足りていなかったのは、**詰まる場所と、続く理由**の両方。

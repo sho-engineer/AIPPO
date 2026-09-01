@@ -233,6 +233,17 @@ export function LessonRunner({
       revealed={revealed}
       setRevealed={setRevealed}
       onSelectLesson={onSelectLesson}
+      /*
+        Day完了の重ね画面から「コースに戻る」。
+
+        レッスンを閉じるのと同じ道だが、**記録の確定を先に済ませる**。
+        済ませないと、この出口から出た人のぶんだけ完了が残らない
+        （「次のコースを見る」で実際に起きた）。
+      */
+      onBackToCourse={() => {
+        finalizeCompletion();
+        onExit();
+      }}
       onOpenCourseCatalog={
         onOpenCourseCatalog
           ? () => {

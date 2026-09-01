@@ -57,6 +57,8 @@ export interface StepRendererProps {
   revealed: boolean;
   setRevealed: (next: boolean) => void;
   onSelectLesson?: (lessonId: string) => void;
+  /** Day完了の重ね画面から「コースに戻る」を押したとき。 */
+  onBackToCourse?: () => void;
   /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
   onOpenCourseCatalog?: () => void;
   /** 「やり方をくわしく見る」を押したとき。 */
@@ -71,6 +73,7 @@ export function StepRenderer({
   revealed,
   setRevealed,
   onSelectLesson,
+  onBackToCourse,
   onOpenCourseCatalog,
   onOpenRecipe,
 }: StepRendererProps) {
@@ -576,6 +579,7 @@ export function StepRenderer({
           next={nextLessons}
           completedIds={completedIds}
           onSelectLesson={onSelectLesson}
+          onBackToCourse={onBackToCourse}
           onOpenCourseCatalog={onOpenCourseCatalog}
           onOpenRecipe={onOpenRecipe}
           award={api.award}

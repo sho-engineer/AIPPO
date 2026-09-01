@@ -19,6 +19,7 @@ import { playSuccessSound } from "../../../course/sound";
 import { KeepArtifactButton } from "../KeepArtifactButton";
 import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
+import { DayComplete } from "../DayComplete";
 import { AppliedTips } from "../AppliedTips";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 import { lessonThumbnailById } from "../../../course/lessonThumbnail";
@@ -77,6 +78,7 @@ export function CompletionView({
   lessonNumber,
   done,
   total,
+  onBackToCourse,
   next,
   completedIds,
   onSelectLesson,
@@ -99,6 +101,8 @@ export function CompletionView({
   lessonNumber: number;
   done: number;
   total: number;
+  /** Day完了の重ね画面から「コースに戻る」を押したとき。 */
+  onBackToCourse?: () => void;
   next: {
     id: string;
     number: number;
@@ -153,6 +157,18 @@ export function CompletionView({
   const doneSoFar = completedIds.includes(lessonId)
     ? completedIds
     : [...completedIds, lessonId];
+
+  /*
+    Day を終えた瞬間を、この画面の上に重ねる。
+
+    **初回だけ。** やり直すたびに祝われると、祝いが安くなる。
+    見分けは `completedIds` にこの教材が入っているかどうか——
+    入っていれば、前にもう終えている。
+
+    重ねるのはこの1か所だけ。StepRenderer も LessonRunner も触らない。
+  */
+  const [dayShown, setDayShown] = useState(() => !completedIds.includes(lessonId));
+
   return (
     /*
       `relative` は紙吹雪の親。紙はこの枠の中だけで散り、
@@ -160,6 +176,43 @@ export function CompletionView({
     */
     <div data-testid="completion-view" className="relative space-y-4">
       <LessonCelebration />
+
+      {dayShown && (
+        <DayComplete
+          day={lessonNumber}
+          /*
+            できるようになったことを1つだけ。教材が約束していた
+            到達点（`lesson.outcomes`）の1本目を使う。無ければ技の名前。
+          */
+          outcome={outcomes?.[0] ?? skills[0] ?? "1つできるようになりました"}
+          /*
+            技の名前。`award.skills` はサーバーが返す slug なので出せない
+            （表示名は図鑑が持っている）。教材データが持っている
+            読める名前をそのまま使う。
+          */
+          skill={skills[0]}
+          done={done}
+          total={total}
+          /*
+            次の1本。**始められるものだけ**が `next` に入っている
+            （StepRenderer が絞る）ので、押した先で止まらない。
+            コースを終えた回は空なので、ボタンを出さない。
+          */
+          onNext={
+            next[0] && onSelectLesson
+              ? () => {
+                  setDayShown(false);
+                  onSelectLesson(next[0].id);
+                }
+              : undefined
+          }
+          onBackToCourse={() => {
+            setDayShown(false);
+            onBackToCourse?.();
+          }}
+          onClose={() => setDayShown(false)}
+        />
+      )}
 
       {/*
         いちばん上は「できるようになったこと」。

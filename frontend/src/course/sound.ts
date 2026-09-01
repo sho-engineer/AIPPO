@@ -41,7 +41,8 @@ import { loadSettings } from "../lib/settings";
  *     result      AIの返事が届いた   1音・ごく短い
  *     skill       AI技をおぼえた     3音・軽く上がる
  *     complete    レッスンを終えた   3音・ゆっくり
- *     milestone   節目・コース完走   3音・いちばん長い
+ *     milestone   節目・コース完走   3音・長い
+ *     day         Day を終えた      4音・いちばん豊か（0.7秒）
  */
 const CUES = {
   step: [
@@ -63,6 +64,19 @@ const CUES = {
     { hz: 659, delay: 0, length: 0.14 },
     { hz: 988, delay: 0.13, length: 0.14 },
     { hz: 1319, delay: 0.26, length: 0.4 },
+  ],
+  /*
+    Day を終えた合図。**この中でいちばん豊か。**
+
+    4音にしてある。1本終えた `complete` と同じ音だと、Day の区切りが
+    ただのレッスン完了と同じ重さに聞こえる。それでも 0.7 秒で終える
+    ——ジングルにはしない。
+  */
+  day: [
+    { hz: 659, delay: 0, length: 0.12 },
+    { hz: 880, delay: 0.11, length: 0.12 },
+    { hz: 1046, delay: 0.22, length: 0.12 },
+    { hz: 1319, delay: 0.33, length: 0.34 },
   ],
 } as const;
 

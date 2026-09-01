@@ -94,6 +94,17 @@ export const EVENTS = {
   */
   homeOpened: "home_opened",
   continueLessonClicked: "continue_lesson_clicked",
+  /*
+    Day を終えた瞬間（`components/course/DayComplete.tsx`）。
+
+    見たいのは「終えた人のうち、何人がそのまま次の1本へ入ったか」。
+    重ねた画面を出した意味があったかは、この2つでしか出ない。
+
+    1本ごとの `lesson_completed` とは別物。あちらはレッスンの単位で、
+    こちらは Day の区切り。同じ数になる日もあるが、意味が違う。
+  */
+  dayCompleted: "day_completed",
+  dayCompleteNextClicked: "day_complete_next_clicked",
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
