@@ -57,6 +57,31 @@ def _utc(year, month, day, hour=0, minute=0) -> dt.datetime:
     )
 
 
+"""時計を止める瞬間。
+
+東京は UTC+9、ホノルルは UTC-10。**19時間離れているが、1日じゅう
+日付が違うわけではない**——UTC の 10:00〜15:00 は、どちらも同じ暦日
+になる。その5時間に走らせると「旅行しても二度配らない」という検査は
+何も確かめておらず、「東へ飛べば次の日が配られる」ほうは落ちる
+（実際に 11:00 UTC で落ちた）。
+
+止める先は 00:00 UTC。東京は 9/1 の朝、ホノルルは 8/31 の昼。
+見たかったのはこの状況で、時刻を止めない限り作れない。
+"""
+FROZEN = dt.datetime(2026, 9, 1, 0, 0, tzinfo=dt.UTC)
+
+
+@pytest.fixture
+def frozen_clock(monkeypatch):
+    """`timezone.now()` を FROZEN に固定する。
+
+    差し替えるのは `django.utils.timezone` の属性なので、これを
+    読んでいる側（`localtime` も `credits` も）すべてに効く。
+    """
+    monkeypatch.setattr(localtime.timezone, "now", lambda: FROZEN)
+    return FROZEN
+
+
 def _seat(learner_key: uuid.UUID, name: str, source=TimezoneSource.BROWSER) -> None:
     LearnerTimezone.objects.update_or_create(
         learner_key=learner_key, defaults={"name": name, "source": source}
@@ -255,21 +280,27 @@ class TestWhenTheDayTurns:
 
 
 class TestGrantingByLocalDay:
-    def test_two_seats_turn_the_day_at_different_moments(self, settings):
+    def test_two_seats_turn_the_day_at_different_moments(
+        self, settings, frozen_clock
+    ):
         """同じ瞬間に、片方はもう新しい日、片方はまだ同じ日。"""
         settings.FREE_DAILY_TEXT_ACTIONS = 3
         settings.FREE_MAX_DAILY_TEXT_ACTIONS = 6
 
-        tokyo, london = uuid.uuid4(), uuid.uuid4()
+        tokyo, honolulu = uuid.uuid4(), uuid.uuid4()
         _seat(tokyo, "Asia/Tokyo")
-        _seat(london, "Europe/London")
+        _seat(honolulu, "Pacific/Honolulu")
 
         credits.grant_daily(tokyo)
-        credits.grant_daily(london)
+        credits.grant_daily(honolulu)
 
-        # どちらも初回なので配られる。日付だけが違う
+        # どちらも初回なので配られる
         assert len(_daily_grants(tokyo)) == 1
-        assert len(_daily_grants(london)) == 1
+        assert len(_daily_grants(honolulu)) == 1
+        # **日付そのものが違う。** ここを見ないと、この検査は
+        # 「初回は配られる」としか言っていない
+        assert _daily_grants(tokyo) == [dt.date(2026, 9, 1)]
+        assert _daily_grants(honolulu) == [dt.date(2026, 8, 31)]
 
     def test_the_same_local_day_is_granted_once(self, settings):
         settings.FREE_DAILY_TEXT_ACTIONS = 3
@@ -289,7 +320,7 @@ class TestGrantingByLocalDay:
 class TestTravelling:
     """旅行しても、同じ1日に二度は配られない。"""
 
-    def test_flying_west_does_not_grant_twice(self, settings):
+    def test_flying_west_does_not_grant_twice(self, settings, frozen_clock):
         """東京の 9/1 朝は、ホノルルではまだ 8/31。
 
         席をそのまま信じると、その人の「今日」が昨日へ戻り、
@@ -310,7 +341,7 @@ class TestTravelling:
         assert _available(key) == first
         assert len(_daily_grants(key)) == 1
 
-    def test_flying_east_still_grants_the_next_day(self, settings):
+    def test_flying_east_still_grants_the_next_day(self, settings, frozen_clock):
         """先へ進むぶんには普通に配る。止めたいのは**戻り**だけ。"""
         settings.FREE_DAILY_TEXT_ACTIONS = 3
         settings.FREE_MAX_DAILY_TEXT_ACTIONS = 99
@@ -325,7 +356,7 @@ class TestTravelling:
         assert len(_daily_grants(key)) == 2
         assert _available(key) == 6
 
-    def test_a_first_visitor_who_never_said_a_seat_is_still_protected(self, settings):
+    def test_a_first_visitor_who_never_said_a_seat_is_still_protected(self, settings, frozen_clock):
         """席を一度も言ってこなかった人にも、境目の控えは要る。
 
         控えを残さないと、この順で二度配られる。
@@ -349,7 +380,7 @@ class TestTravelling:
         assert _available(key) == first
         assert len(_daily_grants(key)) == 1
 
-    def test_bouncing_between_seats_does_not_farm_credits(self, settings):
+    def test_bouncing_between_seats_does_not_farm_credits(self, settings, frozen_clock):
         """行ったり来たりしても増えない。"""
         settings.FREE_DAILY_TEXT_ACTIONS = 3
         settings.FREE_MAX_DAILY_TEXT_ACTIONS = 99
