@@ -252,7 +252,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "title": "自分の文章でも試す？",
             # 注意はここでは出さない。**まだ何も書いていない。**
             # 入力欄のところで出るので、書く直前にちょうど届く。
-            "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+            "poMessage": "自分の仕事でも試してみる？",
             "poEmotion": "hint",
             "key": "real_task_choice",
             "options": [
@@ -270,7 +270,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "primaryLabel": "AIに送る内容を見る",
             "title": "自分の文章",
             "instruction": options.get("realTaskLabel", ""),
-            "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",
+            "poMessage": "自分の仕事でも試してみる？",
             "poEmotion": "hint",
             "key": "real_task_text",
             "placeholder": options.get("realTaskPlaceholder", ""),
@@ -291,7 +291,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "phase": "own",
             "title": "AIにはこう伝えます",
             "instruction": "送る前に、どう伝わるかを確かめましょう。",
-            "poMessage": "この内容でお願いします。直したいところがあれば戻れます。",
+            "poMessage": "これでお願いするね！",
             "poEmotion": "talking",
             "aiAction": ai_action,
         },
@@ -312,7 +312,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "phase": "own",
             "title": "自分の文章の結果",
             "instruction": "そのまま使える形になっているか見てみましょう。",
-            "poMessage": "使えそうなら、そのまま今日の仕事に持っていけます。",
+            "poMessage": "そのまま使えそう？",
             "poEmotion": "celebrate",
             "meta": review,
         },

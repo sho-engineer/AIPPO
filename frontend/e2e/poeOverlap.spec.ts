@@ -33,14 +33,38 @@ import { stubApi } from "./support/stubApi";
 /** iPhone の幅。ここを最優先にする。 */
 const PHONE = { width: 390, height: 844 };
 
-/** ポーと吹き出しが重なっているか。重なっていれば手前の要素も返す。 */
+/**
+ * ポーと吹き出しが重なっているか。重なっていれば手前の要素も返す。
+ *
+ * 測るのは**見えている体**で、枠ではない
+ * --------------------------------------
+ * 絵の台紙（512×512）には透明の余白が入っている。ポーと吹き出しを
+ * 隣り合わせた（`po/PoSpeech.tsx`）いまは、**枠は吹き出しの上に
+ * 少しかぶる**——余白ぶんだけ内側へ詰めているので、かぶるのは
+ * 何も描かれていないところだけ。
+ *
+ * 枠で測ると、見た目に何も起きていないのに「重なっている」と出る。
+ * ここで見たいのは最初から「ポーが吹き出しに隠れていないか」なので、
+ * 絵が実際に写っている範囲（`PO_BOX.neutral`）まで詰めてから測る。
+ */
 async function overlap(page: Page) {
   return page.evaluate(() => {
     const po = document.querySelector('[data-testid="po-avatar"]');
     const message = document.querySelector('[data-testid="po-hero-message"]');
     if (!po || !message) return null;
 
-    const p = po.getBoundingClientRect();
+    const frame = po.getBoundingClientRect();
+    // PO_BOX.neutral: 中心 (49.9%, 61.3%) / 大きさ (59.0%, 72.1%)
+    const bodyWidth = frame.width * 0.59;
+    const bodyHeight = frame.height * 0.721;
+    const centerX = frame.left + frame.width * 0.499;
+    const centerY = frame.top + frame.height * 0.613;
+    const p = {
+      left: centerX - bodyWidth / 2,
+      right: centerX + bodyWidth / 2,
+      top: centerY - bodyHeight / 2,
+      bottom: centerY + bodyHeight / 2,
+    };
     const m = message.getBoundingClientRect();
     const x = Math.min(p.right, m.right) - Math.max(p.left, m.left);
     const y = Math.min(p.bottom, m.bottom) - Math.max(p.top, m.top);

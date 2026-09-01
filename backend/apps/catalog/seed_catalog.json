@@ -370,7 +370,7 @@
           "type": "safety_check",
           "phase": "own",
           "title": "自分の文章でも試す？",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
@@ -519,7 +519,7 @@
           "phase": "own",
           "title": "自分の文章",
           "instruction": "いま実際に直したい文章を、ひとつ入れてみましょう。",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_text",
           "placeholder": "例）お客様へ送るお知らせの文章",
@@ -541,7 +541,7 @@
           "phase": "own",
           "title": "AIにはこう伝えます",
           "instruction": "送る前に、どう伝わるかを確かめましょう。",
-          "poMessage": "この内容でお願いします。直したいところがあれば戻れます。",
+          "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
             "action": "rewrite",
@@ -576,7 +576,7 @@
           "phase": "own",
           "title": "自分の文章の結果",
           "instruction": "そのまま使える形になっているか見てみましょう。",
-          "poMessage": "使えそうなら、そのまま今日の仕事に持っていけます。",
+          "poMessage": "そのまま使えそう？",
           "poEmotion": "celebrate",
           "meta": {
             "reviewPoints": [
@@ -845,7 +845,7 @@
           "type": "safety_check",
           "phase": "own",
           "title": "自分の文章でも試す？",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
@@ -865,7 +865,7 @@
           "phase": "own",
           "title": "自分の文章",
           "instruction": "手元にある長い文章を、ひとつ入れてみましょう。",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_text",
           "placeholder": "例）今日届いた長いメールの本文",
@@ -995,7 +995,7 @@
           "phase": "own",
           "title": "AIにはこう伝えます",
           "instruction": "送る前に、どう伝わるかを確かめましょう。",
-          "poMessage": "この内容でお願いします。直したいところがあれば戻れます。",
+          "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
             "action": "summarize",
@@ -1031,7 +1031,7 @@
           "phase": "own",
           "title": "自分の文章の結果",
           "instruction": "そのまま使える形になっているか見てみましょう。",
-          "poMessage": "使えそうなら、そのまま今日の仕事に持っていけます。",
+          "poMessage": "そのまま使えそう？",
           "poEmotion": "celebrate",
           "meta": {
             "reviewPoints": [
@@ -1298,7 +1298,7 @@
           "type": "safety_check",
           "phase": "own",
           "title": "自分の文章でも試す？",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
@@ -1318,7 +1318,7 @@
           "phase": "own",
           "title": "自分の文章",
           "instruction": "いま分からない言葉を、ひとつ入れてみましょう。",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_text",
           "placeholder": "例）社内で最近よく聞くけれど意味が分からない言葉",
@@ -1470,7 +1470,7 @@
           "phase": "own",
           "title": "AIにはこう伝えます",
           "instruction": "送る前に、どう伝わるかを確かめましょう。",
-          "poMessage": "この内容でお願いします。直したいところがあれば戻れます。",
+          "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
             "action": "explain",
@@ -1512,7 +1512,7 @@
           "phase": "own",
           "title": "自分の文章の結果",
           "instruction": "そのまま使える形になっているか見てみましょう。",
-          "poMessage": "使えそうなら、そのまま今日の仕事に持っていけます。",
+          "poMessage": "そのまま使えそう？",
           "poEmotion": "celebrate",
           "meta": {
             "reviewPoints": [
@@ -1770,7 +1770,7 @@
           "type": "safety_check",
           "phase": "own",
           "title": "自分の文章でも試す？",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
@@ -1790,7 +1790,7 @@
           "phase": "own",
           "title": "自分の文章",
           "instruction": "いま迷っていることを、ひとつ入れてみましょう。",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_text",
           "placeholder": "例）今の方法を続ける / 新しい方法に変える",
@@ -1911,7 +1911,7 @@
           "phase": "own",
           "title": "AIにはこう伝えます",
           "instruction": "送る前に、どう伝わるかを確かめましょう。",
-          "poMessage": "この内容でお願いします。直したいところがあれば戻れます。",
+          "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
             "action": "compare",
@@ -1947,7 +1947,7 @@
           "phase": "own",
           "title": "自分の文章の結果",
           "instruction": "そのまま使える形になっているか見てみましょう。",
-          "poMessage": "使えそうなら、そのまま今日の仕事に持っていけます。",
+          "poMessage": "そのまま使えそう？",
           "poEmotion": "celebrate",
           "meta": {
             "reviewPoints": [
@@ -2235,7 +2235,7 @@
           "type": "safety_check",
           "phase": "own",
           "title": "自分の文章でも試す？",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
@@ -2255,7 +2255,7 @@
           "phase": "own",
           "title": "自分の文章",
           "instruction": "いま止まっていることを、ひとつ入れてみましょう。",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_text",
           "placeholder": "例）やらないといけないのに手をつけられていないこと",
@@ -2327,7 +2327,7 @@
           "phase": "own",
           "title": "AIにはこう伝えます",
           "instruction": "送る前に、どう伝わるかを確かめましょう。",
-          "poMessage": "この内容でお願いします。直したいところがあれば戻れます。",
+          "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
             "action": "plan",
@@ -2363,7 +2363,7 @@
           "phase": "own",
           "title": "自分の文章の結果",
           "instruction": "そのまま使える形になっているか見てみましょう。",
-          "poMessage": "使えそうなら、そのまま今日の仕事に持っていけます。",
+          "poMessage": "そのまま使えそう？",
           "poEmotion": "celebrate",
           "meta": {
             "reviewPoints": [
@@ -2646,7 +2646,7 @@
           "type": "safety_check",
           "phase": "own",
           "title": "自分の文章でも試す？",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
@@ -2666,7 +2666,7 @@
           "phase": "own",
           "title": "自分の文章",
           "instruction": "自分が書いた文章を、ひとつ入れてみましょう。",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_text",
           "placeholder": "例）これから送ろうとしているメールの下書き",
@@ -2726,7 +2726,7 @@
           "phase": "own",
           "title": "AIにはこう伝えます",
           "instruction": "送る前に、どう伝わるかを確かめましょう。",
-          "poMessage": "この内容でお願いします。直したいところがあれば戻れます。",
+          "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
             "action": "improve",
@@ -2758,7 +2758,7 @@
           "phase": "own",
           "title": "自分の文章の結果",
           "instruction": "そのまま使える形になっているか見てみましょう。",
-          "poMessage": "使えそうなら、そのまま今日の仕事に持っていけます。",
+          "poMessage": "そのまま使えそう？",
           "poEmotion": "celebrate",
           "meta": {
             "reviewPoints": [
@@ -3303,7 +3303,7 @@
           "type": "safety_check",
           "phase": "own",
           "title": "自分の文章でも試す？",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えます。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_choice",
           "options": [
@@ -3323,7 +3323,7 @@
           "phase": "own",
           "title": "自分の文章",
           "instruction": "もうひとつ、別の困りごとでも試してみましょう。",
-          "poMessage": "自分の仕事のことで試すと、そのまま使えるようになります。",
+          "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_text",
           "placeholder": "例）月末にいつも手間取っている作業",
@@ -3340,7 +3340,7 @@
           "phase": "own",
           "title": "AIにはこう伝えます",
           "instruction": "送る前に、どう伝わるかを確かめましょう。",
-          "poMessage": "この内容でお願いします。直したいところがあれば戻れます。",
+          "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
             "action": "rewrite",
@@ -3380,7 +3380,7 @@
           "phase": "own",
           "title": "自分の文章の結果",
           "instruction": "そのまま使える形になっているか見てみましょう。",
-          "poMessage": "使えそうなら、そのまま今日の仕事に持っていけます。",
+          "poMessage": "そのまま使えそう？",
           "poEmotion": "celebrate",
           "meta": {
             "reviewPoints": [

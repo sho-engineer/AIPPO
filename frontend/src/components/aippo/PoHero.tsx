@@ -1,14 +1,22 @@
 /**
- * 画面のいちばん上。大きな見出しと、ポーと、ひとこと。
+ * 画面のいちばん上。見出しと、その下にポーのひとこと。
  *
- * 支給デザインは6枚とも同じ形をしている。
+ *     大きな見出し（2行）
+ *     └ 説明
  *
- *     大きな見出し（2行）      ポー（大きめ・右上）
- *     └ 吹き出し
+ *     [ どうだった？ ]◀ ポー
  *
- * 見出しは左、ポーは右。ポーは見出しの右上に重ねるくらいの位置で、
- * 文字より少し上に出る。「案内役がこの画面を開いてくれた」という
- * 見え方になる。
+ * ポーを重ねるのをやめた
+ * ----------------------
+ * 前はポーを絶対配置で右上に置き、見出しの側に幅ぶんの余白を空けて
+ * 避けていた。そのぶん吹き出しは下の通常フローへ回るので、
+ * **ポーは右上・吹き出しは左下**と画面の対角に離れる（390px で実測、
+ * いちばん近い角どうしで 138px）。その距離だと、吹き出しは
+ * 「ポーが言っていること」ではなく「別のUI」に見える。
+ *
+ * いまは重ねない。ポーと吹き出しを1つの部品（`po/PoSpeech.tsx`）に
+ * まとめて、見出しの下へ置く。**別々に位置を決められる形にしない**のが
+ * 肝心で、離れていたのは離せる形になっていたから。
  *
  * 吹き出しはポーの言葉
  * --------------------
@@ -24,8 +32,8 @@
 
 import type { ReactNode } from "react";
 
-import { PoFace } from "../../po/PoAvatar";
-import { poFrame, type PoSize } from "../../po/sizes";
+import { PoSpeech } from "../../po/PoSpeech";
+import { type PoSize } from "../../po/sizes";
 import type { PoEmotion } from "../../course/types";
 
 export interface PoHeroProps {
@@ -75,99 +83,48 @@ export function PoHero({
   scene,
 }: PoHeroProps) {
   return (
-    <section
-      className="relative pt-2"
-      data-testid="po-hero"
-      data-po-scene={scene}
-    >
+    <section className="pt-2" data-testid="po-hero" data-po-scene={scene}>
       {/*
-        ポーは文字の上に重ねる。回り込みではなく重ねるのは、
-        見出しが2行でも3行でも、ポーの位置を動かさないため。
-        文字の側には右の余白を取ってあるので、重なって読めなくはならない。
+        見出しの側。ポーとは**重ねない**。
+
+        前はポーを絶対配置で右上に置き、見出しの側に幅ぶんの余白を
+        空けて避けていた。そのぶん吹き出しは下の通常フローへ回るので、
+        ポーと吹き出しが画面の対角に離れる（実測 138px）。
+        重ねるのをやめて、ポーは吹き出しと一緒に下へ置く。
       */}
-      {/*
-        目印（po-avatar）は変えない。表情の切り替わりを見ている検査が
-        これを指している。置き場所を変えても、指し先は動かさない。
-      */}
-      {showPo && (
-        <div
-          data-testid="po-avatar"
-          data-emotion={emotion}
-          className="pointer-events-none absolute -top-2 right-0"
-        >
-          <PoFace emotion={emotion} message={message} size={size} />
-        </div>
-      )}
+      <div>
+        {eyebrow && <div className="mb-1">{eyebrow}</div>}
 
-      {/*
-        見出しの側。**ポーの背丈ぶんの高さを最低限そこに確保する。**
+        {/*
+          折り返しはブラウザ任せにする。
 
-        なぜ min-h が要るか
-        -------------------
-        ポーは絶対配置で、しかも DOM では吹き出しより**前**にいる。
-        重なった場所では、あとから通常の流れで置かれる吹き出し
-        （不透明な bg-surface を持つ）が上に描かれる。つまり
-        **ポーが吹き出しの下に隠れる**。
+          break-keep を掛けると、句読点の無い日本語は切れる場所を失って
+          **折り返さずに画面からはみ出す**（実際に診断の設問で起きた）。
+          不自然な切れ方より、読めなくなるほうがずっと悪い。
+        */}
+        <h1 className="text-xl font-bold leading-[1.5] sm:text-2xl">{title}</h1>
 
-        実測（390px・完了画面）:
-          ポー   top 106 / bottom 218
-          吹き出し top 200 / bottom 270
-          → 60 × 18px 重なり、elementFromPoint は po-hero-message を返した
-
-        題が長い画面（レッスンの導入など）では吹き出しが自然に下へ回るので
-        起きない。**題が短い画面だけで起きる**ぶん、見落としやすかった。
-
-        z-index でポーを前に出すのは違う。今度は吹き出しの文字が
-        読めなくなる。重ね順を入れ替えるのではなく、**重ならない高さを
-        確保する**のが正しい。ポーは正方形なので、背丈は幅と同じ。
-
-        枠は `po/sizes.ts` が決めるので、空ける高さも幅もそこから出す。
-        前は Tailwind の刻み（min-h-32 / pr-32）で近い数を当てていたが、
-        枠が変わるたびに手で合わせ直すことになっていた。
-      */}
-      <div
-        style={showPo ? { minHeight: `${poFrame(size) - 16}px` } : undefined}
-      >
-        {/* 文字の側は、ポーの幅ぶんだけ空ける。空けないと見出しに重なる */}
-        <div style={showPo ? { paddingRight: `${poFrame(size) + 8}px` } : undefined}>
-          {eyebrow && <div className="mb-1">{eyebrow}</div>}
-
-          {/*
-            折り返しはブラウザ任せにする。
-
-            break-keep を掛けると、句読点の無い日本語は切れる場所を失って
-            **折り返さずに画面からはみ出す**（実際に診断の設問で起きた）。
-            不自然な切れ方より、読めなくなるほうがずっと悪い。
-          */}
-          <h1 className="text-xl font-bold leading-[1.5] sm:text-2xl">
-            {title}
-          </h1>
-
-          {description && (
-            <p className="mt-2 text-sm leading-7 text-ink-muted">
-              {description}
-            </p>
-          )}
-        </div>
+        {description && (
+          <p className="mt-2 text-sm leading-7 text-ink-muted">{description}</p>
+        )}
 
         {meta && <div className="mt-3">{meta}</div>}
       </div>
 
-      {showPo && message && (
-        /*
-          吹き出し。しっぽはポーの側（右上）へ向ける。
-          誰が言っているのかを、線1本で示す。
-        */
-        <div className="relative mt-3 inline-block max-w-[85%]">
-          <p
-            className="rounded-panel rounded-tr-sm border border-line bg-surface px-4 py-2.5
-                       text-sm leading-6 shadow-card"
-            data-testid="po-hero-message"
-            // 言葉が変わったことを読み上げへ届ける（要件 §6.12）
-            aria-live="polite"
-          >
-            {message}
-          </p>
+      {/*
+        ポーと、ポーの言葉。**ひとかたまり**（`po/PoSpeech.tsx`）。
+
+        ここで別々に位置を決められないようにしてある。離れていたのは、
+        別々に置ける形になっていたから。
+      */}
+      {showPo && (
+        <div className="mt-4">
+          <PoSpeech
+            emotion={emotion}
+            message={message}
+            size={size}
+            scene={scene}
+          />
         </div>
       )}
     </section>

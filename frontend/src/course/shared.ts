@@ -370,7 +370,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
         書く直前にちょうど届く。ここで先に出すと、
         「やめておこう」だけが残る。
       */
-      poMessage: "自分の仕事のことで試すと、そのまま使えます。",
+      poMessage: "自分の仕事でも試してみる？",
       poEmotion: "hint",
       key: "real_task_choice",
       options: [
@@ -400,7 +400,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
           : undefined,
       title: "自分の文章",
       instruction: options.realTaskLabel,
-      poMessage: "自分の仕事のことで試すと、そのまま使えるようになります。",
+      poMessage: "自分の仕事でも試してみる？",
       poEmotion: "hint",
       key: "real_task_text",
       placeholder: options.realTaskPlaceholder,
@@ -424,7 +424,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       phase: "own",
       title: "AIにはこう伝えます",
       instruction: "送る前に、どう伝わるかを確かめましょう。",
-      poMessage: "この内容でお願いします。直したいところがあれば戻れます。",
+      poMessage: "これでお願いするね！",
       poEmotion: "talking",
       aiAction: options.aiAction,
     },
@@ -446,7 +446,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       phase: "own",
       title: "自分の文章の結果",
       instruction: "そのまま使える形になっているか見てみましょう。",
-      poMessage: "使えそうなら、そのまま今日の仕事に持っていけます。",
+      poMessage: "そのまま使えそう？",
       poEmotion: "celebrate",
       meta: review,
     },
