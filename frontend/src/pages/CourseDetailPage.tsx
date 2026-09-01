@@ -343,7 +343,6 @@ export function CourseDetailPage({
               emotion: completed.length === 0 ? "question" : "celebrate",
               action: "wait",
             }}
-            compact
           />
         </div>
       </main>

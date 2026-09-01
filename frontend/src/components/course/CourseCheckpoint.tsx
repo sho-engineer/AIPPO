@@ -83,7 +83,6 @@ export function CourseCheckpoint({
           emotion: "celebrate",
           action: "wait",
         }}
-        compact
       />
 
       {outcomes.length > 0 && (

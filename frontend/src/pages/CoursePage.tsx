@@ -73,7 +73,6 @@ export function CoursePage({ onOpenCourse, onSelectLesson }: CoursePageProps) {
               emotion: "talking",
               action: "wait",
             }}
-            compact
           />
         </div>
 

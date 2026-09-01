@@ -18,6 +18,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { prefersReducedMotion } from "../course/motion";
+import { poFrameStyle, type PoSize } from "./sizes";
 import type { PoEmotion, PoMessage } from "../course/types";
 import {
   PO_ALT,
@@ -70,8 +71,13 @@ const TALKING_MS = 1600;
 
 export type PoAvatarProps = {
   po: PoMessage;
-  /** 入力中は小さくする／たためる（要件 §6.11）。 */
-  compact?: boolean;
+  /**
+   * 大きさ。**幅は渡せない**（`po/sizes.ts`）。
+   *
+   * 既定は `sm`。この部品を使うのは一覧の行や画面の下の案内で、
+   * どれも文字の隣に寄り添う場所。レッスンの中は `PoSpeech` が持つ。
+   */
+  size?: PoSize;
   isVisible?: boolean;
 };
 
@@ -175,7 +181,16 @@ function useTalking(emotion: PoEmotion, message: string): boolean {
   return closed;
 }
 
-function PoImage({ emotion, className }: { emotion: PoEmotion; className: string }) {
+function PoImage({
+  emotion,
+  className,
+  style,
+}: {
+  emotion: PoEmotion;
+  className: string;
+  /** 枠の一辺。`po/sizes.ts` が割り戻した実寸だけを受け取る。 */
+  style?: { width: string };
+}) {
   /**
    * 絵の探し方は3段。
    *   1. その状態の絵
@@ -201,8 +216,9 @@ function PoImage({ emotion, className }: { emotion: PoEmotion; className: string
         role="img"
         aria-label={PO_ALT}
         data-testid="po-placeholder"
-        className={`flex shrink-0 items-center justify-center rounded-full
-                    text-sm font-bold ${tone} ${className}`}
+        style={style}
+        className={`flex aspect-square shrink-0 items-center justify-center
+                    rounded-full text-sm font-bold ${tone} ${className}`}
       >
         {mark}
       </div>
@@ -231,6 +247,7 @@ function PoImage({ emotion, className }: { emotion: PoEmotion; className: string
       枠も正方形と決めておけば、幅だけ渡せば形が決まる。
     */
     <span
+      style={style}
       className={`relative block aspect-square shrink-0 overflow-hidden ${className}`}
       data-po-frame={shown}
     >
@@ -279,13 +296,20 @@ function PoImage({ emotion, className }: { emotion: PoEmotion; className: string
 export function PoFace({
   emotion,
   message,
-  className = "h-20 w-20",
+  size = "md",
   animate = true,
 }: {
   emotion: PoEmotion;
   /** しゃべっている風に口を動かす手がかり。変わるたびに動き直す。 */
   message?: string;
-  className?: string;
+  /**
+   * 大きさ。**幅は渡せない**（`po/sizes.ts`）。
+   *
+   * 前は `className` で幅を渡していたので、画面ごとに違う数が入り、
+   * コース一覧の 35px からレッスンの 104px まで3倍の開きがあった。
+   * 渡せる口を消すのがいちばん確実な直し方。
+   */
+  size?: PoSize;
   animate?: boolean;
 }) {
   const blinking = useBlink(emotion);
@@ -306,12 +330,13 @@ export function PoFace({
   return (
     <PoImage
       emotion={shown}
-      className={`transition-opacity duration-200 ${className} ${motion}`}
+      style={poFrameStyle(size)}
+      className={`transition-opacity duration-200 ${motion}`}
     />
   );
 }
 
-export function PoAvatar({ po, compact = false, isVisible = true }: PoAvatarProps) {
+export function PoAvatar({ po, size = "sm", isVisible = true }: PoAvatarProps) {
   const blinking = useBlink(po.emotion);
   const mouthClosed = useTalking(po.emotion, po.message);
   if (!isVisible) return null;
@@ -325,7 +350,6 @@ export function PoAvatar({ po, compact = false, isVisible = true }: PoAvatarProp
     : po.emotion === "talking" && mouthClosed
       ? "neutral"
       : po.emotion;
-  const size = compact ? "h-12 w-12" : "h-16 w-16 sm:h-20 sm:w-20";
 
   return (
     <aside
@@ -339,11 +363,11 @@ export function PoAvatar({ po, compact = false, isVisible = true }: PoAvatarProp
         className="min-w-0 flex-1 rounded-2xl bg-surface px-3 py-2 shadow-card
                    sm:px-4 sm:py-3"
       >
-        <p
-          className={`text-sm leading-6 ${compact ? "max-h-12 overflow-hidden" : ""}`}
-        >
-          {po.message}
-        </p>
+        {/*
+          高さは切り詰めない。**短い文しか渡さない**のが決まりなので
+          （`poSpeech.ts`）、はみ出したら切るのではなく、文のほうを直す。
+        */}
+        <p className="text-sm leading-6">{po.message}</p>
       </div>
 
       <div className="relative">
@@ -357,7 +381,8 @@ export function PoAvatar({ po, compact = false, isVisible = true }: PoAvatarProp
         )}
         <PoImage
           emotion={shown}
-          className={`transition-opacity duration-200 ${size} ${
+          style={poFrameStyle(size)}
+          className={`transition-opacity duration-200 ${
             po.emotion === "celebrate" ? "animate-pop-in" : "animate-float"
           }`}
         />

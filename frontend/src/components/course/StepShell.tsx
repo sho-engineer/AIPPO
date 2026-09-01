@@ -229,7 +229,20 @@ export function StepShell({
           description={instruction}
           message={poSpeaks ? po.message : undefined}
           emotion={po.emotion}
-          compact={!eyebrow}
+          /*
+            大きさは**場面**で決める。画面の都合では決めない。
+
+            前はここに `compact={!eyebrow}` と書いてあった。小さな前置き
+            （「Lesson 1」など）が無い画面ではポーを小さくする、という
+            意味だが、**前置きの有無はポーと何の関係も無い**。実測すると
+            見える背丈が 104px → 81px（22%減）に変わっていて、同じ
+            レッスンを進んでいるだけでポーが縮んでいた。「同じ子がいる」
+            より「画面ごとに別の画像を置いている」と感じる、直接の原因。
+
+            入りの画面（`start`＝導入・完成イメージ）だけ `lg`。
+            あとは全部 `md` で、レッスンを通してポーの背丈は変わらない。
+          */
+          size={poScene === "start" ? "lg" : "md"}
           showPo={showPo}
           scene={poScene}
         />

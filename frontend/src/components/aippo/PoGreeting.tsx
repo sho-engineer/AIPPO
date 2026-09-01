@@ -43,15 +43,19 @@ export function PoGreeting({ message, emotion = "talking" }: PoGreetingProps) {
       </p>
 
       {/*
-        ポーは 72px。1〜2行の文字と並べたときに、
-        どちらが主役かが入れ替わらない大きさにしてある。
+        大きさは `sm`（見える背丈 56px）。1〜2行の文字と並べたときに、
+        どちらが主役かが入れ替わらない大きさ。
+
+        **ここで幅を書かない。** 前は `w-16 sm:w-20` と直書きしていて、
+        レッスンの 104px に対して 46px しか無かった。同じ子が画面ごとに
+        別の大きさで出ていたことになる（`po/sizes.ts`）。
       */}
       <div
         data-testid="po-avatar"
         data-emotion={emotion}
-        className="pointer-events-none w-16 shrink-0 sm:w-20"
+        className="pointer-events-none shrink-0"
       >
-        <PoFace emotion={emotion} message={message} className="h-auto w-full" />
+        <PoFace emotion={emotion} message={message} size="sm" />
       </div>
     </section>
   );

@@ -25,6 +25,7 @@
 import type { ReactNode } from "react";
 
 import { PoFace } from "../../po/PoAvatar";
+import { poFrame, type PoSize } from "../../po/sizes";
 import type { PoEmotion } from "../../course/types";
 
 export interface PoHeroProps {
@@ -39,8 +40,17 @@ export interface PoHeroProps {
   emotion?: PoEmotion;
   /** 見出しの下、吹き出しの上に置くもの（所要時間など）。 */
   meta?: ReactNode;
-  /** ポーを小さくする。中身が多い画面で使う。 */
-  compact?: boolean;
+  /**
+   * ポーの大きさ（`po/sizes.ts`）。既定は `md`。
+   *
+   * 前は `compact` という真偽値で、しかも `StepShell` が
+   * `compact={!eyebrow}` と渡していた——**小さな前置きが有るか無いか
+   * という、ポーとは何の関係もない条件で背丈が 104px → 81px に
+   * 変わっていた**。同じレッスンを進んでいるだけでポーが縮む。
+   *
+   * 段は役割で選ぶ。画面の都合で選ばない。
+   */
+  size?: PoSize;
   /**
    * ポーそのものを出すか。
    *
@@ -60,7 +70,7 @@ export function PoHero({
   message,
   emotion = "neutral",
   meta,
-  compact,
+  size = "md",
   showPo = true,
   scene,
 }: PoHeroProps) {
@@ -83,11 +93,9 @@ export function PoHero({
         <div
           data-testid="po-avatar"
           data-emotion={emotion}
-          className={`pointer-events-none absolute -top-2 right-0 ${
-            compact ? "w-28" : "w-36 sm:w-40"
-          }`}
+          className="pointer-events-none absolute -top-2 right-0"
         >
-          <PoFace emotion={emotion} message={message} className="h-auto w-full" />
+          <PoFace emotion={emotion} message={message} size={size} />
         </div>
       )}
 
@@ -113,12 +121,15 @@ export function PoHero({
         読めなくなる。重ね順を入れ替えるのではなく、**重ならない高さを
         確保する**のが正しい。ポーは正方形なので、背丈は幅と同じ。
 
-          通常 : 幅 144px、上へ 8px はみ出す → 136px。pt-2 の 8px を引いて 128px
-          compact: 幅 112px、同じく → 104px → 96px
+        枠は `po/sizes.ts` が決めるので、空ける高さも幅もそこから出す。
+        前は Tailwind の刻み（min-h-32 / pr-32）で近い数を当てていたが、
+        枠が変わるたびに手で合わせ直すことになっていた。
       */}
-      <div className={!showPo ? "" : compact ? "min-h-24" : "min-h-32"}>
+      <div
+        style={showPo ? { minHeight: `${poFrame(size) - 16}px` } : undefined}
+      >
         {/* 文字の側は、ポーの幅ぶんだけ空ける。空けないと見出しに重なる */}
-        <div className={!showPo ? "" : compact ? "pr-28" : "pr-32 sm:pr-36"}>
+        <div style={showPo ? { paddingRight: `${poFrame(size) + 8}px` } : undefined}>
           {eyebrow && <div className="mb-1">{eyebrow}</div>}
 
           {/*

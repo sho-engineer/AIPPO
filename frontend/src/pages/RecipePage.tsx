@@ -63,7 +63,6 @@ export function RecipePage({
               emotion: ready ? "celebrate" : "talking",
               action: "wait",
             }}
-            compact
           />
         </div>
 
