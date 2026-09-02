@@ -15,6 +15,7 @@
 import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
 
@@ -32,6 +33,7 @@ async function openRewrite(page: Page): Promise<void> {
   await page.getByRole("button", { name: "コース" }).click();
   await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-rewrite_text").click();
+  await dismissLessonIntro(page);
   await expect(page.getByTestId("primary-action").first()).toBeVisible();
 }
 

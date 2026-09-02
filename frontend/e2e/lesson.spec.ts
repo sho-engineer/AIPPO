@@ -17,6 +17,7 @@
 import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { stubApi, type StubHandle } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /**
  * 進めない状態か。
@@ -47,6 +48,7 @@ async function toCourse(page: Page): Promise<void> {
 async function openRewrite(page: Page): Promise<void> {
   await toCourse(page);
   await page.getByTestId("lesson-rewrite_text").click();
+  await dismissLessonIntro(page);
   await expect(page.getByTestId("primary-action").first()).toBeVisible();
 }
 

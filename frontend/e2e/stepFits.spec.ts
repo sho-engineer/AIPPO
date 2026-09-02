@@ -38,6 +38,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /** 丸めのぶれ。影や余白の端数で数 px は動く。 */
 const SLACK = 8;
@@ -123,6 +124,8 @@ async function walk(p: Page): Promise<Fit[]> {
   await p.reload();
   await p.getByRole("button", { name: "はじめる" }).first().click();
   await p.getByTestId("continue-lesson").click();
+  // 開いた最初に導入の一枚が浮かぶ。後ろの画面を測りたいので閉じる
+  await dismissLessonIntro(p);
   await expect(p.getByTestId("lesson-header")).toBeVisible();
   await p.waitForTimeout(2100);
 
@@ -191,6 +194,38 @@ test.describe("いちばん低い持ち方（iPhone の Safari、上下の帯あ
     test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
     assertFits(await walk(page), "iPhone 402×660");
   });
+
+  test("導入の一枚も、送らずに全部見える", async ({ page }, testInfo) => {
+    /*
+      導入は**中で送らせない**。見出し・一言・ポー・できること2つ・
+      「さっそく試す」だけを置くと決めてあるので、いちばん低い持ち方
+      でも収まるはず。収まらなくなったのは、置くものを増やした合図。
+
+      一枚の外へはみ出すことは形の上で起きない（`max-h-[80dvh]` と
+      中の `overflow-y-auto`）。だから見るのは**中で送れるかどうか**。
+    */
+    test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
+
+    await stubApi(page);
+    await page.goto("/");
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await page.getByRole("button", { name: "はじめる" }).first().click();
+    await page.getByTestId("continue-lesson").click();
+    await expect(page.getByTestId("lesson-intro")).toBeVisible();
+
+    const over = await page.evaluate(() => {
+      const body = document
+        .querySelector("[data-testid='lesson-intro']")
+        ?.closest<HTMLElement>(".overflow-y-auto");
+      return body ? body.scrollHeight - body.clientHeight : -1;
+    });
+    expect(over, "導入の中身が見つからない").toBeGreaterThanOrEqual(0);
+    expect(over, `導入の一枚が ${over}px 送れる`).toBeLessThanOrEqual(SLACK);
+
+    // 主のボタンは、押せる場所に出ていること
+    await expect(page.getByTestId("lesson-intro-start")).toBeInViewport();
+  });
 });
 
 test("完了画面でも、次にやることは画面に残る", async ({ page }) => {
@@ -206,6 +241,7 @@ test("完了画面でも、次にやることは画面に残る", async ({ page 
   await page.reload();
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await page.getByTestId("continue-lesson").click();
+  await dismissLessonIntro(page);
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 
   for (let step = 0; step < 30; step += 1) {

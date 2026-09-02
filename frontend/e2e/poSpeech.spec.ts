@@ -26,6 +26,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /** 台紙に対する neutral の幅（`PO_BOX.neutral.width`）。 */
 const VISIBLE_WIDTH_RATIO = 0.59;
@@ -49,6 +50,7 @@ async function start(page: Page) {
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await page.getByTestId("continue-lesson").click();
+  await dismissLessonIntro(page);
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 }
 

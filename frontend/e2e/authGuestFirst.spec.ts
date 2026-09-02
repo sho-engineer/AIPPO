@@ -10,6 +10,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 const API = "http://127.0.0.1:8000";
 
@@ -34,6 +35,7 @@ async function intoLesson(page: Page) {
   await page.getByRole("button", { name: "コース" }).click();
   await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-rewrite_text").click();
+  await dismissLessonIntro(page);
   await expect(page.getByTestId("primary-action").first()).toBeVisible();
 }
 

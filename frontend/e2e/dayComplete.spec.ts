@@ -29,6 +29,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /** すでにレッスンに入っている状態から、完了画面まで進める。 */
 async function runToCompletion(page: Page) {
@@ -66,6 +67,7 @@ async function start(page: Page) {
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await page.getByTestId("continue-lesson").click();
+  await dismissLessonIntro(page);
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 }
 

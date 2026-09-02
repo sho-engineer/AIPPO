@@ -96,6 +96,18 @@ export function LessonRunner({
   const api = useCourseLesson(lesson);
   const { step, values, runs } = api;
   const [revealed, setRevealed] = useState(false);
+  /*
+    導入の一枚を、もう出したか。
+
+    最初の画面（`outcome_preview`）は、進んで戻ってくるたびに作り直され
+    る。そこに置くと**戻るたびに導入が出る**——自分で戻ってきた人に
+    「今日やること」をもう一度かぶせる形になる。
+
+    出すのは**レッスンを開いた1回**。ここはレッスン1本につき1度しか
+    作られないので、覚えるならこの高さになる。閉じてから開き直せば
+    また出る（そのときは新しいレッスン開始）。
+  */
+  const [introSeen, setIntroSeen] = useState(false);
 
   /*
     Day を終えた画面を出しているか。
@@ -265,6 +277,8 @@ export function LessonRunner({
       completedIds={completedIds}
       revealed={revealed}
       setRevealed={setRevealed}
+      introSeen={introSeen}
+      onIntroSeen={() => setIntroSeen(true)}
       onSelectLesson={onSelectLesson}
       onOpenCourseCatalog={
         onOpenCourseCatalog

@@ -18,6 +18,7 @@ import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { openRecord } from "./support/openRecord";
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /**
  * 進めない状態か。
@@ -223,6 +224,7 @@ test.describe("登録していない人", () => {
     await page.getByRole("button", { name: "コース" }).click();
     await page.getByTestId("current-course-open").click();
     await page.getByTestId("lesson-rewrite_text").click();
+    await dismissLessonIntro(page);
 
     const primary = page.getByTestId("primary-action").first();
     for (let i = 0; i < 40; i++) {

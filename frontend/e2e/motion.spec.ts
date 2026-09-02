@@ -36,6 +36,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /**
  * 中身が入れ替わった瞬間の透明度を、1回だけ記録する。
@@ -102,6 +103,7 @@ async function openLesson(page: Page): Promise<void> {
   // コースは3段（一覧 → 中身 → レッスン）。レッスンが並ぶのは2段目
   await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-rewrite_text").first().click();
+  await dismissLessonIntro(page);
   await expect(page.getByTestId("step-transition")).toBeVisible();
 }
 

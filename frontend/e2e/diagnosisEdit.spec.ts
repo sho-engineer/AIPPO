@@ -26,6 +26,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /** 診断を最後まで答えて、結果画面まで行く。 */
 async function answerAll(page: Page): Promise<void> {
@@ -38,6 +39,7 @@ async function answerAll(page: Page): Promise<void> {
   // コースは3段（一覧 → 中身 → レッスン）。レッスンが並ぶのは2段目
   await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-diagnosis").first().click();
+  await dismissLessonIntro(page);
 
   // 最初の1枚は説明。そこから3問
   await page.getByTestId("primary-action").click();

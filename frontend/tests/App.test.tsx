@@ -58,6 +58,18 @@ describe("画面の行き来", () => {
     await user.click(await screen.findByTestId("current-course-open"));
   };
 
+  /**
+   * レッスンを開くと、まず導入の一枚が中央に浮かぶ。
+   *
+   * ここで見たいのは**後ろの画面までたどり着けたか**なので、
+   * 一枚を閉じてから見る。導入の一枚は、後ろの画面の見出しと
+   * ポーをもう一度出す（読み上げは `aria-modal` で一枚の中だけを
+   * 読むが、検査からは両方見える）。
+   */
+  const closeLessonIntro = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(await screen.findByTestId("lesson-intro-close"));
+  };
+
   it("タイトルから始まる", () => {
     render(<App />);
     expect(
@@ -87,6 +99,7 @@ describe("画面の行き来", () => {
       押す場所が1つなら、迷う余地も1つ分減る。
     */
     await user.click(await screen.findByTestId("continue-lesson"));
+    await closeLessonIntro(user);
 
     // レッスンの最初の画面は、レッスンそのものの名前を見出しにする
     expect(
@@ -184,6 +197,7 @@ describe("画面の行き来", () => {
     await start(user);
     await openCourseDetail(user);
     await user.click(await screen.findByTestId("lesson-rewrite_text"));
+    await closeLessonIntro(user);
 
     // レッスンの最初の画面は、レッスンそのものの名前を見出しにする
     expect(
@@ -223,6 +237,8 @@ describe("画面の行き来", () => {
     expect(await screen.findByTestId("po-avatar")).toBeInTheDocument();
 
     await user.click(await screen.findByTestId("continue-lesson"));
+    // 導入の一枚にもポーが居る。ここで見たいのは後ろの画面なので閉じる
+    await closeLessonIntro(user);
     expect(await screen.findByTestId("po-avatar")).toBeInTheDocument();
   });
 

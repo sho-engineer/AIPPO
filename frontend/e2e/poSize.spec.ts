@@ -35,6 +35,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /** 台紙に対する neutral の背丈（`PO_BOX.neutral.height`）。 */
 const VISIBLE_RATIO = 0.723;
@@ -120,6 +121,7 @@ test.describe("ポーの大きさ", () => {
     */
     await start(page);
     await page.getByTestId("continue-lesson").click();
+    await dismissLessonIntro(page);
     await expect(page.getByTestId("lesson-header")).toBeVisible();
 
     // 入りの画面（完成イメージ）は、話しかける場面

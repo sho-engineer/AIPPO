@@ -16,6 +16,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 
 async function openDiagnosisQuestion(page: Page): Promise<void> {
@@ -27,6 +28,7 @@ async function openDiagnosisQuestion(page: Page): Promise<void> {
   await page.getByRole("button", { name: "コース" }).first().click();
   await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-diagnosis").first().click();
+  await dismissLessonIntro(page);
   await page.getByTestId("primary-action").click();
 }
 
@@ -43,6 +45,7 @@ async function openConditionTiles(page: Page): Promise<void> {
   await page.reload();
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await page.getByTestId("continue-lesson").click();
+  await dismissLessonIntro(page);
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 
   for (let step = 0; step < 25; step += 1) {

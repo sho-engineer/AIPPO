@@ -23,6 +23,7 @@
  */
 
 import { expect, test, type Page, type Locator } from "@playwright/test";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /**
  * 進めない状態か。
@@ -117,6 +118,7 @@ test.describe("本物のバックエンドに当てる", () => {
 
     await toCourse(page);
     await page.getByTestId("lesson-rewrite_text").click();
+    await dismissLessonIntro(page);
     await runToEnd(page);
 
     await expect(page.getByTestId("completion-view")).toBeVisible();
@@ -139,6 +141,7 @@ test.describe("本物のバックエンドに当てる", () => {
 
     await toCourse(page);
     await page.getByTestId("lesson-rewrite_text").click();
+    await dismissLessonIntro(page);
     await runToEnd(page);
 
     expect(rejected, "サーバーが受け取らなかったイベント").toEqual([]);

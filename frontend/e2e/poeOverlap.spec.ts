@@ -29,6 +29,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /** iPhone の幅。ここを最優先にする。 */
 const PHONE = { width: 390, height: 844 };
@@ -91,6 +92,7 @@ async function openRewrite(page: Page): Promise<void> {
   await page.reload();
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await page.getByTestId("continue-lesson").click();
+  await dismissLessonIntro(page);
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 }
 

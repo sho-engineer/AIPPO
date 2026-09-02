@@ -19,6 +19,7 @@ import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { openRecord } from "./support/openRecord";
 import { stubApi, type StubHandle } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /**
  * 進めない状態か。
@@ -43,6 +44,7 @@ async function runToCompletion(page: Page): Promise<void> {
   await page.getByRole("button", { name: "コース" }).click();
   await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-rewrite_text").click();
+  await dismissLessonIntro(page);
 
   for (let i = 0; i < 40; i++) {
     if (await page.getByTestId("completion-view").isVisible().catch(() => false)) break;

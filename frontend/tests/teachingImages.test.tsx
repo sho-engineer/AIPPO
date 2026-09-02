@@ -125,6 +125,8 @@ describe("時間を二度言わない", () => {
     render(
       <OutcomePreview
         minutes={8}
+        title="ためしの題"
+        poMessage="ためしの一言"
         skills={[]}
         overview={teachingImage(DAY1, "outcome_preview")}
       />,
@@ -141,6 +143,8 @@ describe("時間を二度言わない", () => {
     render(
       <OutcomePreview
         minutes={8}
+        title="ためしの題"
+        poMessage="ためしの一言"
         skills={[]}
         overview={{
           src: "/x.webp",
@@ -185,6 +189,8 @@ describe("必ず見せるものと、見たい人に見せるもの", () => {
   it("最初の画面の全体図は、押したら大きく出す", async () => {
     render(
       <OutcomePreview
+        title="ためしの題"
+        poMessage="ためしの一言"
         skills={[]}
         overview={teachingImage(DAY1, "outcome_preview")}
       />,
@@ -193,9 +199,12 @@ describe("必ず見せるものと、見たい人に見せるもの", () => {
     // 押す前は絵そのものを置かない（読めない大きさで置かない）
     expect(screen.queryByTestId("teaching-image")).toBeNull();
 
-    await userEvent.setup().click(screen.getByTestId("outcome-overview-toggle"));
+    const user = userEvent.setup();
+    // 開いた最初に出る導入の一枚を閉じてから、下の画面のボタンを押す
+    await user.click(screen.getByTestId("lesson-intro-close"));
+    await user.click(screen.getByTestId("outcome-overview-toggle"));
 
-    expect(screen.getByTestId("more-sheet")).toBeInTheDocument();
+    expect(screen.getByTestId("lesson-overview-sheet")).toBeInTheDocument();
     expect(screen.getByTestId("teaching-image")).toBeInTheDocument();
   });
 

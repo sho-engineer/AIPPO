@@ -57,6 +57,14 @@ export interface StepRendererProps {
   /** 正解つきの選択肢で、答えを開いたか。 */
   revealed: boolean;
   setRevealed: (next: boolean) => void;
+  /**
+   * 導入の一枚を、このレッスンでもう出したか。
+   *
+   * 出すのはレッスンを開いた1回だけ。進んで戻ってきた人に、
+   * もう一度かぶせない（覚えているのは `LessonRunner`）。
+   */
+  introSeen?: boolean;
+  onIntroSeen?: () => void;
   onSelectLesson?: (lessonId: string) => void;
   /** コース完走の締めくくりから「次のコースを見る」を押したとき。 */
   onOpenCourseCatalog?: () => void;
@@ -71,6 +79,8 @@ export function StepRenderer({
   completedIds,
   revealed,
   setRevealed,
+  introSeen,
+  onIntroSeen,
   onSelectLesson,
   onOpenCourseCatalog,
   onOpenRecipe,
@@ -169,6 +179,18 @@ export function StepRenderer({
           ここで別の言葉を作ると、進行中の帯と食い違う。
         */
         <OutcomePreview
+          /*
+            導入の一枚に出す言葉。上の帯（StepShell）と同じものを渡す
+            ——同じ画面で違うことを言わないため（LessonRunner の
+            `outcome_preview` の分岐と揃える）。
+          */
+          eyebrow={`Lesson ${lesson.number}`}
+          title={lesson.outcomeTitle ?? lesson.title}
+          description={lesson.outcomeDescription ?? step.instruction}
+          poMessage={step.poMessage}
+          onStart={api.goNext}
+          introSeen={introSeen}
+          onIntroSeen={onIntroSeen}
           minutes={lesson.estimatedMinutes}
           goal={lesson.goal}
           before={lesson.beforeExample}

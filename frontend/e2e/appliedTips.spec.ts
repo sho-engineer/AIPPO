@@ -18,6 +18,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { dismissLessonIntro } from "./support/lessonIntro";
 import { openRecord } from "./support/openRecord";
 import { stubApi } from "./support/stubApi";
 
@@ -33,6 +34,7 @@ async function openLesson(page: Page, lessonId: string): Promise<void> {
   await page.getByRole("button", { name: "コース" }).first().click();
   await page.getByTestId("current-course-open").click();
   await page.getByTestId(`lesson-${lessonId}`).click();
+  await dismissLessonIntro(page);
 }
 
 /** 完了画面まで、機械的に押し進める。 */

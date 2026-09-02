@@ -24,6 +24,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 async function openCatalog(page: Page): Promise<void> {
   await page.goto("/");
@@ -83,6 +84,7 @@ test.describe("コース一覧", () => {
     await openCatalog(page);
     await page.getByTestId("current-course-open").click();
     await page.getByTestId("lesson-rewrite_text").click();
+    await dismissLessonIntro(page);
 
     await expect(page.getByTestId("lesson-header")).toBeVisible();
   });

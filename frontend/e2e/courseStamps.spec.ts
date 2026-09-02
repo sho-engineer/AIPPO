@@ -22,6 +22,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { openRecord } from "./support/openRecord";
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
 
@@ -44,6 +45,7 @@ async function openRewriteLesson(page: Page): Promise<void> {
   await page.getByRole("button", { name: "コース" }).first().click();
   await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-rewrite_text").click();
+  await dismissLessonIntro(page);
 }
 
 /** 完了画面まで、機械的に押し進める（教材の種類ごとの分岐を持たない）。 */

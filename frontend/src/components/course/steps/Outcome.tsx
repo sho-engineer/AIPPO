@@ -20,27 +20,32 @@
  * 使いどころ・終えたらできること——**これらの持ち主はこの画面**。
  * コースの一覧から持ってきた（あちらは「いまどこ・次はこれ」に絞った）。
  *
- * ただし最初から開いては置かない。読みたい人が「くわしく見る」を
+ * ただし最初から開いては置かない。読みたい人が「詳しく見る」を
  * 押したときに開く。押す前に何が出るかは、見出しに書いておく
  * ——中身の分からない折りたたみは、誰も押さない。
  *
- * `<details>` で作る。自前の開閉にすると、キーボードと読み上げから
- * 「いま開いているか」が分からなくなる。
+ * 開く先は**画面いっぱいの一枚**（`LessonDetailModal`）。前はこの場に
+ * 畳んだ `<details>` で置いていたが、畳んでいても行1本ぶんの場所を取り、
+ * 開けばその場でページが伸びた——1画面＝1アクションが崩れる。
+ *
+ * 入口はもう一枚ある
+ * ------------------
+ * この画面を開いた瞬間、中央に導入の一枚が浮かぶ（`LessonIntroModal`）。
+ * 今日やることと「さっそく試す」だけを持たせて、**押す先を1つに絞る**。
+ * ×で閉じればこの画面が残るので、行き止まりにはならない。
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import { Card, CardHeading, MetaPill } from "../../AppShell";
-import { MoreButton, MoreSheet } from "../MoreSheet";
+import { MetaPill } from "../../AppShell";
+import { MoreButton } from "../MoreSheet";
 import {
-  IconArrowDown,
-  IconBars,
-  IconCheckCircle,
-  IconClock,
-  IconList,
-  IconSparkle,
-  IconTarget,
-} from "../../Icons";
+  hasLessonDetail,
+  LessonDetailModal,
+  LessonIntroModal,
+  LessonOverviewModal,
+} from "../LessonIntro";
+import { IconBars, IconClock } from "../../Icons";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 import { TeachingImage } from "../../lessons/TeachingImage";
 import type { TeachingImageEntry } from "../../../course/teachingImages";
@@ -57,6 +62,13 @@ export function OutcomePreview({
   flow,
   overview,
   thumbnail,
+  eyebrow,
+  title,
+  description,
+  poMessage,
+  onStart,
+  introSeen = false,
+  onIntroSeen,
 }: {
   minutes?: number;
   /** ねらい。1行。 */
@@ -78,15 +90,50 @@ export function OutcomePreview({
   overview?: TeachingImageEntry | null;
   /** 専用の1枚が無いときに代わりに出す、一覧と同じ絵。 */
   thumbnail?: string | null;
+  /** 「Lesson 1」。導入の一枚の見出し。 */
+  eyebrow?: string;
+  /** レッスンの題（`outcomeTitle`）。 */
+  title: string;
+  /** 一言（`outcomeDescription`）。 */
+  description?: string;
+  /** ポーのひとこと。 */
+  poMessage: string;
+  /**
+   * 「さっそく試す」を押したとき。
+   *
+   * 導入の一枚は**次へ進ませる入口**なので、閉じるだけで終わらせない。
+   */
+  onStart?: () => void;
+  /**
+   * 導入の一枚を、このレッスンでもう出したか。
+   *
+   * この画面は**進んで戻ってくるたびに作り直される**ので、覚えるのは
+   * 1つ上（`LessonRunner`）。渡されなければ毎回出す（検査で1枚だけ
+   * 置くときのため）。
+   */
+  introSeen?: boolean;
+  onIntroSeen?: () => void;
 }) {
   const [overviewOpen, setOverviewOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
+  /*
+    開いた最初に、導入の一枚を自分から出す。
 
-  const hasDetail =
-    Boolean(goal) ||
-    Boolean(before && after) ||
-    skills.length > 0 ||
-    (outcomes?.length ?? 0) > 0 ||
-    (flow?.length ?? 0) > 0;
+    レッスンの冒頭は**読み物ではなく入口**にする。見出しと一言と
+    できること2つだけを中央に浮かべ、押す先を1つに絞る。閉じた人には
+    この後ろの画面が残る（同じ「さっそく試す」が下の帯にある）ので、
+    行き止まりにはならない。
+  */
+  const [introOpen, setIntroOpen] = useState(!introSeen);
+  /*
+    出したことを1つ上へ伝える。描き終わってからにする——描いている
+    最中に親を書き換えると、React が同じ回の中で描き直しにかかる。
+  */
+  useEffect(() => {
+    if (introOpen) onIntroSeen?.();
+  }, [introOpen, onIntroSeen]);
+
+  const hasDetail = hasLessonDetail({ goal, before, after, skills, outcomes, flow });
 
   return (
     /*
@@ -124,21 +171,14 @@ export function OutcomePreview({
           </MoreButton>
           {overviewOpen && (
             /*
-              絵に幅を全部渡す（`bleed`）。一枚の高さの上限は画面の 8 割のまま。
+              絵に幅を全部渡す（`bleed`）。一枚の高さの上限は画面の 8 割。
 
               左右の余白をやめるだけで 353px → 393px になる。この絵は
               ほぼ正方形で、スマホでは**幅が上限**なので、ここが効く。
               高さのほうを 8 割で固定しても絵は大きくならず、白い余白が
-              135px 増えるだけだった（実測して戻した。MoreSheet の `bleed` に経緯がある）。
-
-              全画面にはしない。上に下の画面が少し見えていることが、
-              「戻れる」の手がかりになる。
+              135px 増えるだけだった（実測して戻した。MoreSheet の `bleed`）。
             */
-            <MoreSheet
-              bleed
-              title="今日やることの全体図"
-              onClose={() => setOverviewOpen(false)}
-            >
+            <LessonOverviewModal onClose={() => setOverviewOpen(false)}>
               <TeachingImage
                 src={overview.src}
                 alt={overview.alt}
@@ -146,7 +186,7 @@ export function OutcomePreview({
                 height={overview.height}
                 className="rounded-none"
               />
-            </MoreSheet>
+            </LessonOverviewModal>
           )}
         </div>
       ) : (
@@ -188,142 +228,47 @@ export function OutcomePreview({
       </div>
 
       {hasDetail && (
-        <details data-testid="outcome-detail" className="group shrink-0">
-          {/*
-            何が出るかを書いておく。「くわしく」だけだと、中身が
-            分からないので誰も押さない。
-          */}
-          <summary
-            data-testid="outcome-detail-toggle"
-            className="row-tap cursor-pointer list-none rounded-card bg-surface px-5 py-3
-                       text-sm font-bold shadow-card transition hover:bg-brand-soft/50"
-          >
-            <span className="flex items-center gap-2">
-              <IconList className="h-4 w-4 shrink-0 text-brand" />
-              <span className="min-w-0 flex-1">くわしく見る</span>
-              <span className="shrink-0 text-xs font-normal text-ink-muted">
-                ねらい・流れ・覚えるAI技
-              </span>
-            </span>
-          </summary>
+        /*
+          「詳しく見る」は**押した人にだけ**開く。
 
-          <div className="mt-4 space-y-4">
-            {goal && (
-              <Card>
-                <CardHeading icon={IconTarget} tone="plain">
-                  今日のねらい
-                </CardHeading>
-                <p data-testid="outcome-goal" className="mt-2 text-sm leading-7">
-                  {goal}
-                </p>
-              </Card>
-            )}
+          前はこの場に畳んだ `<details>` で置いていた。畳んでいても
+          行1本ぶんの場所を取り、開けばその場でページが伸びる——
+          開いた瞬間に「長いページを読まされる」形になっていた。
+          画面いっぱいの一枚へ移して、中で送ってもらう。
+        */
+        <div className="shrink-0">
+          <MoreButton testId="outcome-detail-toggle" onClick={() => setDetailOpen(true)}>
+            詳しく見る（ねらい・流れ・覚えるAI技）
+          </MoreButton>
+        </div>
+      )}
 
-            {before && after && (
-              <Card>
-                <CardHeading icon={IconSparkle} tone="plain">
-                  完成イメージ
-                </CardHeading>
+      {detailOpen && (
+        <LessonDetailModal
+          goal={goal}
+          before={before}
+          after={after}
+          skills={skills}
+          outcomes={outcomes}
+          flow={flow}
+          onClose={() => setDetailOpen(false)}
+        />
+      )}
 
-                {/*
-                  上下に並べて、あいだに矢印を落とす。
-                  横並びだと「左右にある2つ」で終わり、
-                  片方がもう片方に変わったことが読み取れない。
-                */}
-                <section className="mt-4 rounded-card bg-canvas p-4">
-                  <h3 className="text-xs font-bold text-ink-muted">Before</h3>
-                  <p
-                    data-testid="outcome-before"
-                    className="mt-2 whitespace-pre-wrap text-sm leading-7"
-                  >
-                    {before}
-                  </p>
-                </section>
-
-                <div className="flex justify-center py-1.5" aria-hidden="true">
-                  <IconArrowDown className="h-6 w-6 text-brand" />
-                </div>
-
-                <section className="rounded-card bg-brand-soft p-4 ring-1 ring-brand-line">
-                  <h3 className="text-xs font-bold text-brand-dark">After</h3>
-                  <p
-                    data-testid="outcome-after"
-                    className="mt-2 whitespace-pre-wrap text-sm leading-7"
-                  >
-                    {after}
-                  </p>
-                </section>
-              </Card>
-            )}
-
-            {flow && flow.length > 0 && (
-              <Card>
-                <CardHeading icon={IconList} tone="plain">
-                  この後の流れ
-                </CardHeading>
-                {/*
-                  番号付きで出す。何歩あるかではなく、**どういう順で
-                  何をするか**が分かればよい（歩数は帯が持っている）。
-                */}
-                <ol
-                  data-testid="outcome-flow"
-                  className="mt-3 space-y-1.5 text-sm leading-6"
-                  role="list"
-                >
-                  {flow.map((phase, index) => (
-                    <li key={phase} className="flex items-start gap-2">
-                      <span className="mt-0.5 shrink-0 text-xs font-bold tabular-nums text-brand">
-                        {index + 1}
-                      </span>
-                      {phase}
-                    </li>
-                  ))}
-                </ol>
-              </Card>
-            )}
-
-            {skills.length > 0 && (
-              <Card>
-                <CardHeading icon={IconTarget} tone="plain">
-                  今日覚えるAI技
-                </CardHeading>
-                {/*
-                  できるようになることは押せない。だから pill にはしない。
-                  淡い青の丸で囲うと「選べる候補」に見え、押してみて何も
-                  起きない、という無反応を作る。印と文字だけで足りる。
-                */}
-                <ul className="mt-3 space-y-1.5" role="list">
-                  {skills.map((skill) => (
-                    <li key={skill} className="flex items-start gap-2 text-sm leading-6">
-                      <IconCheckCircle className="mt-1 h-4 w-4 shrink-0 text-brand" />
-                      {skill}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
-
-            {outcomes && outcomes.length > 0 && (
-              <Card>
-                <CardHeading icon={IconCheckCircle} tone="plain">
-                  終えたらできること
-                </CardHeading>
-                <ul
-                  data-testid="outcome-after-lesson"
-                  className="mt-3 space-y-1.5"
-                  role="list"
-                >
-                  {outcomes.map((line) => (
-                    <li key={line} className="flex items-start gap-2 text-sm leading-6">
-                      <IconCheckCircle className="mt-1 h-4 w-4 shrink-0 text-brand" />
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            )}
-          </div>
-        </details>
+      {introOpen && (
+        <LessonIntroModal
+          eyebrow={eyebrow}
+          title={title}
+          description={description}
+          poMessage={poMessage}
+          outcomes={outcomes}
+          onStart={() => {
+            setIntroOpen(false);
+            onStart?.();
+          }}
+          onDetail={hasDetail ? () => setDetailOpen(true) : undefined}
+          onClose={() => setIntroOpen(false)}
+        />
       )}
     </div>
   );

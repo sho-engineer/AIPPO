@@ -31,7 +31,7 @@
  * `fixed` を使う以上、置き場所は body でなければならない。
  */
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 export interface MoreSheetProps {
@@ -67,15 +67,28 @@ export interface MoreSheetProps {
    *
    *   sheet  … 画面の下から。**読み物**を開くとき（既定）。
    *            指の届く側から出るので、閉じるのも近い
-   *   center … 画面の中央に浮かべる。**1つの中身を確かめる**とき。
-   *            「AIに送る文章」のように、読んだら閉じて元へ戻る用
+   *   center … 画面の中央に浮かべる。**1つのことを見て、次へ進む**とき。
+   *            レッスンの導入、全体図、「AIに送る文章」
+   *   full   … 画面いっぱいに近い大きさ。**読み込む**とき。
+   *            「詳しく見る」の中身はここ。中は縦に送れる
    *
    * 分けているのは、下から出る形が**続きがある**ことを匂わせるため。
-   * 送れば次が出てくる読み物ならそれでよいが、1つの文章を確かめる
-   * だけの場面では、開発中の仮画面のように見える。中央に浮かべると、
-   * 「これだけ見て閉じる」がひと目で分かる。
+   * 送れば次が出てくる読み物ならそれでよいが、ひとつ見て閉じる場面では
+   * 開発中の仮画面のように見える。中央に浮かべると、「これを見て次へ」が
+   * ひと目で分かる。
    */
-  placement?: "sheet" | "center";
+  placement?: "sheet" | "center" | "full";
+  /**
+   * 検査の手がかり。
+   *
+   * 既定は `more-sheet`。同じ画面で2枚以上開くところ（レッスンの導入と
+   * 全体図）は、**どちらを指しているのか決められる**ように別の名前を
+   * 付ける。付けないと「複数見つかった」で検査が止まる。
+   *
+   * ×と背景の目印も、ここから作る（`-sheet` を落として `-close` /
+   * `-scrim`）。`lesson-intro-sheet` なら `lesson-intro-close`。
+   */
+  testId?: string;
   children: ReactNode;
 }
 
@@ -91,42 +104,108 @@ export interface MoreSheetProps {
  */
 const stack: symbol[] = [];
 
+/**
+ * 開いているあいだ、後ろのページを動かさない。
+ *
+ * 一枚は body の上に `fixed` で浮いている。指が一枚の外へ出ると、
+ * そのまま**後ろのページ**が送られる——読んでいた場所が動き、閉じた
+ * 先が別のところになる。ホームや設定のように長いページで目に付く。
+ *
+ * 元の値へ戻す。`""` で上書きすると、`overflow` を自分で指定している
+ * ページ（レッスンは `hidden` を敷いている）の設定を消してしまう。
+ *
+ * 重なっているときは、いちばん外側の一枚が閉じるまで戻さない。
+ * 数えるのは `stack` の長さで足りる。
+ */
+let unlockedOverflow = "";
+function lockPage(): void {
+  if (typeof document === "undefined") return;
+  if (stack.length !== 1) return;
+  unlockedOverflow = document.body.style.overflow;
+  document.body.style.overflow = "hidden";
+}
+function unlockPage(): void {
+  if (typeof document === "undefined") return;
+  if (stack.length !== 0) return;
+  document.body.style.overflow = unlockedOverflow;
+}
+
 export function MoreSheet({
   title,
   onClose,
   elevated = false,
   bleed = false,
   placement = "sheet",
+  testId,
   children,
 }: MoreSheetProps) {
-  const centered = placement === "center";
+  const centered = placement !== "sheet";
+  const full = placement === "full";
   const panel = useRef<HTMLDivElement>(null);
+  /*
+    見出しの id は**この一枚だけのもの**にする。
+
+    導入の上に「詳しく見る」を重ねると、同じ id の見出しが画面に2つ
+    並ぶ。`aria-labelledby` は最初の1つを拾うので、上に開いた一枚が
+    下の一枚の名前で読み上げられる。
+  */
+  const titleId = useId();
+  /*
+    ×と背景の目印も、一枚ごとに変える。2枚開いているときに
+    「閉じるを押す」と書けなくなるため（どちらの×か決められない）。
+  */
+  const hook = testId
+    ? testId.replace(/-sheet$/, "")
+    : elevated
+      ? "full-text"
+      : "more-sheet";
+
+  /*
+    閉じ方は毎回作り直される（呼ぶ側が `onClose={() => setOpen(false)}`
+    と書くため）。それを下の `useEffect` の見張りに入れると、**親が描き
+    直されるたびに開き直した扱いになる**。
+
+    重ねているときに効いてくる。導入の上に「詳しく見る」を開くと親が
+    描き直り、下に居る導入が並びの**いちばん後ろへ付け直される**。
+    その状態で Esc を押すと、上の一枚ではなく導入が閉じる。ついでに
+    `focus()` もやり直されるので、開いたばかりの一枚から下の一枚へ
+    焦点が戻る——読み上げでは、開いた覚えのない場所から読み始める。
+
+    並びへの出入りは**開いた時と閉じた時の2回だけ**。だから見張りは
+    空にして、閉じ方は箱越しに読む。
+  */
+  const latestClose = useRef(onClose);
+  useEffect(() => {
+    latestClose.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     const me = Symbol("more-sheet");
     stack.push(me);
+    lockPage();
     panel.current?.focus();
 
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape") return;
       // 上に別の一枚が開いていれば、そちらが閉じる番
       if (stack[stack.length - 1] !== me) return;
-      onClose();
+      latestClose.current();
     };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
       const at = stack.indexOf(me);
       if (at >= 0) stack.splice(at, 1);
+      unlockPage();
     };
-  }, [onClose]);
+  }, []);
 
   const sheet = (
     <div
       className={`fixed inset-0 flex justify-center ${
-        centered ? "items-center p-5" : "items-end sm:items-center"
+        centered ? "items-center p-3 sm:p-5" : "items-end sm:items-center"
       } ${elevated ? "z-40" : "z-30"}`}
-      data-testid={elevated ? "full-text-sheet" : "more-sheet"}
+      data-testid={testId ?? (elevated ? "full-text-sheet" : "more-sheet")}
       data-placement={placement}
     >
       {/*
@@ -136,7 +215,7 @@ export function MoreSheet({
       <button
         type="button"
         aria-label="閉じる"
-        data-testid={elevated ? "full-text-scrim" : "more-sheet-scrim"}
+        data-testid={`${hook}-scrim`}
         onClick={onClose}
         /*
           中央に浮かべるときは、少し濃くする。下から出る一枚は画面の
@@ -150,7 +229,7 @@ export function MoreSheet({
         ref={panel}
         role="dialog"
         aria-modal="true"
-        aria-labelledby={elevated ? "full-text-title" : "more-sheet-title"}
+        aria-labelledby={titleId}
         tabIndex={-1}
         /*
           スマホでは下から。指の届く側から出るほうが、閉じるのも近い。
@@ -161,11 +240,18 @@ export function MoreSheet({
           たびに画面の高さが変わるため。`vh` は帯が出ている分を数えない
           ので、帯が出た瞬間だけ一枚が画面からはみ出す。
         */
-        className={`relative flex w-full max-w-md flex-col overflow-hidden
-                    bg-surface shadow-dialog outline-none ${
-                      centered
-                        ? "animate-pop-in max-h-[70dvh] rounded-panel sm:max-h-[70vh]"
-                        : "animate-slide-in max-h-[80dvh] rounded-t-panel sm:max-h-[80vh] sm:rounded-panel"
+        /*
+          中央に浮かべるほうは幅を画面なりにする（`w-full` ＋ 外側の
+          `p-3`）。読み込む用（`full`）だけ、上下も画面いっぱいに近づける
+          ——中身が長いので、見える窓が広いほうが送る回数が減る。
+        */
+        className={`relative flex w-full flex-col overflow-hidden bg-surface
+                    shadow-dialog outline-none ${
+                      full
+                        ? "animate-pop-in h-[94dvh] max-w-lg rounded-modal"
+                        : centered
+                          ? "animate-pop-in max-h-[80dvh] max-w-md rounded-modal sm:max-h-[80vh]"
+                          : "animate-slide-in max-h-[80dvh] max-w-md rounded-t-panel sm:max-h-[80vh] sm:rounded-panel"
                     }`}
       >
         <div
@@ -174,7 +260,7 @@ export function MoreSheet({
           }`}
         >
           <h2
-            id={elevated ? "full-text-title" : "more-sheet-title"}
+            id={titleId}
             /*
               見出しと本文の段差を付ける。中央に浮かべる一枚は、本文
               （17px）と見出し（15px）が近すぎると、見出しが本文の
@@ -187,7 +273,7 @@ export function MoreSheet({
           <button
             type="button"
             aria-label="閉じる"
-            data-testid={elevated ? "full-text-close" : "more-sheet-close"}
+            data-testid={`${hook}-close`}
             onClick={onClose}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
                        text-ink-muted transition hover:bg-brand-soft"

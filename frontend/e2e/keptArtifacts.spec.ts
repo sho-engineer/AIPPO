@@ -9,6 +9,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /**
  * 進めない状態か。
@@ -30,6 +31,7 @@ async function finishALesson(page: Page): Promise<void> {
   await page.getByRole("button", { name: "コース" }).click();
   await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-rewrite_text").click();
+  await dismissLessonIntro(page);
 
   const primary = page.getByTestId("primary-action").first();
   for (let i = 0; i < 40; i++) {

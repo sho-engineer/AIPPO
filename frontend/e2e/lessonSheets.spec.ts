@@ -20,6 +20,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /** 次へ進む。答えが要る回は、その場にあるもので埋める。 */
 async function advance(p: Page): Promise<boolean> {
@@ -59,6 +60,7 @@ async function start(page: Page) {
   await page.reload();
   await page.getByRole("button", { name: "はじめる" }).first().click();
   await page.getByTestId("continue-lesson").click();
+  await dismissLessonIntro(page);
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 }
 
@@ -182,6 +184,7 @@ test.describe("このレッスンの記録", () => {
     await page.reload();
     await page.getByRole("button", { name: "はじめる" }).first().click();
     await page.getByTestId("continue-lesson").click();
+    await dismissLessonIntro(page);
     await runUntil(page, "completion-view");
 
     await page.getByTestId("completion-more").click();

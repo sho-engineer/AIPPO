@@ -64,6 +64,9 @@ function renderLesson(lessonId = "rewrite_text") {
  * （src/course/catalog.ts の LESSON_1）。
  */
 async function toQuickTry(user: ReturnType<typeof userEvent.setup>) {
+  // 開いた最初に出る導入の一枚。ここでは下の画面から進めたいので閉じる
+  const intro = screen.queryByTestId("lesson-intro-close");
+  if (intro) await user.click(intro);
   await user.click(screen.getByTestId("primary-action")); // 完成イメージ
   await user.click(
     await screen.findByRole("button", { name: /^✓? ?専門用語を減らす$/ }),
@@ -113,14 +116,17 @@ describe("成果物ファースト", () => {
       ことになり、1枚で伝える意味が消える。
 
       詳しい話（ねらい・完成イメージ・流れ・覚えるAI技）はこの画面が
-      持っているが、**畳んである**。持ち主がここなのと、最初から
-      広げておくのは別のこと。
+      持っているが、**押すまで出さない**。持ち主がここなのと、最初から
+      広げておくのは別のこと。いまは画面いっぱいの一枚へ移してある。
     */
     const user = userEvent.setup();
     renderLesson();
 
+    // 開いた最初は導入の一枚が出る。閉じると下の画面が残る
+    await user.click(screen.getByTestId("lesson-intro-close"));
+
     expect(screen.getByTestId("outcome-preview")).toBeInTheDocument();
-    expect(screen.getByTestId("outcome-before")).not.toBeVisible();
+    expect(screen.queryByTestId("outcome-before")).toBeNull();
     // 先に長い説明を読ませない
     expect(screen.queryByTestId("concept-card")).toBeNull();
 
@@ -621,6 +627,8 @@ describe("ポーの状態", () => {
     */
     const user = userEvent.setup();
     renderLesson();
+    // 導入の一枚にもポーが居る。下の画面のほうを見たいので、先に閉じる
+    await user.click(screen.getByTestId("lesson-intro-close"));
 
     expect(screen.getByTestId("po-avatar")).toHaveAttribute(
       "data-emotion",

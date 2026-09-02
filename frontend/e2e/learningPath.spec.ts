@@ -14,6 +14,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 const PHONE = { width: 390, height: 844 };
 
@@ -157,6 +158,7 @@ test.describe("コースの道のり", () => {
     await openPath(page);
 
     await page.getByTestId("lesson-summarize_text").click();
+    await dismissLessonIntro(page);
     await expect(page.getByTestId("lesson-header")).toBeVisible();
   });
 
