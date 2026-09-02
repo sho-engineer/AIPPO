@@ -28,12 +28,11 @@
  * 重なって見える**。実際にそれで「収まった」と誤読した。箱ごとに
  * 「中身が箱より高いか」も見る。
  *
- * 完了画面だけは別
- * ----------------
- * あそこは成果物・スタンプ・アンケート・次の行き先が並ぶ**まとめの
- * 画面**で、1アクションの画面ではない（支給資料の注記も、ホームや
- * 設定などは必要に応じて送れるとしている）。送れるのは中身の枠だけで、
- * 「次にやること」は画面に残る。
+ * 完了画面も同じ決まりで測る
+ * --------------------------
+ * 前は「まとめの画面だから」と外していた（3036px あった）。いまは
+ * 残すものを3つに絞り、進み具合・アンケート・応用例・次におすすめは
+ * 「このレッスンの記録」の一枚へ移したので、ほかの回と同じ土俵に乗る。
  */
 
 import { expect, test, type Page } from "@playwright/test";
@@ -96,7 +95,8 @@ async function advance(p: Page): Promise<boolean> {
       const choice = p
         .locator("main button:visible")
         .filter({
-          hasNotText: /レッスン一覧へ|もどる|くわしく|送っています|飛ばす|スキップ/,
+          hasNotText:
+            /レッスン一覧へ|もどる|くわしく|変わったところ|記録|全文|送っています|飛ばす|スキップ/,
         })
         .first();
       if (await choice.count()) await choice.click();
@@ -127,10 +127,13 @@ test("レッスンのどの画面も、1画面に収まる", async ({ page }, te
 
   const seen: Fit[] = [];
   for (let step = 0; step < 30; step += 1) {
-    // 完了画面はまとめの画面。ここで測るのはやめる（冒頭のコメント参照）
-    if (await page.getByTestId("completion-view").count()) break;
-
     seen.push(await fit(page));
+    /*
+      完了画面も測る。**まとめの画面ではなくなった**——できるように
+      なったこと・覚えたAI技・成果物の3つだけを残し、進み具合や
+      アンケートは「このレッスンの記録」の一枚へ移した。
+    */
+    if (await page.getByTestId("completion-view").count()) break;
     if (!(await advance(page))) break;
   }
 

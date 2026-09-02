@@ -3,19 +3,28 @@
  *
  * 待っているあいだ、何が起きているのかを出しておく。
  * 無言で止まると、壊れたのか待てばよいのかが分からない。
- */
-
-
-// ------------------------------------------------------- 送信中のようす
-
-/**
- * 送っているあいだの画面。
  *
- * 「考えています」だけにしない。何をしているかを短く出し、
- * 進んでいることが見える棒を添える。
- * 実際の進み具合は分からないので、**時間で伸ばす**演出にはしない。
- * 待ち時間をわざと足すのと変わらなくなる。
+ * 主役はポー
+ * ----------
+ * 前はここに囲いのある面を置き、その中に文・帯・返ってくる形の
+ * 骨組みを積んでいた。ポーは上（`PoHero`）に別に居るので、**待って
+ * いるあいだの画面に「考えている人」が2人いる**——上で考え中の顔を
+ * している子と、下で回っている枠。
+ *
+ * いま出すのは点3つだけにする。「考え中」はポーの吹き出しが言い、
+ * 表情（`thinking`）も出ている。ここが言うことはもう無い。
+ *
+ * 偽の進捗は出さない
+ * ------------------
+ * 帯をやめた理由でもある。幅を伸ばすと「何割終わった」と読めるが、
+ * AI がどこまで進んだかはこちらに分からない。分かるふりをしない。
  */
+
+import { prefersReducedMotion } from "../../../course/motion";
+
+/** 点の数。3つ。増やしても「待っている」以上のことは言わない。 */
+const DOTS = [0, 1, 2];
+
 export function GeneratingCard({
   message,
   busy,
@@ -26,65 +35,48 @@ export function GeneratingCard({
   /** 失敗して止まっているか。理由の文はここには出さない（下のボタンのそば） */
   failed?: boolean;
 }) {
+  /*
+    動きを止めている人には、点を動かさずに置く。**消さない**——
+    点が3つ並んでいること自体が「待っている」の合図になる。
+  */
+  const quiet = prefersReducedMotion();
+
   return (
     <div
       data-testid="generating-card"
-      className="rounded-card border border-brand-line bg-surface p-6 text-center"
+      className="flex min-h-0 flex-1 flex-col items-center justify-center gap-5"
     >
-      <p className="text-sm font-bold leading-7" role="status">
+      {/*
+        いま何をしている最中かは、読み上げにも届ける。
+        目には点が伝えるが、点は読み上げられない。
+      */}
+      <p className="sr-only" role="status">
         {message}
       </p>
-      {/*
-        待っていることを、動きでも伝える。
 
-        **進み具合は出さない。** 前は幅40%の帯を流していたが、
-        「40%終わった」と読める。AIがどこまで進んだかはこちらには
-        分からないので、分かるふりをしない（偽の進捗は禁止）。
-
-        いまは幅いっぱいの帯の中を、細い光が左から右へ通り抜ける形。
-        動いていることだけを言い、どこまで来たかは言わない。
-
-        止まっているときは動かさない。動いたままだと、まだ続いているのか
-        終わったのかが読めない。
-      */}
       <div
-        className="mx-auto mt-5 h-2 w-48 overflow-hidden rounded-full bg-brand-soft"
-        data-testid="generating-bar"
+        className="flex items-center gap-2"
+        data-testid="generating-dots"
         data-busy={busy ? "true" : "false"}
+        aria-hidden="true"
       >
-        {busy ? (
-          <div className="h-full w-1/3 rounded-full bg-brand animate-drift-x" />
-        ) : (
-          <div
-            className={`h-full w-full rounded-full ${failed ? "bg-line" : "bg-brand"}`}
+        {DOTS.map((index) => (
+          <span
+            key={index}
+            className={`block h-2.5 w-2.5 rounded-full ${
+              failed ? "bg-line" : "bg-brand"
+            } ${busy && !quiet ? "animate-nudge" : ""}`}
+            style={busy && !quiet ? { animationDelay: `${index * 160}ms` } : undefined}
           />
-        )}
+        ))}
       </div>
 
       {/*
-        返ってくるものの形を、先に置いておく。
-
-        真ん中でぐるぐる回すだけだと、あとどれくらいなのかも、
-        何が返ってくるのかも分からない。文章が入る枠を薄く出しておくと、
-        待っている間に「文章が返ってくる」ことが分かり、
-        届いたときの入れ替わりも急に見えない。
-
-        飾りなので読み上げには出さない（上の文が状態を伝えている）。
+        待っている理由を、ごく短く1行。ポーの吹き出しが同じことを
+        言っている回では、こちらは出さない（骨格が空文字を渡す）。
       */}
-      {busy && (
-        <div
-          aria-hidden="true"
-          data-testid="result-skeleton"
-          className="mt-6 space-y-2.5"
-        >
-          {[100, 92, 74].map((width) => (
-            <div
-              key={width}
-              className="h-3 animate-pulse rounded-full bg-brand-soft"
-              style={{ width: `${width}%` }}
-            />
-          ))}
-        </div>
+      {message && (
+        <p className="text-center text-sm leading-6 text-ink-muted">{message}</p>
       )}
     </div>
   );

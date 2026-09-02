@@ -29,7 +29,7 @@ import {
   canAutoAdvance,
   isAnswered,
 } from "../course/autoAdvance";
-import { poAppearance } from "../course/poPresence";
+import { poAppearance, PO_SIZE_BY_SCENE } from "../course/poPresence";
 import { primaryLabel } from "../course/primaryLabel";
 import { nextLessons } from "../course/availability";
 import { dayOutcomeLine } from "../course/dayOutcome";
@@ -361,6 +361,8 @@ export function LessonRunner({
     busy: api.isSubmitting,
     failed: Boolean(api.error),
     hinting: api.po.action === "show_hint",
+    /* 技を受け取る回だけは、解説カードでもポーが出る */
+    skill: step.type === "concept_card" && Boolean(step.skill),
   });
 
   /*
@@ -561,7 +563,18 @@ export function LessonRunner({
       ) : (
         <>
       <StepShell
-        {...(step.type === "outcome_preview"
+        {...(step.type === "concept_card" && step.skill
+          ? {
+              /*
+                技を受け取る回は、見出しを「新しいAI技」にする。
+
+                教材データの見出しは技の名前そのもの（「トーン指定」）で、
+                画面の真ん中にも同じ名前が大きく出る。**同じ言葉が
+                1画面に2回**並ぶので、上は場面の名前にする。
+              */
+              title: "新しいAI技",
+            }
+          : step.type === "outcome_preview"
           ? {
               /*
                 最初の画面だけ、見出しをレッスンそのものの名前にする。
@@ -577,7 +590,11 @@ export function LessonRunner({
         missions={api.missions.missions}
         currentMission={api.missions.current}
         phase={step.phase}
-        po={api.po}
+        /*
+          表情は、場面のほうが強いときだけ差し替える
+          （`poPresence` の `emotion`）。ふだんは教材データに従う。
+        */
+        po={po?.emotion ? { ...api.po, emotion: po.emotion } : api.po}
         summary={api.summary}
         onEditSummary={editSummary}
         primaryLabel={primaryLabel(step)}
@@ -628,6 +645,8 @@ export function LessonRunner({
         showPo={po !== null}
         poSpeaks={po?.speaks ?? false}
         poScene={po?.scene}
+        /* 場面ごとの大きさ。表は `course/poPresence.ts` が持つ */
+        poSize={po ? PO_SIZE_BY_SCENE[po.scene] : undefined}
       >
         {body}
       </StepShell>

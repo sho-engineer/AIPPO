@@ -18,6 +18,7 @@
 
 import { expect, test, type Page } from "@playwright/test";
 
+import { openRecord } from "./support/openRecord";
 import { stubApi } from "./support/stubApi";
 
 const SAMPLE =
@@ -37,7 +38,12 @@ async function openLesson(page: Page, lessonId: string): Promise<void> {
 /** 完了画面まで、機械的に押し進める。 */
 async function runToCompletion(page: Page): Promise<void> {
   for (let i = 0; i < 40; i += 1) {
-    if (await page.getByTestId("completion-view").isVisible().catch(() => false)) return;
+    /*
+      `return` にしない。**この輪の後ろにある一手が実行されなくなる**
+      ——完了画面まで来たら「このレッスンの記録」を開く必要がある
+      （`support/openRecord.ts`）。前に同じ形で 24件が落ちた。
+    */
+    if (await page.getByTestId("completion-view").isVisible().catch(() => false)) break;
 
     const primary = page.getByTestId("primary-action").first();
     if (!(await primary.isVisible().catch(() => false))) break;
@@ -51,7 +57,8 @@ async function runToCompletion(page: Page): Promise<void> {
         const choice = page
           .locator("main button:visible")
           .filter({
-            hasNotText: /レッスン一覧へ|もどる|くわしく|送っています|飛ばす|スキップ|あとにする/,
+            hasNotText:
+            /レッスン一覧へ|もどる|くわしく|変わったところ|記録|全文|送っています|飛ばす|スキップ|あとにする/,
           })
           .first();
         if (await choice.count()) await choice.click();
@@ -63,6 +70,8 @@ async function runToCompletion(page: Page): Promise<void> {
     await page.waitForTimeout(150);
   }
   await expect(page.getByTestId("completion-view")).toBeVisible();
+  // 進み具合・応用例・アンケートは「このレッスンの記録」の一枚の中
+  await openRecord(page);
 }
 
 test.describe("こんな使い方もできます", () => {

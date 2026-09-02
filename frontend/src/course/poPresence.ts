@@ -33,7 +33,8 @@
  * 黙って1画面ずつポーが増えていって、元の状態へ戻る。
  */
 
-import type { StepType } from "./types";
+import type { PoSize } from "../po/sizes";
+import type { PoEmotion, StepType } from "./types";
 
 /**
  * ポーが出ている理由。
@@ -50,8 +51,38 @@ export type PoScene =
   | "warning"
   | "celebrate";
 
+/**
+ * その場面でのポーの大きさ。
+ *
+ * 話しかけている場面（入り・質問・反応・ねぎらい）は `lg`、
+ * 横で控えている場面（考え中・ヒント・つまずき）は `md`。
+ *
+ * 画面ごとに決めない。前は `StepShell` が「小さな前置きがあるか」で
+ * 決めていて、ポーとは何の関係もない条件で背丈が 22% 変わっていた。
+ */
+export const PO_SIZE_BY_SCENE: Record<PoScene, PoSize> = {
+  start: "lg",
+  question: "lg",
+  compare: "lg",
+  celebrate: "lg",
+  thinking: "md",
+  hint: "md",
+  warning: "md",
+};
+
 export interface PoAppearance {
   scene: PoScene;
+  /**
+   * 表情を場面で決めるとき。
+   *
+   * ふだんは教材データ（`step.poEmotion`）に従う。ここで上書きするのは
+   * **場面のほうが強いとき**だけ——技を受け取る瞬間に、教材データが
+   * `neutral` と書いてあるからといって澄まし顔で立たせない。
+   *
+   * 教材データを直さないのは、同じ値が3層（同梱・seed・配信）に
+   * あるため。見せ方の決まりは見せ方の側で持つ。
+   */
+  emotion?: PoEmotion;
   /**
    * 吹き出しを出すか。
    *
@@ -71,6 +102,8 @@ export interface PoSituation {
   failed?: boolean;
   /** ヒントを出しているか。 */
   hinting?: boolean;
+  /** 技の名前を受け取る回か（解説カードのうち `skill` を持つもの）。 */
+  skill?: boolean;
 }
 
 /**
@@ -101,6 +134,9 @@ const BY_STEP: Record<StepType, PoScene | null> = {
     解説カード。本文とポーの台詞が同じ文字を持っている（教材データが
     同じ文を両方に入れている）。2回言うと、2つ別のことが書いてあるのかと
     読んでしまう。
+
+    ただし**技を受け取る回だけは別**（下の `skill`）。あそこは説明を
+    読む場所ではなく、名前を受け取る瞬間なので、ポーが一緒に喜ぶ。
   */
   concept_card: null,
 
@@ -129,6 +165,18 @@ export function poAppearance(where: PoSituation): PoAppearance | null {
   if (where.failed) return { scene: "warning", speaks: false };
   if (where.busy) return { scene: "thinking", speaks: true };
   if (where.hinting) return { scene: "hint", speaks: true };
+
+  /*
+    技を受け取る回。**顔だけ出して黙る。**
+
+    喜ぶ顔は要るが、言葉は要らない——技の名前と一行の説明が画面の
+    真ん中にあり、教材データの台詞（`poMessage`）はその説明と
+    ほぼ同じ文字を持っている。2回言うと、2つ別のことが書いてあるのかと
+    読んでしまう。
+  */
+  if (where.skill) {
+    return { scene: "celebrate", speaks: false, emotion: "celebrate" };
+  }
 
   const scene = BY_STEP[where.stepType];
   return scene ? { scene, speaks: true } : null;

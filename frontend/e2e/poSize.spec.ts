@@ -40,7 +40,7 @@ import { stubApi } from "./support/stubApi";
 const VISIBLE_RATIO = 0.723;
 
 /** 段ごとの、見えてほしい背丈（`src/po/sizes.ts`）。 */
-const EXPECTED = { sm: 56, md: 96, lg: 112, celebration: 160 } as const;
+const EXPECTED = { sm: 56, md: 96, lg: 120, celebration: 160 } as const;
 
 /** 丸めと小数のぶれ。これ以上ずれたら理由がある。 */
 const TOLERANCE = 2;
@@ -102,19 +102,41 @@ test.describe("ポーの大きさ", () => {
     await expectSize(page, "sm", "コースの中身");
   });
 
-  test("レッスンの中で、進んでも背丈が変わらない", async ({ page }) => {
+  test("レッスンの中の背丈は、場面で決まる", async ({ page }) => {
     /*
       **この検査がこの回の中心。** `compact={!eyebrow}` が戻ると、
-      前置きの無い画面だけ 22% 縮んでここで落ちる。
+      前置きの有無という**ポーとは関係のない条件**で背丈が変わり、
+      ここで落ちる。
+
+      「どの画面でも同じ」ではなくなった
+      ----------------------------------
+      話しかける場面（入り・質問・反応・ねぎらい）は `lg`、横で控えて
+      いる場面（考え中・ヒント・つまずき）は `md`。決めるのは
+      `course/poPresence.ts` の1つの表で、画面ではない。
+
+      だからここで見るのは「いつも同じ」ではなく、**出ている場面と
+      背丈が食い違っていないか**。表に無い組み合わせが1つでも出れば
+      落ちる。
     */
     await start(page);
     await page.getByTestId("continue-lesson").click();
     await expect(page.getByTestId("lesson-header")).toBeVisible();
 
-    // 入りの画面（完成イメージ）だけ、ひとまわり大きい
+    // 入りの画面（完成イメージ）は、話しかける場面
     await expectSize(page, "lg", "レッスンの入り");
 
-    const seen: number[] = [];
+    /** 場面ごとの段。`course/poPresence.ts` の `PO_SIZE_BY_SCENE` と同じ。 */
+    const BY_SCENE: Record<string, keyof typeof EXPECTED> = {
+      start: "lg",
+      question: "lg",
+      compare: "lg",
+      celebrate: "lg",
+      thinking: "md",
+      hint: "md",
+      warning: "md",
+    };
+
+    const seen: { scene: string; height: number }[] = [];
     for (let step = 0; step < 12; step += 1) {
       const primary = page.getByTestId("primary-action").first();
       if (!(await primary.count())) break;
@@ -140,16 +162,34 @@ test.describe("ポーの大きさ", () => {
 
       // ポーが居ない画面は飛ばす（居ないこと自体は poPresence の担当）
       if (!(await page.locator("[data-po-frame]").first().count())) continue;
-      seen.push(await visibleHeight(page));
+      const scene =
+        (await page
+          .locator("[data-po-scene]")
+          .first()
+          .getAttribute("data-po-scene")) ?? "";
+      seen.push({ scene, height: await visibleHeight(page) });
     }
 
     expect(seen.length, "ポーの出る画面を1つも通らなかった").toBeGreaterThan(1);
-    for (const height of seen) {
+    for (const { scene, height } of seen) {
+      const size = BY_SCENE[scene];
+      expect(size, `表に無い場面「${scene}」でポーが出ている`).toBeDefined();
       expect(
-        Math.abs(height - EXPECTED.md),
-        `レッスン中に ${height.toFixed(0)}px（md は ${EXPECTED.md}px のはず）`,
+        Math.abs(height - EXPECTED[size]),
+        `${scene} の場面で ${height.toFixed(0)}px（${size} は ${EXPECTED[size]}px のはず）`,
       ).toBeLessThanOrEqual(TOLERANCE);
     }
+
+    /*
+      場面を2つ以上通っていること。**1場面だけ見て通る検査にしない。**
+
+      段（md / lg）ではなく場面の数で見る。主導線を進むだけでは
+      `md` の場面（考え中・ヒント・つまずき）に届かない——どれも
+      待っている最中か、押して初めて出るものだから。段で数えると、
+      ここは永久に落ちたままになる。
+    */
+    const scenes = new Set(seen.map((entry) => entry.scene));
+    expect(scenes.size, "1つの場面しか通っていない").toBeGreaterThan(1);
   });
 
   test("画面ごとに幅を直書きしていない", async ({ page }) => {

@@ -49,7 +49,8 @@ async function advance(page: Page): Promise<boolean> {
       const choice = page
         .locator("main button:visible")
         .filter({
-          hasNotText: /レッスン一覧へ|もどる|くわしく|送っています|飛ばす|スキップ|あとにする|次のレッスンへ/,
+          hasNotText:
+            /レッスン一覧へ|もどる|くわしく|変わったところ|記録|全文|送っています|飛ばす|スキップ|あとにする|次のレッスンへ/,
         })
         .first();
       if (await choice.count()) await choice.click();

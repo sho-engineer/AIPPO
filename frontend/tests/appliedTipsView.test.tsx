@@ -35,8 +35,9 @@ const COMBO: AppliedTip = {
   order: 1,
 };
 
+
 describe("画面", () => {
-  it("1件も無ければ、節ごと出さない", () => {
+  it("1件も無ければ、節ごと出さない", async () => {
     render(
       <AppliedTips tips={[]} lessonTitle={lessonTitle} completedIds={[]} />,
     );
@@ -44,7 +45,7 @@ describe("画面", () => {
     expect(screen.queryByTestId("applied-tips")).not.toBeInTheDocument();
   });
 
-  it("題と手順が出る", () => {
+  it("題と手順が出る", async () => {
     render(
       <AppliedTips
         tips={[COMBO]}
@@ -79,7 +80,7 @@ describe("画面", () => {
     expect(onSelectLesson).toHaveBeenCalledWith("rewrite_text");
   });
 
-  it("全部の技を終えていれば、押せる「試す」を出さない", () => {
+  it("全部の技を終えていれば、押せる「試す」を出さない", async () => {
     /*
       複数レッスンを1つの流れとして実行する画面がまだ無い。
       無い機能への導線を置くと、押しても何も起きないボタンになる。
@@ -99,7 +100,7 @@ describe("画面", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("本文は出さない", () => {
+  it("本文は出さない", async () => {
     // ここは技の名前と流れだけ。実際に作った文章はここに出さない
     render(
       <AppliedTips

@@ -161,7 +161,7 @@ export function DayCompletePage({
     */
     <div
       data-testid="day-complete"
-      className="flex min-h-[calc(100dvh-2.75rem)] flex-col justify-center px-5 py-6"
+      className="flex min-h-[calc(100dvh-2.75rem-env(safe-area-inset-top))] flex-col justify-center px-5 py-6"
     >
       <div className="mx-auto w-full max-w-sm">
         {/*

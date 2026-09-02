@@ -11,7 +11,7 @@
 
 import { useEffect, useState } from "react";
 
-import { Card, CardHeading, IconBadge } from "../../AppShell";
+import { Card, IconBadge } from "../../AppShell";
 import { SaveProgressCard } from "../../auth/SaveProgressCard";
 import { CourseCheckpoint } from "../CourseCheckpoint";
 import { LessonAwardCard } from "../LessonAwardCard";
@@ -19,6 +19,7 @@ import { playSuccessSound } from "../../../course/sound";
 import { KeepArtifactButton } from "../KeepArtifactButton";
 import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
+import { MoreButton, MoreSheet } from "../MoreSheet";
 import { AppliedTips } from "../AppliedTips";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 import { lessonThumbnailById } from "../../../course/lessonThumbnail";
@@ -31,7 +32,6 @@ import {
   IconClock,
   IconChevronRight,
   IconCopy,
-  IconDocument,
   IconMedal,
   IconSparkle,
   IconStar,
@@ -130,6 +130,14 @@ export function CompletionView({
     もう一度終えたときは before === done になるので、何も超えない
     （二重に祝わない）。
   */
+  /*
+    「このレッスンの記録」を開いているか。
+
+    進み具合・節目・XP・登録の誘い・アンケート・応用例・次におすすめは
+    ここへ入れた。画面には残さない（この関数の冒頭を参照）。
+  */
+  const [recordOpen, setRecordOpen] = useState(false);
+
   const crossed = milestonesCrossed(course, done - 1, done);
   const courseComplete = done >= total && total > 0;
 
@@ -168,10 +176,29 @@ export function CompletionView({
 
   return (
     /*
-      `relative` は紙吹雪の親。紙はこの枠の中だけで散り、
-      画面全体を覆わない（覆うと、次に押す場所が読めなくなる）。
+      1画面＝1アクション。
+
+      前はここに9つの塊が縦に並んでいて、Pixel 5 で 3036px あった。
+      押す場所を探して送るしかない画面で、**レッスンの終わりが
+      「読む場所」**になっていた。
+
+      画面に残すのは3つだけ。
+
+          できるようになったこと
+          覚えたAI技
+          今回の成果物（持ち帰るもの）
+
+      残り（進み具合・節目・XP・登録の誘い・アンケート・応用例・
+      次におすすめ）は「このレッスンの記録」の一枚へ移した。**消して
+      いない**——押せば全部ある。祝いと進み具合は、この次の
+      Day 完了の画面が持つ。
+
+      `relative` は紙吹雪の親。紙はこの枠の中だけで散る。
     */
-    <div data-testid="completion-view" className="relative space-y-4">
+    <div
+      data-testid="completion-view"
+      className="relative flex min-h-0 flex-1 flex-col"
+    >
       <LessonCelebration />
 
       {/*
@@ -181,283 +208,276 @@ export function CompletionView({
         できるようになったのか**が下へ押しやられる。数は増えたことしか
         言えず、増えた先に何があるかは言えない。
 
-        いま出すのは、教材が約束していた到達点そのもの
-        （`lesson.outcomes`）。「長い文章を、目的に合わせて短く
-        まとめられるようになりました」——この1〜2行が主役。
+        **2つまで。** 3つ目からは記録の一枚に入っている。ここは
+        「今日できるようになったこと」を思い出す場所で、一覧ではない。
       */}
       {outcomes && outcomes.length > 0 && (
-        <Card testId="completion-outcomes" className="border-brand-line bg-brand-soft/40">
-          {/*
-            見出しを書かない。
-
-            画面の見出し（この回の `title`）が既に
-            「できるようになりました」で、**同じ言葉がすぐ下に
-            もう一度**出ていた。二度言われると、二つ別のことが
-            書いてあるのかと読み直すことになる。
-
-            この箱が何なのかは、上の見出しが言っている。
-          */}
-          <ul className="space-y-2" role="list">
-            {outcomes.map((line) => (
-              <li key={line} className="flex items-start gap-2.5 text-sm leading-7">
-                <IconCheckCircle className="mt-1.5 h-4 w-4 shrink-0 text-brand" />
-                {line}
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {/*
-        次に 覚えたAI技 → 作ったもの。XP はそのあと（下）。
-        並びは「できるようになった → 技 → 成果物 → 次 → 数」。
-      */}
-      <Card>
-        <CardHeading icon={IconStar} tone="plain">
-          覚えたAI技
-        </CardHeading>
-        <ul className="mt-4 space-y-2.5" role="list">
-          {skills.map((skill) => (
-            <li key={skill} className="flex items-start gap-2.5 text-sm leading-7">
-              <IconCheckCircle className="mt-1.5 h-4 w-4 shrink-0 text-brand" />
-              {skill}
+        <ul
+          className="shrink-0 space-y-1.5"
+          role="list"
+          data-testid="completion-outcomes"
+        >
+          {outcomes.slice(0, 2).map((line) => (
+            <li key={line} className="flex items-start gap-2 text-sm leading-6">
+              <IconCheckCircle className="mt-1 h-4 w-4 shrink-0 text-brand" />
+              {line}
             </li>
           ))}
         </ul>
+      )}
 
-        {outcomeText && (
-          <div className="mt-5 border-t border-line pt-5">
-            <CardHeading icon={IconDocument} tone="plain">
-              今回の成果物
-            </CardHeading>
-            <div className="mt-3 rounded-card bg-canvas p-4">
-              <p className="text-xs font-bold text-ink-muted">{outcomeLabel}</p>
-              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7">
-                {outcomeText}
-              </p>
-              {/*
-                いま貼るのと、あとで出すのは別のこと。両方を並べて置く。
-                取っておくには登録が要るが、ボタンは出しておき、
-                押したときに理由を返す（先に消すと、そういう場所が
-                あること自体が伝わらない）。
-              */}
-              <div className="mt-3 flex items-start justify-end gap-2">
-                <KeepArtifactButton lessonId={lessonId} output={outcomeText} />
-                <CopyButton text={outcomeText} />
-              </div>
-            </div>
-          </div>
-        )}
-      </Card>
-
-      {/* 全体のどこまで来たか */}
-      <Card>
-        <p className="flex items-center justify-center gap-2 text-lg font-bold text-brand">
-          <IconMedal className="h-6 w-6 shrink-0" />
-          Lesson {lessonNumber} 完了
+      {/* 覚えたAI技。1行ずつ、囲いは付けない（面を積み重ねない） */}
+      {skills.length > 0 && (
+        <p
+          className="mt-3 flex shrink-0 items-center gap-2 text-sm"
+          data-testid="completion-skills"
+        >
+          <IconStar className="h-4 w-4 shrink-0 text-brand" />
+          <span className="text-xs text-ink-muted">覚えたAI技</span>
+          {/*
+            1行で切る。技が2つある回は折り返して2行になり、そのぶん
+            下の成果物が縮む——**この画面でいちばん大事なのは成果物**。
+            全部は「このレッスンの記録」の一枚に並んでいる。
+          */}
+          <span className="min-w-0 truncate font-bold text-brand-dark">
+            {skills.join(" ／ ")}
+          </span>
         </p>
+      )}
 
-        <div className="mt-4">
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-ink-muted">コース進捗</span>
-            <span className="text-sm font-bold tabular-nums">
-              {done} / {total}
-            </span>
-          </div>
-          <div className="mt-2">
-            <CourseStampRow course={course} done={done} total={total} />
+      {/*
+        今回の成果物。**この画面でいちばん大事なもの。**
+
+        これが無いと「練習しただけ」で終わる。せっかく作った文章を、
+        その場で仕事へ持っていけるようにする。長さが決まらないので、
+        残りの高さに合わせて縮み、入りきらない分はこの面の中で送る。
+      */}
+      {outcomeText && (
+        /*
+          読める下限を置く。1行だけ見えて切れていると、**持ち帰るもの
+          が見えない**まま「完了する」を押すことになる。届かないときは
+          外側（この画面の柱）が送れるようにしてある。
+        */
+        <div className="mt-3 flex min-h-[7.5rem] flex-1 flex-col">
+          <p className="shrink-0 text-xs font-bold text-ink-muted">{outcomeLabel}</p>
+          <p className="mt-1.5 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-card border border-line bg-surface p-3.5 text-sm leading-7">
+            {outcomeText}
+          </p>
+          {/*
+            いま貼るのと、あとで出すのは別のこと。両方を並べて置く。
+            取っておくには登録が要るが、ボタンは出しておき、押したときに
+            理由を返す（先に消すと、そういう場所があること自体が伝わらない）。
+          */}
+          <div className="mt-2 flex shrink-0 items-start justify-end gap-2">
+            <KeepArtifactButton lessonId={lessonId} output={outcomeText} />
+            <CopyButton text={outcomeText} />
           </div>
         </div>
-
-        {/*
-          節目の一覧。完走したときは、ここではなく専用の締めくくり
-          （下の courseComplete）で祝う。二重に出すと、
-          「どちらが本番か」が分からなくなる。
-        */}
-        {!courseComplete && (
-          <div className="mt-4 border-t border-line pt-4">
-            <MilestoneLegend course={course} done={done} />
-          </div>
-        )}
-      </Card>
-
-      {/*
-        節目に届いた回だけ、Po が軽く反応する。
-        毎レッスンで祝うと、19歩ぶんの手応えの重さが均されて、
-        逆に薄くなる。節目にだけ乗せるほうが効く。
-      */}
-      {/*
-        コースの節目。**ここまでで何ができるようになったか**をまとめる。
-
-        前はスタンプの数と特典の予告だけを出していた。数と、まだ
-        使えない特典の話しか無く、積み上がったことが見えなかった。
-        積み上がっていることは、積み上げた本人がいちばん気づきにくい。
-      */}
-      {crossed.length > 0 && !courseComplete && (
-        <CourseCheckpoint
-          course={course}
-          completedIds={doneSoFar}
-          atCount={crossed[0].atCount}
-          rewardLabel={crossed[0].label}
-        />
       )}
 
-      {/*
-        XP はここ。**できるようになったことの下**に置く。
+      <div className="mt-3 shrink-0">
+        <MoreButton testId="completion-more" onClick={() => setRecordOpen(true)}>
+          このレッスンの記録を見る
+        </MoreButton>
+      </div>
 
-        増えた数は励みになるが、主役ではない。上に置くと、その回に
-        何ができるようになったのかより先に数が目に入る。
-        「+100 XP!!!」が完了画面の主役、という形にしない。
-      */}
-      <LessonAwardCard award={award} />
+      {recordOpen && (
+        <MoreSheet
+          title="このレッスンの記録"
+          onClose={() => setRecordOpen(false)}
+        >
+          {/*
+            アンケートを先頭に置く。
 
-      {/*
-        登録の誘いは、ここ以外に置かない。
-        作ったものが目の前にある、この1回だけ聞く。
-        ログイン済みの人には何も出ない。
-      */}
-      <SaveProgressCard />
+            フェーズ2→3 の判定にある2つの条件のうち、記録から出せない
+            ほうの1つ（有料テストの申込率）は、ここが唯一の入口
+            （`docs/roadmap.md`）。一枚の中へ移したぶん目に触れにくく
+            なるので、せめていちばん上に置く。**回答率は数字で見張ること。**
+          */}
+          <SurveyCard lessonId={lessonId} />
 
-      {/*
-        アンケートは登録の誘いのあと、次の教材より前に出す。
-        いちばん下だと、次を選んで離れた人には見えない。
-      */}
-      <SurveyCard lessonId={lessonId} />
+          {/*
+            登録の誘いは、ここ以外に置かない。
+            作ったものが目の前にある、この1回だけ聞く。
+            ログイン済みの人には何も出ない。
+          */}
+          <SaveProgressCard />
 
-      {/*
-        「これで何ができるか」を、次のレッスンより前に置く。
-        練習しただけで終わらせず、仕事の場面に結びつけてから
-        次へ進んでもらう。
+          {/* 全体のどこまで来たか */}
+          <section className="mt-5 border-t border-line pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs text-ink-muted">
+                コース進捗（Lesson {lessonNumber} 完了）
+              </span>
+              <span className="text-sm font-bold tabular-nums">
+                {done} / {total}
+              </span>
+            </div>
+            <div className="mt-2">
+              <CourseStampRow course={course} done={done} total={total} />
+            </div>
+            {/*
+              節目の一覧。完走したときは、ここではなく下の締めくくりで
+              祝う。二重に出すと「どちらが本番か」が分からなくなる。
+            */}
+            {!courseComplete && (
+              <div className="mt-4">
+                <MilestoneLegend course={course} done={done} />
+              </div>
+            )}
+          </section>
 
-        いま終えたレッスンを、足りない技として案内しない
-        --------------------------------------------------
-        `completedIds` には、この画面を出している時点ではまだ
-        いまのレッスンが入っていない（`done` の数え方と同じ理由。
-        このファイル冒頭のコメント参照）。素通しすると、
-        たったいま終えたばかりの技を「学ぶ→」と案内してしまう。
-      */}
-      <AppliedTips
-        tips={appliedTipsFor(lessonId)}
-        lessonTitle={(id) => lookupLesson(id)?.title ?? null}
-        completedIds={
-          completedIds.includes(lessonId) ? completedIds : [...completedIds, lessonId]
-        }
-        onSelectLesson={onSelectLesson}
-        onOpenRecipe={onOpenRecipe}
-      />
-
-      {/*
-        コースを完走した回だけの締めくくり。
-
-        `next`（次におすすめ）は、このコースにもう教材が残っていないと
-        空になる（StepRenderer が「同じコースで未完了のAIレッスン」だけ
-        拾うため）。空のまま何も出さずに終わると、いちばん大きな
-        節目のはずの回が、ふだんの回より静かに終わる。ここを埋める。
-      */}
-      {courseComplete && (
-        <Card testId="course-complete" className="border-brand-line">
-          <div className="text-center">
-            <p className="text-xs font-bold tracking-wide text-brand">
-              COURSE COMPLETE
-            </p>
-            <h2 className="mt-1 text-lg font-bold leading-7">{course.title}</h2>
-            <p className="mt-1 text-sm leading-6 text-ink-muted">
-              {total}個のスタンプが、すべて埋まりました
-            </p>
-          </div>
-
-          <div className="mt-4 flex justify-center">
-            <CourseStampRow course={course} done={done} total={total} />
-          </div>
-
-          {/* 完走の証。バッジという形で残す */}
-          <div className="mt-4 flex items-center justify-center gap-2 rounded-card bg-brand-soft px-4 py-3">
-            <IconMedal className="h-5 w-5 shrink-0 text-brand-dark" />
-            <span className="text-sm font-bold text-brand-dark">
-              {milestonesFor(course).badgeTitle}
-            </span>
-          </div>
-
-          <p className="mt-3 text-center text-xs leading-6 text-ink-muted">
-            {milestonesFor(course).completeLabel} ぶんの体験が、近日公開予定です
-          </p>
-
-          {onOpenCourseCatalog && (
-            <button
-              type="button"
-              onClick={onOpenCourseCatalog}
-              data-testid="course-complete-next"
-              className="mt-4 flex min-h-[2.75rem] w-full items-center justify-center gap-2
-                         rounded-cta bg-brand px-6 py-2.5 text-sm font-bold text-white
-                         shadow-cta transition hover:brightness-110 active:scale-[0.98]"
-            >
-              次のコースを見る
-              <IconChevronRight className="h-4 w-4 shrink-0" />
-            </button>
+          {/*
+            コースの節目。**ここまでで何ができるようになったか**をまとめる。
+            積み上がっていることは、積み上げた本人がいちばん気づきにくい。
+          */}
+          {crossed.length > 0 && !courseComplete && (
+            <div className="mt-5">
+              <CourseCheckpoint
+                course={course}
+                completedIds={doneSoFar}
+                atCount={crossed[0].atCount}
+                rewardLabel={crossed[0].label}
+              />
+            </div>
           )}
-        </Card>
-      )}
 
-      {next.length > 0 && (
-        <section aria-labelledby="next-heading">
-          <div className="flex items-center gap-3">
-            <IconBadge icon={IconSparkle} tone="plain" size="sm" />
-            <h2 id="next-heading" className="text-base font-bold">
-              次におすすめ
-            </h2>
+          {/*
+            XP はいちばん下。増えた数は励みになるが、主役ではない。
+            「+100 XP!!!」が完了の主役、という形にしない。
+          */}
+          <div className="mt-5">
+            <LessonAwardCard award={award} />
           </div>
 
-          <ul className="mt-3 grid gap-3 sm:grid-cols-2" role="list">
-            {next.map((lesson) => {
-              const thumbnail = lessonThumbnailById(lesson.id);
-              return (
-              <li key={lesson.id}>
+          {/*
+            「これで何ができるか」。練習しただけで終わらせず、
+            仕事の場面に結びつける。
+
+            いま終えたレッスンを、足りない技として案内しない
+            --------------------------------------------------
+            `completedIds` には、この画面を出している時点ではまだ
+            いまのレッスンが入っていない（`done` の数え方と同じ理由）。
+            素通しすると、たったいま終えたばかりの技を「学ぶ→」と
+            案内してしまう。
+          */}
+          <div className="mt-5">
+            <AppliedTips
+              tips={appliedTipsFor(lessonId)}
+              lessonTitle={(id) => lookupLesson(id)?.title ?? null}
+              completedIds={doneSoFar}
+              onSelectLesson={onSelectLesson}
+              onOpenRecipe={onOpenRecipe}
+            />
+          </div>
+
+          {/*
+            コースを完走した回だけの締めくくり。
+
+            `next` は、このコースにもう教材が残っていないと空になる。
+            空のまま何も出さずに終わると、いちばん大きな節目のはずの回が
+            ふだんの回より静かに終わる。ここを埋める。
+          */}
+          {courseComplete && (
+            <Card testId="course-complete" className="mt-5 border-brand-line">
+              <div className="text-center">
+                <p className="text-xs font-bold tracking-wide text-brand">
+                  COURSE COMPLETE
+                </p>
+                <h2 className="mt-1 text-lg font-bold leading-7">{course.title}</h2>
+                <p className="mt-1 text-sm leading-6 text-ink-muted">
+                  {total}個のスタンプが、すべて埋まりました
+                </p>
+              </div>
+
+              <div className="mt-4 flex justify-center">
+                <CourseStampRow course={course} done={done} total={total} />
+              </div>
+
+              {/* 完走の証。バッジという形で残す */}
+              <div className="mt-4 flex items-center justify-center gap-2 rounded-card bg-brand-soft px-4 py-3">
+                <IconMedal className="h-5 w-5 shrink-0 text-brand-dark" />
+                <span className="text-sm font-bold text-brand-dark">
+                  {milestonesFor(course).badgeTitle}
+                </span>
+              </div>
+
+              <p className="mt-3 text-center text-xs leading-6 text-ink-muted">
+                {milestonesFor(course).completeLabel} ぶんの体験が、近日公開予定です
+              </p>
+
+              {onOpenCourseCatalog && (
                 <button
                   type="button"
-                  disabled={!onSelectLesson}
-                  onClick={() => onSelectLesson?.(lesson.id)}
-                  data-testid={`next-${lesson.id}`}
-                  /*
-                    `h-full` を付ける。横に2枚並ぶ幅（sm 以上）では、
-                    ねらいの行数が違うと下端がそろわない。
-                  */
-                  className="flex h-full w-full items-center gap-3 rounded-panel bg-surface
-                             p-4 text-left shadow-card transition
-                             enabled:hover:-translate-y-0.5 enabled:hover:shadow-raised
-                             disabled:cursor-not-allowed"
+                  onClick={onOpenCourseCatalog}
+                  data-testid="course-complete-next"
+                  className="mt-4 flex min-h-[2.75rem] w-full items-center justify-center gap-2
+                             rounded-cta bg-brand px-6 py-2.5 text-sm font-bold text-white
+                             shadow-cta transition hover:brightness-110 active:scale-[0.98]"
                 >
-                  {/* 絵の無いレッスンでは置かない。並びは文字側で崩れない */}
-                  {thumbnail && <LessonThumbnail src={thumbnail} variant="side" />}
-                  <div className="min-w-0 flex-1">
-                    <span className="inline-block rounded-badge bg-brand-soft px-2.5 py-1 text-[0.6875rem] font-bold text-brand-dark">
-                      Lesson {lesson.number}
-                    </span>
-                    <h3 className="mt-2 text-sm font-bold leading-6">{lesson.title}</h3>
-                    <p className="mt-1 text-xs leading-6 text-ink-muted">{lesson.goal}</p>
-                    {/*
-                      所要時間を出す。「次におすすめ」だけでは、
-                      いま始めてよいものか決められない。
-                      「あと7分なら」と判断できる材料をここに置く。
-                    */}
-                    {lesson.estimatedMinutes !== undefined && (
-                      <p className="mt-1.5 flex items-center gap-1 text-xs font-bold text-brand-dark">
-                        <IconClock className="h-3.5 w-3.5 shrink-0" />
-                        約{lesson.estimatedMinutes}分
-                      </p>
-                    )}
-                  </div>
-                  <span
-                    aria-hidden="true"
-                    className="flex shrink-0 items-center justify-center text-ink-muted"
-                  >
-                    <IconChevronRight className="h-4 w-4" />
-                  </span>
+                  次のコースを見る
+                  <IconChevronRight className="h-4 w-4 shrink-0" />
                 </button>
-              </li>
-              );
-            })}
-          </ul>
-        </section>
+              )}
+            </Card>
+          )}
+
+          {/*
+            次におすすめ。**行き先の主役はこの次の Day 完了の画面**が
+            持つ（「次のレッスンへ」）。ここは「ほかにもある」を見る場所。
+          */}
+          {next.length > 0 && (
+            <section className="mt-5 border-t border-line pt-4" aria-labelledby="next-heading">
+              <div className="flex items-center gap-3">
+                <IconBadge icon={IconSparkle} tone="plain" size="sm" />
+                <h2 id="next-heading" className="text-base font-bold">
+                  次におすすめ
+                </h2>
+              </div>
+
+              <ul className="mt-3 grid gap-3 sm:grid-cols-2" role="list">
+                {next.map((lesson) => {
+                  const thumbnail = lessonThumbnailById(lesson.id);
+                  return (
+                    <li key={lesson.id}>
+                      <button
+                        type="button"
+                        disabled={!onSelectLesson}
+                        onClick={() => onSelectLesson?.(lesson.id)}
+                        data-testid={`next-${lesson.id}`}
+                        className="flex h-full w-full items-center gap-3 rounded-panel bg-surface
+                                   p-4 text-left shadow-card transition
+                                   enabled:hover:-translate-y-0.5 enabled:hover:shadow-raised
+                                   disabled:cursor-not-allowed"
+                      >
+                        {thumbnail && <LessonThumbnail src={thumbnail} variant="side" />}
+                        <div className="min-w-0 flex-1">
+                          <span className="inline-block rounded-badge bg-brand-soft px-2.5 py-1 text-[0.6875rem] font-bold text-brand-dark">
+                            Lesson {lesson.number}
+                          </span>
+                          <h3 className="mt-2 text-sm font-bold leading-6">{lesson.title}</h3>
+                          <p className="mt-1 text-xs leading-6 text-ink-muted">{lesson.goal}</p>
+                          {lesson.estimatedMinutes !== undefined && (
+                            <p className="mt-1.5 flex items-center gap-1 text-xs font-bold text-brand-dark">
+                              <IconClock className="h-3.5 w-3.5 shrink-0" />
+                              約{lesson.estimatedMinutes}分
+                            </p>
+                          )}
+                        </div>
+                        <span
+                          aria-hidden="true"
+                          className="flex shrink-0 items-center justify-center text-ink-muted"
+                        >
+                          <IconChevronRight className="h-4 w-4" />
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+        </MoreSheet>
       )}
     </div>
   );

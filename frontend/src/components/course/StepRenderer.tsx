@@ -181,43 +181,46 @@ export function StepRenderer({
       );
 
     case "concept_card":
+      if (!step.card) return null;
+
+      /*
+        技の名前を受け取る回は、**その1つだけの画面**にする。
+
+        前はここで細い帯（`SkillGet`）を解説カードの上に積んでいた。
+        取った瞬間が説明の前置きになっていて、名前を受け取った感じが
+        残らない。解説の本文はもともと1行なので、取った瞬間の下へ
+        そのまま添えれば足りる（絵は畳んだままにする）。
+
+        骨格が最初に出す解説（concept_1〜3）は同じ場面を言い換えた
+        ものなので、名前を渡すのは**技として名前が付いている回**だけ。
+        見分けは教材データの `skill` が持っている。
+      */
+      if (step.skill) {
+        return (
+          <SkillGet
+            name={step.skill}
+            /*
+              やさしい言い方は、カードの見出しが持っている
+              （「ターゲット指定」＋「誰向けかを伝える」）。
+              技の名前と同じ文字のときは繰り返さない。
+            */
+            summary={step.card.title === step.skill ? undefined : step.card.title}
+            detail={step.card.body}
+          />
+        );
+      }
+
       /*
         見出しはステップ側で既に出ている。カードの中でもう一度書くと、
         1画面に同じ言葉が2回並ぶ（実際そうなっていた）。
       */
-      return step.card ? (
-        <div>
-          {/*
-            技の名前を受け取る場面。
-
-            並びは直したが（体験 → 変化 → 気づき → 名前）、**名前を
-            渡すところ**が画面に無かった。解説カードは「〜とは」で
-            始まるので、読んだ人は「説明を読んだ」としか思わない。
-
-            骨格が最初に出す解説（concept_1〜3）は、同じ場面を言い換えた
-            ものなので、名前を渡すのは**技として名前が付いている回**だけ。
-            見分けは教材データの `skill` が持っている。
-          */}
-          {step.skill && (
-            <SkillGet
-              name={step.skill}
-              /*
-                やさしい言い方は、カードの見出しが持っている
-                （「ターゲット指定」＋「誰向けかを伝える」）。
-                技の名前と同じ文字のときは繰り返さない。
-              */
-              summary={
-                step.card.title === step.skill ? undefined : step.card.title
-              }
-            />
-          )}
-          <ConceptCardView
-            card={step.card}
-            headingShown={step.card.title === step.title}
-            image={picture}
-          />
-        </div>
-      ) : null;
+      return (
+        <ConceptCardView
+          card={step.card}
+          headingShown={step.card.title === step.title}
+          image={picture}
+        />
+      );
 
     case "quick_try":
       return (
@@ -296,7 +299,7 @@ export function StepRenderer({
             思い出しながら選ばせることになっていた。
           */}
           {lastRun && (
-            <div className="mb-4 flex min-h-0 flex-1 flex-col">
+            <div className="mb-3 flex min-h-0 flex-1 flex-col">
               {/*
                 カードの中にカードを入れない。
 
@@ -317,9 +320,9 @@ export function StepRenderer({
                 「次へ」が画面から出ていかない。
               */}
               <p
-                className="mt-2 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap
-                           break-words rounded-card border border-line bg-surface p-3
-                           text-sm leading-7"
+                className="mt-1.5 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap
+                           break-words rounded-card border border-line bg-surface p-2.5
+                           text-sm leading-6"
               >
                 {lastRun.outputText}
               </p>

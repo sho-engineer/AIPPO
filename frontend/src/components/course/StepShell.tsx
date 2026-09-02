@@ -25,6 +25,7 @@ import { PrimaryButton } from "../aippo/PrimaryButton";
 import { LessonProgress } from "./LessonProgress";
 import type { Mission } from "../../course/missions";
 import { StepTransition } from "./StepTransition";
+import type { PoSize } from "../../po/sizes";
 import type { LessonPhase, PoMessage } from "../../course/types";
 
 export interface StepShellProps {
@@ -102,6 +103,8 @@ export interface StepShellProps {
   poSpeaks?: boolean;
   /** ポーが出ている理由。`data-po-scene` として出す。 */
   poScene?: string;
+  /** その場面での大きさ。決めるのは `course/poPresence.ts`。 */
+  poSize?: PoSize;
   children: ReactNode;
 }
 
@@ -138,6 +141,7 @@ export function StepShell({
   showPo = true,
   poSpeaks = true,
   poScene,
+  poSize = "md",
   children,
 }: StepShellProps) {
   /*
@@ -169,7 +173,7 @@ export function StepShell({
       余白を数で当てる必要も無くなった（帯は同じ柱の中にある）。
     */
     <div
-      className="mx-auto flex h-[calc(100dvh-2.75rem)] w-full max-w-page flex-col
+      className="mx-auto flex h-[calc(100dvh-2.75rem-env(safe-area-inset-top))] w-full max-w-page flex-col
                  px-5 pt-2"
       data-testid="step-shell"
     >
@@ -194,13 +198,20 @@ export function StepShell({
         />
       </div>
 
-      {/* 入力済みの内容。折りたたんでおく（要件 §6.4） */}
+      {/*
+        入力済みの内容。折りたたんでおく（要件 §6.4）。
+
+        **面にしない。** 白いカードにすると、閉じているだけで 48px を
+        使う。1画面に収める柱では、その 48px がそのまま本題から引かれる
+        ——実測で、比べる画面がちょうどその分だけ入りきらなかった。
+        畳んだ状態は行1本、開いたときだけ面になる。
+      */}
       {summary.length > 0 && (
-        <details className="mt-4 shrink-0 rounded-card border border-line bg-surface px-4 py-3">
+        <details className="group mt-3 shrink-0">
           <summary className="cursor-pointer text-xs font-bold text-ink-muted">
             ここまでに答えた内容（{summary.length}件）
           </summary>
-          <ul className="mt-3 space-y-2">
+          <ul className="mt-2 space-y-2 rounded-card border border-line bg-surface px-4 py-3">
             {summary.map((entry) => (
               <li
                 key={entry.stepId}
@@ -259,13 +270,12 @@ export function StepShell({
             （「Lesson 1」など）が無い画面ではポーを小さくする、という
             意味だが、**前置きの有無はポーと何の関係も無い**。実測すると
             見える背丈が 104px → 81px（22%減）に変わっていて、同じ
-            レッスンを進んでいるだけでポーが縮んでいた。「同じ子がいる」
-            より「画面ごとに別の画像を置いている」と感じる、直接の原因。
+            レッスンを進んでいるだけでポーが縮んでいた。
 
-            入りの画面（`start`＝導入・完成イメージ）だけ `lg`。
-            あとは全部 `md` で、レッスンを通してポーの背丈は変わらない。
+            いまは場面と段の対応を `course/poPresence.ts` が1か所で持つ。
+            ここは引くだけ——ここで条件を書き始めると、また同じことが起きる。
           */
-          size={poScene === "start" ? "lg" : "md"}
+          size={poSize}
           showPo={showPo}
           scene={poScene}
         />

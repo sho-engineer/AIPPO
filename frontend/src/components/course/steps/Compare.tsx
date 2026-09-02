@@ -17,7 +17,7 @@ import {
   IconDocument,
   IconSparkle,
 } from "../../Icons";
-import { MoreButton, MoreSheet } from "../MoreSheet";
+import { FullText, MoreButton, MoreSheet } from "../MoreSheet";
 import { TeachingImage } from "../../lessons/TeachingImage";
 import type { TeachingImageEntry } from "../../../course/teachingImages";
 import { diffSentences } from "../../../lib/diff";
@@ -207,7 +207,7 @@ export function ThreeWayCompare({
       >
         {bothShort ? (
           // 両方短い。狭い画面でも横に並べたほうが速い
-          <div className="flex min-h-[8rem] flex-1 flex-row items-stretch gap-3">
+          <div className="flex min-h-[7rem] flex-1 flex-row items-stretch gap-3">
             {firstPanel()}
             {arrow}
             {improvedPanel()}
@@ -217,7 +217,7 @@ export function ThreeWayCompare({
             {/* 狭い画面：タブで入れ替える */}
             {/* 読める下限は縮む鎖の外側に置く（理由は Results.tsx） */}
             <div
-              className="flex min-h-[8rem] flex-1 flex-col sm:hidden"
+              className="flex min-h-[7rem] flex-1 flex-col sm:hidden"
               data-testid="compare-tabs"
             >
               <div role="tablist" className="flex shrink-0 gap-2">
@@ -242,7 +242,7 @@ export function ThreeWayCompare({
             </div>
 
             {/* 広い画面：並べる */}
-            <div className="hidden min-h-[8rem] flex-1 sm:flex sm:flex-row sm:items-stretch sm:gap-3">
+            <div className="hidden min-h-[7rem] flex-1 sm:flex sm:flex-row sm:items-stretch sm:gap-3">
               {firstPanel()}
               {arrow}
               {improvedPanel()}
@@ -259,6 +259,36 @@ export function ThreeWayCompare({
         積むと、この画面だけで8つの塊が並び、いちばん大事な
         「2つを見比べる」が上へ押し出される。押したら開く一枚へ移した。
       */}
+      {/*
+        画面には要約だけ、**1行**。
+
+        「何を変えた」と「どう変わった」の対が、この画面のねらいそのもの
+        （条件を1つ足すと結果が動く）。全部を一枚へ移したとき、押さない
+        人にはその対が1つも見えなくなっていた。**結論は画面に、
+        確かめる材料は一枚に。**
+
+        2行に分けず矢印でつなぐ。原因と結果が同じ行に並ぶと、
+        読まなくても対だと分かる——しかも 49px 返ってくる。
+      */}
+      <p
+        className="mt-2.5 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1
+                   border-t border-line pt-2.5 text-sm"
+        data-testid="compare-summary"
+      >
+        <span
+          className="rounded-badge bg-brand-soft px-2.5 py-0.5 font-bold text-brand-dark"
+          data-testid="compare-summary-condition"
+        >
+          {condition || "条件なし"}
+        </span>
+        <span aria-hidden="true" className="text-ink-muted">
+          →
+        </span>
+        <span className="min-w-0 leading-6" data-testid="compare-summary-change">
+          {changePointsOf(first, improved)[0] ?? NO_MEASURABLE_CHANGE}
+        </span>
+      </p>
+
       <div className="mt-3 shrink-0">
         <MoreButton testId="compare-more" onClick={() => setMore(true)}>
           変わったところを見る
@@ -347,11 +377,9 @@ export function ThreeWayCompare({
                 <li
                   key={panel.id}
                   data-testid={`compare-${panel.id}`}
-                  className={`rounded-card border p-3 ${
-                    panel.id === "improved"
-                      ? "border-brand bg-brand-soft/60"
-                      : "border-line bg-surface"
-                  }`}
+                  className={
+                    panel.id === "improved" ? "rounded-card bg-brand-soft/50 p-2" : "p-2"
+                  }
                 >
                   <p
                     className={`flex items-center gap-1.5 text-xs font-bold ${
@@ -361,9 +389,13 @@ export function ThreeWayCompare({
                     <panel.icon className="h-3.5 w-3.5 shrink-0" />
                     {panel.label}
                   </p>
-                  <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6">
-                    {panel.body || "（入力なし）"}
-                  </p>
+                  <div className="mt-1.5">
+                    <FullText
+                      label={panel.label}
+                      text={panel.body}
+                      testId={`full-${panel.id}`}
+                    />
+                  </div>
                 </li>
               ))}
             </ol>
@@ -392,13 +424,15 @@ export function ThreeWayCompare({
  * 選んだ条件はここに入れない。条件は隣の「何を変えた？」が持っている。
  * 同じことを原因と結果の両方に置くと、2つ起きたように読める。
  */
-export function ChangePoints({
-  before,
-  after,
-}: {
-  before: string;
-  after: string;
-}) {
+/**
+ * 測って分かった差を、短い文にして並べる。
+ *
+ * 見た目から切り出したのは、**同じ答えを画面と一枚の両方で使う**ため。
+ * 画面には1本目だけを1行で出し（そこが「どう変わった？」）、
+ * 全部は「変わったところを見る」の中で並べる。2か所で別々に数えると、
+ * 画面と一枚で違うことを言う日が来る。
+ */
+export function changePointsOf(before: string, after: string): string[] {
   const points: string[] = [];
 
   const diff = after.length - before.length;
@@ -419,6 +453,22 @@ export function ChangePoints({
   if (!isBulleted(before) && isBulleted(after)) points.push("箇条書きになりました");
   else if (lines(after) > lines(before)) points.push("行が分かれました");
 
+  return points;
+}
+
+/** 測れなかったときの1行。**空欄にしない**（下のコメント参照）。 */
+export const NO_MEASURABLE_CHANGE =
+  "長さや形は大きく変わっていません。言葉の選び方を見比べてみてください。";
+
+export function ChangePoints({
+  before,
+  after,
+}: {
+  before: string;
+  after: string;
+}) {
+  const points = changePointsOf(before, after);
+
   /*
     測って分かる差が無いときも、黙って消えない。
 
@@ -431,7 +481,7 @@ export function ChangePoints({
         className="mt-2 text-sm leading-6 text-ink-muted"
         data-testid="change-points"
       >
-        長さや形は大きく変わっていません。言葉の選び方を見比べてみてください。
+        {NO_MEASURABLE_CHANGE}
       </p>
     );
   }

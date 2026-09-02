@@ -36,7 +36,7 @@ describe("技を受け取る帯", () => {
     render(<SkillGet name="トーン指定" />);
 
     expect(screen.getByTestId("skill-get")).toHaveAttribute("role", "status");
-    expect(screen.getByTestId("skill-get")).toHaveTextContent("新しいAI技");
+    expect(screen.getByTestId("skill-get")).toHaveTextContent("AI技 GET");
   });
 });
 

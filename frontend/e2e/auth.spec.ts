@@ -16,6 +16,7 @@
 
 import { expect, test, type Page, type Locator } from "@playwright/test";
 
+import { openRecord } from "./support/openRecord";
 import { stubApi } from "./support/stubApi";
 
 /**
@@ -232,7 +233,8 @@ test.describe("登録していない人", () => {
         else {
           const choice = page
             .locator("main button:visible")
-            .filter({ hasNotText: /レッスン一覧へ|もどる|くわしく|送っています|飛ばす|スキップ|あとにする/ })
+            .filter({ hasNotText:
+            /レッスン一覧へ|もどる|くわしく|変わったところ|記録|全文|送っています|飛ばす|スキップ|あとにする/ })
             .first();
           if (await choice.count()) await choice.click();
         }
@@ -243,6 +245,12 @@ test.describe("登録していない人", () => {
       await page.waitForTimeout(120);
     }
 
+    /*
+      登録の誘いは「このレッスンの記録」の一枚の中。完了画面に残すのは
+      できるようになったこと・覚えたAI技・成果物の3つだけにした
+      （`src/components/course/steps/Completion.tsx`）。
+    */
+    await openRecord(page);
     await expect(page.getByTestId("save-progress")).toBeVisible();
   });
 

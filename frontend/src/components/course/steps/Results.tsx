@@ -8,7 +8,7 @@
 import { useState, type ReactNode } from "react";
 
 import { RevealText } from "../RevealText";
-import { MoreButton, MoreSheet } from "../MoreSheet";
+import { FullText, MoreButton, MoreSheet } from "../MoreSheet";
 import { IconCaution } from "../../Icons";
 import { diffSentences, isMostlyUnchanged } from "../../../lib/diff";
 import type { RunRecord } from "../../../course/useCourseLesson";
@@ -210,11 +210,21 @@ export function ResultCompare({
       {more && (
         <MoreSheet title="変わったところ" onClose={() => setMore(false)}>
           {diff}
+          {/*
+            文章そのものを押せるようにする。長い日はここで切れるので、
+            続きを読むために一枚を送らせない（`FullText`）。
+          */}
           <section className="mt-5 border-t border-line pt-4">
             <h3 className="text-xs font-bold text-ink-muted">元の文章</h3>
-            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-7">
-              {before || "（入力なし）"}
-            </p>
+            <div className="mt-2">
+              <FullText label="元の文章" text={before} testId="full-before" />
+            </div>
+          </section>
+          <section className="mt-4">
+            <h3 className="text-xs font-bold text-ink-muted">AIの結果</h3>
+            <div className="mt-2">
+              <FullText label="AIの結果" text={after} testId="full-after" />
+            </div>
           </section>
           {reviewPoints.length > 1 && (
             <section className="mt-5 border-t border-line pt-4">

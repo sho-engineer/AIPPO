@@ -17,6 +17,7 @@
 
 import { expect, test, type Page, type Locator } from "@playwright/test";
 
+import { openRecord } from "./support/openRecord";
 import { stubApi, type StubHandle } from "./support/stubApi";
 
 /**
@@ -56,7 +57,8 @@ async function runToCompletion(page: Page): Promise<void> {
         const choice = page
           .locator("main button:visible")
           .filter({
-            hasNotText: /レッスン一覧へ|もどる|くわしく|送っています|飛ばす|スキップ|あとにする/,
+            hasNotText:
+            /レッスン一覧へ|もどる|くわしく|変わったところ|記録|全文|送っています|飛ばす|スキップ|あとにする/,
           })
           .first();
         if (await choice.count()) await choice.click();
@@ -69,6 +71,8 @@ async function runToCompletion(page: Page): Promise<void> {
   }
 
   await expect(page.getByTestId("completion-view")).toBeVisible();
+  // 進み具合・応用例・アンケートは「このレッスンの記録」の一枚の中
+  await openRecord(page);
 }
 
 test.describe("完了時のアンケート", () => {

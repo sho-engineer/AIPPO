@@ -13,6 +13,7 @@
  */
 
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { CompletionView } from "../src/components/course/steps/Completion";
@@ -29,22 +30,37 @@ const BASE = {
   onSelectLesson: () => {},
 };
 
+/**
+ * 「このレッスンの記録」をひらく。
+ *
+ * 進み具合・節目・XP・登録の誘い・アンケート・応用例・次におすすめは、
+ * 完了画面ではなくこの一枚の中にある。画面に残すのは3つだけと決めた
+ * ため（`components/course/steps/Completion.tsx` の冒頭）。
+ */
+async function openRecord() {
+  await userEvent.setup().click(screen.getByTestId("completion-more"));
+}
+
 describe("節目のまとめ", () => {
-  it("節目に届いた回（2→3本目）に出る", () => {
+  it("節目に届いた回（2→3本目）に出る", async () => {
     render(<CompletionView {...BASE} done={3} total={9} />);
+
+    await openRecord();
 
     const card = screen.getByTestId("course-checkpoint");
     expect(card).toHaveTextContent("3個目のスタンプ");
     expect(card).toHaveTextContent("🎁 1 Credit");
   });
 
-  it("節目に届いていない回（3→4本目）には出ない", () => {
+  it("節目に届いていない回（3→4本目）には出ない", async () => {
     render(<CompletionView {...BASE} done={4} total={9} />);
+
+    await openRecord();
 
     expect(screen.queryByTestId("course-checkpoint")).not.toBeInTheDocument();
   });
 
-  it("ここまでで何ができるようになったかが入る", () => {
+  it("ここまでで何ができるようになったかが入る", async () => {
     /*
       1本ずつの完了画面は「今日できるようになったこと」しか言わない。
       3本目まで来た人が実際に持っているのはその合計だが、それを
@@ -60,13 +76,15 @@ describe("節目のまとめ", () => {
       />,
     );
 
+    await openRecord();
+
     const outcomes = screen.getByTestId("checkpoint-outcomes");
     // 教材の outcomes をそのまま並べる。新しく言葉を作らない
     expect(outcomes).toHaveTextContent("読む相手を伝えられる");
     expect(outcomes).toHaveTextContent("何のためのまとめかを伝えられる");
   });
 
-  it("いま終えた1本も、まとめに入る", () => {
+  it("いま終えた1本も、まとめに入る", async () => {
     /*
       `completedIds` はサーバーと端末から取った一覧で、この画面を
       出している時点ではまだ今回の分が入っていないことがある。
@@ -82,17 +100,21 @@ describe("節目のまとめ", () => {
       />,
     );
 
+    await openRecord();
+
     expect(screen.getByTestId("checkpoint-outcomes")).toHaveTextContent(
       "何のためのまとめかを伝えられる",
     );
   });
 
-  it("特典は『予告』であって、『獲得しました』ではない", () => {
+  it("特典は『予告』であって、『獲得しました』ではない", async () => {
     /*
       使える残高がまだ無い。過去形で「獲得しました」と言うと、
       押しても何も起きないのに起きたと言っていることになる。
     */
     render(<CompletionView {...BASE} done={3} total={9} />);
+
+    await openRecord();
 
     const card = screen.getByTestId("course-checkpoint");
     expect(card).not.toHaveTextContent("獲得しました");
@@ -101,21 +123,25 @@ describe("節目のまとめ", () => {
 });
 
 describe("コース完走", () => {
-  it("完走した回に、専用の締めくくりが出る", () => {
+  it("完走した回に、専用の締めくくりが出る", async () => {
     render(<CompletionView {...BASE} done={9} total={9} />);
+
+    await openRecord();
 
     const card = screen.getByTestId("course-complete");
     expect(card).toHaveTextContent("COURSE COMPLETE");
     expect(card).toHaveTextContent(COURSE.title);
   });
 
-  it("完走していない回には、締めくくりを出さない", () => {
+  it("完走していない回には、締めくくりを出さない", async () => {
     render(<CompletionView {...BASE} done={8} total={9} />);
+
+    await openRecord();
 
     expect(screen.queryByTestId("course-complete")).not.toBeInTheDocument();
   });
 
-  it("完走の回は、ふだんの節目のまとめ・節目の一覧を重ねて出さない", () => {
+  it("完走の回は、ふだんの節目のまとめ・節目の一覧を重ねて出さない", async () => {
     /*
       9本目は3個・6個の節目もまたいでいないので、ふだんは
       milestone-reached が出ない回だが、9個目そのものが節目候補に
@@ -123,6 +149,8 @@ describe("コース完走", () => {
       「どちらが本番か」が2つあると、どちらも弱くなる。
     */
     render(<CompletionView {...BASE} done={9} total={9} />);
+
+    await openRecord();
 
     expect(screen.queryByTestId("course-checkpoint")).not.toBeInTheDocument();
     expect(screen.queryByTestId("milestone-legend")).not.toBeInTheDocument();
@@ -137,13 +165,17 @@ describe("コース完走", () => {
       <CompletionView {...BASE} done={9} total={9} onOpenCourseCatalog={onOpenCourseCatalog} />,
     );
 
+    await openRecord();
+
     await user.click(screen.getByTestId("course-complete-next"));
 
     expect(onOpenCourseCatalog).toHaveBeenCalledTimes(1);
   });
 
-  it("バッジと特典の予告が、完走の締めくくりに出る", () => {
+  it("バッジと特典の予告が、完走の締めくくりに出る", async () => {
     render(<CompletionView {...BASE} done={9} total={9} />);
+
+    await openRecord();
 
     const card = screen.getByTestId("course-complete");
     expect(card).toHaveTextContent("Complete");

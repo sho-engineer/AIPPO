@@ -46,8 +46,19 @@ export function LessonHeader({
 }: LessonHeaderProps) {
   return (
     <header
+      /*
+        上の安全域を足す。
+
+        ノッチのある端末では、帯が時計やカメラの下へ潜り込む。下端
+        （ホームバー）は前から見ていたのに、上だけ見ていなかった。
+
+        足したぶんは画面の高さからも引く必要がある——レッスンの中身は
+        `calc(100dvh - 2.75rem - env(safe-area-inset-top))` を取る
+        （`StepShell` / `DayCompletePage`）。片方だけ直すと、足した分が
+        そのままはみ出しになる。
+      */
       className="sticky top-0 z-20 flex h-11 items-center gap-2 border-b border-line
-                 bg-canvas px-2"
+                 bg-canvas px-2 pt-[env(safe-area-inset-top)]"
       data-testid="lesson-header"
     >
       {/*
