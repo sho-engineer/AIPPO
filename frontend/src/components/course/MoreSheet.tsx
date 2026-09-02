@@ -299,8 +299,15 @@ export function MoreSheet({
 
           `bleed` のときは左右と上の余白を捨てる。絵1枚だけを出す一枚で、
           そこに読む文字は無い。余白は絵を小さくするだけの働きしかしない。
+
+          `tabIndex` を置くのは、**指を使わない人が送れるようにする**ため。
+          「詳しく見る」の中は読み物だけで、押せるものが1つも無い。
+          送れる枠に止まれないと、キーボードだけの人は最初の画面ぶんしか
+          読めない（axe の `scrollable-region-focusable` で見つかった）。
+          止まれば矢印キーで送れる。
         */}
         <div
+          tabIndex={0}
           className={`min-h-0 flex-1 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))] ${
             bleed ? "px-0 pt-0" : "px-5 pt-4"
           }`}

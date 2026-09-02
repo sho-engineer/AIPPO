@@ -249,17 +249,31 @@ export function LessonIntroModal({
     >
       <div data-testid="lesson-intro" className="pb-1">
         <h3 className="text-xl font-bold leading-[1.45]">{title}</h3>
-        {description && (
-          <p className="mt-2 text-sm leading-7 text-ink-muted">{description}</p>
-        )}
 
         {/*
-          ポーは小さくしない。ここは案内役が一言だけ言う場所で、
-          飾りとして端に置くと、誰が言っているのか分からなくなる。
-          吹き出しとの間も詰める（`PoSpeech` が隣り合わせで組む）。
+          短い説明は、ポーに言わせる。
+
+          前は見出しの下に説明の段落を置き、そのすぐ下にポーの吹き出しを
+          重ねていた。**同じことを2回言っている**——「読む相手と言い方を
+          伝えて…」の下で、ポーが「まず、できあがりを見てみましょう」と
+          もう一度言う形になる。
+
+          実際に測ると、いちばん低い持ち方（402×660）でここが 54px
+          あふれ、「詳しく見る」が画面の下に隠れていた。段落とポーで
+          213px——一枚に使える 459px の半分近くを、同じ役の2つが取る。
+
+          1つにまとめる。ポーは案内役なので、今日やることは**ポーの
+          言葉として**出るほうが自然で、段落ぶんの高さがそのまま浮く。
+          ポーは小さくしない（`md`）。飾りとして端に置くと、誰が言って
+          いるのか分からなくなる。
         */}
-        <div className="mt-4">
-          <PoSpeech emotion="talking" message={poMessage} size="md" scene="start" />
+        <div className="mt-3">
+          <PoSpeech
+            emotion="talking"
+            message={description ?? poMessage}
+            size="md"
+            scene="start"
+          />
         </div>
 
         {outcomes && outcomes.length > 0 && (
@@ -267,7 +281,7 @@ export function LessonIntroModal({
             2つまで。3つ目からは「詳しく見る」の中にある。
             ここは決める材料で、一覧ではない。
           */
-          <ul className="mt-4 space-y-1.5" role="list" data-testid="lesson-intro-outcomes">
+          <ul className="mt-3 space-y-1.5" role="list" data-testid="lesson-intro-outcomes">
             {outcomes.slice(0, 2).map((line) => (
               <li key={line} className="flex items-start gap-2 text-sm leading-6">
                 <IconCheckCircle className="mt-1 h-4 w-4 shrink-0 text-brand" />
@@ -277,7 +291,7 @@ export function LessonIntroModal({
           </ul>
         )}
 
-        <div className="mt-5">
+        <div className="mt-4">
           <button
             type="button"
             onClick={onStart}

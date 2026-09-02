@@ -112,6 +112,18 @@ await scan("コースの中身");
 
 await p.getByTestId("lesson-rewrite_text").click();
 await p.waitForTimeout(900);
+// 開いた最初に、導入の一枚が中央に浮かぶ。ここも読み上げの検査に入れる
+await scan("レッスン 導入の一枚");
+
+// 「詳しく見る」の中も見る（画面いっぱいの一枚で、中は縦に送れる）
+await p.getByTestId("lesson-intro-detail").click();
+await p.waitForTimeout(500);
+await scan("レッスン 詳しく見る");
+await p.getByTestId("lesson-detail-close").click();
+await p.waitForTimeout(300);
+
+await p.getByTestId("lesson-intro-close").click();
+await p.waitForTimeout(500);
 await scan("レッスン 完成イメージ");
 
 await p.getByTestId("primary-action").first().click();
