@@ -154,7 +154,19 @@ const LESSON_1: Lesson = {
 
   outcomeTitle: "専門的で難しい文章を、誰にでも伝わる文章に変える",
   outcomeDescription: "読む相手と言い方を伝えて、意味を変えずに分かりやすくします。",
-  estimatedMinutes: 8,
+  /*
+    3分。**8分は古い数字**で、レッスンはできるだけ短く終われる形にする
+    という方針に変わっている。
+
+    ここを直すと、コース一覧・レッスン行・再開カード・ホームのカードが
+    まとめて変わる（どれもこの値を読んでいる）。**全体図の絵は別**で、
+    数字が焼き込まれている——`scripts/teaching-images/overviews.json` に
+    「絵が何と言っているか」を控えてあり、ここと食い違うと
+    `tests/teachingImageFacts.test.ts` が落ちる。
+
+    Day2〜8 はまだ触らない。各日の中身を決めてから1本ずつ入れる。
+  */
+  estimatedMinutes: 3,
   beforeExample:
     "Transformer型言語モデルにおける自己注意機構では、各トークンから生成されたQueryとKeyの内積をスケーリングし、Softmax関数によって正規化したAttention WeightをValueに適用することで、系列内のトークン間依存関係を動的に表現する。さらに、多層化されたMulti-Head Attentionにより異なる表現部分空間における依存関係を並列的に学習することが可能となる。",
   /*

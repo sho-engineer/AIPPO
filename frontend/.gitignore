@@ -1,1 +1,3 @@
 screenshots/
+# 教材の絵の書き出し先。置き場所は public/assets/teaching/
+scripts/teaching-images/out/
