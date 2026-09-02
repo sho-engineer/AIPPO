@@ -19,32 +19,79 @@
  * 閉じ方は3つ
  * -----------
  * ×・背景・Esc。1つしか無いと、開いた人が閉じ方を探すことになる。
+ *
+ * body へ出す（portal）
+ * --------------------
+ * `position: fixed` は、**先祖に `transform` があるとそこに閉じ込め
+ * られる**。レッスンの中身は `StepTransition` が包んでいて、そこには
+ * 画面の入れ替わりを見せるための `transform` が常に入っている。
+ * つまり画面の中で開くと、一枚は「その回の中身の枠」の中に収まって
+ * しまう——背景も暗くならず、見出しも切れる（実際そうなった）。
+ *
+ * `fixed` を使う以上、置き場所は body でなければならない。
  */
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export interface MoreSheetProps {
   title: string;
   onClose: () => void;
+  /**
+   * 一枚の上に、もう一枚。
+   *
+   * 「変わったところ」の中の文章をタップして全文を出すときに使う。
+   * 下の一枚を閉じずに重ねるので、閉じれば元の続きから読める。
+   */
+  elevated?: boolean;
   children: ReactNode;
 }
 
-export function MoreSheet({ title, onClose, children }: MoreSheetProps) {
+/**
+ * いま開いている一枚の重なり順。
+ *
+ * Esc は**いちばん上の一枚だけ**を閉じる。全部が同じ `keydown` を
+ * 聞いていると、全文を閉じたつもりで下の一枚まで消える——押した人
+ * から見れば「元の続きが読めない」（実際そうなった）。
+ *
+ * 番号だけの配列にしてある。中身を持たせる必要は無く、
+ * **自分がいちばん後ろか**だけ分かればよい。
+ */
+const stack: symbol[] = [];
+
+export function MoreSheet({
+  title,
+  onClose,
+  elevated = false,
+  children,
+}: MoreSheetProps) {
   const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    const me = Symbol("more-sheet");
+    stack.push(me);
     panel.current?.focus();
+
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      // 上に別の一枚が開いていれば、そちらが閉じる番
+      if (stack[stack.length - 1] !== me) return;
+      onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      const at = stack.indexOf(me);
+      if (at >= 0) stack.splice(at, 1);
+    };
   }, [onClose]);
 
-  return (
+  const sheet = (
     <div
-      className="fixed inset-0 z-30 flex items-end justify-center sm:items-center"
-      data-testid="more-sheet"
+      className={`fixed inset-0 flex items-end justify-center sm:items-center ${
+        elevated ? "z-40" : "z-30"
+      }`}
+      data-testid={elevated ? "full-text-sheet" : "more-sheet"}
     >
       {/*
         下の画面を沈める。**消さない。**
@@ -53,7 +100,7 @@ export function MoreSheet({ title, onClose, children }: MoreSheetProps) {
       <button
         type="button"
         aria-label="閉じる"
-        data-testid="more-sheet-scrim"
+        data-testid={elevated ? "full-text-scrim" : "more-sheet-scrim"}
         onClick={onClose}
         className="absolute inset-0 bg-ink/45"
       />
@@ -62,7 +109,7 @@ export function MoreSheet({ title, onClose, children }: MoreSheetProps) {
         ref={panel}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="more-sheet-title"
+        aria-labelledby={elevated ? "full-text-title" : "more-sheet-title"}
         tabIndex={-1}
         /*
           スマホでは下から。指の届く側から出るほうが、閉じるのも近い。
@@ -74,13 +121,16 @@ export function MoreSheet({ title, onClose, children }: MoreSheetProps) {
                    sm:max-h-[80vh] sm:rounded-panel"
       >
         <div className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-3.5">
-          <h2 id="more-sheet-title" className="min-w-0 flex-1 text-sm font-bold">
+          <h2
+            id={elevated ? "full-text-title" : "more-sheet-title"}
+            className="min-w-0 flex-1 text-sm font-bold"
+          >
             {title}
           </h2>
           <button
             type="button"
             aria-label="閉じる"
-            data-testid="more-sheet-close"
+            data-testid={elevated ? "full-text-close" : "more-sheet-close"}
             onClick={onClose}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
                        text-ink-muted transition hover:bg-brand-soft"
@@ -102,6 +152,17 @@ export function MoreSheet({ title, onClose, children }: MoreSheetProps) {
       </div>
     </div>
   );
+
+  /*
+    描く場所は body。理由は冒頭に書いた。
+
+    `document.body` はブラウザにしか無い。サーバー側で組み立てる作りに
+    なったときのために、無ければそのまま返す（そこでは重ならないが、
+    中身は読める）。
+  */
+  return typeof document === "undefined"
+    ? sheet
+    : createPortal(sheet, document.body);
 }
 
 /**
@@ -130,5 +191,65 @@ export function MoreButton({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * 文章そのものを押せるようにする。
+ *
+ * なぜ要るか
+ * ----------
+ * 「変わったところ」の一枚に並ぶ文章は、長い日には途中で切れる。
+ * 切れた先を読むために画面を送らせると、比べるために開いた一枚が
+ * また「読む場所」になる。**押せば全文**にしておけば、一覧は
+ * 短いまま保てる。
+ *
+ * 押せることが分かる形にする
+ * --------------------------
+ * ただの段落を押せるようにしても、押せると気づかれない。囲いを付け、
+ * 右下に「全文を見る」を添える。`<button>` にしてあるので、
+ * キーボードでも読み上げでも同じように届く。
+ */
+export function FullText({
+  label,
+  text,
+  testId,
+}: {
+  /** 何の文章か。「元の文章」「AIの結果」など。 */
+  label: string;
+  text: string;
+  testId?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const body = text || "（入力なし）";
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        data-testid={testId}
+        aria-label={`${label}の全文を見る`}
+        className="block w-full rounded-card border border-line bg-surface p-3.5
+                   text-left transition hover:border-brand-line hover:bg-brand-soft/40"
+      >
+        {/*
+          3行で切る。**切れていることが見える**ようにする——
+          省略記号が出ないと、そこで終わっている文章に見える。
+        */}
+        <span className="line-clamp-3 block whitespace-pre-wrap break-words text-sm leading-7">
+          {body}
+        </span>
+        <span className="mt-2 block text-right text-xs font-bold text-brand-dark">
+          全文を見る
+        </span>
+      </button>
+
+      {open && (
+        <MoreSheet elevated title={label} onClose={() => setOpen(false)}>
+          <p className="whitespace-pre-wrap break-words text-sm leading-7">{body}</p>
+        </MoreSheet>
+      )}
+    </>
   );
 }
