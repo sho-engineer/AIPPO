@@ -17,6 +17,7 @@
 
 import { IconCaution } from "../Icons";
 import { SafetyNote } from "../SafetyNote";
+import { FullText } from "./MoreSheet";
 import { SkillGet } from "./SkillGet";
 import { StepDone } from "./StepDone";
 import {
@@ -239,12 +240,22 @@ export function StepRenderer({
             <div className="mt-5">
               {/* 名札と本文の面だけ。囲いを二重にしない（条件の画面と同じ） */}
               <p className="text-xs font-bold text-ink-muted">AIにはこう伝えます</p>
-              <p
-                className="mt-2 whitespace-pre-wrap rounded-card border border-line
-                           bg-surface p-4 text-sm leading-7"
-              >
-                {sampleText}
-              </p>
+              {/*
+                3行で切って、押せば全文。
+
+                例文の長さは教材ごとに違う。Day1 の題材を専門的な解説文へ
+                変えたとき、ここが丸ごと出ていたせいで**この画面だけ
+                100px はみ出した**（e2e/stepFits.spec.ts が捕まえた）。
+                例文を短く書き直すのは本末転倒——読めない文章から始めるのが
+                この回のねらいなので、**出し方のほう**を畳む。
+              */}
+              <div className="mt-2">
+                <FullText
+                  label="AIに送る文章"
+                  text={sampleText}
+                  testId="quick-sample"
+                />
+              </div>
             </div>
           )}
         </div>

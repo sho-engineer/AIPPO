@@ -44,6 +44,24 @@ export interface MoreSheetProps {
    * 下の一枚を閉じずに重ねるので、閉じれば元の続きから読める。
    */
   elevated?: boolean;
+  /**
+   * 絵を1枚だけ見せる一枚。左右と上の余白を捨てて、**画面の幅いっぱい**に出す。
+   *
+   * なぜ「高さを8割で固定」ではないか
+   * ---------------------------------
+   * 一度そう作って、実際に測ってから戻した。全体図はほぼ正方形
+   * （1219×1231）で、スマホでは**幅が上限**になる。393px の画面なら
+   * どうやっても 393×397 より大きくならない。
+   *
+   * 高さだけ 8 割（581px）に決めると、絵は 397px のままで、
+   * 余った 135px が白いまま上下に残る——**絵は大きくならず、
+   * 余白だけが増える。** 画面写真で見て分かった。
+   *
+   * なので 8 割は**上限**として置き、絵には幅を全部渡す。
+   * 左右の余白（`px-5`）をやめるだけで 353px → 393px になる（面積で 1.2 倍）。
+   * 縦長の絵に差し替えれば、そのぶん自動で 8 割まで伸びる。
+   */
+  bleed?: boolean;
   children: ReactNode;
 }
 
@@ -63,6 +81,7 @@ export function MoreSheet({
   title,
   onClose,
   elevated = false,
+  bleed = false,
   children,
 }: MoreSheetProps) {
   const panel = useRef<HTMLDivElement>(null);
@@ -115,9 +134,13 @@ export function MoreSheet({
           スマホでは下から。指の届く側から出るほうが、閉じるのも近い。
           高さは画面の 8 割まで。**残り 2 割で下が見えている**ことが、
           「上に開いている」と分かる手がかりになる。
+
+          `dvh` にしてあるのは、スマホのブラウザで上下の帯が出入りする
+          たびに画面の高さが変わるため。`vh` は帯が出ている分を数えない
+          ので、帯が出た瞬間だけ一枚が画面からはみ出す。
         */
         className="animate-slide-in relative flex max-h-[80dvh] w-full max-w-md flex-col
-                   rounded-t-panel bg-surface shadow-dialog outline-none
+                   overflow-hidden rounded-t-panel bg-surface shadow-dialog outline-none
                    sm:max-h-[80vh] sm:rounded-panel"
       >
         <div className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-3.5">
@@ -147,8 +170,23 @@ export function MoreSheet({
           </button>
         </div>
 
-        {/* ここだけ送れる。`min-h-0` が無いと縦に伸びて画面から出る */}
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {/*
+          ここだけ送れる。`min-h-0` が無いと縦に伸びて画面から出る。
+
+          下の余白は `max(1rem, safe-area)`。一枚は画面の下辺から出る
+          ので、iPhone ではホームバーが最後の一行に重なる。ふだんの
+          画面（1rem）は変えずに、重なる端末でだけ広がる。
+
+          `bleed` のときは左右と上の余白を捨てる。絵1枚だけを出す一枚で、
+          そこに読む文字は無い。余白は絵を小さくするだけの働きしかしない。
+        */}
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto pb-[max(1rem,env(safe-area-inset-bottom))] ${
+            bleed ? "px-0 pt-0" : "px-5 pt-4"
+          }`}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );
@@ -236,8 +274,19 @@ export function FullText({
         {/*
           3行で切る。**切れていることが見える**ようにする——
           省略記号が出ないと、そこで終わっている文章に見える。
+
+          `block` を付けてはいけない。`line-clamp-3` は
+          `display: -webkit-box` を敷いて効くもので、`block` は同じ
+          `display` を後から上書きする。しかも Tailwind の出力順では
+          `.block` が `.line-clamp-3` より後ろに来るので、
+          **クラスの並び順に関係なく `block` が勝つ**。
+
+          実際そうなっていて、3行のはずの文章が全文出ていた
+          （お試し画面の例文が 312px になり、そこだけ 126px はみ出して
+          e2e/stepFits.spec.ts が捕まえた）。`<span>` は `line-clamp` が
+          敷く `-webkit-box` で塊として並ぶので、`block` は要らない。
         */}
-        <span className="line-clamp-3 block whitespace-pre-wrap break-words text-sm leading-7">
+        <span className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-7">
           {body}
         </span>
         <span className="mt-2 block text-right text-xs font-bold text-brand-dark">

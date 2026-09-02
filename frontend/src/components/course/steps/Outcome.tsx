@@ -123,7 +123,19 @@ export function OutcomePreview({
             今日やることの全体図を見る
           </MoreButton>
           {overviewOpen && (
+            /*
+              絵に幅を全部渡す（`bleed`）。一枚の高さの上限は画面の 8 割のまま。
+
+              左右の余白をやめるだけで 353px → 393px になる。この絵は
+              ほぼ正方形で、スマホでは**幅が上限**なので、ここが効く。
+              高さのほうを 8 割で固定しても絵は大きくならず、白い余白が
+              135px 増えるだけだった（実測して戻した。MoreSheet の `bleed` に経緯がある）。
+
+              全画面にはしない。上に下の画面が少し見えていることが、
+              「戻れる」の手がかりになる。
+            */
             <MoreSheet
+              bleed
               title="今日やることの全体図"
               onClose={() => setOverviewOpen(false)}
             >
@@ -132,6 +144,7 @@ export function OutcomePreview({
                 alt={overview.alt}
                 width={overview.width}
                 height={overview.height}
+                className="rounded-none"
               />
             </MoreSheet>
           )}
