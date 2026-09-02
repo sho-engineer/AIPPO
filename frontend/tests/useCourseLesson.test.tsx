@@ -58,7 +58,7 @@ function renderLesson(lessonId = "rewrite_text") {
 /**
  * 完成イメージ → 最初の1回で選ぶものを選ぶ、まで進める。
  *
- * Day1 の1回目で選ぶのは**頼みかた**（「分かりやすくして」）。
+ * Day1 の1回目で選ぶのは**どこから直すか**（「専門用語を減らす」）。
  * 誰向けかは選ばない——1回目を条件なしで送り、2回目に
  * 「AI初心者向けに」を足したときの差で見せる教材なので
  * （src/course/catalog.ts の LESSON_1）。
@@ -66,7 +66,7 @@ function renderLesson(lessonId = "rewrite_text") {
 async function toQuickTry(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByTestId("primary-action")); // 完成イメージ
   await user.click(
-    await screen.findByRole("button", { name: /^✓? ?分かりやすくして$/ }),
+    await screen.findByRole("button", { name: /^✓? ?専門用語を減らす$/ }),
   );
 }
 
@@ -153,7 +153,7 @@ describe("成果物ファースト", () => {
     await user.click(screen.getByTestId("primary-action"));
 
     expect(
-      await screen.findByRole("heading", { name: "AIに何て頼む？" }),
+      await screen.findByRole("heading", { name: "どこから分かりやすくする？" }),
     ).toBeInTheDocument();
     // 誰向けか・口調はまだ聞かない
     expect(screen.queryByRole("button", { name: "ていねいに" })).toBeNull();
@@ -168,7 +168,7 @@ describe("成果物ファースト", () => {
     await toFirstResult(user);
 
     const input = generate.mock.calls[0][0].input;
-    expect(input.instruction).toBe("分かりやすくして");
+    expect(input.instruction).toBe("専門用語を減らす");
     expect(input.original_text.length).toBeGreaterThan(0);
   });
 
@@ -321,7 +321,7 @@ describe("入力を失わない", () => {
     await user.click(screen.getByTestId("primary-action"));
 
     expect(
-      await screen.findByRole("button", { name: /分かりやすくして/ }),
+      await screen.findByRole("button", { name: /専門用語を減らす/ }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -332,7 +332,7 @@ describe("入力を失わない", () => {
     await toQuickTry(user);
 
     await waitFor(() => {
-      expect(loadDraft("rewrite_text")?.values.instruction).toBe("分かりやすくして");
+      expect(loadDraft("rewrite_text")?.values.instruction).toBe("専門用語を減らす");
     });
 
     view.unmount();
@@ -340,7 +340,7 @@ describe("入力を失わない", () => {
 
     // 途中のステップから再開する
     expect(
-      await screen.findByRole("button", { name: /分かりやすくして/ }),
+      await screen.findByRole("button", { name: /専門用語を減らす/ }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 });

@@ -62,6 +62,20 @@ export interface MoreSheetProps {
    * 縦長の絵に差し替えれば、そのぶん自動で 8 割まで伸びる。
    */
   bleed?: boolean;
+  /**
+   * 出る場所。
+   *
+   *   sheet  … 画面の下から。**読み物**を開くとき（既定）。
+   *            指の届く側から出るので、閉じるのも近い
+   *   center … 画面の中央に浮かべる。**1つの中身を確かめる**とき。
+   *            「AIに送る文章」のように、読んだら閉じて元へ戻る用
+   *
+   * 分けているのは、下から出る形が**続きがある**ことを匂わせるため。
+   * 送れば次が出てくる読み物ならそれでよいが、1つの文章を確かめる
+   * だけの場面では、開発中の仮画面のように見える。中央に浮かべると、
+   * 「これだけ見て閉じる」がひと目で分かる。
+   */
+  placement?: "sheet" | "center";
   children: ReactNode;
 }
 
@@ -82,8 +96,10 @@ export function MoreSheet({
   onClose,
   elevated = false,
   bleed = false,
+  placement = "sheet",
   children,
 }: MoreSheetProps) {
+  const centered = placement === "center";
   const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -107,10 +123,11 @@ export function MoreSheet({
 
   const sheet = (
     <div
-      className={`fixed inset-0 flex items-end justify-center sm:items-center ${
-        elevated ? "z-40" : "z-30"
-      }`}
+      className={`fixed inset-0 flex justify-center ${
+        centered ? "items-center p-5" : "items-end sm:items-center"
+      } ${elevated ? "z-40" : "z-30"}`}
       data-testid={elevated ? "full-text-sheet" : "more-sheet"}
+      data-placement={placement}
     >
       {/*
         下の画面を沈める。**消さない。**
@@ -121,7 +138,12 @@ export function MoreSheet({
         aria-label="閉じる"
         data-testid={elevated ? "full-text-scrim" : "more-sheet-scrim"}
         onClick={onClose}
-        className="absolute inset-0 bg-ink/45"
+        /*
+          中央に浮かべるときは、少し濃くする。下から出る一枚は画面の
+          端に触れていて「上に載っている」ことが形で分かるが、中央に
+          浮かぶ面は、地が薄いと**元の画面と同じ層**に見える。
+        */
+        className={`absolute inset-0 ${centered ? "bg-ink/55" : "bg-ink/45"}`}
       />
 
       <div
@@ -139,14 +161,26 @@ export function MoreSheet({
           たびに画面の高さが変わるため。`vh` は帯が出ている分を数えない
           ので、帯が出た瞬間だけ一枚が画面からはみ出す。
         */
-        className="animate-slide-in relative flex max-h-[80dvh] w-full max-w-md flex-col
-                   overflow-hidden rounded-t-panel bg-surface shadow-dialog outline-none
-                   sm:max-h-[80vh] sm:rounded-panel"
+        className={`relative flex w-full max-w-md flex-col overflow-hidden
+                    bg-surface shadow-dialog outline-none ${
+                      centered
+                        ? "animate-pop-in max-h-[70dvh] rounded-panel sm:max-h-[70vh]"
+                        : "animate-slide-in max-h-[80dvh] rounded-t-panel sm:max-h-[80vh] sm:rounded-panel"
+                    }`}
       >
-        <div className="flex shrink-0 items-center gap-3 border-b border-line px-5 py-3.5">
+        <div
+          className={`flex shrink-0 items-center gap-3 border-b border-line px-5 ${
+            centered ? "py-4" : "py-3.5"
+          }`}
+        >
           <h2
             id={elevated ? "full-text-title" : "more-sheet-title"}
-            className="min-w-0 flex-1 text-sm font-bold"
+            /*
+              見出しと本文の段差を付ける。中央に浮かべる一枚は、本文
+              （17px）と見出し（15px）が近すぎると、見出しが本文の
+              1行目に見える。
+            */
+            className={`min-w-0 flex-1 font-bold ${centered ? "text-base" : "text-sm"}`}
           >
             {title}
           </h2>
@@ -311,8 +345,22 @@ export function FullText({
       </button>
 
       {open && (
-        <MoreSheet elevated title={label} onClose={() => setOpen(false)}>
-          <p className="whitespace-pre-wrap break-words text-sm leading-7">{body}</p>
+        /*
+          中央に浮かべる。ここは**1つの文章を確かめて閉じる**場面で、
+          下から出る形だと「送れば続きがある読み物」に見える。
+
+          本文は一段大きく、行間も広くする。読ませるために開いた一枚
+          なので、一覧の中の抜粋と同じ大きさで出す理由が無い。
+        */
+        <MoreSheet
+          elevated
+          placement="center"
+          title={label}
+          onClose={() => setOpen(false)}
+        >
+          <p className="whitespace-pre-wrap break-words pb-1 text-base leading-8">
+            {body}
+          </p>
         </MoreSheet>
       )}
     </>

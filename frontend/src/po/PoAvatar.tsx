@@ -3,11 +3,28 @@
  *
  * 動きの決まり:
  * - ふだんは3〜4秒周期の小さな上下だけ
- * - 5〜8秒ごとに1回まばたき（blink の絵へ一瞬だけ切り替える）
  * - 状態が変わるときは短いフェード
  * - thinking のときだけアンテナが淡く光る
  * - celebrate は**一度だけ**跳ねる。跳ね続けると鬱陶しい
  * - prefers-reduced-motion では止める（index.css で一括）
+ *
+ * まばたきと口の動きは持たない
+ * ----------------------------
+ * 以前は 5〜8 秒ごとに `blink` へ、話しているあいだは 160ms ごとに
+ * `talking` と `neutral` へ、**絵そのものを差し替えて**いた。
+ * これをやめた。実機の録画を測ると、差し替わる瞬間だけ画面の変化量が
+ * ふだんの浮き沈みの 10 倍あり、はっきり点滅として映っていた。
+ *
+ * 原因は8枚の**描かれ方が揃っていない**こと。台紙（512×512）に対する
+ * 絵の大きさが状態ごとに違い（`PO_BOX`）、`poTransform` は背丈だけを
+ * 合わせている。背丈が同じでも、体に対する頭の大きさが違うので、
+ * 差し替えた瞬間に**別の体格の子**に入れ替わって見える。
+ * 実測では blink は neutral より 17% 小さく描かれていて、背丈を
+ * 合わせると頭がひとまわり大きくなる。
+ *
+ * 揃えるには絵を描き直すしかないが、ポーの絵は変えない決まりなので、
+ * **動かすほうをやめる**。浮き沈みとフェードは CSS で作っていて、
+ * 絵を差し替えないので、この問題を持たない。
  *
  * 画像が無いときは壊れた画像を出さず、丸いプレースホルダーへ倒す。
  *
@@ -15,9 +32,8 @@
  * 下のボタンのタップを奪わないよう pointer-events を切る。
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { prefersReducedMotion } from "../course/motion";
 import { poFrameStyle, type PoSize } from "./sizes";
 import type { PoEmotion, PoMessage } from "../course/types";
 import {
@@ -27,47 +43,6 @@ import {
   poAssets,
   poTransform,
 } from "./assets";
-
-/** まばたきの間隔。5〜8秒でばらつかせる（等間隔だと機械に見える）。 */
-const BLINK_MIN_MS = 5000;
-const BLINK_MAX_MS = 8000;
-const BLINK_DURATION_MS = 140;
-
-/** 口の開け閉め。速すぎると点滅に見え、遅いと呼吸のように見える。 */
-const MOUTH_MS = 160;
-
-/**
- * 動きに使う絵を、先に読み込んでおく。
- *
- * まばたきも口の動きも、**別のファイルへ差し替える**やり方で作って
- * ある。差し替えた先がまだ読み込まれていないと、そこだけ絵が出るのが
- * 一拍遅れる——動きの途中で1コマ抜けるので、目には瞬きではなく
- * ちらつきとして映る。
- *
- * ふだんの絵（neutral）は最初から画面に出ているので放っておいても
- * 読み込まれる。問題は blink と talking で、**出るのは一瞬だけ**。
- * 出る直前に取りに行く形だと、間に合わない回が必ず残る。
- *
- * 1回だけ。読み込んだ絵はブラウザが持っているので、
- * 2枚目以降のポーは何もしなくてよい。
- */
-let warmed = false;
-function warmFrames(): void {
-  if (warmed || typeof window === "undefined") return;
-  warmed = true;
-  for (const emotion of ["blink", "talking", "neutral"] as PoEmotion[]) {
-    const image = new Image();
-    image.src = poAssets[emotion];
-  }
-}
-
-/**
- * しゃべって見せる時間。
- *
- * 話し続けさせない。吹き出しの文は数秒で読み終わるのに、口だけ
- * 動き続けると、まだ何か言っているのかと待たせることになる。
- */
-const TALKING_MS = 1600;
 
 export type PoAvatarProps = {
   po: PoMessage;
@@ -80,106 +55,6 @@ export type PoAvatarProps = {
   size?: PoSize;
   isVisible?: boolean;
 };
-
-function useBlink(emotion: PoEmotion): boolean {
-  const [blinking, setBlinking] = useState(false);
-  const timer = useRef<number>();
-
-  // 動きに使う絵を先に取っておく。最初の1回だけ働く
-  useEffect(() => warmFrames(), []);
-
-  useEffect(() => {
-    /*
-      考えている間・喜んでいる間はまばたきさせない。
-      表情の意味が伝わらなくなる。
-
-      動きを減らす設定のときも止める。**CSS では止められない**——
-      まばたきは絵そのものを差し替える作りなので、`index.css` の
-      一括指定が効かない。口の動き（`useTalking`）は自分で見ている
-      のに、こちらだけ見ていなかった。
-    */
-    if (
-      emotion === "thinking" ||
-      emotion === "celebrate" ||
-      prefersReducedMotion()
-    ) {
-      setBlinking(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    const schedule = () => {
-      const wait = BLINK_MIN_MS + Math.random() * (BLINK_MAX_MS - BLINK_MIN_MS);
-      timer.current = window.setTimeout(() => {
-        if (cancelled) return;
-        setBlinking(true);
-        window.setTimeout(() => {
-          if (!cancelled) setBlinking(false);
-          schedule();
-        }, BLINK_DURATION_MS);
-      }, wait);
-    };
-
-    schedule();
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer.current);
-    };
-  }, [emotion]);
-
-  return blinking;
-}
-
-/**
- * しゃべっている口の動き。
- *
- * 「話している」用の絵は1枚しか無いので、ふだんの絵と交互に出して
- * 口が動いているように見せる。2枚の違いはほぼ口だけなので、
- * 速く入れ替えると開け閉めに見える。
- *
- * 動きを減らす設定のときは入れ替えない。文字は吹き出しに出ているので、
- * 口が動かなくても伝わるものは何も減らない。
- */
-function useTalking(emotion: PoEmotion, message: string): boolean {
-  /*
-    返すのは「口を閉じているか」。**開いているか**ではない。
-
-    開いているかを返すと、初期状態が false（＝閉じ）になり、
-    最初の1枚が「話している」用の絵ではなくなる。絵の探し直し
-    （PO_FALLBACK）はその1枚目を起点にするので、起点がずれると
-    別の絵へ寄ってしまう。話し始めは口が開いている、が自然でもある。
-  */
-  const [closed, setClosed] = useState(false);
-
-  useEffect(() => {
-    if (emotion !== "talking" || prefersReducedMotion()) {
-      setClosed(false);
-      return;
-    }
-
-    let shut = false;
-    const timer = window.setInterval(() => {
-      shut = !shut;
-      setClosed(shut);
-    }, MOUTH_MS);
-
-    // 話し終わったら開いた絵に戻す。閉じたまま止めない
-    const stop = window.setTimeout(() => {
-      window.clearInterval(timer);
-      setClosed(false);
-    }, TALKING_MS);
-
-    return () => {
-      window.clearInterval(timer);
-      window.clearTimeout(stop);
-      setClosed(false);
-    };
-    // 文が変わるたびに、もう一度しゃべる
-  }, [emotion, message]);
-
-  return closed;
-}
 
 function PoImage({
   emotion,
@@ -290,18 +165,14 @@ function PoImage({
  * 吹き出しの位置が画面ごとに違う。顔と吹き出しを1つの部品に固めると、
  * 並べ方を変えるたびにこの中を触ることになる。
  *
- * まばたきと口の動きはここが持つ。置き場所が変わっても、
- * 生きている感じは同じであってほしい。
+ * 動きは浮き沈みだけ。**絵は差し替えない**（この画面の冒頭を参照）。
  */
 export function PoFace({
   emotion,
-  message,
   size = "md",
   animate = true,
 }: {
   emotion: PoEmotion;
-  /** しゃべっている風に口を動かす手がかり。変わるたびに動き直す。 */
-  message?: string;
   /**
    * 大きさ。**幅は渡せない**（`po/sizes.ts`）。
    *
@@ -312,15 +183,6 @@ export function PoFace({
   size?: PoSize;
   animate?: boolean;
 }) {
-  const blinking = useBlink(emotion);
-  const mouthClosed = useTalking(emotion, message ?? "");
-
-  const shown: PoEmotion = blinking
-    ? "blink"
-    : emotion === "talking" && mouthClosed
-      ? "neutral"
-      : emotion;
-
   const motion = !animate
     ? ""
     : emotion === "celebrate"
@@ -329,7 +191,7 @@ export function PoFace({
 
   return (
     <PoImage
-      emotion={shown}
+      emotion={emotion}
       style={poFrameStyle(size)}
       className={`transition-opacity duration-200 ${motion}`}
     />
@@ -337,19 +199,7 @@ export function PoFace({
 }
 
 export function PoAvatar({ po, size = "sm", isVisible = true }: PoAvatarProps) {
-  const blinking = useBlink(po.emotion);
-  const mouthClosed = useTalking(po.emotion, po.message);
   if (!isVisible) return null;
-
-  /*
-    出す絵の決め方。まばたきが最優先（一瞬だけ）、次に口の動き。
-    しゃべっている間は、ふだんの絵と交互に出して口を動かして見せる。
-  */
-  const shown: PoEmotion = blinking
-    ? "blink"
-    : po.emotion === "talking" && mouthClosed
-      ? "neutral"
-      : po.emotion;
 
   return (
     <aside
@@ -380,7 +230,7 @@ export function PoAvatar({ po, size = "sm", isVisible = true }: PoAvatarProps) {
           />
         )}
         <PoImage
-          emotion={shown}
+          emotion={po.emotion}
           style={poFrameStyle(size)}
           className={`transition-opacity duration-200 ${
             po.emotion === "celebrate" ? "animate-pop-in" : "animate-float"

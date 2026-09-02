@@ -121,7 +121,7 @@ export function PoSpeech({
       style={side === "right" ? { marginLeft: -pad } : { marginRight: -pad }}
       className="pointer-events-none shrink-0"
     >
-      <PoFace emotion={emotion} message={message} size={size} />
+      <PoFace emotion={emotion} size={size} />
     </div>
   );
 

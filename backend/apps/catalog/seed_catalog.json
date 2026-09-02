@@ -166,23 +166,23 @@
           "id": "quick_try",
           "type": "quick_try",
           "phase": "try",
-          "title": "AIに何て頼む？",
+          "title": "どこから分かりやすくする？",
           "poMessage": "選んでみよう！",
           "poEmotion": "question",
           "key": "instruction",
           "required": true,
           "options": [
             {
-              "value": "分かりやすくして",
-              "label": "分かりやすくして"
+              "value": "専門用語を減らす",
+              "label": "専門用語を減らす"
             },
             {
-              "value": "かんたんな言葉にして",
-              "label": "かんたんな言葉にして"
+              "value": "かみくだいて説明する",
+              "label": "かみくだいて説明する"
             },
             {
-              "value": "かみくだいて説明して",
-              "label": "かみくだいて説明して"
+              "value": "要点から先に伝える",
+              "label": "要点から先に伝える"
             }
           ],
           "aiAction": {

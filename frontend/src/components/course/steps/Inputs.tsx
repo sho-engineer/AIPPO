@@ -82,12 +82,32 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
   const longest = Math.max(0, ...options.map((option) => option.label.length));
   const tiles = longest > 8;
 
+  /*
+    絵の無い選択肢は、2列ではなく**1列**に並べる。
+
+    2列だと1枚あたりの幅が半分になり、「専門用語を減らす」のような
+    一文はすぐ2行になる。絵が無ければ縦に積む理由も無いので、
+    幅いっぱいの行にしたほうが読みやすく、選ぶ的も大きい。
+
+    多いときは1列だと縦に伸びるので、4つまで。
+  */
+  const withIcons = options.some(
+    (option) => optionIcon(option.icon) ?? diagnosisIcon(option.value),
+  );
+  const oneColumn = tiles && !withIcons && options.length <= 4;
+
   return (
     <div>
       <ul
-        className={tiles ? "grid grid-cols-2 gap-2.5" : "flex flex-wrap gap-2"}
+        className={
+          tiles
+            ? oneColumn
+              ? "grid grid-cols-1 gap-2"
+              : "grid grid-cols-2 gap-2.5"
+            : "flex flex-wrap gap-2"
+        }
         role="list"
-        data-layout={tiles ? "tiles" : "chips"}
+        data-layout={tiles ? (oneColumn ? "rows" : "tiles") : "chips"}
       >
         {options.map((option) => {
           const active = option.free
@@ -104,7 +124,9 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
               <li
                 key={option.label}
                 className={
-                  options.length % 2 === 1 && option === options[options.length - 1]
+                  !oneColumn &&
+                  options.length % 2 === 1 &&
+                  option === options[options.length - 1]
                     ? "col-span-2"
                     : ""
                 }

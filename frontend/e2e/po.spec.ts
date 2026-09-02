@@ -79,20 +79,11 @@ test.describe("ポーの絵", () => {
     /*
       表情ごとに、出た絵を**ぜんぶ**集める（1枚だけ見ない）。
 
-      1枚だけ見ると、取った瞬間で結果が変わる。ポーは動くので、
-      同じ表情でも複数の絵を正しく行き来する。
+      いまは絵を差し替えないので、同じ表情なら同じ1枚しか出ない。
+      それでも集める形のまま残してある——読み込みに失敗すると代用の絵
+      （`PO_FALLBACK`）へ倒れるので、そのときは自分の絵が1枚も出てこない。
 
-        まばたき … どの表情でも、140ミリ秒だけ blink へ替わる
-        口の動き … talking のときは 160ミリ秒ごとに neutral と
-                   交互に出して、口が動いて見えるようにしている
-
-      つまり「talking なのに neutral を読んでいる」のは、
-      多くの場合**正しい動き**の途中を捉えただけになる。実際これで
-      検査が落ちたり通ったりしていた（CI で落ち、手元では通る）。
-
-      見たいのは「その表情の絵を、一度でもちゃんと読めているか」。
-      読めていなければ代用へ倒れており、自分の絵は一度も出てこない。
-      口が閉じている間も取りこぼさないよう、少し間を置いて何度か見る。
+      見たいのは「その表情の絵を、ちゃんと読めているか」。
     */
     const loaded = new Map<string, Set<string>>();
 
@@ -205,19 +196,30 @@ test.describe("ポーの絵", () => {
     expect([...scenes]).toContain("celebrate");
   });
 
-  test("まばたきで blink の絵へ切り替わる", async ({ page }) => {
+  test("置いたまま見ていても、絵が入れ替わらない", async ({ page }) => {
     /*
-      まばたきは5〜8秒に1回、140ミリ秒だけ。
-      1回取り逃しても次が来るよう、待つ時間は2回ぶん取る。
+      前はここで「まばたきで blink の絵へ切り替わる」を確かめていた。
+      その差し替えをやめたので、**逆を見張る**。
+
+      8枚は描かれ方が揃っていない（`PO_BOX`）。背丈を合わせても体に
+      対する頭の比が違うので、差し替えた瞬間に別の体格の子へ入れ替わって
+      見える。実機の録画では、ふだんの浮き沈みの10倍の変化が出ていた。
+
+      まばたきは5〜8秒に1回だったので、12秒見ていれば必ず捉えられる。
     */
     await stubApi(page);
     await openRewrite(page);
 
     const image = page.getByTestId("po-avatar").first().locator("img").first();
     await expect(image).toBeVisible();
+    const first = await image.getAttribute("src");
 
-    await expect(async () => {
-      expect(await image.getAttribute("src")).toContain("blink.webp");
-    }).toPass({ timeout: 20_000, intervals: [50] });
+    const seen = new Set<string>();
+    for (let i = 0; i < 60; i += 1) {
+      seen.add((await image.getAttribute("src")) ?? "");
+      await page.waitForTimeout(200);
+    }
+
+    expect([...seen], `絵が入れ替わった: ${[...seen].join(" → ")}`).toEqual([first]);
   });
 });

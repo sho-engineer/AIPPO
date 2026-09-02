@@ -118,8 +118,8 @@ await p.getByTestId("primary-action").first().click();
 await p.waitForTimeout(700);
 await scan("レッスン お試し");
 
-// Day1 の最初の1回で選ぶのは「頼みかた」。誰向けかは2回目に足す
-await p.getByRole("button", { name: "分かりやすくして" }).click();
+// Day1 の最初の1回で選ぶのは「どこから直すか」。誰向けかは2回目に足す
+await p.getByRole("button", { name: "専門用語を減らす" }).click();
 await p.getByTestId("primary-action").first().click();
 await p.waitForTimeout(1800);
 await scan("レッスン 観察");

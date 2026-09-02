@@ -55,7 +55,7 @@ export function PoGreeting({ message, emotion = "talking" }: PoGreetingProps) {
         data-emotion={emotion}
         className="pointer-events-none shrink-0"
       >
-        <PoFace emotion={emotion} message={message} size="sm" />
+        <PoFace emotion={emotion} size="sm" />
       </div>
     </section>
   );

@@ -411,7 +411,7 @@ describe("AI へ渡す値", () => {
     const step = REWRITE.steps.find((entry) => entry.id === "generate_first")!;
     const input = buildAiInput(step, {
       source_text: "もとの文章",
-      instruction: "分かりやすくして",
+      instruction: "専門用語を減らす",
       audience: "新入社員",
       tone: "やさしい口調で",
       length: "3行くらい",
@@ -419,7 +419,7 @@ describe("AI へ渡す値", () => {
 
     expect(input).toEqual({
       original_text: "もとの文章",
-      instruction: "分かりやすくして",
+      instruction: "専門用語を減らす",
       audience: "新入社員",
       tone: "やさしい口調で",
       length: "3行くらい",
@@ -437,11 +437,11 @@ describe("AI へ渡す値", () => {
     expect(
       buildAiInput(step, {
         source_text: "もとの文章",
-        instruction: "分かりやすくして",
+        instruction: "専門用語を減らす",
       }),
     ).toEqual({
       original_text: "もとの文章",
-      instruction: "分かりやすくして",
+      instruction: "専門用語を減らす",
       audience: "",
       tone: "",
       length: "",
@@ -466,7 +466,7 @@ describe("入力済みのまとめ", () => {
       「答えた」ことにしてしまう。
     */
     const summary = summaryOf(REWRITE, "real_tone", {
-      instruction: "分かりやすくして",
+      instruction: "専門用語を減らす",
       condition: "AI初心者向けに",
       audience: "新入社員",
       real_task_text: "自分の文章",
@@ -475,7 +475,7 @@ describe("入力済みのまとめ", () => {
     });
 
     expect(summary.map((entry) => entry.value)).toEqual([
-      "分かりやすくして",
+      "専門用語を減らす",
       "AI初心者向けに",
       "新入社員",
     ]);

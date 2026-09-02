@@ -60,6 +60,16 @@ export function ChoiceButton({
   tall,
   testId,
 }: ChoiceButtonProps) {
+  /*
+    縦積みにするのは、**絵がある札だけ**。
+
+    絵が無いのに 6.5rem（104px）の高さを取ると、短い一文が上に貼り
+    ついて下に白が残る。選択肢が3つ並ぶと画面の半分がその白になり、
+    作りかけの管理画面のように見えていた。絵が無ければ横一列で足り、
+    文字は札の幅をそのまま使える（2行になっても崩れない）。
+  */
+  const stacked = tall && Boolean(icon);
+
   return (
     <button
       type="button"
@@ -81,22 +91,22 @@ export function ChoiceButton({
       */
       className={`relative flex h-full w-full rounded-card border
                   ${
-                    tall
-                      ? "min-h-[6.5rem] flex-col items-start gap-2"
-                      : "min-h-[3.5rem] items-center gap-3"
+                    stacked
+                      ? "min-h-[6.5rem] flex-col items-start gap-2 px-3.5 py-3"
+                      : "min-h-[3.25rem] items-center gap-3 px-4 py-2.5"
                   }
-                  px-3.5 py-3 text-left transition
+                  text-left transition
                   enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55
                   ${
                     selected
-                      ? "border-brand bg-brand-soft/70"
+                      ? "border-brand bg-brand-soft/60"
                       : "border-line bg-surface shadow-card enabled:hover:border-brand-line"
                   }`}
     >
       {icon && <span className="shrink-0">{icon}</span>}
 
       {/* 縦積みのときは、文字が札の幅いっぱいを使う */}
-      <span className={tall ? "w-full min-w-0" : "min-w-0 flex-1"}>
+      <span className={stacked ? "w-full min-w-0" : "min-w-0 flex-1"}>
         <span
           className={`block text-sm leading-6 ${selected ? "font-bold text-brand-dark" : ""}`}
         >
@@ -125,7 +135,7 @@ export function ChoiceButton({
         aria-hidden="true"
         className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full
                     bg-brand text-white transition-opacity
-                    ${tall ? "absolute right-2.5 top-2.5" : ""}
+                    ${stacked ? "absolute right-2.5 top-2.5" : ""}
                     ${selected ? "opacity-100" : "opacity-0"}`}
       >
         <IconCheck className="h-3 w-3" />
