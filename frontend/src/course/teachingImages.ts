@@ -141,10 +141,10 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   rewrite_text: {
     outcome_preview: {
       src: "/assets/teaching/day1_overview.webp",
-      alt: "Day1「文章を分かりやすくする」の全体図。専門用語が多く、その分野を知らない人には分からない文章が、読む相手に合わせてやさしく説明しなおした文章に変わることを並べて示し、終えたらできるようになること3つと学習時間の目安を添えたもの。",
+      alt: "Day1「文章を分かりやすくする」の全体図。専門用語・技術用語・略語が多く意味をつかみにくい文章が、専門用語を減らして相手に合わせて説明した文章に変わることを並べて示し、終えたらできるようになること3つと学習時間の目安を添えたもの。",
       visualType: "lesson_overview",
-      width: 1232,
-      height: 1232,
+      width: 1254,
+      height: 1254,
       showsMinutes: true,
     },
     concept_1: {
