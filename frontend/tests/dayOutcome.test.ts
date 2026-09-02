@@ -52,9 +52,11 @@ describe("つないだ1行", () => {
     }
   });
 
-  it("Day1 は「読む相手を伝えられるようになりました」", () => {
+  it("Day1 は「むずかしい文章を…できるようになりました」", () => {
     const day1 = lessons.find((lesson) => lesson.id === "rewrite_text");
-    expect(dayOutcomeLine(day1!)).toBe("読む相手を伝えられるようになりました");
+    expect(dayOutcomeLine(day1!)).toBe(
+      "むずかしい文章を、意味を変えずに分かりやすくできるようになりました",
+    );
   });
 });
 

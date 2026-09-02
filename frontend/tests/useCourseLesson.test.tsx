@@ -55,10 +55,19 @@ function renderLesson(lessonId = "rewrite_text") {
   );
 }
 
-/** 完成イメージ → 相手を選ぶ、まで進める。 */
+/**
+ * 完成イメージ → 最初の1回で選ぶものを選ぶ、まで進める。
+ *
+ * Day1 の1回目で選ぶのは**頼みかた**（「分かりやすくして」）。
+ * 誰向けかは選ばない——1回目を条件なしで送り、2回目に
+ * 「AI初心者向けに」を足したときの差で見せる教材なので
+ * （src/course/catalog.ts の LESSON_1）。
+ */
 async function toQuickTry(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByTestId("primary-action")); // 完成イメージ
-  await user.click(await screen.findByRole("button", { name: /^✓? ?上司$/ }));
+  await user.click(
+    await screen.findByRole("button", { name: /^✓? ?分かりやすくして$/ }),
+  );
 }
 
 /** 最初の結果が出るところまで進める。 */
@@ -83,7 +92,7 @@ async function toConceptCard(
   await user.click(await screen.findByRole("button", { name: observation }));
   await user.click(screen.getByTestId("primary-action")); // 観察 → 条件を足す
 
-  await user.click(await screen.findByRole("button", { name: "もっと短く" }));
+  await user.click(await screen.findByRole("button", { name: "AI初心者向けに" }));
   await user.click(screen.getByTestId("primary-action")); // 再実行（自動送信）
   await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
 
@@ -144,24 +153,44 @@ describe("成果物ファースト", () => {
     await user.click(screen.getByTestId("primary-action"));
 
     expect(
-      await screen.findByRole("heading", { name: "誰に送る文章？" }),
+      await screen.findByRole("heading", { name: "AIに何て頼む？" }),
     ).toBeInTheDocument();
-    // 表現や長さはまだ聞かない
+    // 誰向けか・口調はまだ聞かない
     expect(screen.queryByRole("button", { name: "ていねいに" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "AI初心者向けに" })).toBeNull();
     // 何を送るのかは見えている（例文が入っている）
     expect(screen.getByText(/AIにはこう伝えます/)).toBeInTheDocument();
   });
 
-  it("相手を選ぶだけで最初の結果まで届く", async () => {
+  it("頼みかたを選ぶだけで最初の結果まで届く", async () => {
     const user = userEvent.setup();
     renderLesson();
     await toFirstResult(user);
 
     const input = generate.mock.calls[0][0].input;
-    expect(input.audience).toBe("上司");
-    // 選ばせなかった条件は既定値で埋める
-    expect(input.tone).toBe("ていねいに");
+    expect(input.instruction).toBe("分かりやすくして");
     expect(input.original_text.length).toBeGreaterThan(0);
+  });
+
+  it("1回目には、誰向けも口調も長さも混ぜない", async () => {
+    /*
+      この教材のねらいは「足すと変わる」を見せること。1回目に既定値を
+      黙って混ぜると、2回目に「AI初心者向けに」を足しても、変わったのが
+      そのせいだと分からない。
+
+      とくに長さ。前は `length: "3行くらい"` を黙って渡していた。
+      新しい題材（専門的な解説文）でそれをやると、専門文が3行に
+      切り詰められて、**分かりやすくなったのか削られただけなのか
+      見分けが付かない**。長さを扱うのは Day2（要約）の役目。
+    */
+    const user = userEvent.setup();
+    renderLesson();
+    await toFirstResult(user);
+
+    const input = generate.mock.calls[0][0].input;
+    expect(input.audience ?? "").toBe("");
+    expect(input.tone ?? "").toBe("");
+    expect(input.length ?? "").toBe("");
   });
 });
 
@@ -172,12 +201,12 @@ describe("観察してから解説する", () => {
     await toFirstResult(user);
 
     expect(
-      await screen.findByRole("heading", { name: "読みやすくなった？" }),
+      await screen.findByRole("heading", { name: "分かりやすくなった？" }),
     ).toBeInTheDocument();
     expect(screen.queryByTestId("concept-card")).toBeNull();
   });
 
-  it("「まだ微妙」でも進める", async () => {
+  it("「まだ難しい」でも進める", async () => {
     const user = userEvent.setup();
     renderLesson();
     await toFirstResult(user);
@@ -186,12 +215,12 @@ describe("観察してから解説する", () => {
       うまくいかなかった人を止めない。**理由は任意**で、選ばなくても
       次へ進める。ここで止めると、答えられない人が行き止まりになる。
     */
-    await user.click(await screen.findByRole("button", { name: "まだ微妙" }));
+    await user.click(await screen.findByRole("button", { name: "まだ難しい" }));
     await user.click(screen.getByTestId("primary-action"));
 
     // 気づけなくても止めない。次（条件を足す）へ進めること
     expect(
-      await screen.findByRole("button", { name: "もっと短く" }),
+      await screen.findByRole("button", { name: "AI初心者向けに" }),
     ).toBeInTheDocument();
   });
 
@@ -209,7 +238,7 @@ describe("観察してから解説する", () => {
     await user.click(await screen.findByRole("button", { name: "うん" }));
     expect(screen.queryByTestId("observation-reason")).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "まだ微妙" }));
+    await user.click(screen.getByRole("button", { name: "まだ難しい" }));
 
     expect(await screen.findByTestId("observation-reason")).toBeInTheDocument();
   });
@@ -220,7 +249,7 @@ describe("観察してから解説する", () => {
     renderLesson();
     await toFirstResult(user);
 
-    await user.click(await screen.findByRole("button", { name: "まだ微妙" }));
+    await user.click(await screen.findByRole("button", { name: "まだ難しい" }));
     await screen.findByTestId("observation-reason");
 
     expect(screen.getByTestId("primary-action")).toBeEnabled();
@@ -254,13 +283,13 @@ describe("条件を一つ足す", () => {
     await user.click(screen.getByTestId("primary-action"));
 
     // 解説はこの後（比べたあと）に出るので、ここでは通らない
-    await user.click(await screen.findByRole("button", { name: "もっと短く" }));
+    await user.click(await screen.findByRole("button", { name: "AI初心者向けに" }));
     await user.click(screen.getByTestId("primary-action"));
     await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
 
     // 直前の結果を対象にしている（元へ戻していない）
     expect(generate.mock.calls[1][0].input.original_text).toBe("1回目の結果です。");
-    expect(generate.mock.calls[1][0].input.improvement).toBe("もっと短く");
+    expect(generate.mock.calls[1][0].input.improvement).toBe("AI初心者向けに");
 
     // 1回目と改善後が、タブで見比べられる
     expect(await screen.findByTestId("result-improved")).toHaveTextContent(
@@ -292,7 +321,7 @@ describe("入力を失わない", () => {
     await user.click(screen.getByTestId("primary-action"));
 
     expect(
-      await screen.findByRole("button", { name: /上司/ }),
+      await screen.findByRole("button", { name: /分かりやすくして/ }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -303,7 +332,7 @@ describe("入力を失わない", () => {
     await toQuickTry(user);
 
     await waitFor(() => {
-      expect(loadDraft("rewrite_text")?.values.audience).toBe("上司");
+      expect(loadDraft("rewrite_text")?.values.instruction).toBe("分かりやすくして");
     });
 
     view.unmount();
@@ -311,7 +340,7 @@ describe("入力を失わない", () => {
 
     // 途中のステップから再開する
     expect(
-      await screen.findByRole("button", { name: /上司/ }),
+      await screen.findByRole("button", { name: /分かりやすくして/ }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 });

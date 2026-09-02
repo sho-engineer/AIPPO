@@ -133,20 +133,20 @@
       "id": "rewrite_text",
       "number": 1,
       "title": "文章を分かりやすくする",
-      "goal": "「誰向けか」「どんな表現か」をAIに伝えられるようになる",
-      "outcomeTitle": "読みにくい文章を、伝わるメールに変える",
-      "outcomeDescription": "相手と、どうしたいかを伝えて、文章を調整します。",
+      "goal": "「誰向けか」「どんな言い方か」をAIに伝えられるようになる",
+      "outcomeTitle": "専門的で難しい文章を、誰にでも伝わる文章に変える",
+      "outcomeDescription": "読む相手と言い方を伝えて、意味を変えずに分かりやすくします。",
       "estimatedMinutes": 8,
-      "beforeExample": "明日の打ち合わせの件ですが、資料について確認していただきたいところがあるため、本日中に可能であれば見ていただけますでしょうか。",
-      "afterExample": "明日の打ち合わせ資料について、修正箇所をご確認ください。\n恐れ入りますが、本日中にご確認いただけると助かります。",
+      "beforeExample": "Transformer型言語モデルにおける自己注意機構では、各トークンから生成されたQueryとKeyの内積をスケーリングし、Softmax関数によって正規化したAttention WeightをValueに適用することで、系列内のトークン間依存関係を動的に表現する。さらに、多層化されたMulti-Head Attentionにより異なる表現部分空間における依存関係を並列的に学習することが可能となる。",
+      "afterExample": "AIが文章を読むときは、「どの言葉が、どの言葉と関係しているか」を自分で見つけています。\nたとえば「それ」が何を指しているのかを、文の中から探して結びつけるイメージです。\nしかもこの結びつけを、一度だけでなく何通りもの見方で同時におこないます。だから長い文章でも、意味を取りちがえにくくなります。",
       "learnedSkills": [
         "誰向けかを伝える",
-        "希望する表現を伝える"
+        "言い方を伝える"
       ],
       "outcomes": [
-        "読む相手を伝えられる",
-        "表現と長さを指定できる",
-        "AIの結果が元の意味と変わっていないか確かめられる"
+        "むずかしい文章を、意味を変えずに分かりやすくできる",
+        "読む相手を伝えて、説明のしかたを変えられる",
+        "言い方を指定して、伝わり方を整えられる"
       ],
       "tags": [
         "writing"
@@ -166,43 +166,38 @@
           "id": "quick_try",
           "type": "quick_try",
           "phase": "try",
-          "title": "誰に送る文章？",
+          "title": "AIに何て頼む？",
           "poMessage": "選んでみよう！",
           "poEmotion": "question",
-          "key": "audience",
+          "key": "instruction",
           "required": true,
           "options": [
             {
-              "value": "上司",
-              "label": "上司",
-              "icon": "person"
+              "value": "分かりやすくして",
+              "label": "分かりやすくして"
             },
             {
-              "value": "同僚",
-              "label": "同僚",
-              "icon": "people"
+              "value": "かんたんな言葉にして",
+              "label": "かんたんな言葉にして"
             },
             {
-              "value": "顧客",
-              "label": "顧客",
-              "icon": "building"
+              "value": "かみくだいて説明して",
+              "label": "かみくだいて説明して"
             }
           ],
           "aiAction": {
             "action": "rewrite",
             "inputs": {
               "source_text": "original_text",
+              "instruction": "instruction",
               "audience": "audience",
               "tone": "tone",
               "length": "length"
             }
           },
           "meta": {
-            "sampleText": "明日の打ち合わせの件ですが、資料について確認していただきたいところがあるため、本日中に可能であれば見ていただけますでしょうか。",
-            "defaults": {
-              "tone": "ていねいに",
-              "length": "3行くらい"
-            }
+            "sampleText": "Transformer型言語モデルにおける自己注意機構では、各トークンから生成されたQueryとKeyの内積をスケーリングし、Softmax関数によって正規化したAttention WeightをValueに適用することで、系列内のトークン間依存関係を動的に表現する。さらに、多層化されたMulti-Head Attentionにより異なる表現部分空間における依存関係を並列的に学習することが可能となる。",
+            "defaults": {}
           }
         },
         {
@@ -216,6 +211,7 @@
             "action": "rewrite",
             "inputs": {
               "source_text": "original_text",
+              "instruction": "instruction",
               "audience": "audience",
               "tone": "tone",
               "length": "length"
@@ -226,7 +222,7 @@
           "id": "observe_result",
           "type": "observation",
           "phase": "try",
-          "title": "読みやすくなった？",
+          "title": "分かりやすくなった？",
           "poMessage": "どうだった？",
           "poEmotion": "question",
           "key": "observation",
@@ -236,29 +232,29 @@
               "label": "うん"
             },
             {
-              "value": "まだ微妙",
-              "label": "まだ微妙"
+              "value": "まだ難しい",
+              "label": "まだ難しい"
             }
           ],
           "meta": {
             "reviewPoints": [
               "元の意味が変わっていないか",
-              "指定した長さになっているか",
-              "読む相手に合った言葉づかいか"
+              "読む相手に合った説明になっているか",
+              "むずかしい言葉が残っていないか"
             ],
             "factCheck": false,
             "reasons": [
               {
-                "value": "変わっていない",
-                "label": "変わっていない"
+                "value": "まだ専門用語がある",
+                "label": "まだ専門用語がある"
               },
               {
                 "value": "意味が変わった",
                 "label": "意味が変わった"
               },
               {
-                "value": "まだ長い",
-                "label": "まだ長い"
+                "value": "説明が足りない",
+                "label": "説明が足りない"
               },
               {
                 "value": "かたい",
@@ -278,29 +274,19 @@
           "required": true,
           "options": [
             {
-              "value": "もっと短く",
-              "label": "もっと短く",
-              "icon": "scissors"
+              "value": "AI初心者向けに",
+              "label": "AI初心者向けに",
+              "icon": "person"
             },
             {
-              "value": "もっと丁寧に",
-              "label": "もっと丁寧に",
-              "icon": "heart"
+              "value": "新入社員向けに",
+              "label": "新入社員向けに",
+              "icon": "people"
             },
             {
-              "value": "やわらかく",
-              "label": "やわらかく",
-              "icon": "smile"
-            },
-            {
-              "value": "要点を先に",
-              "label": "要点を先に",
-              "icon": "list-ordered"
-            },
-            {
-              "value": "箇条書きにする",
-              "label": "箇条書きにする",
-              "icon": "list-bullet"
+              "value": "お客様向けに",
+              "label": "お客様向けに",
+              "icon": "building"
             },
             {
               "value": "",
@@ -336,8 +322,8 @@
           "meta": {
             "reviewPoints": [
               "元の意味が変わっていないか",
-              "指定した長さになっているか",
-              "読む相手に合った言葉づかいか"
+              "読む相手に合った説明になっているか",
+              "むずかしい言葉が残っていないか"
             ],
             "factCheck": false,
             "threeWay": true
@@ -348,22 +334,22 @@
           "type": "concept_card",
           "phase": "compare",
           "title": "誰向けかを伝える",
-          "poMessage": "「誰向けか」を伝えると、言い方が変わる。",
+          "poMessage": "「誰向けか」を伝えると、説明のしかたが変わる。",
           "poEmotion": "neutral",
           "skippable": true,
+          "skill": "ターゲット指定",
           "card": {
             "title": "誰向けかを伝える",
-            "body": "「誰向けか」を伝えると、言い方が変わる。",
+            "body": "「誰向けか」を伝えると、説明のしかたが変わる。",
             "visual": "before_after",
-            "before": "確認していただけますでしょうか。",
-            "after": "ご確認ください。",
+            "before": "Attention WeightをValueに適用する。",
+            "after": "どの言葉が関係しているかを決めて、それを使って読み取る。",
             "reviewExample": {
-              "body": "相手が変われば、ちょうどよい丁寧さも変わります。",
-              "before": "ご多忙のところ大変恐縮ではございますが。",
-              "after": "お忙しいところすみませんが。"
+              "body": "相手が変われば、どこまでかみくだくかも変わります。",
+              "before": "多層化されたMulti-Head Attention",
+              "after": "同じ読み取りを、何通りもの見方で同時にやる仕組み"
             }
-          },
-          "skill": "ターゲット指定"
+          }
         },
         {
           "id": "real_task_intro",
@@ -387,50 +373,50 @@
         {
           "id": "real_audience",
           "type": "single_choice",
+          "phase": "deepen",
+          "primaryLabel": "誰向けか決めた",
           "title": "誰が読みますか",
-          "poMessage": "読む相手を伝えると、言葉づかいが変わります。",
+          "poMessage": "読む相手を伝えると、説明のしかたが変わります。",
           "poEmotion": "question",
           "key": "audience",
           "required": true,
           "options": [
             {
-              "value": "上司",
-              "label": "上司",
-              "icon": "person"
+              "value": "その分野を知らない人",
+              "label": "その分野を知らない人"
             },
             {
-              "value": "同僚",
-              "label": "同僚",
-              "icon": "people"
+              "value": "新入社員",
+              "label": "新入社員"
             },
             {
-              "value": "顧客",
-              "label": "顧客",
-              "icon": "building"
+              "value": "お客様",
+              "label": "お客様"
             },
             {
-              "value": "はじめて読む人",
-              "label": "はじめて読む人"
+              "value": "くわしい人",
+              "label": "くわしい人"
             },
             {
               "value": "",
               "label": "そのほか",
               "free": true
             }
-          ],
-          "phase": "deepen",
-          "primaryLabel": "誰向けか決めた"
+          ]
         },
         {
           "id": "concept_tone",
           "type": "concept_card",
           "phase": "deepen",
+          "primaryLabel": "トーンを選ぶ",
+          "skill": "トーン指定",
           "title": "トーン指定",
           "poMessage": "同じ内容でも、言い方は変えられます。",
           "poEmotion": "neutral",
+          "skippable": true,
           "card": {
             "title": "トーン指定",
-            "body": "同じ内容でも、丁寧・やわらかい・カジュアルで伝わり方が変わります。",
+            "body": "内容はそのままでも、口調を変えると受け取る感じが変わります。",
             "visual": "three_points",
             "points": [
               "丁寧",
@@ -438,59 +424,59 @@
               "カジュアル"
             ],
             "reviewExample": {
-              "body": "望む形は、長さ・言い方・並べ方のどれでも指定できます。",
+              "body": "言い方は、口調でも、たとえの有無でも指定できます。",
               "points": [
-                "3行で",
-                "やわらかく",
-                "箇条書きで"
+                "やさしく",
+                "たとえを使って",
+                "結論から"
               ]
             }
-          },
-          "skippable": true,
-          "primaryLabel": "トーンを選ぶ",
-          "skill": "トーン指定"
+          }
         },
         {
           "id": "real_tone",
           "type": "single_choice",
-          "title": "どう変えたいですか",
+          "phase": "deepen",
+          "primaryLabel": "この言い方で書く",
+          "title": "どんな口調にしますか",
           "poMessage": "これで最後の質問です。",
           "poEmotion": "question",
           "key": "tone",
           "required": true,
           "options": [
             {
-              "value": "ていねいに",
-              "label": "ていねいに"
+              "value": "やさしい口調で",
+              "label": "やさしい口調で"
             },
             {
-              "value": "やわらかく",
-              "label": "やわらかく"
+              "value": "ていねいに",
+              "label": "ていねいに"
             },
             {
               "value": "きっぱりと",
               "label": "きっぱりと"
             },
             {
-              "value": "やさしい言葉で",
-              "label": "やさしい言葉で"
+              "value": "たとえを使って",
+              "label": "たとえを使って"
             },
             {
               "value": "",
               "label": "そのほか",
               "free": true
             }
-          ],
-          "phase": "deepen",
-          "primaryLabel": "この言い方で書く"
+          ]
         },
         {
           "id": "concept_iteration",
           "type": "concept_card",
           "phase": "deepen",
+          "primaryLabel": "自分の文章で試す",
+          "skill": "反復（Iteration）",
           "title": "反復（Iteration）",
           "poMessage": "一度で完璧を目指さなくて大丈夫です。",
           "poEmotion": "hint",
+          "skippable": true,
           "card": {
             "title": "反復（Iteration）",
             "body": "結果を見てから足すほうが、はじめから細かく書くより近づきます。",
@@ -503,37 +489,34 @@
             "reviewExample": {
               "body": "一度で完璧を狙わず、足りないところだけ言い足します。",
               "points": [
-                "長すぎた",
-                "「半分に」と足す",
+                "まだ難しかった",
+                "「たとえを足して」と言う",
                 "また見る"
               ]
             }
-          },
-          "skippable": true,
-          "primaryLabel": "自分の文章で試す",
-          "skill": "反復（Iteration）"
+          }
         },
         {
           "id": "real_task",
           "type": "real_task",
           "phase": "own",
+          "primaryLabel": "AIに送る内容を見る",
           "title": "自分の文章",
-          "instruction": "いま実際に直したい文章を、ひとつ入れてみましょう。",
+          "instruction": "いま実際に分かりやすくしたい文章を、ひとつ入れてみましょう。",
           "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_text",
-          "placeholder": "例）お客様へ送るお知らせの文章",
+          "placeholder": "例）社内で回ってきた、専門用語の多い資料の一文",
+          "hints": [
+            "誰に読んでもらう文章か、AIに伝えてみると変わるかも！",
+            "「たとえを使って」のように、説明のしかたをひとつだけ足してみましょう。",
+            "うまくいかないときは、元の文章を少し長めに入れてみてください。"
+          ],
           "required": true,
           "validationRules": {
             "suggestLength": 20,
             "maxLength": 5000
-          },
-          "primaryLabel": "AIに送る内容を見る",
-          "hints": [
-            "誰に読んでもらう文章か、AIに伝えてみると変わるかも！",
-            "「もっと短く」のように、変えたい方向をひとつだけ足してみましょう。",
-            "うまくいかないときは、元の文章を少し長めに入れてみてください。"
-          ]
+          }
         },
         {
           "id": "prompt_preview",
@@ -547,6 +530,7 @@
             "action": "rewrite",
             "inputs": {
               "source_text": "original_text",
+              "instruction": "instruction",
               "audience": "audience",
               "tone": "tone",
               "length": "length"
@@ -564,6 +548,7 @@
             "action": "rewrite",
             "inputs": {
               "source_text": "original_text",
+              "instruction": "instruction",
               "audience": "audience",
               "tone": "tone",
               "length": "length"
@@ -581,8 +566,8 @@
           "meta": {
             "reviewPoints": [
               "元の意味が変わっていないか",
-              "指定した長さになっているか",
-              "読む相手に合った言葉づかいか"
+              "読む相手に合った説明になっているか",
+              "むずかしい言葉が残っていないか"
             ],
             "factCheck": false
           }
@@ -593,7 +578,7 @@
           "phase": "own",
           "title": "ふりかえり",
           "instruction": "今日おぼえたことを確認しましょう。",
-          "poMessage": "相手と、どうしたいかを伝えると、結果が変わることを確かめられましたね。",
+          "poMessage": "誰向けかと言い方を伝えると、同じ内容でも伝わり方が変わることを確かめられましたね。",
           "poEmotion": "neutral"
         },
         {

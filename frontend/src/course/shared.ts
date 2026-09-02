@@ -42,7 +42,13 @@ export const LENGTH_OPTIONS: StepOption[] = [
   { value: "", label: "そのほか", free: true },
 ];
 
-/** 誰向けか。最初の1回は3つに絞る。多いと選べない。 */
+/**
+ * 誰向けか。最初の1回は3つに絞る。多いと選べない。
+ *
+ * いまはどの教材からも参照していない（Day1 が使うのをやめた——役職ではなく
+ * 「どれだけ知っているか」で分けたかったため）。教材を足すときの下敷きとして
+ * 残してある。
+ */
 export const AUDIENCE_OPTIONS: StepOption[] = [
   { value: "上司", label: "上司", icon: "person" },
   { value: "同僚", label: "同僚", icon: "people" },

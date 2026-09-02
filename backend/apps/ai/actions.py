@@ -99,29 +99,47 @@ REWRITE = Action(
     lesson_ids=("rewrite_text", "work_email_chat", "final_challenge"),
     system_prompt=BASE_RULES
     + """
-やること: 与えられた文章を、指定された相手・表現・長さに合わせて書き直す。
+やること: 与えられた文章を、読む人が理解できる形に書き直す。
+
+- 相手・表現・長さの指定があれば、それに合わせる
+- 指定が無いものは、勝手に決めつけない。とくに**短くしろとは言われていない**
+  ——長さの指定が無いときは、分かりやすさのために必要なだけ書いてよい
+- むずかしい言葉は、かみくだくか、その場で言い換えを添える
+- 元の内容の意味は変えない
+
 書き直した文章だけを result に入れる。
 """,
     schema=TEXT_SCHEMA,
     fields=(
         ActionField("original_text", "元の文章", max_length=5000),
-        ActionField("audience", "誰向け"),
-        ActionField("tone", "表現"),
-        ActionField("length", "長さ"),
+        # 相手・表現・長さは**任意**。
+        #
+        # Day1 の最初の1回は「この文章を分かりやすくして」だけを送る
+        # ——誰向けかも口調も、そのあとで足して違いを見るのが教材のねらい。
+        # 必須のままだと、その1回目が 400 で返る。
+        #
+        # 他の教材（work_email_chat・final_challenge）は3つとも渡すので、
+        # 緩めても送られる内容は変わらない。空のときは依頼文から行ごと
+        # 落ちる（`_line`）ので、「指定なし」が文章として混ざることもない。
+        ActionField("audience", "誰向け", required=False),
+        ActionField("tone", "表現", required=False),
+        ActionField("length", "長さ", required=False),
         ActionField("instruction", "追加の条件", required=False),
     ),
     body_field="original_text",
     build=lambda v: _compose(
         "次の文章を書き直してください。",
         [
-            ("読む相手", v["audience"]),
-            ("表現", v["tone"]),
-            ("長さ", v["length"]),
+            ("読む相手", v.get("audience", "")),
+            ("表現", v.get("tone", "")),
+            ("長さ", v.get("length", "")),
             ("追加の条件", v.get("instruction", "")),
         ],
         v["original_text"],
     ),
-    tutor_message="相手と長さを伝えたので、目的に近い文章になりました。元の意味が変わっていないか見てみましょう。",
+    # 何を指定したかは、指定した本人が知っている。ここで言い直さない
+    # ——1回目は何も指定していないので、「相手と長さを伝えたので」は嘘になる。
+    tutor_message="頼んだとおりに書き直しました。元の意味が変わっていないか見てみましょう。",
 )
 
 # --- Lesson 2: 長い文章を短くまとめる ------------------------------------

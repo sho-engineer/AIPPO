@@ -15,6 +15,8 @@ import type { Lesson } from "./types";
 const LABELS: Record<string, string> = {
   audience: "読む相手",
   tone: "表現",
+  // Day1 の1回目に選ぶ「何て頼むか」。無いと画面に `instruction` と英字が出る
+  instruction: "頼みかた",
   length: "長さ",
   purpose: "まとめる目的",
   format: "出力の形",

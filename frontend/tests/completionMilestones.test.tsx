@@ -80,7 +80,7 @@ describe("節目のまとめ", () => {
 
     const outcomes = screen.getByTestId("checkpoint-outcomes");
     // 教材の outcomes をそのまま並べる。新しく言葉を作らない
-    expect(outcomes).toHaveTextContent("読む相手を伝えられる");
+    expect(outcomes).toHaveTextContent("読む相手を伝えて、説明のしかたを変えられる");
     expect(outcomes).toHaveTextContent("何のためのまとめかを伝えられる");
   });
 

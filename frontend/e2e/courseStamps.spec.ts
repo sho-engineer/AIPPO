@@ -125,7 +125,7 @@ test.describe("節目に届いた回", () => {
 
     // 数と特典の話だけで終わらせない。積み上がったことを出す
     await expect(page.getByTestId("checkpoint-outcomes")).toContainText(
-      "読む相手を伝えられる",
+      "読む相手を伝えて、説明のしかたを変えられる",
     );
 
     /*

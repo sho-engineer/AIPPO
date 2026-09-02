@@ -180,11 +180,32 @@ class TestValidation:
         assert "lesson_id" in response.json()["errors"]
 
     def test_missing_required_field_is_rejected(self, api_client):
-        response = _post(
-            api_client, input={**REWRITE_INPUT, "audience": ""}
-        )
+        """必須の項目が空なら送らせない。
+
+        見るのは本文（original_text）。
+        相手・表現・長さは**任意**になった——Day1 の最初の1回は
+        「この文章を分かりやすくして」だけを送り、誰向けかも口調も
+        そのあとで足して違いを見るため（apps/ai/actions.py の REWRITE）。
+        """
+        response = _post(api_client, input={**REWRITE_INPUT, "original_text": ""})
         assert response.status_code == 400
-        assert "audience" in response.json()["errors"]
+        assert "original_text" in response.json()["errors"]
+
+    def test_optional_conditions_may_be_left_out(self, api_client):
+        """相手も表現も長さも無いまま送れること。
+
+        Day1 の1回目がこの形。ここが 400 になると、教材が最初の1手で
+        止まる（実際に必須のままで止まっていた）。
+        """
+        response = _post(
+            api_client,
+            input={
+                "original_text": REWRITE_INPUT["original_text"],
+                "instruction": "分かりやすくして",
+            },
+        )
+
+        assert response.status_code == 200
 
     def test_too_long_body_is_rejected(self, api_client):
         response = _post(
@@ -193,8 +214,8 @@ class TestValidation:
         assert response.status_code == 400
 
     def test_error_message_has_no_jargon(self, api_client):
-        response = _post(api_client, input={**REWRITE_INPUT, "audience": ""})
-        message = response.json()["errors"]["audience"][0]
+        response = _post(api_client, input={**REWRITE_INPUT, "original_text": ""})
+        message = response.json()["errors"]["original_text"][0]
 
         for word in ("プロンプト", "トークン", "パラメータ", "API", "バリデーション"):
             assert word not in message

@@ -401,7 +401,7 @@ describe("その他（自由入力）", () => {
 
   it("選択肢に無い値は自由入力とみなす", () => {
     expect(isFreeValue(step, "取引先の担当者")).toBe(true);
-    expect(isFreeValue(step, "上司")).toBe(false);
+    expect(isFreeValue(step, "新入社員")).toBe(false);
     expect(isFreeValue(step, "")).toBe(false);
   });
 });
@@ -411,16 +411,40 @@ describe("AI へ渡す値", () => {
     const step = REWRITE.steps.find((entry) => entry.id === "generate_first")!;
     const input = buildAiInput(step, {
       source_text: "もとの文章",
-      audience: "上司",
-      tone: "ていねいに",
+      instruction: "分かりやすくして",
+      audience: "新入社員",
+      tone: "やさしい口調で",
       length: "3行くらい",
     });
 
     expect(input).toEqual({
       original_text: "もとの文章",
-      audience: "上司",
-      tone: "ていねいに",
+      instruction: "分かりやすくして",
+      audience: "新入社員",
+      tone: "やさしい口調で",
       length: "3行くらい",
+    });
+  });
+
+  it("まだ答えていない条件は、空のまま渡す", () => {
+    /*
+      Day1 の1回目がこの形。頼みかたしか選んでいないので、
+      誰向けも口調も空で送る（サーバー側で行ごと落ちる）。
+      ここで既定値が混ざると、2回目に足した条件の効きめが見えなくなる。
+    */
+    const step = REWRITE.steps.find((entry) => entry.id === "generate_first")!;
+
+    expect(
+      buildAiInput(step, {
+        source_text: "もとの文章",
+        instruction: "分かりやすくして",
+      }),
+    ).toEqual({
+      original_text: "もとの文章",
+      instruction: "分かりやすくして",
+      audience: "",
+      tone: "",
+      length: "",
     });
   });
 
@@ -437,22 +461,23 @@ describe("入力済みのまとめ", () => {
 
       自分の文章は**まだ書いていない**。条件と解説を自分の文章より
       前へ移したので、ここに来る時点では手元にあるのは
-      「お試しで選んだ相手」「足した条件」「誰向けか」の3つだけ。
+      「お試しで選んだ頼みかた」「足した条件」「誰向けか」の3つだけ。
       渡しても出ないことを見張る——出てしまうと、書いていない文章を
       「答えた」ことにしてしまう。
     */
     const summary = summaryOf(REWRITE, "real_tone", {
-      audience: "上司",
-      condition: "もっと短く",
+      instruction: "分かりやすくして",
+      condition: "AI初心者向けに",
+      audience: "新入社員",
       real_task_text: "自分の文章",
       // まだ答えていない
       tone: "",
     });
 
     expect(summary.map((entry) => entry.value)).toEqual([
-      "上司",
-      "もっと短く",
-      "上司",
+      "分かりやすくして",
+      "AI初心者向けに",
+      "新入社員",
     ]);
   });
 
