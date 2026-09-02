@@ -213,7 +213,7 @@ export function CompletionView({
       */}
       {outcomes && outcomes.length > 0 && (
         <ul
-          className="shrink-0 space-y-1.5"
+          className="shrink-0 space-y-1"
           role="list"
           data-testid="completion-outcomes"
         >
@@ -229,7 +229,7 @@ export function CompletionView({
       {/* 覚えたAI技。1行ずつ、囲いは付けない（面を積み重ねない） */}
       {skills.length > 0 && (
         <p
-          className="mt-3 flex shrink-0 items-center gap-2 text-sm"
+          className="mt-2 flex shrink-0 items-center gap-2 text-sm"
           data-testid="completion-skills"
         >
           <IconStar className="h-4 w-4 shrink-0 text-brand" />
@@ -257,10 +257,16 @@ export function CompletionView({
           読める下限を置く。1行だけ見えて切れていると、**持ち帰るもの
           が見えない**まま「完了する」を押すことになる。届かないときは
           外側（この画面の柱）が送れるようにしてある。
+
+          6.5rem。名札・本文1行・下のボタンがちょうど入る高さで、
+          **これ以下にすると面のほうが枠から溢れる**（余白と行だけで
+          そこまで要る）。前は 7.5rem で、iPhone の Safari（上下の帯が
+          出ている高さ）ではこの下限そのものが画面を押し出していた。
+          下限を下げるだけでは足りず、周りの余白も詰めてある。
         */
-        <div className="mt-3 flex min-h-[7.5rem] flex-1 flex-col">
+        <div className="mt-2 flex min-h-[6.5rem] flex-1 flex-col">
           <p className="shrink-0 text-xs font-bold text-ink-muted">{outcomeLabel}</p>
-          <p className="mt-1.5 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-card border border-line bg-surface p-3.5 text-sm leading-7">
+          <p className="mt-1.5 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-card border border-line bg-surface p-3 text-sm leading-6">
             {outcomeText}
           </p>
           {/*
@@ -275,7 +281,7 @@ export function CompletionView({
         </div>
       )}
 
-      <div className="mt-3 shrink-0">
+      <div className="mt-2 shrink-0">
         <MoreButton testId="completion-more" onClick={() => setRecordOpen(true)}>
           このレッスンの記録を見る
         </MoreButton>

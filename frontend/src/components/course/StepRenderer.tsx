@@ -251,6 +251,7 @@ export function StepRenderer({
               */}
               <div className="mt-2">
                 <FullText
+                  lines={2}
                   label="AIに送る文章"
                   text={sampleText}
                   testId="quick-sample"

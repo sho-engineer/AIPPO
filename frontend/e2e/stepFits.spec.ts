@@ -115,31 +115,33 @@ async function advance(p: Page): Promise<boolean> {
 
 test.setTimeout(180_000);
 
-test("レッスンのどの画面も、1画面に収まる", async ({ page }, testInfo) => {
-  await stubApi(page);
-  await page.goto("/");
-  await page.evaluate(() => window.localStorage.clear());
-  await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
-  await page.getByTestId("continue-lesson").click();
-  await expect(page.getByTestId("lesson-header")).toBeVisible();
-  await page.waitForTimeout(2100);
+/** レッスンを最後まで通し、画面ごとに測る。 */
+async function walk(p: Page): Promise<Fit[]> {
+  await stubApi(p);
+  await p.goto("/");
+  await p.evaluate(() => window.localStorage.clear());
+  await p.reload();
+  await p.getByRole("button", { name: "はじめる" }).first().click();
+  await p.getByTestId("continue-lesson").click();
+  await expect(p.getByTestId("lesson-header")).toBeVisible();
+  await p.waitForTimeout(2100);
 
   const seen: Fit[] = [];
   for (let step = 0; step < 30; step += 1) {
-    seen.push(await fit(page));
+    seen.push(await fit(p));
     /*
       完了画面も測る。**まとめの画面ではなくなった**——できるように
       なったこと・覚えたAI技・成果物の3つだけを残し、進み具合や
       アンケートは「このレッスンの記録」の一枚へ移した。
     */
-    if (await page.getByTestId("completion-view").count()) break;
-    if (!(await advance(page))) break;
+    if (await p.getByTestId("completion-view").count()) break;
+    if (!(await advance(p))) break;
   }
+  return seen;
+}
 
+function assertFits(seen: Fit[], where: string) {
   expect(seen.length, "レッスンの画面を1つも通らなかった").toBeGreaterThan(10);
-
-  const where = testInfo.project.name;
   for (const screen of seen) {
     expect(
       screen.page,
@@ -154,6 +156,41 @@ test("レッスンのどの画面も、1画面に収まる", async ({ page }, te
       `${where}「${screen.title}」枠から ${screen.box}px 食み出した箱がある`,
     ).toBeLessThanOrEqual(SLACK);
   }
+}
+
+test("レッスンのどの画面も、1画面に収まる", async ({ page }, testInfo) => {
+  assertFits(await walk(page), testInfo.project.name);
+});
+
+/*
+  いちばん低くなる持ち方でも測る。
+
+  なぜ要るか
+  ----------
+  Pixel 5（393×727）だけで測っていたので、**それより低い画面が
+  検査されていなかった**。実機（iPhone 16 Pro・Safari）の録画を見ると、
+  最初の画面に縦の送りが出ていて「くわしく見る」がボタンに切られていた。
+
+  どこから 402×660 か
+  -------------------
+  録画のフレームを測ると、Safari の上下の帯を除いた見える範囲は
+  1206×2051px（実機の点）＝ **402×684**（CSS の点）だった。
+
+  そこから 24px 引いて 660 にしてある。実機には下の安全域（ホームバー）が
+  あり、ボタンの下余白が `max(0.75rem, env(safe-area-inset-bottom))` で
+  12px から増えることがある。Chromium はこの値を 0 で返すので、
+  同じきつさにならない。**引いた分は安全のための余裕**で、
+  実機の値をそのまま写したものではない。
+
+  スマホの見え方だけ見る。パソコンでこの高さを測っても意味がない。
+*/
+test.describe("いちばん低い持ち方（iPhone の Safari、上下の帯あり）", () => {
+  test.use({ viewport: { width: 402, height: 660 } });
+
+  test("その高さでも、どの画面も1画面に収まる", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
+    assertFits(await walk(page), "iPhone 402×660");
+  });
 });
 
 test("完了画面でも、次にやることは画面に残る", async ({ page }) => {

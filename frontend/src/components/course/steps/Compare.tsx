@@ -201,8 +201,19 @@ export function ThreeWayCompare({
         ここで囲う意味があるのは**比べる2つの本文**のほうで、
         それを束ねる枠ではない（束ねているのは画面そのもの）。
       */}
+      {/*
+        下限は**この節にも**置く。
+
+        中のタブ（`compare-tabs`）に `min-h-[7rem]` を置いてあるが、
+        それを包むこの節が `min-h-0` のままだと、**節のほうが先に
+        潰れて**中身が枠の外へ描かれる。縮む鎖のいちばん外側に置く、
+        というのがこの作りの決まり（Results.tsx に経緯がある）。
+
+        iPhone の Safari（402×660）で、この節が 54px まで潰れ、
+        112px の中身が 58px はみ出していた。
+      */}
       <section
-        className="flex min-h-0 flex-1 flex-col"
+        className="flex min-h-[7rem] flex-1 flex-col"
         data-layout={bothShort ? "side-or-stack" : "tabs-or-side"}
       >
         {bothShort ? (

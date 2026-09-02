@@ -595,7 +595,20 @@ export function LessonRunner({
           （`poPresence` の `emotion`）。ふだんは教材データに従う。
         */
         po={po?.emotion ? { ...api.po, emotion: po.emotion } : api.po}
-        summary={api.summary}
+        /*
+          成果物を出す回の終わりでは、答えた内容の畳みを出さない。
+
+          「ここまでに答えた内容」は**次の答えを決めるための持ち物**で、
+          もう答え終わった画面には要らない。畳んであっても見出しの行だけで
+          34px 取り、その分だけ成果物が押し出される（iPhone の Safari で
+          実際にはみ出した）。中身は「このレッスンの記録」の一枚にある。
+
+          **診断は別。** あそこは結果画面が `completion` で、答えを
+          直す「なおす」がこの畳みの中にしか無い。消すと直す道が
+          消える（e2e/diagnosisEdit.spec.ts が捕まえた）。
+          成果物を持たない回では、そもそも押し出す相手がいない。
+        */
+        summary={step.type === "completion" && lesson.usesAi ? [] : api.summary}
         onEditSummary={editSummary}
         primaryLabel={primaryLabel(step)}
         onPrimary={onPrimary}

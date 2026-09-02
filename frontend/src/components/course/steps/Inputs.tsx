@@ -292,7 +292,7 @@ export function TextStep({
         )}
       </div>
 
-      <label htmlFor={inputId} className="mt-4 block shrink-0 text-sm font-bold">
+      <label htmlFor={inputId} className="mt-3 block shrink-0 text-sm font-bold">
         {step.title}
       </label>
       {/*
@@ -312,9 +312,14 @@ export function TextStep({
           安全の一言が画面から出る。残りに合わせて縮めば、書く場所と
           「次へ」がいつも同時に見える（要件 §6.11）。狭すぎても
           困るので、下限だけ決めておく。
+
+          下限は 3.5rem（2行ぶん）。4.5rem だと、iPhone の Safari
+          （上下の帯が出ている高さ）でこの欄の下限そのものが画面を
+          押し出していた。広い画面では `flex-1` で伸びるので、
+          下限を下げても普段の見え方は変わらない。
         */
         rows={3}
-        className="mt-2 min-h-[4.5rem] w-full flex-1 resize-none rounded-card border
+        className="mt-2 min-h-[3.5rem] w-full flex-1 resize-none rounded-card border
                    border-line bg-surface px-4 py-3 text-base leading-7 shadow-card
                    outline-none transition focus:border-brand
                    focus:ring-2 focus:ring-brand-soft"

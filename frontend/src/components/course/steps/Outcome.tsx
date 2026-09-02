@@ -93,7 +93,7 @@ export function OutcomePreview({
       縦の flex にして、絵にだけ「残りの高さ」を渡す。
       下の2つ（かかる時間・くわしく）は自分の高さのまま動かない。
     */
-    <div data-testid="outcome-preview" className="flex min-h-0 flex-1 flex-col gap-4">
+    <div data-testid="outcome-preview" className="flex min-h-0 flex-1 flex-col gap-3">
       {/*
         1枚の絵。この画面の主役。
 
@@ -174,7 +174,13 @@ export function OutcomePreview({
         `scripts/teaching-images/overviews.json` に控えてあり、
         教材データと食い違うと `tests/teachingImageFacts.test.ts` が落ちる。
       */}
-      <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2 rounded-panel bg-surface px-5 py-4 shadow-card">
+      {/*
+        面に載せない。**多くの回で中身が「初級」の一語**になる
+        （絵が時間を言っていれば、こちらは黙るため）。一語のために
+        白い面と影を1枚使うと 54px 取る——iPhone の Safari（上下の帯が
+        出ている高さ）では、それだけでこの画面がはみ出していた。
+      */}
+      <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 px-1">
         {minutes !== undefined && !overview?.showsMinutes && (
           <MetaPill icon={IconClock} label="所要時間" value={`${minutes}分`} />
         )}
@@ -189,7 +195,7 @@ export function OutcomePreview({
           */}
           <summary
             data-testid="outcome-detail-toggle"
-            className="row-tap cursor-pointer list-none rounded-card bg-surface px-5 py-3.5
+            className="row-tap cursor-pointer list-none rounded-card bg-surface px-5 py-3
                        text-sm font-bold shadow-card transition hover:bg-brand-soft/50"
           >
             <span className="flex items-center gap-2">

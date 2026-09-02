@@ -252,11 +252,24 @@ export function FullText({
   label,
   text,
   testId,
+  lines = 3,
 }: {
   /** 何の文章か。「元の文章」「AIの結果」など。 */
   label: string;
   text: string;
   testId?: string;
+  /**
+   * 何行で切るか。
+   *
+   * 既定は3行。開いた一枚の中はそれで収まるが、レッスンの画面に
+   * 直接置くときは2行にする——1行ぶん（28px）で画面がはみ出す
+   * ことがある（iPhone の Safari で実際に起きた）。
+   *
+   * 値は決め打ちの2つだけ。Tailwind は書いてあるクラス名しか
+   * 作らないので、`line-clamp-${n}` のような組み立て方だと
+   * **CSS が出てこない**（切れずに全文が出る）。
+   */
+  lines?: 2 | 3;
 }) {
   const [open, setOpen] = useState(false);
   const body = text || "（入力なし）";
@@ -286,7 +299,10 @@ export function FullText({
           e2e/stepFits.spec.ts が捕まえた）。`<span>` は `line-clamp` が
           敷く `-webkit-box` で塊として並ぶので、`block` は要らない。
         */}
-        <span className="line-clamp-3 whitespace-pre-wrap break-words text-sm leading-7">
+        <span
+          className={`${lines === 2 ? "line-clamp-2" : "line-clamp-3"}
+                      whitespace-pre-wrap break-words text-sm leading-7`}
+        >
           {body}
         </span>
         <span className="mt-2 block text-right text-xs font-bold text-brand-dark">
