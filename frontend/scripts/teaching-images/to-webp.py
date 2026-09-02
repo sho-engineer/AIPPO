@@ -22,11 +22,19 @@ Chromium の canvas は品質を 1 にしても VP8X の器へ入れてしまい
 外から受け取った絵を置くときも、ここを通す（PNG でも JPEG でもよい）。
 
     python3 scripts/teaching-images/to-webp.py day1_overview --from ~/受け取った.png
+
+支給された絵は上書きしない
+--------------------------
+`overviews.json` で `source: "supplied"` と書いてある絵は、版下から
+作り直したもので**置き換えられない**ようにしてある。版下の試し刷りは
+本物とよく似ていて（同じ文言を読ませているので当然）、取り違えると
+支給された絵が静かに消える。どうしても置き換えるなら `--force`。
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -38,7 +46,23 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("name", help="絵の名前（例: day1_overview）")
     parser.add_argument("--from", dest="source", help="元の画像。既定は out/<name>.png")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="支給された絵（source: supplied）でも置き換える",
+    )
     args = parser.parse_args()
+
+    facts = json.loads((HERE / "overviews.json").read_text(encoding="utf-8"))
+    entry = facts["images"].get(args.name, {})
+    if entry.get("source") == "supplied" and not args.force:
+        print(
+            f"{args.name} は支給された絵（overviews.json の source: supplied）。\n"
+            "版下の試し刷りで上書きしかけていないか確かめること。\n"
+            "本当に置き換えるなら --force を付ける。",
+            file=sys.stderr,
+        )
+        return 1
 
     try:
         from PIL import Image

@@ -10,7 +10,7 @@
  * public/ をそのまま配る小さなサーバーを立てる。書体もポーも
  * **アプリが使っているものをそのまま**読ませたいので、写しを作らない。
  */
-import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
+import { createReadStream, existsSync, mkdirSync, readFileSync, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -108,4 +108,16 @@ if (problems.length) {
   console.error(problems.join("\n"));
   process.exit(1);
 }
-console.log(`${out}\n次: python3 scripts/teaching-images/to-webp.py ${day}`);
+/*
+  支給された絵の日は、ここで出た PNG は**試し刷り**。よく似ているが
+  配信されているものではない（同じ文言を読ませているので似て当然）。
+  取り違えないように言っておく。
+*/
+const facts = JSON.parse(readFileSync(join(HERE, "overviews.json"), "utf8"));
+if (facts.images?.[day]?.source === "supplied") {
+  console.log(`${out}
+${day} は支給された絵。いま出たのは試し刷りで、配信されているものではない。
+置き換えるつもりなら to-webp.py に --force が要る。`);
+} else {
+  console.log(`${out}\n次: python3 scripts/teaching-images/to-webp.py ${day}`);
+}
