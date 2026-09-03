@@ -26,6 +26,26 @@
  * 1枚を見て次へ行くだけの画面で、送る先が無い。`100dvh` から
  * 上下の安全領域を引いた高さに絵を収め、`object-contain` で
  * 切らずに入れる（絵の中の文字が切れると、章の名前が読めなくなる）。
+ *
+ * 余白は、絵そのもので埋める
+ * ------------------------
+ * 絵は縦長（941×1672）で、横長の画面では**高さで頭打ち**になる。
+ * 402px 幅の実機で絵に使えるのは 295px しかなく、残りは左右の余白
+ * ——白い地の上に絵の四角い縁が浮いて見えていた。
+ *
+ * 絵を大きくしても消えない（高さを目一杯にしても 347px）。切って
+ * 広げる（`object-cover`）と、絵の中の題が切れる。
+ *
+ * **同じ絵を、ぼかして背面に敷く。**
+ *
+ * 一度は「絵の端の色を測って、その色で地を塗る」ようにした。上下の
+ * 2色から縦グラデーションを作る形で、遠目には合うが**まだ縦の線が
+ * 見えた**——絵の地は横にも濃淡があり、行の平均では左右の端と
+ * ずれるため。測った色を教材データへ書く形でもあり、絵を差し替える
+ * たびに測り直しが要る（忘れれば縁がまた出る）。
+ *
+ * 同じ絵を敷けば、**どの高さでも必ず合う**。測る値も、覚えておく
+ * 値も無い。読み込むのは同じ道筋なので、通信も1回のまま。
  */
 
 import { useEffect, useState } from "react";
@@ -86,7 +106,20 @@ export function SectionTransition({
     <section
       data-testid="section-transition"
       aria-labelledby="section-transition-title"
-      className="flex h-[calc(100dvh-2.75rem-env(safe-area-inset-top))] w-full
+      /*
+        幅は端末1台ぶんに収める（`max-w-cover`）。
+
+        絵は縦長なので、広い画面では余白のほうが絵より大きくなる
+        ——1280px では絵が 335px、左右に 472px ずつ空く。そこまで
+        離れると、背面をどう伸ばしても横の位置が合わない（実測で
+        境目の色が 84 飛んだ）。
+
+        ほかの画面（`max-w-page` ＝ 46rem）より狭いのは、ここだけ
+        **絵が画面そのもの**だから。文字を読ませる画面と同じ幅を
+        取っても、絵はその幅まで大きくならない。
+      */
+      className="relative mx-auto flex w-full max-w-cover
+                 h-[calc(100dvh-2.75rem-env(safe-area-inset-top))]
                  flex-col overflow-hidden bg-canvas pt-2
                  pb-[calc(1rem+env(safe-area-inset-bottom))]"
     >
@@ -104,8 +137,49 @@ export function SectionTransition({
         onClick={onContinue}
         data-testid="section-transition-tap"
         aria-label={`${title}（画面を押してつづける）`}
-        className="min-h-0 flex-1 cursor-pointer px-4"
+        /*
+          左右に余白を付けない。**絵に使える幅をそのまま渡す。**
+          地が絵と同じ色になったので、縁で区切る必要が無くなった。
+        */
+        className="relative min-h-0 w-full flex-1 cursor-pointer"
       >
+        {/*
+          余白を埋める1枚。**同じ絵を、横に伸ばして、ぼかす。**
+
+          敷くのは**前面の絵とまったく同じ箱**（このタップ面）。
+          前面は `object-contain` で縦いっぱいに入るので、背面も
+          同じ箱に広げれば、同じ高さに同じ色が来る。
+
+          一度これを外側（`section`）へ置いていた。あちらは下の
+          ボタンの行まで含む箱なので、**縦の対応がずれる**——境目の
+          色が上で 62 飛んだ（下の e2e が捕まえた）。
+
+          少しはみ出させる（`scale`）のは、ぼかしの縁が画面の中に
+          出ないようにするため。横を大きく伸ばすのは、狭い画面でも
+          左右の余白を埋めきるため。
+
+          **境目の色はぴったりには合わない。** 横に伸ばすと、境目の
+          位置には絵の 25% あたりの色が来るので、前面の左端（0%）とは
+          違う（実測で 28 の差）。合わせようとすると背面を前面と同じ
+          大きさにするしかなく、それでは余白が埋まらない。
+
+          ここで消したいのは**硬い縁**のほうで、色の一致ではない。
+          ぼかしてあるので縁は無く、余白は絵と地続きに見える。
+
+          読み上げには渡さない（`aria-hidden`）——同じ絵が2回読まれる。
+        */}
+        {image && (
+          <img
+            src={image.src}
+            alt=""
+            aria-hidden="true"
+            className={`pointer-events-none absolute inset-0 h-full w-full
+                        scale-x-150 scale-y-110 blur-2xl
+                        transition-opacity duration-300
+                        ${shown ? "opacity-100" : "opacity-0"}`}
+          />
+        )}
+
         {image ? (
           <img
             src={image.src}
@@ -118,7 +192,7 @@ export function SectionTransition({
               持ち方で上下の帯（題と足元）が切れて、**章の名前が
               読めない**まま通り過ぎることになる。
             */
-            className={`mx-auto h-full w-auto max-w-full object-contain
+            className={`relative mx-auto h-full w-auto max-w-full object-contain
                         transition-opacity duration-300
                         ${shown ? "opacity-100" : "opacity-0"}`}
           />
@@ -142,7 +216,7 @@ export function SectionTransition({
         </h1>
       </button>
 
-      <div className="mx-auto mt-3 w-full max-w-page shrink-0 px-5">
+      <div className="relative mx-auto mt-3 w-full max-w-page shrink-0 px-5">
         {/*
           目印は `primary-action`。**ほかの画面と同じ名前にする。**
 

@@ -123,6 +123,80 @@ test.describe("段が変わったことを、1枚で言う", () => {
     }
   });
 
+  test("余白が、絵の続きで埋まっている", async ({ page }) => {
+    /*
+      絵は縦長（941×1672）で、横長の画面では**高さで頭打ち**になる。
+      402px 幅の実機で絵に使えるのは 295px しかなく、残りは左右の余白
+      ——白い地の上に絵の四角い縁が浮いて見えていた。
+
+      同じ絵を横に伸ばしてぼかし、背面へ敷いてある。
+
+      色の一致は見ない。横に伸ばす以上、境目には絵の 25% あたりの色が
+      来るので、前面の左端とは合わない（合わせようとすると背面を前面と
+      同じ大きさにするしかなく、それでは余白が埋まらない）。**消したいのは
+      硬い縁**のほうで、それはぼかしが受け持っている。
+
+      ここで見るのは、余白が**本当に埋まっているか**。
+    */
+    await start(page);
+    const cover = page.getByTestId("section-transition");
+    await expect(cover).toBeVisible();
+    await page.waitForTimeout(700);
+
+    const layout = await page.evaluate(() => {
+      const tap = document.querySelector<HTMLElement>(
+        "[data-testid='section-transition-tap']",
+      )!;
+      const backdrop = tap.querySelector<HTMLImageElement>("img[aria-hidden='true']");
+      const main = tap.querySelector<HTMLImageElement>("img:not([aria-hidden])");
+      const box = (el: Element | null) => {
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+      };
+      return {
+        tap: box(tap)!,
+        backdrop: box(backdrop),
+        main: box(main),
+        blurred: backdrop ? getComputedStyle(backdrop).filter : "",
+        sameImage: backdrop?.getAttribute("src") === main?.getAttribute("src"),
+      };
+    });
+
+    expect(layout.backdrop, "背面の1枚が無い").not.toBeNull();
+    expect(layout.main, "前面の絵が無い").not.toBeNull();
+    // 同じ絵を使う（通信は1回のまま。色も必ず似る）
+    expect(layout.sameImage, "背面が別の絵を指している").toBe(true);
+    expect(layout.blurred, "背面がぼけていない").toContain("blur");
+
+    // 前面には左右の余白が出ている（出ていなければ埋めるものが無い）
+    expect(layout.main!.left - layout.tap.left).toBeGreaterThan(4);
+
+    /*
+      その余白を、背面が**外まではみ出して**埋めている。
+
+      「ちょうど覆う」では足りない。ぼかした絵は縁が薄まって消えるので、
+      枠ぴったりだと**画面の端に地色がにじみ出す**。外へ追い出すには、
+      枠より外まで届いていること。
+
+      ここを `以上／以下` で書いていたときは、はみ出しを外しても検査が
+      通ってしまった（実際に壊して確かめた）。
+    */
+    const bleed = 8;
+    expect(layout.backdrop!.left, "左のぼかしの縁が画面の中に出る").toBeLessThan(
+      layout.tap.left - bleed,
+    );
+    expect(layout.backdrop!.right, "右のぼかしの縁が画面の中に出る").toBeGreaterThan(
+      layout.tap.right + bleed,
+    );
+    expect(layout.backdrop!.top, "上のぼかしの縁が画面の中に出る").toBeLessThan(
+      layout.main!.top - bleed,
+    );
+    expect(layout.backdrop!.bottom, "下のぼかしの縁が画面の中に出る").toBeGreaterThan(
+      layout.main!.bottom + bleed,
+    );
+  });
+
   test("画面のどこを押しても進む", async ({ page }) => {
     /*
       親指はふつう画面の下半分にあり、そこには絵しかない。

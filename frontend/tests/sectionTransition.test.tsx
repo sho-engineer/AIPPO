@@ -36,10 +36,17 @@ interface CoverMeta {
 
 const metaOf = (step: (typeof covers)[number]) => (step.meta ?? {}) as CoverMeta;
 
+/*
+  地の色が**絵の端と合っているか**は、ここでは見ない。WebP を解くのは
+  ブラウザの仕事で、そのために Node 側へデコーダを持ち込むのは高くつく。
+
+  実物と突き合わせるのは `e2e/sectionTransition.spec.ts`——本物の
+  ブラウザに絵を描かせて、端の画素を読む。
+*/
+
 const IMAGE = {
   src: "/assets/teaching/day1_section_01.webp",
   alt: "章扉の絵の説明",
-  visualType: "section" as const,
   width: 941,
   height: 1672,
 };
@@ -185,6 +192,45 @@ describe("章扉の画面", () => {
     expect(screen.queryByTestId("concept-card")).toBeNull();
     // 押せるのは2つだけ——画面そのものと、「つづける」
     expect(screen.getAllByRole("button")).toHaveLength(2);
+  });
+
+  it("余白は、同じ絵をぼかして埋める", () => {
+    /*
+      絵は縦長なので、横長の画面では左右に余白が出る。白いままだと
+      **絵の四角い縁が浮く**。同じ絵を横に伸ばしてぼかし、背面へ
+      敷けば、どの高さでも色が合う——測る値も、覚えておく値も無い。
+
+      伸ばすのは横だけ。`object-cover` は縦を切るので、背面と前面で
+      縦の位置がずれる（境目の色が中ほどで 20 飛んだ）。
+
+      背面の1枚は読み上げに渡さない。渡すと同じ絵が2回読まれる。
+    */
+    const { rerender } = render(
+      <SectionTransition title="まずは試してみよう" image={IMAGE} onContinue={() => {}} />,
+    );
+
+    const all = screen.getByTestId("section-transition").querySelectorAll("img");
+    expect(all, "絵が2枚（背面と本体）出ていない").toHaveLength(2);
+
+    const [backdrop, main] = all;
+    expect(backdrop.getAttribute("src")).toBe(IMAGE.src);
+    expect(backdrop.getAttribute("aria-hidden")).toBe("true");
+    expect(backdrop.getAttribute("alt")).toBe("");
+    // 伸ばすのは横だけ。縦は前面と同じ位置に重ねる
+    expect(backdrop.className).toContain("scale-x-150");
+    expect(backdrop.className).not.toContain("object-cover");
+    expect(backdrop.className).toContain("blur");
+    // 本体は切らずに収める（絵の中の題が切れないように）
+    expect(main.className).toContain("object-contain");
+    // 読み上げに渡すのは本体だけ
+    expect(screen.getByRole("img")).toBe(main);
+
+    rerender(
+      <SectionTransition title="まずは試してみよう" image={null} onContinue={() => {}} />,
+    );
+    expect(
+      screen.getByTestId("section-transition").querySelectorAll("img"),
+    ).toHaveLength(0);
   });
 
   it("送る先が無い（スクロールしない）", () => {
