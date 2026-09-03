@@ -85,6 +85,36 @@ class UserProfile(models.Model):
     #: 最後にリマインダーを送った日時。送りすぎを防ぐために見る。
     reminded_at = models.DateTimeField(null=True, blank=True)
 
+    #: この人だけ、1日あたりの回数の上限を外す。
+    #:
+    #: 何のためにあるか
+    #: ----------------
+    #: 動作確認のため。1本のレッスンで数回、通しで確かめれば十数回使う。
+    #: 登録済みの上限は 50回/日 なので、日をまたいで確かめていると
+    #: **試している途中で止まる**。止まった先が確かめたかった画面だと、
+    #: その日はもう進めない。
+    #:
+    #: 外れるのは「その人ぶんの1日の上限」だけ
+    #: ---------------------------------------
+    #: 接続元ごと（`AI_RUNS_PER_IP_PER_DAY`）と全体
+    #: （`AI_RUNS_PER_DAY`）の安全弁は**外れない**。あちらは
+    #: 費用が跳ねないための最後の歯止めで、体験の設計ではない。
+    #: ここで一緒に外すと、確認用のアカウント1つで請求が青天井になる。
+    #:
+    #: 誰が変えられるか
+    #: ----------------
+    #: 管理画面と `create_test_account` だけ。学習者向けの API
+    #: （`ProfileView.patch`）は直せる項目を名指しで並べてあるので、
+    #: ここが増えても本人からは触れない。
+    unlimited_ai_runs = models.BooleanField(
+        default=False,
+        verbose_name="1日の上限を外す（動作確認用）",
+        help_text=(
+            "その人ぶんの1日の上限だけを外します。"
+            "接続元ごと・全体の安全弁は外れません。"
+        ),
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

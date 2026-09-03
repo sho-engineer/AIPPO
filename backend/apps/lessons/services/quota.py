@@ -162,6 +162,28 @@ def _signed_in(request) -> bool:
     return bool(user is not None and user.is_authenticated)
 
 
+def _is_unlimited(request) -> bool:
+    """その人だけ、1日の上限を外してあるか。
+
+    動作確認用の逃げ道（`UserProfile.unlimited_ai_runs`）。通しで
+    確かめていると登録済みの上限（50回/日）に当たり、**試している
+    途中で止まる**——止まった先が確かめたかった画面だと、その日は
+    もう進めない。
+
+    ここで外れるのは**その人ぶんの1日の上限だけ**。接続元ごとと全体の
+    安全弁は `consume_ai_run` の側にあり、この判定は通らない。
+    あちらは費用が跳ねないための最後の歯止めで、確認用のアカウント1つの
+    ために外してよいものではない。
+
+    プロフィールがまだ無い人（登録直後など）は False。無いことを
+    「上限なし」と読むと、作り忘れがそのまま穴になる。
+    """
+    if not _signed_in(request):
+        return False
+    profile = getattr(request.user, "profile", None)
+    return bool(profile is not None and profile.unlimited_ai_runs)
+
+
 def _learner_limit(request, kind: str) -> int:
     """1人あたりの上限。登録しているかどうかで変える。
 
@@ -169,6 +191,8 @@ def _learner_limit(request, kind: str) -> int:
     登録する理由も無くなる。逆に登録した人を絞りすぎると、
     せっかく登録したのに使えないことになる。
     """
+    if _is_unlimited(request):
+        return 0  # 0以下は「上限なし」（`_consume` を参照）
     if kind == RunKind.IMAGE:
         return (
             settings.AI_IMAGE_DAILY_REQUEST_LIMIT_USER

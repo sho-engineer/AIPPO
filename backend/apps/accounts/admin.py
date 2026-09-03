@@ -33,8 +33,15 @@ from apps.accounts.models import (
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "display_name", "email_confirmed", "terms_version", "created_at")
-    list_filter = ("terms_version", "email_verified_at")
+    list_display = (
+        "user",
+        "display_name",
+        "email_confirmed",
+        "unlimited_ai_runs",
+        "terms_version",
+        "created_at",
+    )
+    list_filter = ("terms_version", "email_verified_at", "unlimited_ai_runs")
     search_fields = ("user__email", "display_name")
     readonly_fields = ("created_at", "updated_at")
     ordering = ("-created_at",)
@@ -55,7 +62,32 @@ class UserProfileAdmin(admin.ModelAdmin):
         )
         self.message_user(request, f"{updated}件を確認済みにしました。", messages.SUCCESS)
 
-    actions = ["mark_verified"]
+    """1日の上限の切り替え。
+
+    行を開いて chekbox を1つ触るだけでもできるが、**戻し忘れ**が起きる。
+    一覧から2手で戻せる形にしておくと、確認が終わったその場で戻せる。
+
+    解放したままの人がいないかは、一覧の絞り込み（`unlimited_ai_runs`）で
+    いつでも数えられる。
+    """
+
+    @admin.action(description="1日の上限を外す（動作確認用）")
+    def lift_daily_limit(self, request, queryset) -> None:
+        updated = queryset.filter(unlimited_ai_runs=False).update(unlimited_ai_runs=True)
+        self.message_user(
+            request,
+            f"{updated}件の1日の上限を外しました。"
+            "接続元ごと・全体の安全弁は外れていません。"
+            "確認が終わったら戻してください。",
+            messages.WARNING,
+        )
+
+    @admin.action(description="1日の上限を元に戻す")
+    def restore_daily_limit(self, request, queryset) -> None:
+        updated = queryset.filter(unlimited_ai_runs=True).update(unlimited_ai_runs=False)
+        self.message_user(request, f"{updated}件を元に戻しました。", messages.SUCCESS)
+
+    actions = ["mark_verified", "lift_daily_limit", "restore_daily_limit"]
 
 
 @admin.register(LearnerIdentity)
