@@ -51,6 +51,33 @@ describe("ポーが出る場面", () => {
     }
   });
 
+  it("Day1 で必ず出ると決めた場面に、全部出る", () => {
+    /*
+      場面ごとの決まりは上で見ているが、**この6つは名指しで守る**。
+      表を1行いじると静かに1つ消えるので、消えたときに
+      「どの場面が消えたか」で落ちるようにしておく。
+
+        AI生成中        待たせている理由を持つ
+        AI結果の直後    「どこが変わった？」と問いかける
+        Before / After  同上（比べる画面）
+        セクション開始  これから何をするかを案内する
+        AI技GET        名前を受け取る瞬間を一緒に喜ぶ
+        Lesson Complete ねぎらう
+    */
+    const must: [string, ReturnType<typeof poAppearance>][] = [
+      ["AI生成中", poAppearance({ stepType: "ai_generate", busy: true })],
+      ["AI結果の直後", poAppearance({ stepType: "observation" })],
+      ["Before / After", poAppearance({ stepType: "result_compare" })],
+      ["セクション開始", poAppearance({ stepType: "outcome_preview" })],
+      ["AI技GET", poAppearance({ stepType: "concept_card", skill: true })],
+      ["Lesson Complete", poAppearance({ stepType: "completion" })],
+    ];
+
+    for (const [where, found] of must) {
+      expect(found, `${where} でポーが出ない`).not.toBeNull();
+    }
+  });
+
   it("種類のどれを渡しても、決めてある", () => {
     // 決め忘れが `undefined` として素通りしないこと
     for (const stepType of STEP_TYPES) {

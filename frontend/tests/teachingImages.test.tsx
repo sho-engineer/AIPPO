@@ -125,7 +125,6 @@ describe("時間を二度言わない", () => {
     render(
       <OutcomePreview
         minutes={8}
-        title="ためしの題"
         poMessage="ためしの一言"
         skills={[]}
         overview={teachingImage(DAY1, "outcome_preview")}
@@ -143,7 +142,6 @@ describe("時間を二度言わない", () => {
     render(
       <OutcomePreview
         minutes={8}
-        title="ためしの題"
         poMessage="ためしの一言"
         skills={[]}
         overview={{
@@ -189,7 +187,6 @@ describe("必ず見せるものと、見たい人に見せるもの", () => {
   it("最初の画面の全体図は、押したら大きく出す", async () => {
     render(
       <OutcomePreview
-        title="ためしの題"
         poMessage="ためしの一言"
         skills={[]}
         overview={teachingImage(DAY1, "outcome_preview")}

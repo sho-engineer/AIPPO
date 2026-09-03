@@ -43,6 +43,7 @@ import { recommendLessons } from "../../course/recommend";
 import { nextLessons, startableLessons } from "../../course/availability";
 import { lessonOverview, lessonOverviewFallback } from "../../course/lessonOverview";
 import { teachingImage } from "../../course/teachingImages";
+import { lessonPlan } from "../../course/lessonPlan";
 import { TeachingImage } from "../lessons/TeachingImage";
 import { missionStateOf } from "../../course/missions";
 import { promptCards, promptText } from "../../course/promptSummary";
@@ -184,9 +185,8 @@ export function StepRenderer({
             ——同じ画面で違うことを言わないため（LessonRunner の
             `outcome_preview` の分岐と揃える）。
           */
-          eyebrow={`Lesson ${lesson.number}`}
-          title={lesson.outcomeTitle ?? lesson.title}
           description={lesson.outcomeDescription ?? step.instruction}
+          plan={lessonPlan(lesson.id)}
           poMessage={step.poMessage}
           onStart={api.goNext}
           introSeen={introSeen}

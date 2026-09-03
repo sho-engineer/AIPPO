@@ -49,6 +49,7 @@ import { IconBars, IconClock } from "../../Icons";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 import { TeachingImage } from "../../lessons/TeachingImage";
 import type { TeachingImageEntry } from "../../../course/teachingImages";
+import type { LessonPlan } from "../../../course/lessonPlan";
 
 // ----------------------------------------------------------- 完成イメージ
 
@@ -62,8 +63,7 @@ export function OutcomePreview({
   flow,
   overview,
   thumbnail,
-  eyebrow,
-  title,
+  plan,
   description,
   poMessage,
   onStart,
@@ -90,11 +90,15 @@ export function OutcomePreview({
   overview?: TeachingImageEntry | null;
   /** 専用の1枚が無いときに代わりに出す、一覧と同じ絵。 */
   thumbnail?: string | null;
-  /** 「Lesson 1」。導入の一枚の見出し。 */
-  eyebrow?: string;
-  /** レッスンの題（`outcomeTitle`）。 */
-  title: string;
-  /** 一言（`outcomeDescription`）。 */
+
+  /**
+   * 「今日やること」の図の材料（`course/lessonPlan.ts`）。
+   *
+   * 無ければ図を出さず、導入の一枚はポーの一言とゴールだけになる。
+   * 材料がまだ無い教材で、空の枠だけを置かないため。
+   */
+  plan?: LessonPlan | null;
+  /** 一言（`outcomeDescription`）。導入の一枚ではゴールの1行になる。 */
   description?: string;
   /** ポーのひとこと。 */
   poMessage: string;
@@ -248,6 +252,7 @@ export function OutcomePreview({
           goal={goal}
           before={before}
           after={after}
+          swaps={plan?.swaps}
           skills={skills}
           outcomes={outcomes}
           flow={flow}
@@ -257,11 +262,16 @@ export function OutcomePreview({
 
       {introOpen && (
         <LessonIntroModal
-          eyebrow={eyebrow}
-          title={title}
-          description={description}
+          /*
+            ゴールは**1行だけ**。教材は3つ持っているが（`outcomes`）、
+            始める前に3つ並べると「覚えることが3つある」に見える。
+            残り2つは「詳しく見る」の中で会う。
+          */
+          goalLine={description ?? outcomes?.[0]}
+          plan={plan}
+          source={before}
+          result={after}
           poMessage={poMessage}
-          outcomes={outcomes}
           onStart={() => {
             setIntroOpen(false);
             onStart?.();

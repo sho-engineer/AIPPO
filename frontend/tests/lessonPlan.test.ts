@@ -1,0 +1,117 @@
+/**
+ * 「今日やること」の図が、教材データとずれていないこと。
+ *
+ * なぜ機械に見張らせるか
+ * ----------------------
+ * 図の材料は教材データと**別の場所**にある（`course/lessonPlan.ts`）。
+ * 教材の本文を書き替えたときに図を直し忘れても、図はそれらしく描けて
+ * しまうので**目では気づけない**。気づくのは、図で見た言葉が本編に
+ * 出てこなくて探す学習者になる。
+ *
+ * 見るのは4つ。
+ *
+ *   1. 足す条件が、本編で実際に選べる選択肢にあること
+ *   2. 言いかえ前の言葉が、元の文章の中に本当にあること
+ *   3. 言いかえ後の言葉が、できあがりの文の中に本当にあること
+ *   4. 図が「短くする」を教えていないこと（Day2 の役目）
+ *
+ * 3 がこの回のいちばんの勘どころ。Day1 のねらいは
+ * **意味は同じまま、言い方だけ変わる**ことなので、元の用語が
+ * できあがりのどこへ行ったのかをたどれなければ、AIが別の説明を
+ * 書き下ろしたのと見分けが付かない。
+ */
+
+import { describe, expect, it } from "vitest";
+
+import { getLesson } from "../src/course/catalog";
+import { LESSON_PLANS, lessonPlan } from "../src/course/lessonPlan";
+
+describe("今日やることの図", () => {
+  it("図を持つ教材は、実在する", () => {
+    for (const lessonId of Object.keys(LESSON_PLANS)) {
+      expect(getLesson(lessonId), `${lessonId} という教材が無い`).toBeTruthy();
+    }
+  });
+
+  it("足す条件は、本編で実際に選べる", () => {
+    /*
+      図では「AI初心者向け」と縮めたくなるが、縮めると**図で見た言葉が
+      本編に出てこない**。探して見つからないほうが、2文字ぶんの
+      読みやすさより高くつく。
+    */
+    for (const [lessonId, plan] of Object.entries(LESSON_PLANS)) {
+      const lesson = getLesson(lessonId)!;
+      const labels = new Set(
+        lesson.steps.flatMap((step) => (step.options ?? []).map((o) => o.label)),
+      );
+      for (const add of plan.additions) {
+        expect(
+          labels.has(add.value),
+          `${lessonId}: 図の「${add.value}」が、どの画面の選択肢にも無い`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("言いかえ前の言葉は、元の文章の中にある", () => {
+    for (const [lessonId, plan] of Object.entries(LESSON_PLANS)) {
+      const before = getLesson(lessonId)!.beforeExample ?? "";
+      for (const swap of plan.swaps) {
+        expect(
+          before.includes(swap.from),
+          `${lessonId}: 「${swap.from}」が元の文章に無い`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("言いかえ後の言葉は、できあがりの文の中にある", () => {
+    /*
+      ここが緩むと、対応表だけが正しくて本文が別のことを言っている
+      状態になる——**表を信じて読んだ人がいちばん混乱する。**
+    */
+    for (const [lessonId, plan] of Object.entries(LESSON_PLANS)) {
+      const after = getLesson(lessonId)!.afterExample ?? "";
+      for (const swap of plan.swaps) {
+        expect(
+          after.includes(swap.to),
+          `${lessonId}: 「${swap.to}」ができあがりの文に無い`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("Day1 は「短くする」を教えていない", () => {
+    /*
+      Day1 は「難しい → 分かる」。「長い → 短い」は Day2 の要約が持つ。
+      役が被ると、Day2 に来た人が「昨日やった」と思って飛ばす。
+
+      見るのは**学習者の目に入る言葉**——画面の題と選択肢。ここに
+      「短く」「要約」が出た時点で、本文が何を言っていても
+      「短くするレッスン」として読まれる。
+
+      AIへ既定で長さを渡していないことも見る。黙って「3行くらい」と
+      頼むと、専門文が切り詰められて、分かりやすくなったのか
+      削られただけなのか見分けが付かない。
+    */
+    const day1 = getLesson("rewrite_text")!;
+    const shown = day1.steps.flatMap((step) => [
+      step.title ?? "",
+      step.instruction ?? "",
+      ...(step.options ?? []).map((o) => o.label),
+    ]);
+
+    for (const text of shown) {
+      expect(text, `Day1 の画面に「${text}」がある`).not.toMatch(/短く|要約|まとめて/);
+    }
+
+    const quick = day1.steps.find((step) => step.type === "quick_try");
+    const defaults = (quick?.meta as { defaults?: Record<string, string> })?.defaults;
+    expect(defaults?.length, "黙って長さを頼んでいる").toBeUndefined();
+  });
+
+  it("図を持たない教材では、図を出さない", () => {
+    // 材料の無いところに空の枠だけを置かない
+    expect(lessonPlan("no_such_lesson")).toBeNull();
+  });
+});

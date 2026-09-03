@@ -36,12 +36,20 @@ import {
   IconTarget,
 } from "../Icons";
 import { PoSpeech } from "../../po/PoSpeech";
+import type { LessonPlan } from "../../course/lessonPlan";
 
 export interface LessonDetailContent {
   /** ねらい。1行。 */
   goal?: string;
   before?: string;
   after?: string;
+  /**
+   * むずかしい言葉の言いかえ。Before / After の下に並べる。
+   *
+   * 材料は `course/lessonPlan.ts`。教材の本文ではなく図の材料なので、
+   * 3層（同梱・seed・配信）には持たせていない。
+   */
+  swaps?: { from: string; to: string }[];
   /** 今日覚えるAI技。 */
   skills: string[];
   /** 終えたらできるようになること。 */
@@ -72,6 +80,7 @@ function LessonDetailBody({
   goal,
   before,
   after,
+  swaps,
   skills,
   outcomes,
   flow,
@@ -123,6 +132,41 @@ function LessonDetailBody({
               {after}
             </p>
           </section>
+
+          {/*
+            何がどう変わったか。
+
+            2つの文を並べるだけだと、**読み比べる仕事**が残る。長い専門文と
+            長い説明文を突き合わせて、どこが対応しているかを自力で探させる
+            ことになり、分かりやすくなった実感より先に読む負担が来る。
+
+            言葉の対応を3組だけ抜き出して並べる。「意味は同じまま、
+            言い方が変わった」ことが、読まなくても形で分かる。
+            **削られたのではなく、言いかえられた**ことが伝わればよい。
+          */}
+          {swaps && swaps.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-xs font-bold text-ink-muted">
+                むずかしい言葉は、こう変わりました
+              </h3>
+              <ul className="mt-2 space-y-1.5" role="list" data-testid="outcome-swaps">
+                {swaps.map((swap) => (
+                  <li
+                    key={swap.from}
+                    className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5
+                               rounded-card bg-canvas px-3 py-2 text-sm leading-6"
+                  >
+                    <span className="text-ink-muted line-through">{swap.from}</span>
+                    <IconArrowDown
+                      className="h-3.5 w-3.5 shrink-0 -rotate-90 text-brand"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 font-bold text-brand-dark">{swap.to}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Card>
       )}
 
@@ -212,86 +256,219 @@ export function LessonDetailModal({
 }
 
 /**
+ * 「今日やること」の図。
+ *
+ * 読ませずに見せる
+ * ----------------
+ * 前はここが説明文だった。見出し・一言・できること2つが縦に並び、
+ * 始める前に**読み物を1本読ませる**形になっていた。文章で書くと、
+ * どれだけ短くしても「読んでから決める」になる。
+ *
+ * やることは3手しかない。元の文章を渡し、条件を足して頼み、
+ * 分かりやすい説明が返る。**その3手をそのまま縦に置く。**
+ *
+ *     [専門的な文章]      渡すもの
+ *          ↓
+ *      AIに頼む           そのとき足す条件が2つ
+ *      ＋ 誰向け？
+ *      ＋ どんな言い方？
+ *          ↓
+ *     [分かりやすい説明]  返ってくるもの
+ *
+ * 足す2つを図に描くのは、そこが**この回で覚えること**そのものだから。
+ * 文章で「ターゲット指定とトーン指定を学びます」と書くより、
+ * 矢印の途中に置いたほうが、何が効いたのかを後で思い出せる。
+ */
+function TodayPlanFigure({
+  plan,
+  source,
+  result,
+}: {
+  plan: LessonPlan;
+  source: string;
+  result: string;
+}) {
+  return (
+    /*
+      外枠は付けない。中の3つが自分の面を持っているので、その外に
+      もう1枚敷くと**枠の中の枠**になり、いちばん低い持ち方では
+      その 24px ぶんが下の「詳しく見る」を画面の外へ押し出す。
+    */
+    <div data-testid="today-plan">
+      <PlanBox
+        label={plan.sourceLabel}
+        text={source}
+        tone="plain"
+        testId="today-plan-source"
+      />
+
+      <PlanArrow />
+
+      {/*
+        矢印の途中。ここが**この回の中身**なので、面を1枚立てて
+        目を止める。上下の箱（渡すもの・返るもの）は素材で、
+        学ぶのはこの2行のほう。
+      */}
+      <div className="rounded-card bg-brand-soft/50 px-3 py-1.5 ring-1 ring-brand-line">
+        <p className="text-center text-xs font-bold text-brand-dark">AIに頼む</p>
+        <ul className="mt-1 space-y-0.5" role="list" data-testid="today-plan-additions">
+          {plan.additions.slice(0, 2).map((add) => (
+            <li key={add.label} className="flex items-baseline gap-1.5 text-xs">
+              <span className="shrink-0 font-bold text-brand">＋</span>
+              <span className="shrink-0 text-ink-muted">{add.label}</span>
+              <span className="min-w-0 font-bold">{add.value}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <PlanArrow />
+
+      <PlanBox
+        label={plan.resultLabel}
+        text={result}
+        tone="brand"
+        testId="today-plan-result"
+      />
+    </div>
+  );
+}
+
+/** 図の上下に置く、渡すもの／返るもの。中身は1行だけ見せる。 */
+function PlanBox({
+  label,
+  text,
+  tone,
+  testId,
+}: {
+  label: string;
+  text: string;
+  tone: "plain" | "brand";
+  testId: string;
+}) {
+  return (
+    <div
+      data-testid={testId}
+      className={`rounded-card px-3 py-1 ${
+        tone === "brand"
+          ? "bg-brand-soft ring-1 ring-brand-line"
+          : "bg-canvas ring-1 ring-line"
+      }`}
+    >
+      {/*
+        呼び名と中身を**同じ行に**置く。縦に積むと1組で 52px 取り、
+        上下2組で 104px——いちばん低い持ち方では、それだけで
+        「詳しく見る」が画面の外へ出る。
+
+        中身は1行で切る。ここは**どんなものが入るか**が分かればよく、
+        読む場所は本編にある（「詳しく見る」で全文が出る）。
+        全文を置くと図が文章に戻る。
+      */}
+      <p className="flex items-baseline gap-2 text-xs leading-6">
+        <span
+          className={`shrink-0 font-bold ${
+            tone === "brand" ? "text-brand-dark" : "text-ink-muted"
+          }`}
+        >
+          {label}
+        </span>
+        <span className="min-w-0 truncate text-ink">{text}</span>
+      </p>
+    </div>
+  );
+}
+
+function PlanArrow() {
+  return (
+    <div className="flex justify-center" aria-hidden="true">
+      <IconArrowDown className="h-3 w-3 text-brand" />
+    </div>
+  );
+}
+
+/**
  * レッスンを開いた最初の一枚。
  *
- * 置くのは4つだけ。見出し・一言・ポーのひとこと・できること2つ。
- * **詰め込まない**——ここで迷わせると、始める前に閉じられる。
+ * 置くのは4つだけ。今日やることの図・ポーのひとこと・ゴール1行・
+ * 押す先。**詰め込まない**——ここで迷わせると、始める前に閉じられる。
  */
 export function LessonIntroModal({
-  eyebrow,
-  title,
-  description,
+  goalLine,
+  plan,
+  source,
+  result,
   poMessage,
-  outcomes,
   onStart,
   onDetail,
   onClose,
 }: {
-  /** 「Lesson 1」。どこに居るかの手がかり。 */
-  eyebrow?: string;
-  title: string;
-  description?: string;
+  /**
+   * ゴール1行。
+   *
+   * できることを何個も並べない。3つ並べると、始める前に
+   * 「覚えることが3つある」に見える。残りは「詳しく見る」の中。
+   */
+  goalLine?: string;
+  /** 図の材料。無ければ図を出さない。 */
+  plan?: LessonPlan | null;
+  /** 図の上の箱に出す、元の文章。 */
+  source?: string;
+  /** 図の下の箱に出す、できあがり。 */
+  result?: string;
   /** ポーのひとこと。 */
   poMessage: string;
-  outcomes?: string[];
   /** 「さっそく試す」。閉じて、そのまま次の画面へ。 */
   onStart: () => void;
   /** 「詳しく見る」。無ければ出さない。 */
   onDetail?: () => void;
   onClose: () => void;
 }) {
+  const figure = plan && source && result;
+
   return (
     <MoreSheet
       placement="center"
       testId="lesson-intro-sheet"
-      title={eyebrow ?? "今日のレッスン"}
+      title="今日やること"
       onClose={onClose}
     >
       <div data-testid="lesson-intro" className="pb-1">
-        <h3 className="text-xl font-bold leading-[1.45]">{title}</h3>
+        {figure ? (
+          <TodayPlanFigure plan={plan} source={source} result={result} />
+        ) : null}
 
         {/*
-          短い説明は、ポーに言わせる。
-
-          前は見出しの下に説明の段落を置き、そのすぐ下にポーの吹き出しを
-          重ねていた。**同じことを2回言っている**——「読む相手と言い方を
-          伝えて…」の下で、ポーが「まず、できあがりを見てみましょう」と
-          もう一度言う形になる。
-
-          実際に測ると、いちばん低い持ち方（402×660）でここが 54px
-          あふれ、「詳しく見る」が画面の下に隠れていた。段落とポーで
-          213px——一枚に使える 459px の半分近くを、同じ役の2つが取る。
-
-          1つにまとめる。ポーは案内役なので、今日やることは**ポーの
-          言葉として**出るほうが自然で、段落ぶんの高さがそのまま浮く。
-          ポーは小さくしない（`md`）。飾りとして端に置くと、誰が言って
+          ポーは図の**すぐ下**に置く。図を見た人が次に知りたいのは
+          「で、自分は何をするの？」で、そこに一言だけ答える役。
+          小さくしない（`md`）——飾りとして端に置くと、誰が言って
           いるのか分からなくなる。
         */}
-        <div className="mt-3">
+        <div className={figure ? "mt-1.5" : ""}>
           <PoSpeech
             emotion="talking"
-            message={description ?? poMessage}
+            message={plan?.poLine ?? poMessage}
             size="md"
             scene="start"
           />
         </div>
 
-        {outcomes && outcomes.length > 0 && (
+        {goalLine && (
           /*
-            2つまで。3つ目からは「詳しく見る」の中にある。
-            ここは決める材料で、一覧ではない。
+            ゴールは**1行だけ**。何個も並べると、始める前に
+            「覚えることが3つある」に見える（残りは「詳しく見る」の中）。
+
+            印は付けない。ポーの吹き出しのすぐ下なので、丸い印を足すと
+            吹き出しの続きの箇条書きに見える。
           */
-          <ul className="mt-3 space-y-1.5" role="list" data-testid="lesson-intro-outcomes">
-            {outcomes.slice(0, 2).map((line) => (
-              <li key={line} className="flex items-start gap-2 text-sm leading-6">
-                <IconCheckCircle className="mt-1 h-4 w-4 shrink-0 text-brand" />
-                {line}
-              </li>
-            ))}
-          </ul>
+          <p
+            data-testid="lesson-intro-goal"
+            className="mt-1.5 text-xs leading-5 text-ink-muted"
+          >
+            {goalLine}
+          </p>
         )}
 
-        <div className="mt-4">
+        <div className="mt-2.5">
           <button
             type="button"
             onClick={onStart}

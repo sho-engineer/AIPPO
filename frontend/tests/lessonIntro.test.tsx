@@ -23,6 +23,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OutcomePreview } from "../src/components/course/steps/Outcome";
+import { lessonPlan } from "../src/course/lessonPlan";
+
+const PLAN = lessonPlan("rewrite_text")!;
 
 const DETAIL = {
   goal: "むずかしい文章を、意味を変えずに分かりやすくする",
@@ -43,9 +46,8 @@ function renderOutcome(
 ) {
   return render(
     <OutcomePreview
-      eyebrow="Lesson 1"
-      title="専門的な文章を、誰にでも伝わる文章に変える"
       description="読む相手と言い方を伝えて、意味を変えずに分かりやすくします。"
+      plan={PLAN}
       poMessage="いっしょにやってみよう"
       onStart={onStart}
       {...extra}
@@ -93,17 +95,68 @@ describe("レッスンの入口", () => {
     expect(seen).toHaveBeenCalled();
   });
 
-  it("導入に置くのは、できること2つまで", () => {
+  it("導入は、読ませずに見せる（今日やることの図）", () => {
     /*
-      3つ目からは「詳しく見る」の中にある。ここは**始めるか決める
-      材料**で、一覧ではない。全部並べると、始める前に読み物が1本になる。
+      前は見出しと説明文とできること2つが縦に並んでいた。どれだけ
+      短くしても**読んでから決める**形になる。やることは3手しかない
+      ので、その3手をそのまま置く。
     */
     renderOutcome();
 
-    const lines = screen.getByTestId("lesson-intro-outcomes");
-    expect(lines.children).toHaveLength(2);
-    expect(lines).toHaveTextContent(DETAIL.outcomes[0]);
-    expect(lines).not.toHaveTextContent(DETAIL.outcomes[2]);
+    const figure = screen.getByTestId("today-plan");
+    expect(figure).toBeInTheDocument();
+    // 渡すもの → 足す条件 → 返ってくるもの
+    expect(screen.getByTestId("today-plan-source")).toHaveTextContent(
+      PLAN.sourceLabel,
+    );
+    expect(screen.getByTestId("today-plan-result")).toHaveTextContent(
+      PLAN.resultLabel,
+    );
+    for (const add of PLAN.additions) {
+      expect(figure).toHaveTextContent(add.label);
+      expect(figure).toHaveTextContent(add.value);
+    }
+  });
+
+  it("ゴールは1行だけ", () => {
+    /*
+      教材は3つ持っているが、始める前に3つ並べると「覚えることが
+      3つある」に見える。残り2つは「詳しく見る」の中で会う。
+    */
+    renderOutcome();
+
+    const goal = screen.getByTestId("lesson-intro-goal");
+    expect(goal).toBeInTheDocument();
+    expect(screen.getByTestId("lesson-intro")).not.toHaveTextContent(
+      DETAIL.outcomes[2],
+    );
+  });
+
+  it("ポーは、図の中の＋2つを指して一言だけ言う", () => {
+    /*
+      教材データの `poMessage` は**後ろの画面のための言葉**で、
+      図を見た人への返事になっていない。図の材料が持つ一言を使う。
+    */
+    renderOutcome();
+
+    expect(screen.getByTestId("lesson-intro")).toHaveTextContent(PLAN.poLine);
+    expect(screen.getByTestId("po-avatar")).toBeInTheDocument();
+  });
+
+  it("何がどう変わったかを、詳しく見るの中で並べる", async () => {
+    /*
+      長い専門文と長い説明文を突き合わせて、どこが対応しているかを
+      自力で探させない。言葉の対応だけを抜き出して並べる。
+    */
+    const user = userEvent.setup();
+    renderOutcome();
+    await user.click(screen.getByTestId("lesson-intro-detail"));
+
+    const swaps = screen.getByTestId("outcome-swaps");
+    for (const swap of PLAN.swaps) {
+      expect(swaps).toHaveTextContent(swap.from);
+      expect(swaps).toHaveTextContent(swap.to);
+    }
   });
 
   it("「さっそく試す」で閉じて、そのまま次の画面へ進む", async () => {
@@ -173,7 +226,7 @@ describe("レッスンの入口", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true");
     const labelledBy = dialog.getAttribute("aria-labelledby");
     expect(labelledBy).toBeTruthy();
-    expect(document.getElementById(labelledBy!)).toHaveTextContent("Lesson 1");
+    expect(document.getElementById(labelledBy!)).toHaveTextContent("今日やること");
   });
 
   it("2枚重なっても、見出しの名前が混ざらない", async () => {
