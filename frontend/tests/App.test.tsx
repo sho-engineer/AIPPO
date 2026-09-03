@@ -6,6 +6,7 @@ import { App } from "../src/App";
 import { COURSE } from "../src/course/catalog";
 import { resetCatalog } from "../src/course/live";
 import { BRAND } from "../src/content/ui";
+import { passSections } from "./support/sections";
 
 /** サーバーから届く形の、2本目のコース（近日公開）。 */
 const SECOND_COURSE = {
@@ -67,6 +68,8 @@ describe("画面の行き来", () => {
    * 読むが、検査からは両方見える）。
    */
   const closeLessonIntro = async (user: ReturnType<typeof userEvent.setup>) => {
+    // 段の頭の章扉。絵1枚だけなので、通り抜けてから一枚を閉じる
+    await passSections(user);
     await user.click(await screen.findByTestId("lesson-intro-close"));
   };
 

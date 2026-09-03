@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from apps.catalog.flow import build_lesson_flow
+from apps.catalog.flow import build_lesson_flow, insert_sections
 from apps.catalog.models import Lesson, LessonStep, LessonTemplate, StepPlacement
 
 
@@ -54,9 +54,11 @@ def _flow_options(lesson: Lesson) -> dict[str, Any]:
         "observeTitle": lesson.observe_title,
         "observationOptions": lesson.observation_options,
         "observeReasons": lesson.observe_reasons,
+        "observePrimaryLabel": lesson.observe_primary_label,
         "conditionOptions": lesson.condition_options,
         "conceptCards": lesson.concept_cards,
         "conceptSkills": lesson.concept_skills,
+        "conceptAnchors": lesson.concept_anchors,
         "reviewPoints": lesson.review_points,
         "realTaskLabel": lesson.real_task_label,
         "realTaskPlaceholder": lesson.real_task_placeholder,
@@ -94,7 +96,9 @@ def step_row_to_dict(row: LessonStep) -> dict[str, Any]:
 
 
 def _assemble(
-    generated: list[dict[str, Any]], rows: list[LessonStep]
+    generated: list[dict[str, Any]],
+    rows: list[LessonStep],
+    sections: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """生成したステップへ、行を当てる／差し込む。
 
@@ -113,16 +117,17 @@ def _assemble(
     result = [drop_empty(step_row_to_dict(row)) for row in lead_in]
 
     for step in generated:
-        # 技を深める回は、「自分の文章でも試す？」の**あと**へ差し込む。
+        # 技を深める回は、「自分の文章でも試す？」の**手前**へ差し込む。
         #
-        # 前はこの手前だった。そうすると深める回が主導線に入り、
-        # **全部通らないと終われない**。いまは「試す？」で分かれるので、
-        # あとに置けば、続けたい人だけが通る。
+        # 分かれ道（`real_task_intro`）はその**あと**にある。分かれ道を
+        # 手前に置くと、そこで降りた人はその日の技を1つしか受け取れない
+        # ——Day1 でいえば、トーン指定を一度も見ないまま終わる。
+        # 習うことと、自分の文章で使うことは別。
         #
         # 骨格側（shared.ts の deepenSteps）と同じ位置にすること。
         # ずれると `test_catalog_parity` が落ちる——2か所に同じ骨格が
         # あるので、片方だけ動かせない。
-        if step["id"] == "real_task":
+        if step["id"] == "real_task_intro":
             result.extend(drop_empty(step_row_to_dict(row)) for row in deepen)
 
         # あとに問いを挟むなら、「送る内容を見る」は嘘になる。
@@ -144,7 +149,9 @@ def _assemble(
         if step["id"] == "real_task":
             result.extend(drop_empty(step_row_to_dict(row)) for row in after_real)
 
-    return result
+    # 章扉は**行を混ぜたあと**に挟む。章扉③の行き先（「誰が読みますか」）は
+    # 教材が持ち込む行なので、混ぜる前には見つからない
+    return [drop_empty(step) for step in insert_sections(result, sections)]
 
 
 def lesson_to_dict(lesson: Lesson, *, with_steps: bool = True) -> dict[str, Any]:
@@ -162,7 +169,9 @@ def lesson_to_dict(lesson: Lesson, *, with_steps: bool = True) -> dict[str, Any]
     elif lesson.template == LessonTemplate.CUSTOM:
         steps = [drop_empty(step_row_to_dict(row)) for row in rows]
     else:
-        steps = _assemble(build_lesson_flow(_flow_options(lesson)), rows)
+        steps = _assemble(
+            build_lesson_flow(_flow_options(lesson)), rows, lesson.sections
+        )
 
     # 空でも必ず出す鍵。画面の型が「必ずある」前提で読んでいる
     # （tags が無いと、診断からの推薦がその教材を素通りする）。

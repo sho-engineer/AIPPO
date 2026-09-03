@@ -42,10 +42,19 @@ describe("技を受け取る帯", () => {
 
 describe("Day1 の3つの技", () => {
   it("解説の回すべてに、技の名前が付いている", () => {
+    /*
+      Day1 で渡すのはこの3つ。順に足していけば1本の筋になる
+      （何をしてほしい → 誰向け → どんな言い方）。
+
+      「反復（Iteration）」はここから外した。あれは「返ってきたものを
+      見て、また足す」という**進め方**の話で筋が違ううえ、3つを
+      覚える前に4つ目が並ぶと持ち帰るものが増えすぎる。
+      技そのものは Day3・Day7・Day8 で出る。
+    */
     expect(concepts.map((step) => step.skill)).toEqual([
+      "プロンプト",
       "ターゲット指定",
       "トーン指定",
-      "反復（Iteration）",
     ]);
   });
 
@@ -56,6 +65,7 @@ describe("Day1 の3つの技", () => {
       AIPPO だけの造語を使わない（憲章の Do Not Do）。
     */
     const known = [
+      "プロンプト",
       "ターゲット指定",
       "トーン指定",
       "ロール指定",
@@ -101,7 +111,8 @@ describe("レッスンの中で、実際に出る", () => {
   beforeEach(() => window.localStorage.clear());
 
   it("技を覚える回では、名前を渡す", () => {
-    openAt("concept_1");
+    // Day1 の解説は3枚。ターゲット指定は2枚目（1枚目はプロンプト）
+    openAt("concept_2");
 
     expect(screen.getByTestId("skill-get-name")).toHaveTextContent("ターゲット指定");
     // やさしい言い方は、名前の下に添える

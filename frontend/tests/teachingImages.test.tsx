@@ -105,7 +105,7 @@ describe("出し方", () => {
       ここは飾りではなく中身。見えない人に「何の図か」が
       伝わらないと、そのぶんだけ教材が欠ける。
     */
-    for (const [, entry] of Object.entries({ a: teachingImage(DAY1, "concept_1") })) {
+    for (const [, entry] of Object.entries({ a: teachingImage(DAY1, "concept_2") })) {
       expect(entry?.alt.length ?? 0).toBeGreaterThan(10);
     }
   });
@@ -230,15 +230,29 @@ describe("Day1 のどこに出るか", () => {
   const order = lesson.steps.map((step) => step.id);
   const at = (stepId: string) => order.indexOf(stepId);
 
-  it("5枚が、それぞれの画面に割り当たっている", () => {
+  it("章扉4枚と、教材の絵3枚が、それぞれの画面に割り当たっている", () => {
+    /*
+      並びがそのまま Day1 の4つの段になっている。
+
+        〈章扉①〉試す      … 完成イメージ
+        〈章扉②〉相手      … 比べる図 → ターゲット指定
+        〈章扉③〉言い方    … トーン指定
+        〈章扉④〉自分で    … （絵は無い。ここからは自分の文章）
+
+      「プロンプト」には絵を置いていない。あの画面で見せたいのは
+      **自分が送った言葉**で、図を足すとそちらが大きくなる。
+    */
     const placed = order.filter((id) => teachingImage(DAY1, id) !== null);
 
     expect(placed).toEqual([
+      "section_1",
       "outcome_preview",
+      "section_2",
       "compare_results",
-      "concept_1",
+      "concept_2",
+      "section_3",
       "concept_tone",
-      "concept_iteration",
+      "section_4",
     ]);
   });
 
@@ -257,7 +271,7 @@ describe("Day1 のどこに出るか", () => {
       AI技の名前は、**使って、違いを見たあと**に出す。
       あいだに1画面でも挟むと「さっきの話」になってしまう。
     */
-    expect(at("concept_1") - at("compare_results")).toBe(1);
+    expect(at("concept_2") - at("compare_results")).toBe(1);
   });
 
   it("解説の絵を続けて2枚出さない", () => {
@@ -286,23 +300,58 @@ describe("Day1 のどこに出るか", () => {
     expect(at("real_tone") - at("concept_tone")).toBe(1);
   });
 
-  it("反復は、自分の文章を書く直前に出る", () => {
+  it("「反復」は、Day1 のどこにも出ない", () => {
     /*
-      「一度で完璧を目指さなくていい」は、**これから書く人**に効く。
-      いちばん近い「手を動かす場面」は、書くところ（`real_task`）。
+      Day1 で渡すのは3つ——プロンプト・ターゲット指定・トーン指定。
+      どれも「AIへの伝え方」の話で、順に足していけば1本の筋になる。
+      反復は「返ってきたものを見て、また足す」という**進め方**の話で、
+      筋が違ううえ、3つを覚える前に4つ目が並ぶと持ち帰るものが増えすぎる。
 
-      深める回は「自分の文章でも試す？」のあとへ移した（任意の側）。
-      移したことで、この解説と書く画面がさらに隣り合った。
+      技そのものを消したのではない（Day3・Day7・Day8 では出る）ので、
+      **Day1 に無いこと**を見る。
     */
-    expect(at("real_task") - at("concept_iteration")).toBe(1);
+    expect(at("concept_iteration")).toBe(-1);
+
+    for (const id of order) {
+      const image = teachingImage(DAY1, id);
+      expect(image?.src ?? "", `${id} が反復の絵を出している`).not.toContain(
+        "iteration",
+      );
+    }
+
+    const shown = lesson.steps.flatMap((step) => [
+      step.title,
+      step.skill ?? "",
+      step.card?.title ?? "",
+      step.card?.body ?? "",
+    ]);
+    for (const text of shown) {
+      expect(text, `Day1 の画面に「${text}」がある`).not.toMatch(/反復|Iteration/);
+    }
   });
 
-  it("画像だけの画面を増やしていない", () => {
-    // 絵は既にある画面に添える。5枚のために5画面を足さない
+  it("画像だけの画面は、章扉だけ", () => {
+    /*
+      教材の絵は、既にある画面に添える。**絵のために画面を足さない。**
+
+      章扉はその例外で、絵そのものが画面になっている。ただし4枚とも
+      「段が変わった」ことだけを言う1枚で、教材の中身は載っていない。
+    */
+    const imageOnly = lesson.steps.filter(
+      (step) => step.type === "section_transition",
+    );
+    expect(imageOnly.map((step) => step.id)).toEqual([
+      "section_1",
+      "section_2",
+      "section_3",
+      "section_4",
+    ]);
+
     for (const id of ["outcome_preview", "compare_results"]) {
       expect(order).toContain(id);
     }
-    expect(order).toHaveLength(19);
+    // 教材の画面は19のまま。増えたのは章扉の4枚だけ
+    expect(order).toHaveLength(19 + 4);
   });
 });
 
@@ -413,9 +462,11 @@ describe("表に載せた絵が、実際にあること", () => {
         ? "lesson_overview"
         : entry.stepId === "intro"
           ? "diagnosis_overview"
-          : entry.stepId.startsWith("compare_")
-            ? "compare"
-            : "skill_concept";
+          : entry.stepId.startsWith("section_")
+            ? "section"
+            : entry.stepId.startsWith("compare_")
+              ? "compare"
+              : "skill_concept";
 
       expect(entry.visualType, `${entry.lessonId}/${entry.stepId}`).toBe(expected);
     }
@@ -529,8 +580,12 @@ describe("Day3 のどこに出るか", () => {
       同じ技に別の絵を用意すると、**同じものだと気づけない**
       ——2つ目の技として数えられてしまう。
     */
+    /*
+      Day1 では2枚目（`concept_2`）。1枚目が「プロンプト」になり、
+      解説の番号がひとつずれた。**絵は同じ1枚**であることを見る。
+    */
     expect(teachingImage(DAY3, "concept_1")?.src).toBe(
-      teachingImage(DAY1, "concept_1")?.src,
+      teachingImage(DAY1, "concept_2")?.src,
     );
   });
 

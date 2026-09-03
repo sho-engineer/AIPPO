@@ -38,7 +38,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro } from "./support/lessonIntro";
+import { dismissLessonIntro, passSectionCover } from "./support/lessonIntro";
 
 /** 丸めのぶれ。影や余白の端数で数 px は動く。 */
 const SLACK = 8;
@@ -212,6 +212,8 @@ test.describe("いちばん低い持ち方（iPhone の Safari、上下の帯あ
     await page.reload();
     await page.getByRole("button", { name: "はじめる" }).first().click();
     await page.getByTestId("continue-lesson").click();
+    // 開いた最初は段の頭の章扉。通り抜けると導入の一枚が浮かぶ
+    await passSectionCover(page);
     await expect(page.getByTestId("lesson-intro")).toBeVisible();
 
     const over = await page.evaluate(() => {

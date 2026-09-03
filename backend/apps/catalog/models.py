@@ -326,6 +326,19 @@ class Lesson(models.Model):
             "ここは技の名前（ターゲット指定）。AI分野で普通に使う言葉にする"
         ),
     )
+    #: その解説をどのステップの手前へ置くか。concept_cards と同じ並び。
+    #:
+    #: 空なら、これまでどおり比べたあとにまとめて出る。
+    #: Day1 の「プロンプト」だけは、**自分が送った文がまだ画面に残って
+    #: いるうち**に出さないと指すものが消えるので、置き場所を書く。
+    concept_anchors = models.JSONField(default=list, blank=True)
+    #: 章扉。段が変わる切れ目で、絵1枚の画面を挟む。
+    #:
+    #: 1つぶんは {id, before, title, label, poMessage}。`before` に
+    #: 置いたステップの直前へ入る。題も副題も**絵の中に焼き込まれている**
+    #: ので、ここが持つのは挟む位置と、進み具合の帯に出す短い名前だけ。
+    #: 絵そのものは画面側の course/teachingImages.ts が持つ。
+    sections = models.JSONField(default=list, blank=True)
     review_points = models.JSONField(
         default=list, blank=True, help_text="結果を見るときの着眼点"
     )
@@ -350,6 +363,11 @@ class Lesson(models.Model):
     #: 問いを2択に減らすと画面は軽くなるが、**何に気づいたかが
     #: 測れなくなる**。困っている人にだけその場で聞けば両立できる。
     observe_reasons = models.JSONField(default=list, blank=True)
+    #: 結果を見て答えたあとの、下のボタンの文言。
+    #:
+    #: 空なら既定（「条件を足してみる」）。解説を1枚挟む教材では、
+    #: **押した先に書いてあるものが来ない**ので差し替える。
+    observe_primary_label = models.CharField(max_length=100, blank=True)
     takeaway = models.CharField(max_length=200, blank=True)
     next_suggestion = models.CharField(max_length=200, blank=True)
     fact_check = models.BooleanField(

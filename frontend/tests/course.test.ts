@@ -145,28 +145,41 @@ describe("教材データ", () => {
     for (const lesson of COURSE.lessons.filter(
       (entry) => entry.usesAi && entry.id !== "final_challenge",
     )) {
-      const kinds = lesson.steps.map((step) => step.type);
+      /*
+        章扉は数えない。**あれは教材ではなく、段の名前を出す1枚**で、
+        押せば必ず次へ進む（選ぶことも書くことも無い）。
+
+        「説明から始めない」というこの検査の狙いは、章扉が入っても
+        変わらない——変わるのは、そのあとに何が来るか。
+      */
+      const kinds = lesson.steps
+        .filter((step) => step.type !== "section_transition")
+        .map((step) => step.type);
       expect(kinds[0], `${lesson.title} が完成イメージから始まっていない`).toBe(
         "outcome_preview",
       );
       expect(kinds[1], `${lesson.title} がすぐ試せない`).toBe("quick_try");
       /*
-        AI技の名前は、**使って、違いを見たあと**に出す。
+        AI技の名前は、**自分でやってみたあと**に出す。
 
-        観察より後、というだけでは足りなかった。以前はここが
-        「観察 → 解説 → 条件を足す → 比べる」で、条件を足す前・
-        比べる前に「〜とは」を読ませていた。何の役に立つのか
+        以前はここが「観察 → 解説 → 条件を足す → 比べる」で、
+        送る前・比べる前に「〜とは」を読ませていた。何の役に立つのか
         分からないまま読む説明は、飛ばされるか、読んでも残らない。
 
-        いまは 条件を足す → 結果が変わる → 見比べる → 「今のが〜です」。
-        名前が、たったいま自分で起こした変化に貼り付く。
+        見るのは「一度も送らないうちに解説が出ていないか」。
+        Day1 の1枚目（プロンプト）は、送って結果を見た直後に
+        「さっき送ったこれがプロンプト」と言うためのもので、
+        比べるより前だが**やってみたあと**ではある。
       */
       expect(
         kinds.indexOf("concept_card"),
-        `${lesson.title} の解説が、比べるより前に出ている`,
-      ).toBeGreaterThan(kinds.indexOf("result_compare"));
+        `${lesson.title} の解説が、一度も試さないうちに出ている`,
+      ).toBeGreaterThan(kinds.indexOf("observation"));
 
-      // 比べた直後であること。1画面でも空くと「さっきの話」になる
+      /*
+        条件を足して起きた変化には、比べた直後に名前を付ける。
+        1画面でも空くと「さっきの話」になる。
+      */
       expect(
         kinds[kinds.indexOf("result_compare") + 1],
         `${lesson.title} の解説が、比べた直後に無い`,
@@ -294,12 +307,27 @@ describe("教材データ", () => {
     }
   });
 
-  it("画面に専門用語を出さない", () => {
+  it("画面に専門用語を出さない（その言葉を教える回をのぞく）", () => {
+    /*
+      **落としてよいのは、拾わせるときだけ。**
+
+      ここが止めたいのは「知っている前提で言葉を落とす」こと。
+      画面の途中でいきなり「プロンプトを書きましょう」と言われても、
+      それが何なのかは誰も教えていない。
+
+      その言葉を**教えるための回**は別。Day1 の1枚目は「これが
+      プロンプトです」と名前を渡すのが仕事なので、そこで名前を
+      伏せると、渡すものが無くなる。
+
+      見分けるのは `skill`——その回で受け取る技の名前。名前を
+      渡していない回で同じ言葉を使えば、これまでどおり落ちる。
+    */
     const banned = ["プロンプト", "トークン", "パラメータ", "モデル", "API"];
     for (const lesson of COURSE.lessons) {
       for (const step of lesson.steps) {
         const text = [step.title, step.instruction ?? "", step.poMessage].join(" ");
         for (const word of banned) {
+          if (step.skill === word) continue;
           expect(text, `${lesson.title}/${step.id} に「${word}」が出ている`).not.toContain(
             word,
           );
@@ -323,11 +351,13 @@ describe("進み方", () => {
   });
 
   it("最初から戻ろうとしても動かない", () => {
-    expect(previousStepId(REWRITE, "outcome_preview")).toBe("outcome_preview");
+    // Day1 の1歩目は章扉（`section_1`）。教材の1枚目ではない
+    const first = REWRITE.steps[0].id;
+    expect(previousStepId(REWRITE, first)).toBe(first);
   });
 
   it("進み具合を数えられる", () => {
-    const progress = progressOf(REWRITE, "outcome_preview");
+    const progress = progressOf(REWRITE, REWRITE.steps[0].id);
     expect(progress.current).toBe(1);
     // 分母は主導線のぶん。任意の回は入っていない（下の2件が理由）
     expect(progress.total).toBeLessThan(REWRITE.steps.length);

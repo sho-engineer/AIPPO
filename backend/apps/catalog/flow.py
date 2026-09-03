@@ -72,33 +72,124 @@ OBSERVATION_OPTIONS: list[dict[str, Any]] = [
 MAX_CONCEPT_CARDS = 3
 
 
+def _concept_step(
+    card: dict[str, Any], index: int, skill: str, phase: str
+) -> dict[str, Any]:
+    """解説1枚ぶん。画面側の `conceptStep`（shared.ts）と同じ形。"""
+    return {
+        "id": f"concept_{index}",
+        "type": "concept_card",
+        "phase": phase,
+        "title": card.get("title", ""),
+        "poMessage": card.get("body", ""),
+        "poEmotion": "neutral",
+        # 解説は必ず飛ばせる。読みたくない人を足止めしない
+        "skippable": True,
+        # その解説で覚える技の名前（「ターゲット指定」）。
+        # カードの見出しはやさしい言い方（「誰向けかを伝える」）で、
+        # 画面は名前を先に、言い換えを下に出す
+        "skill": skill,
+        "card": card,
+    }
+
+
+def _skill_at(skills: list[str] | None, index: int) -> str:
+    """`index`（1始まり）番目の技の名前。無ければ空。"""
+    if not skills or index > len(skills):
+        return ""
+    return skills[index - 1]
+
+
+def _anchor_at(anchors: list[str] | None, index: int) -> str:
+    """`index`（1始まり）番目の解説の置き場所。無ければ空。"""
+    if not anchors or index > len(anchors):
+        return ""
+    return anchors[index - 1] or ""
+
+
 def _concept_steps(
-    cards: list[dict[str, Any]], skills: list[str] | None = None
+    cards: list[dict[str, Any]],
+    skills: list[str] | None = None,
+    anchors: list[str] | None = None,
 ) -> list[dict[str, Any]]:
+    """置き場所を指定されていない解説を、比べたあとへまとめて出す。"""
     steps = []
     for index, card in enumerate(cards[:MAX_CONCEPT_CARDS], start=1):
+        if _anchor_at(anchors, index):
+            continue
+        # 比べたあとに出るので、区切りは「比べる」に属する。
+        # try のままだと、比べる画面の直後で帯が1つ戻って見える
         steps.append(
-            {
-                "id": f"concept_{index}",
-                "type": "concept_card",
-                # 比べたあとに出るので、区切りは「比べる」に属する。
-                # try のままだと、比べる画面の直後で帯が1つ戻って見える
-                "phase": "compare",
-                "title": card.get("title", ""),
-                "poMessage": card.get("body", ""),
-                "poEmotion": "neutral",
-                # 解説は必ず飛ばせる。読みたくない人を足止めしない
-                "skippable": True,
-                # その解説で覚える技の名前（「ターゲット指定」）。
-                # カードの見出しはやさしい言い方（「誰向けかを伝える」）で、
-                # 画面は名前を先に、言い換えを下に出す
-                "skill": (skills or [])[index - 1]
-                if skills and index <= len(skills)
-                else "",
-                "card": card,
-            }
+            _concept_step(card, index, _skill_at(skills, index), "compare")
         )
     return steps
+
+
+def insert_concepts(
+    steps: list[dict[str, Any]],
+    cards: list[dict[str, Any]],
+    skills: list[str] | None = None,
+    anchors: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    """場所を指定された解説を、その手前へ挟む。
+
+    区切りは**ひとつ前の回**に合わせる。場所を指定する解説は
+    「たったいま起きたことに名前を付ける」もの（Day1 の
+    「さっき送ったこれがプロンプト」）で、前の段の締めくくりに当たる。
+
+    画面側の `insertConcepts`（shared.ts）と同じ形にすること。
+    ずれると `test_catalog_parity` が落ちる。
+    """
+    result = list(steps)
+
+    for index, card in enumerate(cards[:MAX_CONCEPT_CARDS], start=1):
+        before = _anchor_at(anchors, index)
+        if not before:
+            continue
+
+        at = next((i for i, step in enumerate(result) if step["id"] == before), None)
+        if at is None:
+            continue
+
+        phase = (result[at - 1].get("phase") if at > 0 else "") or result[at].get(
+            "phase"
+        ) or "compare"
+        result.insert(at, _concept_step(card, index, _skill_at(skills, index), phase))
+
+    return result
+
+
+def insert_sections(
+    steps: list[dict[str, Any]], sections: list[dict[str, Any]] | None = None
+) -> list[dict[str, Any]]:
+    """章扉を、指定されたステップの手前へ挟む。
+
+    画面側の `insertSections`（shared.ts）と同じ形にすること。
+    """
+    result = list(steps)
+
+    for section in sections or []:
+        before = section.get("before", "")
+        at = next((i for i, step in enumerate(result) if step["id"] == before), None)
+        if at is None:
+            continue
+
+        result.insert(
+            at,
+            {
+                "id": section.get("id", ""),
+                "type": "section_transition",
+                # 区切りは**これから始まる回**に合わせる。直前に合わせると、
+                # 章扉を見ているあいだ帯がまだ前の段を差したままになる
+                "phase": result[at].get("phase", ""),
+                "title": section.get("title", ""),
+                "poMessage": section.get("poMessage", ""),
+                "poEmotion": "celebrate",
+                "meta": {"sectionLabel": section.get("label", "")},
+            },
+        )
+
+    return result
 
 
 def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
@@ -165,6 +256,9 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             # スマホで2〜3スクロール——いちばん手応えのある瞬間に
             # いちばん読ませていた
             "title": options.get("observeTitle") or "どこが変わった？",
+            # 次に解説を挟む教材では、そこを言う言葉に差し替える
+            # （既定の「条件を足してみる」だと押した先と食い違う）
+            "primaryLabel": options.get("observePrimaryLabel", ""),
             "instruction": "",
             "poMessage": "どうだった？",
             "poEmotion": "question",
@@ -233,6 +327,7 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
         *_concept_steps(
             options.get("conceptCards") or [],
             options.get("conceptSkills") or [],
+            options.get("conceptAnchors") or [],
         ),
         # ここが**主導線の終わり**。この先は任意。
         #
@@ -335,4 +430,14 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
         },
     ]
 
-    return steps
+    # 挟むのは最後にまとめて。並びの途中で挟むと、`before` に指定
+    # できるのがそこまでに出てきたステップだけになる。章扉③は
+    # 深める回（DB の行）の手前へ来るので、`expand.py` の `_assemble`
+    # が行を混ぜたあとでないと挟む先が見つからない——章扉だけは
+    # ここでは挟まず、あちらでやる。
+    return insert_concepts(
+        steps,
+        options.get("conceptCards") or [],
+        options.get("conceptSkills") or [],
+        options.get("conceptAnchors") or [],
+    )

@@ -21,7 +21,37 @@
  * 骨格はここで1度だけ組み立て、レッスン固有の言い回しだけ受け取る。
  */
 
-import type { AiAction, ConceptCard, LessonStep, StepOption } from "./types";
+import type {
+  AiAction,
+  ConceptCard,
+  LessonPhase,
+  LessonStep,
+  StepOption,
+} from "./types";
+
+/**
+ * 章扉1枚ぶん。
+ *
+ * 教材の中身は持たない——題も副題も**絵の中に焼き込まれている**ので、
+ * ここが持つのは「どこに挟むか」と、進み具合の帯に出す短い名前だけ。
+ * 絵そのものは `course/teachingImages.ts` が持つ（ステップの id で引く）。
+ */
+export interface SectionTransition {
+  /** ステップの id。絵を引く鍵でもある（`section_1` など）。 */
+  id: string;
+  /** このステップの**直前**へ挟む。 */
+  before: string;
+  /** 読み上げと、絵が出ないときの見出し。 */
+  title: string;
+  /**
+   * 進み具合の帯に出す短い名前。
+   *
+   * 見出し（「まずは試してみよう」）をそのまま帯に出すと、4つ並んだ
+   * ときに1つも読めない幅になる。帯は「試す」「相手」のように詰める。
+   */
+  label: string;
+  poMessage: string;
+}
 
 /** 条件を1つだけ足すときの選択肢。 */
 export const CONDITION_OPTIONS: StepOption[] = [
@@ -104,6 +134,15 @@ export interface FlowOptions {
    */
   observeReasons?: StepOption[];
   /**
+   * 結果を見て答えたあとの、下のボタンの文言。
+   *
+   * 既定は「条件を足してみる」——ふつうはそこが次の画面だから。
+   * Day1 は解説を1枚（プロンプト）挟むので、**押した先に書いてある
+   * ものが来ない**（`tests/primaryLabel.test.ts` が捕まえた）。
+   * 挟む教材は、挟んだ先を言う言葉に差し替える。
+   */
+  observePrimaryLabel?: string;
+  /**
    * 「条件を一つ足す」の選択肢。省略すると共通のものを使う。
    *
    * 共通のもの（もっと短く・もっと丁寧に・やわらかく…）は**文章を直す**
@@ -127,6 +166,26 @@ export interface FlowOptions {
    * 省いてよい。無ければ、その解説では技の名前を渡さない。
    */
   conceptSkills?: string[];
+  /**
+   * その解説をどのステップの手前へ置くか。`conceptCards` と同じ並び。
+   *
+   * 空（または並びが足りない）ときは、これまでどおり比べたあと
+   * （`compare_results` の直後）にまとめて出る。
+   *
+   * なぜ要るか
+   * ----------
+   * Day1 の「プロンプト」は、**自分が送った文がまだ画面に残っている
+   * うちに**出さないと意味が無い。「さっき送ったこれがプロンプト」と
+   * 言うためのカードなので、比べたあとまで待つと指すものが消えている。
+   */
+  conceptAnchors?: (string | undefined)[];
+  /**
+   * 章扉。段が変わる切れ目で、1枚だけ挟む。
+   *
+   * `before` に置いたステップの**直前**へ入る。並びは書いた順。
+   * 同じ `before` を2つ書けば、書いた順に2枚続く。
+   */
+  sections?: SectionTransition[];
   /** 結果を見るときの着眼点。 */
   reviewPoints: string[];
 
@@ -136,8 +195,8 @@ export interface FlowOptions {
    * ここに来るのは、条件を選ぶ回と、その技の解説。前は
    * `realTaskSteps` に入れて自分の文章を書いた**あと**に置いていたが、
    * そうすると「自分の文章を書く → 誰向け？ → トーンの解説 →
-   * トーンを選ぶ → 反復の解説 → 送る」となり、書き終えた人を
-   * 4画面ぶん足止めしてから送ることになる。
+   * トーンを選ぶ → 送る」となり、書き終えた人を足止めしてから
+   * 送ることになる。
    *
    * 条件も解説も、自分の文章とは関係なく決められる。先に済ませて、
    * 自分の文章を書いてからは**書く → 確かめる → 送る**を続けさせる。
@@ -175,23 +234,104 @@ export interface FlowOptions {
 /** 解説カードは3枚まで。増えた時点で講義に戻っている。 */
 export const MAX_CONCEPT_CARDS = 3;
 
-function conceptSteps(cards: ConceptCard[], skills: string[] = []): LessonStep[] {
-  return cards.slice(0, MAX_CONCEPT_CARDS).map((card, index) => ({
+function conceptStep(
+  card: ConceptCard,
+  index: number,
+  skill: string | undefined,
+  phase: LessonPhase,
+): LessonStep {
+  return {
     id: `concept_${index + 1}`,
     type: "concept_card" as const,
-    /*
-      比べたあとに出るので、区切りは「比べる」に属する。
-      `try` のままだと、比べる画面の直後で帯が1つ戻って見える。
-    */
-    phase: "compare" as const,
+    phase,
     title: card.title,
     poMessage: card.body,
     poEmotion: "neutral" as const,
     // 解説は必ず飛ばせる。読みたくない人を足止めしない
     skippable: true,
-    skill: skills[index],
+    skill,
     card,
-  }));
+  };
+}
+
+function conceptSteps(
+  cards: ConceptCard[],
+  skills: string[] = [],
+  anchors: (string | undefined)[] = [],
+): LessonStep[] {
+  return cards
+    .slice(0, MAX_CONCEPT_CARDS)
+    .map((card, index) =>
+      /*
+        比べたあとに出るので、区切りは「比べる」に属する。
+        `try` のままだと、比べる画面の直後で帯が1つ戻って見える。
+      */
+      conceptStep(card, index, skills[index], "compare"),
+    )
+    // 置き場所を指定されたものは、ここには出さない（下で挟む）
+    .filter((_, index) => !anchors[index]);
+}
+
+/**
+ * 場所を指定された解説を、その手前へ挟む。
+ *
+ * 区切りは**ひとつ前の回に合わせる**。
+ *
+ * 場所を指定する解説は「たったいま起きたことに名前を付ける」もの
+ * （Day1 の「さっき送ったこれがプロンプト」）で、**前の段の締めくくり**
+ * に当たる。次の回の区切りを取ると、章扉より手前にいるのに帯だけが
+ * 次の段を差し、章扉を見る前に段が変わってしまう。
+ */
+function insertConcepts(
+  steps: LessonStep[],
+  cards: ConceptCard[],
+  skills: string[] = [],
+  anchors: (string | undefined)[] = [],
+): LessonStep[] {
+  const result = [...steps];
+
+  cards.slice(0, MAX_CONCEPT_CARDS).forEach((card, index) => {
+    const before = anchors[index];
+    if (!before) return;
+
+    const at = result.findIndex((step) => step.id === before);
+    if (at < 0) return;
+
+    const phase = result[at - 1]?.phase ?? result[at].phase ?? "compare";
+    result.splice(at, 0, conceptStep(card, index, skills[index], phase));
+  });
+
+  return result;
+}
+
+/** 章扉を、指定されたステップの手前へ挟む。 */
+function insertSections(
+  steps: LessonStep[],
+  sections: SectionTransition[] = [],
+): LessonStep[] {
+  const result = [...steps];
+
+  for (const section of sections) {
+    const at = result.findIndex((step) => step.id === section.before);
+    if (at < 0) continue;
+
+    result.splice(at, 0, {
+      id: section.id,
+      type: "section_transition",
+      /*
+        区切りは**これから始まる回**に合わせる。直前の回に合わせると、
+        章扉を見ているあいだ帯がまだ前の段を差していて、
+        「変わった」と言いながら帯が変わらない。
+      */
+      phase: result[at].phase,
+      title: section.title,
+      poMessage: section.poMessage,
+      poEmotion: "celebrate",
+      meta: { sectionLabel: section.label },
+    });
+  }
+
+  return result;
 }
 
 export function buildLessonFlow(options: FlowOptions): LessonStep[] {
@@ -200,7 +340,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
     factCheck: options.factCheck ?? false,
   };
 
-  return [
+  const steps: LessonStep[] = [
     {
       id: "outcome_preview",
       type: "outcome_preview",
@@ -273,6 +413,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
         差し替える教材だけ（Day1）。
       */
       title: options.observeTitle ?? "どこが変わった？",
+      primaryLabel: options.observePrimaryLabel,
       instruction: "",
       poMessage: "どうだった？",
       poEmotion: "question",
@@ -349,21 +490,33 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
 
       歩数は変わっていない。**入れ替えただけ**で、足しても引いてもいない。
     */
-    ...conceptSteps(options.conceptCards, options.conceptSkills),
+    ...conceptSteps(
+      options.conceptCards,
+      options.conceptSkills,
+      options.conceptAnchors,
+    ),
+    /*
+      技を深める回。**自分の文章を書く前**に置く。
+
+      相手もトーンも、これから書く自分の文章について聞くこと。
+      書いたあとに聞くと、書き終えた人を足止めしてから送ることになる。
+    */
+    ...(options.deepenSteps ?? []),
     /*
       ここが**主導線の終わり**。この先は任意。
 
-      前はこの手前に「技を深める回」（相手・トーン・反復）が4画面、
+      前はこの手前に「技を深める回」（相手・トーン）が3画面、
       そのあと自分の文章が6画面あり、**全部通らないと終われなかった**。
       19画面で7〜9分。仕事終わりに開ける長さではない。
 
-      いまは、ここまでの9画面で1つの技が身についている
-      （送る → 変わる → 見比べる → 名前を知る）。**そこで一度
-      終われるようにする。** 続けたい人だけが下へ進む。
+      **分かれ道はここに置く。** 前は深める回の**手前**にあった。
+      そうすると「試す？」で降りた人は、その日の技を1つしか受け取れない
+      ——Day1 でいえば、トーン指定を一度も見ないまま終わる。
+      習うことと、自分の文章で使うことは別なので、分かれるのは
+      習い終わってから。
 
-      深める回を**消したのではない**。位置を変えただけで、
-      押せば全部出てくる。しかも相手やトーンは「自分の文章」に
-      ついて聞くことなので、こちら側にあるほうが素直だった。
+      降りた人が失うのは「自分の文章で試す」だけ。教材が教えると
+      言っている技は、ここまでで全部渡し終えている。
     */
     {
       id: "real_task_intro",
@@ -384,13 +537,6 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
         { value: "別のサンプルを試す", label: "別の例で試す" },
       ],
     },
-    /*
-      技を深める回。**自分の文章を書く前**に置く。
-
-      相手もトーンも、これから書く自分の文章について聞くこと。
-      書いたあとに聞くと、書き終えた人を足止めしてから送ることになる。
-    */
-    ...(options.deepenSteps ?? []),
     {
       id: "real_task",
       type: "real_task",
@@ -474,4 +620,22 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       poEmotion: "celebrate",
     },
   ];
+
+  /*
+    挟むのは**最後にまとめて**。
+
+    上の並びの途中で挟むと、`before` に指定できるのがそこまでに
+    出てきたステップだけになる。章扉③は「誰が読みますか」（教材が
+    持ち込む回）の手前に来るので、深める回まで並んだあとでないと
+    挟む先が見つからない。
+  */
+  return insertSections(
+    insertConcepts(
+      steps,
+      options.conceptCards,
+      options.conceptSkills,
+      options.conceptAnchors,
+    ),
+    options.sections,
+  );
 }

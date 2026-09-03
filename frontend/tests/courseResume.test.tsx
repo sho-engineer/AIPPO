@@ -65,7 +65,11 @@ describe("続きから", () => {
     await waitFor(() =>
       expect(screen.getByTestId("course-resume-start")).toHaveTextContent("続きから"),
     );
-    expect(screen.getByTestId("course-resume-state")).toHaveTextContent("変える");
+    /*
+      Day1 の2つ目の段の名前。章扉で見せた名前をそのまま使うので、
+      共通の言い方（「変える」）ではなく「相手」になる。
+    */
+    expect(screen.getByTestId("course-resume-state")).toHaveTextContent("相手");
   });
 
   it("途中なら、残りの時間を言う", async () => {

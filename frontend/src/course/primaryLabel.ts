@@ -45,6 +45,12 @@ import type { LessonStep, StepType } from "./types";
  */
 export const LABEL_BY_TYPE: Record<StepType, string> = {
   intro: "はじめる",
+  /*
+    章扉は4枚とも同じ文言にする。**押した先で何をするかは絵が言って
+    いる**ので、ここは「読み終わったら押す」ことだけを表す。
+    枚ごとに変えると、同じ形の画面なのに毎回読み直すことになる。
+  */
+  section_transition: "つづける",
   outcome_preview: "さっそく試す",
   quick_try: "AIに送ってみる",
   /*

@@ -124,6 +124,14 @@ const BY_STEP: Record<StepType, PoScene | null> = {
   intro: "start",
   outcome_preview: "start",
 
+  /*
+    章扉。**外にポーを出さない。**
+
+    絵の中にポーがいる（4枚とも真ん中で案内している）ので、
+    外にもう1匹置くと、同じ画面に2匹並ぶ。
+  */
+  section_transition: null,
+
   // 聞かれていることは画面の中身が言う。横から同じことを言わない
   quick_try: null,
   single_choice: null,

@@ -72,6 +72,41 @@ def _flow_start(lesson: dict[str, Any]) -> int | None:
     return None
 
 
+def _next_real(lesson: dict[str, Any], index: int) -> str:
+    """`index` のあと、最初に来る**章扉でない**ステップの id。
+
+    章扉を飛ばすのは、挟む順のため。骨格は「解説を挟む → 章扉を挟む」の
+    順に組み立てるので、解説の行き先に章扉を書くと、挟もうとした時点では
+    まだそこに無い。
+    """
+    for step in lesson["steps"][index + 1 :]:
+        if step.get("type") != "section_transition":
+            return step["id"]
+    return ""
+
+
+def _sections(lesson: dict[str, Any]) -> list[dict[str, Any]]:
+    """組み上がったステップから、章扉の指定を取り出す。
+
+    置き場所は**次に来るステップ**から読む。書いてある順が正しい順なので、
+    そこを読み替えない。
+    """
+    found = []
+    for index, step in enumerate(lesson["steps"]):
+        if step.get("type") != "section_transition":
+            continue
+        found.append(
+            {
+                "id": step["id"],
+                "before": _next_real(lesson, index),
+                "title": step.get("title", ""),
+                "label": step.get("meta", {}).get("sectionLabel", ""),
+                "poMessage": step.get("poMessage", ""),
+            }
+        )
+    return found
+
+
 def _flow_params(lesson: dict[str, Any]) -> dict[str, Any]:
     """組み上がったステップから、骨格のパラメータを取り出す。
 
@@ -93,6 +128,25 @@ def _flow_params(lesson: dict[str, Any]) -> dict[str, Any]:
     # その解説で覚える技の名前。並びはカードと同じ
     skills = [step.get("skill", "") for step in concepts]
 
+    # 置き場所を指定された解説。
+    #
+    # 既定は「比べた直後にまとめて」なので、`compare_results` の
+    # すぐあとに続いている分は指定なし。そこから外れているものだけ、
+    # 次に来るステップを行き先として書き留める。
+    order = [step["id"] for step in lesson["steps"]]
+    after_compare = (
+        order.index("compare_results") + 1 if "compare_results" in order else -1
+    )
+    anchors = []
+    slot = after_compare
+    for step in concepts:
+        at = order.index(step["id"])
+        if at == slot:
+            anchors.append("")
+            slot += 1
+        else:
+            anchors.append(_next_real(lesson, at))
+
     review = compare.get("meta", {})
 
     return {
@@ -107,9 +161,12 @@ def _flow_params(lesson: dict[str, Any]) -> dict[str, Any]:
         "observe_title": observe.get("title", ""),
         "observation_options": observe.get("options", []),
         "observe_reasons": observe.get("meta", {}).get("reasons", []),
+        "observe_primary_label": observe.get("primaryLabel", ""),
         "condition_options": steps.get("add_condition", {}).get("options", []),
         "concept_cards": cards,
         "concept_skills": skills,
+        "concept_anchors": anchors,
+        "sections": _sections(lesson),
         "review_points": review.get("reviewPoints", []),
         "real_task_label": real_task.get("instruction", ""),
         "real_task_placeholder": real_task.get("placeholder", ""),
@@ -153,6 +210,9 @@ def _rows(lesson: dict[str, Any], flow_start: int | None) -> list[dict[str, Any]
 
     for order, step in enumerate(lesson["steps"]):
         if flow_start is not None and step["id"] in _GENERATED:
+            continue
+        # 章扉は骨格が作る（lesson.sections から）。行では持たない
+        if flow_start is not None and step.get("type") == "section_transition":
             continue
 
         if flow_start is None:

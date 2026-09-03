@@ -48,6 +48,17 @@ class SkillSeed:
 #: 習得できない技が並ぶだけになる。
 AI_SKILLS: tuple[SkillSeed, ...] = (
     SkillSeed(
+        slug="prompt",
+        name="プロンプト",
+        one_line="してほしいことをAIに伝える",
+        description=(
+            "AIへのお願いそのもの。「この文章を分かりやすくして」の一言でも、"
+            "立派なプロンプト。まず送ってみて、足りないところを足していく。"
+        ),
+        example="この文章を分かりやすくしてください",
+        lessons=("rewrite_text",),
+    ),
+    SkillSeed(
         slug="target",
         name="ターゲット指定",
         one_line="誰が読むのかをAIに伝える",
@@ -78,7 +89,10 @@ AI_SKILLS: tuple[SkillSeed, ...] = (
             "先に上限を決めておくと、読む側の時間も減る。"
         ),
         example="3行以内にしてください",
-        lessons=("rewrite_text", "summarize_text"),
+        # Day1 からは外してある。あちらは「難しい → 分かる」の回で、
+        # 「長い → 短い」は Day2 の役目。両方に付けると、Day2 に来た人が
+        # 「昨日やった」と思って飛ばす
+        lessons=("summarize_text",),
     ),
     SkillSeed(
         slug="output_format",

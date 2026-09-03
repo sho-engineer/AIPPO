@@ -155,6 +155,17 @@
       "mode": "standard",
       "steps": [
         {
+          "id": "section_1",
+          "type": "section_transition",
+          "phase": "try",
+          "title": "まずは試してみよう",
+          "poMessage": "まずは、そのまま送ってみよう！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "sectionLabel": "試す"
+          }
+        },
+        {
           "id": "outcome_preview",
           "type": "outcome_preview",
           "phase": "try",
@@ -223,6 +234,7 @@
           "type": "observation",
           "phase": "try",
           "title": "分かりやすくなった？",
+          "primaryLabel": "いま送ったお願いを見る",
           "poMessage": "どうだった？",
           "poEmotion": "question",
           "key": "observation",
@@ -261,6 +273,45 @@
                 "label": "かたい"
               }
             ]
+          }
+        },
+        {
+          "id": "concept_1",
+          "type": "concept_card",
+          "phase": "try",
+          "title": "プロンプト",
+          "poMessage": "AIにしてほしいことを伝える指示。さっき送ったお願いが、そのままプロンプト。",
+          "poEmotion": "neutral",
+          "skippable": true,
+          "skill": "プロンプト",
+          "card": {
+            "title": "プロンプト",
+            "body": "AIにしてほしいことを伝える指示。さっき送ったお願いが、そのままプロンプト。",
+            "visual": "three_points",
+            "points": [
+              "何をしてほしい？",
+              "誰向け？",
+              "どんな言い方？"
+            ],
+            "reviewExample": {
+              "body": "この3つを足していくと、返ってくるものが変わります。",
+              "points": [
+                "分かりやすくして",
+                "AI初心者向けに",
+                "やさしい口調で"
+              ]
+            }
+          }
+        },
+        {
+          "id": "section_2",
+          "type": "section_transition",
+          "phase": "compare",
+          "title": "相手を決めよう",
+          "poMessage": "誰が読むかを、足してみよう！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "sectionLabel": "相手"
           }
         },
         {
@@ -330,7 +381,7 @@
           }
         },
         {
-          "id": "concept_1",
+          "id": "concept_2",
           "type": "concept_card",
           "phase": "compare",
           "title": "誰向けかを伝える",
@@ -352,23 +403,15 @@
           }
         },
         {
-          "id": "real_task_intro",
-          "type": "safety_check",
-          "phase": "own",
-          "title": "自分の文章でも試す？",
-          "poMessage": "自分の仕事でも試してみる？",
-          "poEmotion": "hint",
-          "key": "real_task_choice",
-          "options": [
-            {
-              "value": "自分で入力する",
-              "label": "自分の文章で試す"
-            },
-            {
-              "value": "別のサンプルを試す",
-              "label": "別の例で試す"
-            }
-          ]
+          "id": "section_3",
+          "type": "section_transition",
+          "phase": "deepen",
+          "title": "トーンを変えよう",
+          "poMessage": "こんどは、言い方を変えてみよう！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "sectionLabel": "言い方"
+          }
         },
         {
           "id": "real_audience",
@@ -468,33 +511,34 @@
           ]
         },
         {
-          "id": "concept_iteration",
-          "type": "concept_card",
-          "phase": "deepen",
-          "primaryLabel": "自分の文章で試す",
-          "skill": "反復（Iteration）",
-          "title": "反復（Iteration）",
-          "poMessage": "一度で完璧を目指さなくて大丈夫です。",
-          "poEmotion": "hint",
-          "skippable": true,
-          "card": {
-            "title": "反復（Iteration）",
-            "body": "結果を見てから足すほうが、はじめから細かく書くより近づきます。",
-            "visual": "simple_flow",
-            "points": [
-              "まず送る",
-              "結果を見る",
-              "条件を足す"
-            ],
-            "reviewExample": {
-              "body": "一度で完璧を狙わず、足りないところだけ言い足します。",
-              "points": [
-                "まだ難しかった",
-                "「たとえを足して」と言う",
-                "また見る"
-              ]
-            }
+          "id": "section_4",
+          "type": "section_transition",
+          "phase": "own",
+          "title": "自分で仕上げよう",
+          "poMessage": "覚えた3つを、いっしょに使ってみよう！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "sectionLabel": "自分で"
           }
+        },
+        {
+          "id": "real_task_intro",
+          "type": "safety_check",
+          "phase": "own",
+          "title": "自分の文章でも試す？",
+          "poMessage": "自分の仕事でも試してみる？",
+          "poEmotion": "hint",
+          "key": "real_task_choice",
+          "options": [
+            {
+              "value": "自分で入力する",
+              "label": "自分の文章で試す"
+            },
+            {
+              "value": "別のサンプルを試す",
+              "label": "別の例で試す"
+            }
+          ]
         },
         {
           "id": "real_task",

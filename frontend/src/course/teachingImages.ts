@@ -49,7 +49,15 @@ export type VisualType =
   | "diagnosis_overview"
   | "lesson_overview"
   | "skill_concept"
-  | "compare";
+  | "compare"
+  /*
+    章扉。**画面いっぱいに出す1枚**で、ほかの絵とは扱いが違う。
+
+    ほかの絵は本文のあいだに挟まる図なので、幅に合わせて縮めて
+    上下に文が付く。こちらは絵そのものが画面で、上に教材カードを
+    重ねない。題も副題も絵の中に焼き込まれている。
+  */
+  | "section";
 
 export interface TeachingImageEntry {
   src: string;
@@ -131,14 +139,45 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   /*
     Day1「文章を分かりやすくする」。
 
-    出る順は、レッスンの流れそのまま。
-      完成イメージ → お試し → ターゲット指定 → 条件を足して再実行
-      → 比べる → 自分の文章 → トーン指定 → トーンを変える
-      → 反復 → ふりかえり
+    出る順は、レッスンの流れそのまま。4つの章に分かれている。
 
+      【章扉①】試す      → 完成イメージ → お試し → 結果 → プロンプト
+      【章扉②】相手      → 条件を足す → 比べる → ターゲット指定
+      【章扉③】言い方    → 誰が読むか → トーン指定 → 口調を選ぶ
+      【章扉④】自分で    → 自分の文章 → 送る → 結果 → ふりかえり
+
+    章扉は**画面いっぱいの1枚**で、ほかの絵と扱いが違う（`section`）。
     解説の絵（AI技）は続けて出さない。あいだに必ず手を動かす画面が入る。
   */
   rewrite_text: {
+    section_1: {
+      src: "/assets/teaching/day1_section_01.webp",
+      alt: "Section 1「まずは試してみよう」の章扉。ポーが、読みにくい文章の吹き出しからAIへ向かう矢印を指し示している絵。",
+      visualType: "section",
+      width: 941,
+      height: 1672,
+    },
+    section_2: {
+      src: "/assets/teaching/day1_section_02.webp",
+      alt: "Section 2「相手を決めよう」の章扉。ポーが、上司と友だちの2枚のカードを指し示している絵。",
+      visualType: "section",
+      width: 941,
+      height: 1672,
+    },
+    section_3: {
+      src: "/assets/teaching/day1_section_03.webp",
+      alt: "Section 3「トーンを変えよう」の章扉。ポーが、やさしく・丁寧に・短くの3つが並ぶつまみを指し示している絵。",
+      visualType: "section",
+      width: 941,
+      height: 1672,
+    },
+    section_4: {
+      src: "/assets/teaching/day1_section_04.webp",
+      alt: "Section 4「自分で仕上げよう」の章扉。ポーが鉛筆を持ち、BeforeとAfterの2枚の紙のあいだに立っている絵。",
+      visualType: "section",
+      width: 941,
+      height: 1672,
+    },
     outcome_preview: {
       src: "/assets/teaching/day1_overview.webp",
       alt: "Day1「文章を分かりやすくする」の全体図。専門用語・技術用語・略語が多く意味をつかみにくい文章が、専門用語を減らして相手に合わせて説明した文章に変わることを並べて示し、終えたらできるようになること3つと学習時間の目安を添えたもの。",
@@ -147,7 +186,15 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       height: 1254,
       showsMinutes: true,
     },
-    concept_1: {
+    /*
+      `concept_2` であって `concept_1` ではない。
+
+      解説の id は**教材が持つ解説の並び順**で決まる（`concept_${n}`）。
+      Day1 は1枚目が「プロンプト」になったので、ターゲット指定は
+      2枚目——番号がひとつずれた。ほかの教材は1枚目のままなので、
+      ここだけが違う。
+    */
+    concept_2: {
       src: "/assets/teaching/skill_01_targeting.webp",
       alt: "AI技「ターゲット指定」の図。同じ文章でも、新入社員向けならやさしい文章に、専門家向けなら専門的な文章になることを示したもの。",
       visualType: "skill_concept",
@@ -162,11 +209,14 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       alt: "AI技「トーン指定」の図。同じ内容でも、丁寧・やわらかい・カジュアルで言い方が変わることを示したもの。",
       visualType: "skill_concept",
     },
-    concept_iteration: {
-      src: "/assets/teaching/skill_03_iteration.webp",
-      alt: "AI技「反復（Iteration）」の図。AIの答えに「もう少し短く」「もっとやわらかく」と足しながら、少しずつ近づけていく流れを示したもの。",
-      visualType: "skill_concept",
-    },
+    /*
+      「プロンプト」には専用の絵を置かない。
+
+      この解説は**たったいま自分が送った文**を見せるもので、
+      画面には送った言葉がそのまま出る。図を足すと、自分の言葉より
+      図のほうが大きくなり、「これが自分のプロンプトだ」という
+      いちばん大事なつながりが薄れる。
+    */
   },
 
   /*

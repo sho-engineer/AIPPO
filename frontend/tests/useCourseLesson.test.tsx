@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LessonRunner } from "../src/pages/LessonRunner";
+import { passSections } from "./support/sections";
 import { PrivacyDialog } from "../src/components/course/PrivacyDialog";
 import { getLesson } from "../src/course/catalog";
 import { loadDraft } from "../src/lib/draft";
@@ -64,6 +65,8 @@ function renderLesson(lessonId = "rewrite_text") {
  * （src/course/catalog.ts の LESSON_1）。
  */
 async function toQuickTry(user: ReturnType<typeof userEvent.setup>) {
+  // 段の頭に入る章扉。絵1枚だけなので、押して通り抜ける
+  await passSections(user);
   // 開いた最初に出る導入の一枚。ここでは下の画面から進めたいので閉じる
   const intro = screen.queryByTestId("lesson-intro-close");
   if (intro) await user.click(intro);
@@ -93,7 +96,10 @@ async function toConceptCard(
 ) {
   await toFirstResult(user);
   await user.click(await screen.findByRole("button", { name: observation }));
-  await user.click(screen.getByTestId("primary-action")); // 観察 → 条件を足す
+  // 観察 → プロンプトの解説 → 〈章扉②〉 → 条件を足す
+  await user.click(screen.getByTestId("primary-action"));
+  await user.click(await screen.findByTestId("primary-action"));
+  await passSections(user);
 
   await user.click(await screen.findByRole("button", { name: "AI初心者向けに" }));
   await user.click(screen.getByTestId("primary-action")); // 再実行（自動送信）
@@ -122,7 +128,9 @@ describe("成果物ファースト", () => {
     const user = userEvent.setup();
     renderLesson();
 
-    // 開いた最初は導入の一枚が出る。閉じると下の画面が残る
+    // 段の頭の章扉。絵1枚だけなので通り抜ける
+    await passSections(user);
+    // 続いて導入の一枚が出る。閉じると下の画面が残る
     await user.click(screen.getByTestId("lesson-intro-close"));
 
     expect(screen.getByTestId("outcome-preview")).toBeInTheDocument();
@@ -146,6 +154,7 @@ describe("成果物ファースト", () => {
     // 消したのではなく、持ち主のところへ戻した
     const user = userEvent.setup();
     renderLesson();
+    await passSections(user);
     await user.click(screen.getByTestId("outcome-detail-toggle"));
 
     await waitFor(() => expect(screen.getByTestId("outcome-goal")).toBeVisible());
@@ -156,6 +165,7 @@ describe("成果物ファースト", () => {
   it("最初に選ばせるのは1つだけ", async () => {
     const user = userEvent.setup();
     renderLesson();
+    await passSections(user);
     await user.click(screen.getByTestId("primary-action"));
 
     expect(
@@ -222,7 +232,10 @@ describe("観察してから解説する", () => {
       次へ進める。ここで止めると、答えられない人が行き止まりになる。
     */
     await user.click(await screen.findByRole("button", { name: "まだ難しい" }));
+    // 観察 → プロンプトの解説 → 〈章扉②〉 → 条件を足す
     await user.click(screen.getByTestId("primary-action"));
+    await user.click(await screen.findByTestId("primary-action"));
+    await passSections(user);
 
     // 気づけなくても止めない。次（条件を足す）へ進めること
     expect(
@@ -286,9 +299,12 @@ describe("条件を一つ足す", () => {
     renderLesson();
     await toFirstResult(user);
     await user.click(await screen.findByRole("button", { name: "分かりやすくなった" }));
+    // 観察 → プロンプトの解説 → 〈章扉②〉 → 条件を足す
     await user.click(screen.getByTestId("primary-action"));
+    await user.click(await screen.findByTestId("primary-action"));
+    await passSections(user);
 
-    // 解説はこの後（比べたあと）に出るので、ここでは通らない
+    // ターゲット指定の解説はこの後（比べたあと）に出るので、ここでは通らない
     await user.click(await screen.findByRole("button", { name: "AI初心者向けに" }));
     await user.click(screen.getByTestId("primary-action"));
     await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
@@ -627,12 +643,17 @@ describe("ポーの状態", () => {
     */
     const user = userEvent.setup();
     renderLesson();
+    await passSections(user);
     // 導入の一枚にもポーが居る。下の画面のほうを見たいので、先に閉じる
     await user.click(screen.getByTestId("lesson-intro-close"));
 
+    /*
+      教材の1枚目（`outcome_preview`）の表情。`steps[0]` は章扉なので、
+      そこを見ると通り抜けた先と食い違う。
+    */
     expect(screen.getByTestId("po-avatar")).toHaveAttribute(
       "data-emotion",
-      REWRITE.steps[0].poEmotion,
+      REWRITE.steps.find((step) => step.id === "outcome_preview")!.poEmotion,
     );
     expect(screen.getByTestId("po-hero")).toHaveAttribute(
       "data-po-scene",

@@ -17,8 +17,10 @@ import { PrivacyDialog } from "../components/course/PrivacyDialog";
 import { DayCompletePage } from "../components/course/DayCompletePage";
 import { LessonHeader } from "../components/course/LessonHeader";
 import { LessonPaused } from "../components/course/LessonPaused";
+import { SectionTransition } from "../components/course/SectionTransition";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
+import { teachingImage } from "../course/teachingImages";
 import { useCourse } from "../course/live";
 import { buildAiInput } from "../course/engine";
 import { promptEntryFor } from "../course/promptSummary";
@@ -557,6 +559,20 @@ export function LessonRunner({
           */
           onResume={() => void send()}
           onExit={onExit}
+        />
+      ) : step.type === "section_transition" ? (
+        /*
+          章扉。**`StepShell` に入れない。**
+
+          あの枠は「進み具合・見出し・ポー・中身・下の帯」を積むもので、
+          ここに要るのは絵1枚と「つづける」だけ。枠に入れると、絵の中に
+          焼き込まれている題がもう一度外に出て、同じ言葉が1画面に2回
+          並ぶ（しかも絵に使える高さがその分だけ減る）。
+        */
+        <SectionTransition
+          title={step.title}
+          image={teachingImage(lesson.id, step.id)}
+          onContinue={onPrimary}
         />
       ) : stuck ? (
         /*

@@ -232,7 +232,12 @@ test.describe("送る前の確認", () => {
     await stubApi(page);
     await openRewrite(page);
 
-    for (let i = 0; i < 12; i++) {
+    /*
+      「自分の文章」は主導線の終わりのほう。Day1 は章扉4枚が入って
+      23画面あるので、そこまで届く回数を回す（前は 12 で止めていて、
+      章扉が入った日に**入力欄へ着く前に輪が終わっていた**）。
+    */
+    for (let i = 0; i < 30; i++) {
       const box = page.locator("textarea:visible").first();
       if (await box.count()) {
         await box.fill("パスワードは hunter2secret です。共有します。");

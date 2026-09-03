@@ -27,7 +27,11 @@ from apps.catalog.models import Lesson, LessonTemplate
 _AI_STEP_TYPES = frozenset({"ai_generate", "quick_try", "condition_choice"})
 
 #: 始まりと終わりに置けるステップ。
-_OPENING_TYPES = frozenset({"intro", "outcome_preview"})
+#:
+#: 章扉（section_transition）も頭に置ける。**あれは教材ではなく、
+#: 段の名前を出す1枚**で、押せば必ず次へ進む。ここで弾くと、
+#: 章扉から始まる教材が公開できなくなる。
+_OPENING_TYPES = frozenset({"intro", "outcome_preview", "section_transition"})
 _CLOSING_TYPE = "completion"
 
 
@@ -60,7 +64,7 @@ def validate_for_release(lesson: Lesson) -> list[str]:
     if steps[0].get("type") not in _OPENING_TYPES:
         problems.append(
             "最初のステップが始まりの形になっていません"
-            "（intro か outcome_preview にしてください）。"
+            "（intro・outcome_preview・section_transition のいずれかにしてください）。"
         )
 
     if not any(step.get("type") == _CLOSING_TYPE for step in steps):

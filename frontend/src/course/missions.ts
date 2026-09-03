@@ -107,11 +107,36 @@ export function missionStateOf(lesson: Lesson, stepIndex: number): MissionState 
     return { missions: [], current: 0, stepInMission: 0 };
   }
 
+  /*
+    章扉を持つ教材は、**その名前を帯に出す**。
+
+    共通の区切りの名前（試す・変える・深める・自分で使う）は、
+    どの教材にも当たるように付けてある。当たるが、**その日に何を
+    しているのかは言っていない**——Day1 の2つ目は「変える」ではなく
+    「相手を決める」で、3つ目は「深める」ではなく「言い方を変える」。
+
+    章扉でその名前を見せた直後に、帯が別の言葉を出すと、
+    見たばかりの段の名前が画面から消える。同じ言葉にする。
+  */
+  const sectionLabels = new Map<LessonPhase, string>();
+  for (const [index, step] of lesson.steps.entries()) {
+    const label = (step.meta as { sectionLabel?: string } | undefined)?.sectionLabel;
+    if (step.type === "section_transition" && label) {
+      sectionLabels.set(phases[index], label);
+    }
+  }
+
   const missions: Mission[] = [];
   for (const phase of phases) {
     const last = missions[missions.length - 1];
     if (last && last.key === phase) last.steps += 1;
-    else missions.push({ key: phase, label: LABEL.get(phase) ?? "", steps: 1 });
+    else {
+      missions.push({
+        key: phase,
+        label: sectionLabels.get(phase) ?? LABEL.get(phase) ?? "",
+        steps: 1,
+      });
+    }
   }
 
   const safe = Math.min(Math.max(0, stepIndex), phases.length - 1);

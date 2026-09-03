@@ -112,7 +112,16 @@ await scan("コースの中身");
 
 await p.getByTestId("lesson-rewrite_text").click();
 await p.waitForTimeout(900);
-// 開いた最初に、導入の一枚が中央に浮かぶ。ここも読み上げの検査に入れる
+
+/*
+  段の頭の章扉。**絵1枚が画面そのもの**という、ほかに無い作りなので
+  別に見ておく（読み上げに章の名前が届くか、押せる場所があるか）。
+*/
+await scan("レッスン 章扉");
+await p.getByTestId("primary-action").first().click();
+await p.waitForTimeout(700);
+
+// 続いて、導入の一枚が中央に浮かぶ。ここも読み上げの検査に入れる
 await scan("レッスン 導入の一枚");
 
 // 「詳しく見る」の中も見る（画面いっぱいの一枚で、中は縦に送れる）
