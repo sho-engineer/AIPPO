@@ -194,6 +194,59 @@ describe("章扉の画面", () => {
     expect(screen.getAllByRole("button")).toHaveLength(2);
   });
 
+  it("「つづける」は、絵の中に重なっている", () => {
+    /*
+      前は縦2段だった——上が絵、下が独立したボタンの行。「絵」＋
+      「別ブロックのボタン」に分かれて見えるうえ、ボタンの行が 80px
+      取るぶん絵が小さくなっていた（402px の画面で絵は 295px）。
+
+      いまはボタンを**絵の箱の中**へ重ねる。絵は 371px まで大きくなり、
+      画面は1枚になった。
+    */
+    render(
+      <SectionTransition title="まずは試してみよう" image={IMAGE} onContinue={() => {}} />,
+    );
+
+    const main = screen.getByRole("img");
+    const cta = screen.getByTestId("primary-action");
+
+    // ボタンが絵と同じ箱の中にある（外の兄弟ではない）
+    const box = main.parentElement!;
+    expect(box.contains(cta), "ボタンが絵の箱の外にある").toBe(true);
+
+    // 下部中央へ、左右に余白を残して重ねる
+    const placed = cta.parentElement!;
+    expect(placed.className).toContain("absolute");
+    expect(placed.className).toContain("bottom-");
+    expect(placed.className).toContain("inset-x-");
+
+    /*
+      絵の箱は**実寸そのままの比**で取る。そうすると、この枠が絵の縁に
+      なるので、ボタンは画面の下端ではなく**絵の下端**を基準に置ける。
+    */
+    expect(box.getAttribute("style")).toContain(
+      `aspect-ratio: ${IMAGE.width} / ${IMAGE.height}`,
+    );
+  });
+
+  it("押せるものを、押せるものの中へ入れない", () => {
+    /*
+      画面ぜんぶを押せるようにしてあるが、その中へ「つづける」を
+      入れると入れ子になる（`nested-interactive`）——読み上げも
+      キーボードも、どちらへ行くのか決められなくなる。
+    */
+    render(
+      <SectionTransition title="まずは試してみよう" image={IMAGE} onContinue={() => {}} />,
+    );
+
+    for (const button of screen.getAllByRole("button")) {
+      expect(
+        button.querySelector("button"),
+        "押せるものの中に、押せるものが入っている",
+      ).toBeNull();
+    }
+  });
+
   it("余白は、同じ絵をぼかして埋める", () => {
     /*
       絵は縦長なので、横長の画面では左右に余白が出る。白いままだと

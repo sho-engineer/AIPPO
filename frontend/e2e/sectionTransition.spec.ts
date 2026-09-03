@@ -144,11 +144,18 @@ test.describe("段が変わったことを、1枚で言う", () => {
     await page.waitForTimeout(700);
 
     const layout = await page.evaluate(() => {
+      /*
+        絵はタップ面の**中**ではなく、同じ面に並べて敷いてある
+        ——押せるものの中へ押せるものを入れないため。
+      */
       const tap = document.querySelector<HTMLElement>(
         "[data-testid='section-transition-tap']",
       )!;
-      const backdrop = tap.querySelector<HTMLImageElement>("img[aria-hidden='true']");
-      const main = tap.querySelector<HTMLImageElement>("img:not([aria-hidden])");
+      const cover = document.querySelector<HTMLElement>(
+        "[data-testid='section-transition']",
+      )!;
+      const backdrop = cover.querySelector<HTMLImageElement>("img[aria-hidden='true']");
+      const main = cover.querySelector<HTMLImageElement>("img:not([aria-hidden])");
       const box = (el: Element | null) => {
         if (!el) return null;
         const r = el.getBoundingClientRect();
@@ -195,6 +202,45 @@ test.describe("段が変わったことを、1枚で言う", () => {
     expect(layout.backdrop!.bottom, "下のぼかしの縁が画面の中に出る").toBeGreaterThan(
       layout.main!.bottom + bleed,
     );
+  });
+
+  test("「つづける」が、絵の中に重なっている", async ({ page }) => {
+    /*
+      前は縦2段だった——上が絵、下が独立したボタンの行。「絵」＋
+      「別ブロックのボタン」に分かれて見えるうえ、ボタンの行が 80px
+      取るぶん絵が小さくなっていた（393px の画面で絵は 295px）。
+
+      いまはボタンを絵の箱の中へ重ねる。絵は 371px まで大きくなった。
+    */
+    await start(page);
+    await expect(page.getByTestId("section-transition")).toBeVisible();
+    await page.waitForTimeout(700);
+
+    const main = (await page
+      .locator("[data-testid='section-transition'] img:not([aria-hidden])")
+      .boundingBox())!;
+    const cta = (await page.getByTestId("primary-action").boundingBox())!;
+
+    // 絵の中に収まっている（下にはみ出していない＝別ブロックではない）
+    expect(cta.y + cta.height, "ボタンが絵の下へはみ出している").toBeLessThanOrEqual(
+      main.y + main.height,
+    );
+    expect(cta.x, "ボタンが絵の左へはみ出している").toBeGreaterThanOrEqual(main.x);
+    expect(
+      cta.x + cta.width,
+      "ボタンが絵の右へはみ出している",
+    ).toBeLessThanOrEqual(main.x + main.width);
+
+    // 下部にある（真ん中や上ではない）
+    const fromBottom = main.y + main.height - (cta.y + cta.height);
+    expect(fromBottom, "絵の下端から離れすぎている").toBeLessThan(main.height * 0.15);
+    expect(fromBottom, "絵の下端に貼り付いている").toBeGreaterThan(8);
+
+    // 中央にある。左右の余白がそろっていること
+    const leftGap = cta.x - main.x;
+    const rightGap = main.x + main.width - (cta.x + cta.width);
+    expect(Math.abs(leftGap - rightGap), "左右の余白がそろっていない").toBeLessThanOrEqual(2);
+    expect(leftGap, "左右の余白が無い").toBeGreaterThan(8);
   });
 
   test("画面のどこを押しても進む", async ({ page }) => {

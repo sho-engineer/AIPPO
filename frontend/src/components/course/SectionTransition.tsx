@@ -20,6 +20,8 @@
  *     絵の中に焼き込まれているので、外側に文を足すと同じことを2回言う
  *   - 進み具合も見出しも出さない。**まだ何も始まっていない**
  *   - ポーは絵の中にいる。外にもう1匹出すと2匹並ぶ
+ *   - 「つづける」も**絵の中**へ重ねる。下に別の行を作ると
+ *     「絵」＋「別ブロックのボタン」に分かれて見える
  *
  * スクロールしない
  * ----------------
@@ -124,35 +126,26 @@ export function SectionTransition({
                  pb-[calc(1rem+env(safe-area-inset-bottom))]"
     >
       {/*
-        画面全体を押しても進める。
+        絵と、その上に重なる「つづける」。**1枚の章扉として見せる。**
 
-        親指はふつう画面の下半分にあり、そこには絵しかない。
-        下のボタンまで運ばせずに済む——ボタンは「押せる場所が
-        どこか」を示す役目で残す（絵だけだと、押せることが分からない）。
+        前は縦2段だった——上が絵、下が独立したボタンの行。「絵」＋
+        「別ブロックのボタン」に分かれて見えるうえ、ボタンの行が
+        80px 取るぶん絵が小さくなっていた。
 
-        `button` にしているので、キーボードでも読み上げでも届く。
+        いまはボタンを絵の箱の中へ重ねる。絵は 80px 背が高くなり、
+        画面は1枚になった。
       */}
-      <button
-        type="button"
-        onClick={onContinue}
-        data-testid="section-transition-tap"
-        aria-label={`${title}（画面を押してつづける）`}
-        /*
-          左右に余白を付けない。**絵に使える幅をそのまま渡す。**
-          地が絵と同じ色になったので、縁で区切る必要が無くなった。
-        */
-        className="relative min-h-0 w-full flex-1 cursor-pointer"
-      >
+      <div className="relative min-h-0 w-full flex-1">
         {/*
           余白を埋める1枚。**同じ絵を、横に伸ばして、ぼかす。**
 
-          敷くのは**前面の絵とまったく同じ箱**（このタップ面）。
-          前面は `object-contain` で縦いっぱいに入るので、背面も
-          同じ箱に広げれば、同じ高さに同じ色が来る。
+          敷くのは**前面の絵とまったく同じ箱**（この面）。前面は
+          縦いっぱいに入るので、背面も同じ箱に広げれば、同じ高さに
+          同じ色が来る。
 
           一度これを外側（`section`）へ置いていた。あちらは下の
           ボタンの行まで含む箱なので、**縦の対応がずれる**——境目の
-          色が上で 62 飛んだ（下の e2e が捕まえた）。
+          色が上で 62 飛んだ（e2e が捕まえた）。
 
           少しはみ出させる（`scale`）のは、ぼかしの縁が画面の中に
           出ないようにするため。横を大きく伸ばすのは、狭い画面でも
@@ -180,54 +173,97 @@ export function SectionTransition({
           />
         )}
 
-        {image ? (
-          <img
-            src={image.src}
-            alt={image.alt}
-            width={image.width}
-            height={image.height}
-            onLoad={() => setShown(true)}
-            /*
-              切らずに収める。`object-cover` にすると、いちばん狭い
-              持ち方で上下の帯（題と足元）が切れて、**章の名前が
-              読めない**まま通り過ぎることになる。
-            */
-            className={`relative mx-auto h-full w-auto max-w-full object-contain
-                        transition-opacity duration-300
-                        ${shown ? "opacity-100" : "opacity-0"}`}
-          />
-        ) : null}
+        {/*
+          画面のどこを押しても進む。
+
+          親指はふつう画面の下半分にある。ボタンまで運ばせずに済む
+          ——ボタンは「押せる場所がどこか」を示す役目で残す
+          （絵だけだと、押せることが分からない）。
+
+          **ボタンの親にはしない。** 押せるものを押せるものの中へ
+          入れると、読み上げもキーボードも行き先を決められなくなる
+          （`nested-interactive`）。同じ面に並べて敷く。
+        */}
+        <button
+          type="button"
+          onClick={onContinue}
+          data-testid="section-transition-tap"
+          aria-label={`${title}（画面を押してつづける）`}
+          className="absolute inset-0 h-full w-full cursor-pointer"
+        />
 
         {/*
-          絵が出ないときの受け皿。
+          絵の箱。**実寸そのままの比で取る**ので、この枠が絵の縁になる。
 
-          読み上げにはいつもここが読まれる（絵の `alt` は絵の説明で、
-          章の名前ではない）。見た目には、絵が出ていれば隠れる。
+          ボタンはこの中へ置く。画面の下端ではなく**絵の下端**を
+          基準にすることで、絵とボタンが離れない。
+
+          押せるのはボタンだけ（`pointer-events`）。枠そのものが
+          受け取ると、絵の余白を押したときに下のタップ面へ届かない。
         */}
-        <h1
-          id="section-transition-title"
-          className={
-            image && shown
-              ? "sr-only"
-              : "flex h-full items-center justify-center text-center text-2xl font-bold leading-relaxed"
-          }
-        >
-          {title}
-        </h1>
-      </button>
+        <div className="pointer-events-none absolute inset-0 flex justify-center">
+          <div
+            className="relative h-full"
+            style={
+              image
+                ? { aspectRatio: `${image.width} / ${image.height}` }
+                : { width: "100%" }
+            }
+          >
+            {image && (
+              <img
+                src={image.src}
+                alt={image.alt}
+                width={image.width}
+                height={image.height}
+                onLoad={() => setShown(true)}
+                /*
+                  枠が絵と同じ比なので、切れも余りも出ない。
+                  それでも `contain` にしておくのは、実寸を書き間違えた
+                  日に**絵の中の題を切らない**ため。
+                */
+                className={`h-full w-full object-contain
+                            transition-opacity duration-300
+                            ${shown ? "opacity-100" : "opacity-0"}`}
+              />
+            )}
 
-      <div className="relative mx-auto mt-3 w-full max-w-page shrink-0 px-5">
-        {/*
-          目印は `primary-action`。**ほかの画面と同じ名前にする。**
+            {/*
+              絵が出ないときの受け皿。
 
-          この画面だけ `StepShell` の外にあるが、押す先が1つで、
-          押せば次へ進むという点はどこも同じ。別の名前を付けると、
-          レッスンを頭から通す仕組み（検査・読み上げの手順・
-          機械での見回り）が、章扉のところだけ止まる。
-        */}
-        <PrimaryButton onClick={onContinue} testId="primary-action">
-          {label}
-        </PrimaryButton>
+              読み上げにはいつもここが読まれる（絵の `alt` は絵の
+              説明で、章の名前ではない）。見た目には、絵が出ていれば隠れる。
+            */}
+            <h1
+              id="section-transition-title"
+              className={
+                image && shown
+                  ? "sr-only"
+                  : "flex h-full items-center justify-center px-6 text-center text-2xl font-bold leading-relaxed"
+              }
+            >
+              {title}
+            </h1>
+
+            {/*
+              「つづける」。**絵の下部中央へ重ねる。**
+
+              下端ぎりぎりには置かない（`bottom-6`）。絵の縁に貼り付くと
+              画面の端から生えているように見えるうえ、iPhone のホーム
+              バーと近づきすぎる（外側の `padding` と合わせて避ける）。
+
+              目印は `primary-action`——ほかの画面と同じ名前にする。
+              この画面だけ `StepShell` の外にあるが、押す先が1つで、
+              押せば次へ進む点はどこも同じ。別の名前を付けると、
+              レッスンを頭から通す仕組みが章扉のところだけ止まる。
+            */}
+            <div className="pointer-events-auto absolute inset-x-5 bottom-6">
+              <PrimaryButton onClick={onContinue} testId="primary-action">
+                {label}
+              </PrimaryButton>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
   );
