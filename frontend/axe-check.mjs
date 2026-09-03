@@ -137,6 +137,26 @@ await p.waitForTimeout(1800);
 await scan("レッスン 観察");
 
 /*
+  「変わったところ」の中央の一枚。
+
+  この画面の読み比べ・言いかえの対応・見どころは全部この中にあり、
+  **通常画面からは見えない**。開かずに検査を終えると、いちばん
+  文字の多い場所を一度も見ないことになる。全文の比べまで開く。
+*/
+if (await p.getByTestId("result-more").count()) {
+  await p.getByTestId("result-more").click();
+  await p.waitForTimeout(400);
+  await scan("レッスン 変わったところ");
+
+  await p.getByTestId("full-compare-open").click();
+  await p.waitForTimeout(400);
+  await scan("レッスン 変わったところ 全文");
+
+  await p.getByTestId("changes-close").click();
+  await p.waitForTimeout(400);
+}
+
+/*
   残りのステップを最後まで進め、新しく作った画面も検査する。
   条件を選ぶ画面と完了画面は、ここでしか通らない。
 */
@@ -184,8 +204,19 @@ for (let i = 0; i < 30; i++) {
     const ta = p.locator("textarea:visible").first();
     if (await ta.count()) await ta.fill("来週の打ち合わせの件、資料の確認をお願いします。");
     else {
+      /*
+        「読むための入口」は押さない。
+
+        答えを入れに来ているのに `全文を見る` や `変わったところを見る`
+        を押すと一枚が開き、**後ろの画面は触れなくなる**。次の周回でも
+        同じ入口を押すので、そこから抜けられず——完了画面まで
+        たどり着かないまま「違反なし」と出る（実際そうなった）。
+      */
       const opt = p.locator("main button:visible")
-        .filter({ hasNotText: /レッスン一覧へ|もどる|くわしく|送っています|飛ばす|スキップ/ }).first();
+        .filter({
+          hasNotText:
+            /レッスン一覧へ|もどる|くわしく|全文|変わったところ|記録|送っています|飛ばす|スキップ/,
+        }).first();
       if (await opt.count()) await opt.click();
     }
     await p.waitForTimeout(300);

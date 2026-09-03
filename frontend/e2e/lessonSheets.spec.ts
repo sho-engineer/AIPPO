@@ -137,6 +137,101 @@ test.describe("変わったところの一枚", () => {
   });
 });
 
+test.describe("分かりやすくなった？の画面", () => {
+  test("変わったところは、中央に浮かぶ一枚で出す", async ({ page }) => {
+    /*
+      ここは**見て、閉じて、答える**場面。下から出る形は「送れば続きが
+      ある読み物」に見えるので、閉じずに送り始める——そして後ろの
+      レッスン画面には答えの札が待っている。
+
+      中身も見る。全文の突き合わせより先に、言いかえの対応が出ること
+      （簡単になったかは、そちらのほうが早く分かる）。
+    */
+    await start(page);
+    await runUntil(page, "observation-list");
+
+    await page.getByTestId("result-more").click();
+
+    const sheet = page.getByTestId("changes-sheet");
+    await expect(sheet).toHaveAttribute("data-placement", "center");
+    await expect(page.getByTestId("changes-swaps")).toBeVisible();
+    await expect(sheet).toContainText("ここを見て");
+
+    // 全文の比べは、この中でもう1回押した人にだけ
+    await expect(page.getByTestId("full-compare")).toHaveCount(0);
+    await page.getByTestId("full-compare-open").click();
+    await expect(page.getByTestId("full-before")).toBeVisible();
+    await expect(page.getByTestId("full-after")).toBeVisible();
+  });
+
+  test("開いているあいだ、後ろのレッスン画面は動かない", async ({ page }) => {
+    /*
+      背景が動くと、閉じたときに**さっきまで見ていた場所と違う所**へ
+      戻る。答えの札が画面の外へ出ていれば、押せる場所を探し直しになる。
+    */
+    await start(page);
+    await runUntil(page, "observation-list");
+    await page.getByTestId("result-more").click();
+    await expect(page.getByTestId("changes-sheet")).toBeVisible();
+
+    const before = await page.evaluate(() => window.scrollY);
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(200);
+
+    expect(await page.evaluate(() => window.scrollY)).toBe(before);
+    expect(
+      await page.evaluate(() => document.body.style.overflow),
+    ).toBe("hidden");
+  });
+
+  test("答えを選ぶまで、次へは押せない形で出す", async ({ page }) => {
+    await start(page);
+    await runUntil(page, "observation-list");
+
+    const primary = page.getByTestId("primary-action").first();
+    await expect(primary).toHaveAttribute("aria-disabled", "true");
+
+    // 選べるのは1つ。押すと、その札にだけ印が付く
+    const choices = page.getByTestId("observation-list").getByRole("button");
+    await choices.first().click();
+    await expect(choices.first()).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("横に並べた札の言葉が、語の途中で折り返さない", async ({ page }) => {
+    /*
+      2列に並べると、402px の画面で1枠は 177px しかない。印のための
+      20px と左右の余白を**流れの中に**確保していたころ、文字に残る幅は
+      131px で、「分かりやすくなった」（実測 136px 要る）が
+      **「分かりや／すくなった」**と割れていた。
+
+      文字を短くしても直らない種類の折り返しで、原因は幅の配り方の
+      ほう。印を浮かせて一回り小さくし、余白を詰めて 139px 渡した。
+
+      見るのは**行数**にする。何 px 空けたかは書き方の話で、
+      守りたいのは「1行で読めること」のほう。
+    */
+    await start(page);
+    await runUntil(page, "observation-list");
+
+    const rows = await page.evaluate(() => {
+      const list = document.querySelector("[data-testid='observation-list']")!;
+      return Array.from(list.querySelectorAll("button")).map((button) => {
+        const label = button.querySelector("span > span") as HTMLElement;
+        const lineHeight = parseFloat(getComputedStyle(label).lineHeight);
+        return {
+          text: label.textContent!.trim(),
+          lines: Math.round(label.getBoundingClientRect().height / lineHeight),
+        };
+      });
+    });
+
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.lines, `「${row.text}」が ${row.lines} 行で出ている`).toBe(1);
+    }
+  });
+});
+
 test.describe("AI技を受け取る画面", () => {
   test("その1つだけの画面になっている", async ({ page }) => {
     await start(page);

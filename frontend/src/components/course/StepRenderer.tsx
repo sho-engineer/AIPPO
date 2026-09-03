@@ -296,14 +296,24 @@ export function StepRenderer({
               before={lastRun.inputText}
               after={lastRun.outputText}
               /*
-                ここで決めるのは1つ——分かりやすくなったかどうか。
-                見どころも差分も出さない。**答える前に読み物が増える**と、
-                肝心のAIの結果を読む場所がそのぶん狭くなる。
-                どちらも次の画面（こんなに変わった）が持っている。
+                見どころは画面に出さず、「変わったところ」の一枚へ回す。
+                **答える前に読み物が増える**と、肝心のAIの結果を読む
+                場所がそのぶん狭くなる。
               */
-              reviewPoints={[]}
+              reviewPoints={meta.reviewPoints ?? []}
+              showPoints={false}
+              /*
+                言いかえの対応。全文を突き合わせなくても「簡単に
+                なった」が分かるのは、こちらのほう。
+              */
+              swaps={lessonPlan(lesson.id)?.swaps}
+              /*
+                タブを置かない。切り替えても答えは変わらないうえ、
+                44px はそのまま「AIの結果を読む場所」から引かれる。
+                元の文章は「変わったところ」の一枚の中にある。
+              */
+              onlyResult
               factCheck={meta.factCheck}
-              showChanges={false}
               /*
                 広げない。広げると縮んだ枠が抜粋を切り、「全文を見る」も
                 答えの札も下の帯に隠れる（実測でそうなった）。

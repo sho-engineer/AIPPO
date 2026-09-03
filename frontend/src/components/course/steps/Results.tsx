@@ -8,7 +8,7 @@
 import { useState, type ReactNode } from "react";
 
 import { FullText, MoreButton, MoreSheet } from "../MoreSheet";
-import { IconCaution } from "../../Icons";
+import { IconArrowDown, IconCaution } from "../../Icons";
 import { diffSentences, isMostlyUnchanged } from "../../../lib/diff";
 import type { RunRecord } from "../../../course/useCourseLesson";
 
@@ -48,6 +48,32 @@ interface ResultProps {
    * しまえば、札の場所は必ず残る。
    */
   fill?: boolean;
+  /**
+   * 「ここを見て」を画面に直接出すか。
+   *
+   * 結果を見て**答える**画面（`observation`）では出さない。あそこで
+   * するのは1つ（分かりやすくなったか）で、そこへ補助の説明を足すと
+   * **通常画面に読み物が増える**。見どころは「変わったところ」の
+   * 一枚の中にある。
+   */
+  showPoints?: boolean;
+  /**
+   * むずかしい言葉の言いかえ（`course/lessonPlan.ts`）。
+   *
+   * 「変わったところ」の一枚で、いちばん上に出す。全文を突き合わせ
+   * なくても「簡単になった」が分かるのは、この対応のほう。
+   */
+  swaps?: { from: string; to: string }[];
+  /**
+   * AIの結果だけを出すか（タブを置かない）。
+   *
+   * 結果を見て**答える**画面で使う。あそこでするのは1つ
+   * （分かりやすくなったか）で、そのために読むのはAIの結果。
+   * 元の文章と切り替える札は 44px 取るが、**切り替えても答えは
+   * 変わらない**——元の文章は「変わったところ」の一枚の中で、
+   * 言いかえの対応と一緒に見るほうが早い。
+   */
+  onlyResult?: boolean;
 }
 
 /**
@@ -64,9 +90,20 @@ export function ResultCompare({
   more: extra,
   showChanges = true,
   fill = true,
+  showPoints = true,
+  swaps,
+  onlyResult = false,
 }: ResultProps) {
   const [tab, setTab] = useState<"before" | "after">("after");
   const [more, setMore] = useState(false);
+  /*
+    全文の比べは、**一枚の中でさらに1回押した人にだけ**出す。
+
+    開いた瞬間に長い2文が並ぶと、せっかく言いかえの対応を先に置いても
+    そこまで届かない。ここで見せたいのは「簡単になった」で、
+    突き合わせて確かめるのはそのあとの話。
+  */
+  const [fullCompare, setFullCompare] = useState(false);
   const parts = diffSentences(before, after);
   const showDiff = before.trim().length > 0 && !isMostlyUnchanged(parts);
 
@@ -179,24 +216,26 @@ export function ResultCompare({
         下は動かず、全文は中央の一枚で読める（`FullText`）。
       */}
       <div className="flex shrink-0 flex-col sm:hidden">
-        <div role="tablist" className="flex shrink-0 gap-2">
-          {(["before", "after"] as const).map((name) => (
-            <button
-              key={name}
-              role="tab"
-              type="button"
-              aria-selected={tab === name}
-              onClick={() => setTab(name)}
-              className={`chip flex-1 text-sm ${
-                tab === name ? "chip-on" : "chip-off"
-              }`}
-            >
-              {name === "before" ? "元の文章" : "AIの結果"}
-            </button>
-          ))}
-        </div>
-        <div className="mt-3">
-          {tab === "before"
+        {!onlyResult && (
+          <div role="tablist" className="flex shrink-0 gap-2">
+            {(["before", "after"] as const).map((name) => (
+              <button
+                key={name}
+                role="tab"
+                type="button"
+                aria-selected={tab === name}
+                onClick={() => setTab(name)}
+                className={`chip flex-1 text-sm ${
+                  tab === name ? "chip-on" : "chip-off"
+                }`}
+              >
+                {name === "before" ? "元の文章" : "AIの結果"}
+              </button>
+            ))}
+          </div>
+        )}
+        <div className={onlyResult ? "" : "mt-3"}>
+          {!onlyResult && tab === "before"
             ? preview("元の文章", before, "result-before-mobile")
             : preview("AIの結果", after, "result-after-mobile")}
         </div>
@@ -224,8 +263,8 @@ export function ResultCompare({
         差分は**その場で開かない**。開くとページが伸び、下のボタンが
         画面から出ていく。押したら別の一枚が出る形にする。
       */}
-      {showDiff && showChanges && (
-        <div className="mt-4 shrink-0">
+      {showChanges && (showDiff || (swaps?.length ?? 0) > 0) && (
+        <div className="mt-3 shrink-0">
           <MoreButton testId="result-more" onClick={() => setMore(true)}>
             変わったところを見る
           </MoreButton>
@@ -233,35 +272,82 @@ export function ResultCompare({
       )}
 
       {more && (
-        <MoreSheet title="変わったところ" onClose={() => setMore(false)}>
-          {diff}
-          {/*
-            文章そのものを押せるようにする。長い日はここで切れるので、
-            続きを読むために一枚を送らせない（`FullText`）。
-          */}
-          <section className="mt-5 border-t border-line pt-4">
-            <h3 className="text-xs font-bold text-ink-muted">元の文章</h3>
-            <div className="mt-2">
-              <FullText label="元の文章" text={before} testId="full-before" />
-            </div>
-          </section>
-          <section className="mt-4">
-            <h3 className="text-xs font-bold text-ink-muted">AIの結果</h3>
-            <div className="mt-2">
-              <FullText label="AIの結果" text={after} testId="full-after" />
-            </div>
-          </section>
-          {reviewPoints.length > 1 && (
-            <section className="mt-5 border-t border-line pt-4">
-              <h3 className="text-xs font-bold text-ink-muted">ほかの見どころ</h3>
+        /*
+          中央に浮かべる。ここは**見て、閉じて、答える**場面で、
+          下から出る形だと「送れば続きがある読み物」に見える。
+        */
+        <MoreSheet
+          placement="center"
+          testId="changes-sheet"
+          title="変わったところ"
+          onClose={() => {
+            setMore(false);
+            setFullCompare(false);
+          }}
+        >
+          {swaps && swaps.length > 0 && (
+            /*
+              まずは言いかえの対応。**全文を読み比べさせない**ための
+              ものなので、いちばん上に置く。
+            */
+            <ul className="space-y-2" role="list" data-testid="changes-swaps">
+              {swaps.slice(0, 3).map((swap) => (
+                <li key={swap.from} className="rounded-card bg-canvas px-3.5 py-3">
+                  <p className="text-xs leading-5 text-ink-muted">{swap.from}</p>
+                  <p className="mt-1 flex items-start gap-1.5 text-sm font-bold leading-6">
+                    <IconArrowDown
+                      className="mt-1 h-3.5 w-3.5 shrink-0 text-brand"
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0">{swap.to}</span>
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {reviewPoints.length > 0 && (
+            <section className={swaps && swaps.length > 0 ? "mt-4" : ""}>
+              <h3 className="text-xs font-bold text-ink-muted">ここを見て</h3>
               <ul className="mt-2 space-y-1 text-sm leading-6" role="list">
-                {reviewPoints.slice(1).map((point) => (
+                {reviewPoints.map((point) => (
                   <li key={point}>・{point}</li>
                 ))}
               </ul>
             </section>
           )}
-          {extra && <div className="mt-5 border-t border-line pt-4">{extra}</div>}
+
+          {!fullCompare ? (
+            <div className="mt-4">
+              <MoreButton
+                testId="full-compare-open"
+                onClick={() => setFullCompare(true)}
+              >
+                全文を比べる
+              </MoreButton>
+            </div>
+          ) : (
+            <div className="mt-4 border-t border-line pt-4" data-testid="full-compare">
+              {showDiff && diff}
+              {/*
+                文章そのものを押せるようにする。長い日はここで切れるので、
+                続きを読むために一枚を送らせない（`FullText`）。
+              */}
+              <section className={showDiff ? "mt-5" : ""}>
+                <h3 className="text-xs font-bold text-ink-muted">元の文章</h3>
+                <div className="mt-2">
+                  <FullText label="元の文章" text={before} testId="full-before" />
+                </div>
+              </section>
+              <section className="mt-4">
+                <h3 className="text-xs font-bold text-ink-muted">AIの結果</h3>
+                <div className="mt-2">
+                  <FullText label="AIの結果" text={after} testId="full-after" />
+                </div>
+              </section>
+              {extra && <div className="mt-5 border-t border-line pt-4">{extra}</div>}
+            </div>
+          )}
         </MoreSheet>
       )}
 
@@ -287,7 +373,7 @@ export function ResultCompare({
         「比べる面」から引かれる——実測で、比べる面が 32px まで
         潰れていた。残りは「変わったところを見る」の一枚へ移した。
       */}
-      {reviewPoints.length > 0 && (
+      {showPoints && reviewPoints.length > 0 && (
         <p
           className="mt-3 shrink-0 text-xs leading-5 text-brand-dark"
           data-testid="review-point"

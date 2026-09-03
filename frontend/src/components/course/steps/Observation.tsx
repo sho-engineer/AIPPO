@@ -4,16 +4,27 @@
  * AIの結果のどこが変わったのかを、項目に分けて自分で確かめる画面。
  */
 
+import { ChoiceButton } from "../../aippo/ChoiceButton";
 import type { LessonStep, StepOption } from "../../../course/types";
 
 // ------------------------------------------------------------- 観察の一覧
 
 /**
- * 「どこが変わったと思いますか」。
+ * 「分かりやすくなった？」の答え。
  *
- * チップではなく**縦のチェック一覧**にする。
- * 複数選べることが形で分かるし、上から順に読み比べられる。
- * 正誤は付けない。「よく分からない」も同じ見た目で並べる。
+ * 単一選択の押しボタンにする
+ * --------------------------
+ * 前は四角のチェックを添えた縦の一覧で、値も **カンマ区切りの複数選択**
+ * だった。ところがこの問いは「分かりやすくなったか / まだ難しいか」の
+ * どちらか1つで、両方は選べない。チェックの形は**複数選べる**と
+ * 言っているので、形と中身が食い違っていた。
+ *
+ * 高さも問題だった。札1つで 56px、2つ縦に積んで 120px——この画面は
+ * 1画面に収める柱の中にあり、その 120px はそのまま「AIの結果を読む
+ * 場所」から引かれる。実測（402×660）では、下の帯に札が隠れていた。
+ *
+ * 押しボタンなら、選ばれていることは枠と地とチェックで表せて、
+ * 高さは1行ぶんで足りる。**選べるのは常に1つ**。
  */
 export function ObservationList({
   step,
@@ -24,76 +35,57 @@ export function ObservationList({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const selected = value.split(",").filter(Boolean);
-
-  const toggle = (option: StepOption) => {
-    const next = selected.includes(option.value)
-      ? selected.filter((entry) => entry !== option.value)
-      : [...selected, option.value];
-    onChange(next.join(","));
-  };
+  const options = step.options ?? [];
 
   /*
-    短い2択は横に並べる。
+    短い2択は横に並べる。3つ以上や長い言葉のときは縦のまま——
+    横に詰めると折り返して、札の高さが揃わなくなる。
 
-    縦に積むと 56px×2＋間で 120px 取る。いちばん低い持ち方
-    （402×684）では、その分だけ札が下の帯に隠れて**押せなかった**。
-    2つとも短い言葉なので、横に並べても読める。
-
-    3つ以上や長い言葉のときは縦のまま——横に詰めると折り返して、
-    札の高さが揃わなくなる。
+    9字までにする。10字ふたつ（＝両方いっぱい）は、いちばん狭い
+    持ち方で足し合わせると枠を越える。
   */
-  const options = step.options ?? [];
   const sideBySide =
-    options.length === 2 && options.every((option) => option.label.length <= 10);
+    options.length === 2 && options.every((option) => option.label.length <= 9);
 
   return (
+    /*
+      横に並べるときは、**幅を半分ずつに割らない**（`grid-cols-2` を
+      使わない）。
+
+      割ると、長いほうの札に残る幅は 393px の画面で 131px。
+      「分かりやすくなった」には 136px 要るので、**「分かりや／
+      すくなった」と語の途中で割れる**（実測）。文字を短くしても
+      直らない種類の折り返しで、原因は幅の配り方のほう。
+
+      `flex-auto` は、まず言葉の長さぶんを配り、余りを等分する。
+      長い札が広く、短い札が狭くなるので、**どちらも1行**で収まる。
+    */
     <ul
-      className={sideBySide ? "grid grid-cols-2 gap-2" : "space-y-2"}
+      className={sideBySide ? "flex gap-2" : "space-y-2"}
       role="list"
       data-testid="observation-list"
       data-layout={sideBySide ? "row" : "stack"}
     >
-      {options.map((option) => {
-        const active = selected.includes(option.value);
-        return (
-          <li key={option.value}>
-            <button
-              type="button"
-              onClick={() => toggle(option)}
-              aria-pressed={active}
-              /*
-                横に並べるときは、左右の余白と印との間を詰める。
-                半分の幅（約175px）で `px-4 gap-3` のままだと
-                「分かりやすくなった」が折り返して札が2行になり、
-                詰めたぶんがそのまま帳消しになる。
-              */
-              className={`flex w-full items-center rounded-card border
-                          text-left text-sm transition ${
-                            sideBySide ? "gap-2 px-3 py-2.5" : "gap-3 px-4 py-3"
-                          } ${
-                            active
-                              ? "border-brand bg-brand-soft"
-                              : "border-line bg-surface hover:border-brand-line"
-                          }`}
-            >
-              {/* 選ばれていることを色だけで表さない */}
-              <span
-                aria-hidden="true"
-                className={`flex h-5 w-5 shrink-0 items-center justify-center
-                            rounded border text-xs font-bold ${
-                              active
-                                ? "border-brand bg-brand text-white"
-                                : "border-brand-line bg-surface text-transparent"
-                            }`}
-              >
-                ✓
-              </span>
-              {option.label}
-            </button>
-          </li>
-        );
-      })}
+      {options.map((option) => (
+        <li key={option.value} className={sideBySide ? "flex-auto" : undefined}>
+          <ChoiceButton
+            label={option.label}
+            selected={value === option.value}
+            /*
+              横に並べるときは、印を浮かせて文字に幅を渡す。流れの中に
+              20px＋12px を確保したままだと、「分かりやすくなった」が
+              **語の途中で折れる**（実測で「分かりや／すくなった」）。
+            */
+            compact={sideBySide}
+            /*
+              押し直しで選び直せる。**取り消しはできない**——
+              この問いには「どちらでもない」が無いので、空に戻せると
+              先へ進めない状態を自分で作れてしまう。
+            */
+            onSelect={() => onChange(option.value)}
+          />
+        </li>
+      ))}
     </ul>
   );
 }

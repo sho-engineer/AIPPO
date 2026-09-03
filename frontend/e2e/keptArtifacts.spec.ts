@@ -40,11 +40,19 @@ async function finishALesson(page: Page): Promise<void> {
       const box = page.locator("textarea:visible").first();
       if (await box.count()) await box.fill("来週の打ち合わせの件、資料の確認をお願いします。");
       else {
+        /*
+          「読むための入口」は押さない。
+
+          答えを入れに来ているのに、`全文を見る` や `変わったところを見る`
+          を押すと一枚が開き、**後ろの画面は押せなくなる**（開いている
+          あいだ背景は触れない）。次の周回でも同じ入口をもう一度押すので、
+          そこから抜けられずレッスンが終わらない。
+        */
         const choice = page
           .locator("main button:visible")
           .filter({
             hasNotText:
-              /レッスン一覧へ|もどる|くわしく|送っています|飛ばす|スキップ|あとにする|取っておく|コピー/,
+              /レッスン一覧へ|もどる|くわしく|全文|変わったところ|送っています|飛ばす|スキップ|あとにする|取っておく|コピー/,
           })
           .first();
         if (await choice.count()) await choice.click();

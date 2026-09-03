@@ -47,6 +47,25 @@ export interface ChoiceButtonProps {
    * 列がガタつく（§18）。
    */
   tall?: boolean;
+  /**
+   * 幅の狭い横並びに入れるか。
+   *
+   * 2択を横に並べると、393px の画面で1枠は 176px しかない。既定の
+   * 作りは左右に 16px ずつの余白と、印のための 20px＋12px を**流れの
+   * 中に**確保するので、文字に残るのは 117px——`text-sm`（14px）の
+   * 全角で8字ぶんしかなく、「分かりやすくなった」（9字・実測 136px）が
+   * **「分かりや／すくなった」と語の途中で折れる**。
+   *
+   * ここでは印を浮かせ（`absolute`）、一回り小さくし、余白を詰める。
+   * 浮かせたものは流れから外れるので場所を取らず、**確保するまでも
+   * なくずれようがない**——選ぶ前と後で折り返しが動かないという
+   * 元の狙いは、むしろこちらのほうが強い。
+   *
+   * 幅の配り方そのものは、並べる側の仕事（`ObservationList` は
+   * `flex-auto` で、言葉の長さぶんを先に配ってから余りを等分する）。
+   * ここでできるのは、渡された幅を文字に使い切ることまで。
+   */
+  compact?: boolean;
   testId?: string;
 }
 
@@ -58,6 +77,7 @@ export function ChoiceButton({
   icon,
   disabled,
   tall,
+  compact,
   testId,
 }: ChoiceButtonProps) {
   /*
@@ -93,7 +113,9 @@ export function ChoiceButton({
                   ${
                     stacked
                       ? "min-h-[6.5rem] flex-col items-start gap-2 px-3.5 py-3"
-                      : "min-h-[3.25rem] items-center gap-3 px-4 py-2.5"
+                      : compact
+                        ? "min-h-[3.25rem] items-center gap-2 px-3 py-2.5"
+                        : "min-h-[3.25rem] items-center gap-3 px-4 py-2.5"
                   }
                   text-left transition
                   enabled:active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55
@@ -106,7 +128,16 @@ export function ChoiceButton({
       {icon && <span className="shrink-0">{icon}</span>}
 
       {/* 縦積みのときは、文字が札の幅いっぱいを使う */}
-      <span className={stacked ? "w-full min-w-0" : "min-w-0 flex-1"}>
+      <span
+        className={
+          stacked
+            ? "w-full min-w-0"
+            : compact
+              ? // 浮いた印の下へ文字が潜らないぶんだけ空ける
+                "min-w-0 flex-1 pr-3.5"
+              : "min-w-0 flex-1"
+        }
+      >
         <span
           className={`block text-sm leading-6 ${selected ? "font-bold text-brand-dark" : ""}`}
         >
@@ -133,12 +164,20 @@ export function ChoiceButton({
       */}
       <span
         aria-hidden="true"
-        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full
+        className={`flex shrink-0 items-center justify-center rounded-full
                     bg-brand text-white transition-opacity
+                    ${
+                      compact
+                        ? // 狭い2列では、印も一回り小さく。20px のままだと
+                          // 文字に残る幅が 131px にしかならず、9字
+                          // （「分かりやすくなった」）が入らない（実測 136px 要る）
+                          "h-4 w-4 absolute right-1 top-1/2 -translate-y-1/2"
+                        : "h-5 w-5"
+                    }
                     ${stacked ? "absolute right-2.5 top-2.5" : ""}
                     ${selected ? "opacity-100" : "opacity-0"}`}
       >
-        <IconCheck className="h-3 w-3" />
+        <IconCheck className={compact ? "h-2.5 w-2.5" : "h-3 w-3"} />
       </span>
     </button>
   );

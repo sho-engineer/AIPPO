@@ -635,7 +635,21 @@ export function LessonRunner({
         onEditSummary={editSummary}
         primaryLabel={primaryLabel(step)}
         onPrimary={onPrimary}
-        primaryDisabled={Boolean(blockingIssue)}
+        /*
+          答えるまで、次へは押せない。
+
+          結果を見て答える回（`observation`）は、選ばずに次へ進める
+          と**何も答えないまま先へ行ける**。この回でしてほしいのは
+          1つ（分かりやすくなったか）だけなので、そこを飛ばせると
+          画面の意味が無くなる。
+
+          ほかの回は前のまま。入力の回は空でも進める道を残してある
+          （例文で試す・飛ばす）ので、ここで一律に止めない。
+        */
+        primaryDisabled={
+          Boolean(blockingIssue) ||
+          (step.type === "observation" && !isAnswered(step, values))
+        }
         hintNearButton={api.issue?.reason ?? null}
         error={api.error}
         secondary={
