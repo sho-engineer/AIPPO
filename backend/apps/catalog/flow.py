@@ -185,7 +185,14 @@ def insert_sections(
                 "title": section.get("title", ""),
                 "poMessage": section.get("poMessage", ""),
                 "poEmotion": "celebrate",
-                "meta": {"sectionLabel": section.get("label", "")},
+                # 番号と絵も、ステップに持たせて運ぶ。画面側が別の表を
+                # 引きに行かなくて済む（引きに行く形だと、章扉を足したのに
+                # 絵の表へ書き忘れた日に、絵の無い章扉が黙って出る）
+                "meta": {
+                    "sectionNumber": section.get("number", 0),
+                    "sectionLabel": section.get("label", ""),
+                    "image": section.get("image", {}),
+                },
             },
         )
 

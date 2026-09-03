@@ -19,13 +19,22 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
+import { existsSync, readFileSync } from "node:fs";
+
 import { SectionTransition } from "../src/components/course/SectionTransition";
 import { getLesson } from "../src/course/catalog";
 import { missionStateOf } from "../src/course/missions";
-import { teachingImage } from "../src/course/teachingImages";
 
 const DAY1 = getLesson("rewrite_text")!;
 const covers = DAY1.steps.filter((step) => step.type === "section_transition");
+
+interface CoverMeta {
+  sectionNumber?: number;
+  sectionLabel?: string;
+  image?: { src: string; alt: string; width: number; height: number };
+}
+
+const metaOf = (step: (typeof covers)[number]) => (step.meta ?? {}) as CoverMeta;
 
 const IMAGE = {
   src: "/assets/teaching/day1_section_01.webp",
@@ -82,14 +91,64 @@ describe("Day1 の段の分かれ方", () => {
     ]);
   });
 
-  it("章扉には絵がある（4枚とも）", () => {
-    for (const step of covers) {
-      const image = teachingImage(DAY1.id, step.id);
-      expect(image, `${step.id} に絵が無い`).not.toBeNull();
-      expect(image!.visualType).toBe("section");
-      // 縦長。画面いっぱいに出すので、実寸を書いておかないと箱が飛ぶ
-      expect(image!.height!).toBeGreaterThan(image!.width!);
+  it("1つの章について言うことが、1か所にまとまっている", () => {
+    /*
+      番号・題・絵・次にやること。前は絵だけ別の表が持っていて、
+      1枚足すのに2つのファイルを直すことになっていた——片方を
+      忘れても**絵の無い章扉が出るだけ**で、画面を見るまで気づけない。
+
+      章扉のステップが、そのまま全部を運んでいること。
+    */
+    for (const [index, step] of covers.entries()) {
+      const meta = metaOf(step);
+
+      expect(meta.sectionNumber, `${step.id} に番号が無い`).toBe(index + 1);
+      expect(meta.sectionLabel, `${step.id} に帯の名前が無い`).toBeTruthy();
+      expect(step.title, `${step.id} に題が無い`).toBeTruthy();
+      expect(meta.image?.src, `${step.id} に絵が無い`).toBeTruthy();
+      expect(meta.image?.alt, `${step.id} の絵に読み上げの1文が無い`).toBeTruthy();
     }
+  });
+
+  it("絵は、置いてあるファイルを指していて、実寸も合っている", () => {
+    /*
+      **表に1行足しただけで、絵を置き忘れる**のがいちばん起きやすい。
+      画面には壊れた絵の枠が出るが、検査はどれも通ってしまう。
+
+      実寸も見る。合っていないと、読み込む前と後で箱の高さが変わって
+      下のボタンが飛ぶ。絵を差し替えて数字を直し忘れるのが、
+      これまたよく起きる。
+    */
+    for (const step of covers) {
+      const image = metaOf(step).image!;
+
+      expect(existsSync(`public${image.src}`), `${image.src} が無い`).toBe(true);
+
+      /*
+        WebP（VP8L）の頭から実寸を読む。21バイト目から幅-1 を14ビット、
+        高さ-1 を14ビット。教材の絵はすべて可逆で置いてある。
+      */
+      const raw = readFileSync(`public${image.src}`);
+      expect(raw.subarray(12, 16).toString("ascii"), `${image.src} が可逆WebPでない`).toBe(
+        "VP8L",
+      );
+      const bits = raw.readUInt32LE(21);
+      const width = (bits & 0x3fff) + 1;
+      const height = ((bits >> 14) & 0x3fff) + 1;
+
+      expect({ width, height }, `${image.src} の実寸が表と違う`).toEqual({
+        width: image.width,
+        height: image.height,
+      });
+      // 縦長。画面いっぱいに出す1枚なので、横長だと上下が余る
+      expect(height, `${image.src} が縦長でない`).toBeGreaterThan(width);
+    }
+  });
+
+  it("章扉ごとに、別々の絵を使う", () => {
+    // 同じ絵が2枚出ると、進んだのに同じ画面が出たように見える
+    const srcs = covers.map((step) => metaOf(step).image!.src);
+    expect(new Set(srcs).size).toBe(srcs.length);
   });
 
   it("章扉は、押すだけで進める（答えを持たない）", () => {

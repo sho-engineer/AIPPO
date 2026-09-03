@@ -230,14 +230,15 @@ describe("Day1 のどこに出るか", () => {
   const order = lesson.steps.map((step) => step.id);
   const at = (stepId: string) => order.indexOf(stepId);
 
-  it("章扉4枚と、教材の絵3枚が、それぞれの画面に割り当たっている", () => {
+  it("教材の絵3枚が、それぞれの画面に割り当たっている", () => {
     /*
-      並びがそのまま Day1 の4つの段になっている。
+      章扉はここに入らない。**1つの章について言うことは1か所に
+      まとめる**と決めたので、絵も教材データ（`catalog.ts` の
+      `sections`）が持っている（`tests/sectionTransition.test.tsx`）。
 
-        〈章扉①〉試す      … 完成イメージ
-        〈章扉②〉相手      … 比べる図 → ターゲット指定
-        〈章扉③〉言い方    … トーン指定
-        〈章扉④〉自分で    … （絵は無い。ここからは自分の文章）
+      ここが見るのは、本文のあいだに挟まる図のほう。
+
+        完成イメージ → 比べる図 → ターゲット指定 → トーン指定
 
       「プロンプト」には絵を置いていない。あの画面で見せたいのは
       **自分が送った言葉**で、図を足すとそちらが大きくなる。
@@ -245,15 +246,22 @@ describe("Day1 のどこに出るか", () => {
     const placed = order.filter((id) => teachingImage(DAY1, id) !== null);
 
     expect(placed).toEqual([
-      "section_1",
       "outcome_preview",
-      "section_2",
       "compare_results",
       "concept_2",
-      "section_3",
       "concept_tone",
-      "section_4",
     ]);
+  });
+
+  it("章扉の絵を、こちらの表にも重ねて置かない", () => {
+    /*
+      2か所にあると、差し替えたときに**どちらが効くのか決まらない**。
+      章扉の絵は教材データが持つ、と決めた側に寄せきる。
+    */
+    for (const id of order) {
+      if (!id.startsWith("section_")) continue;
+      expect(teachingImage(DAY1, id), `${id} が両方にある`).toBeNull();
+    }
   });
 
   it("比べる図は、一度試して条件を足したあとに出る", () => {

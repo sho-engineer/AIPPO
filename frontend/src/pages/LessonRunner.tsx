@@ -17,10 +17,12 @@ import { PrivacyDialog } from "../components/course/PrivacyDialog";
 import { DayCompletePage } from "../components/course/DayCompletePage";
 import { LessonHeader } from "../components/course/LessonHeader";
 import { LessonPaused } from "../components/course/LessonPaused";
-import { SectionTransition } from "../components/course/SectionTransition";
+import {
+  SectionTransition,
+  type SectionImage,
+} from "../components/course/SectionTransition";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
-import { teachingImage } from "../course/teachingImages";
 import { useCourse } from "../course/live";
 import { buildAiInput } from "../course/engine";
 import { promptEntryFor } from "../course/promptSummary";
@@ -43,6 +45,19 @@ import { FailureRescue } from "../components/course/FailureRescue";
 import { rescuePaths, type RescuePath } from "../course/rescue";
 import { sendLearningEvent } from "../api/lesson";
 import type { Lesson } from "../course/types";
+
+/**
+ * その章扉が持っている絵。
+ *
+ * 絵は教材データ（`catalog.ts` の `sections`）が持ち、骨格が章扉の
+ * ステップへ運んでくる。**画面側から別の表を引きに行かない**——
+ * 引きに行く形だと、章扉を足したのに絵の表へ書き忘れた日に、
+ * 絵の無い章扉が黙って出る（画面を見るまで気づけない）。
+ */
+function sectionImage(step: Lesson["steps"][number]): SectionImage | null {
+  const image = (step.meta as { image?: SectionImage } | undefined)?.image;
+  return image?.src ? image : null;
+}
 
 /**
  * この教材が持っている例文。
@@ -571,7 +586,11 @@ export function LessonRunner({
         */
         <SectionTransition
           title={step.title}
-          image={teachingImage(lesson.id, step.id)}
+          /*
+            絵は**その章扉のステップ自身が持っている**（教材データの
+            `sections` から運ばれてくる）。別の表を引きに行かない。
+          */
+          image={sectionImage(step)}
           onContinue={onPrimary}
         />
       ) : stuck ? (

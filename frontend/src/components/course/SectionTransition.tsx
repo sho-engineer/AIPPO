@@ -31,12 +31,26 @@
 import { useEffect, useState } from "react";
 
 import { PrimaryButton } from "../aippo/PrimaryButton";
-import type { TeachingImageEntry } from "../../course/teachingImages";
+
+/**
+ * 章扉の絵。
+ *
+ * 教材データ（`catalog.ts` の `sections`）が持っているものを、
+ * そのまま受け取る。**画面側から別の表を引きに行かない**——引きに
+ * 行く形だと、章扉を足したのに絵の表へ書き忘れた日に、絵の無い
+ * 章扉が黙って出る。
+ */
+export interface SectionImage {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+}
 
 export interface SectionTransitionProps {
   /** 章の名前。絵が出ないときの見出しであり、読み上げの見出しでもある。 */
   title: string;
-  image: TeachingImageEntry | null;
+  image: SectionImage | null;
   onContinue: () => void;
   /** 下のボタンの文言。既定は「つづける」。 */
   label?: string;

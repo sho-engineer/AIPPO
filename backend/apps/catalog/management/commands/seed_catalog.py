@@ -95,13 +95,16 @@ def _sections(lesson: dict[str, Any]) -> list[dict[str, Any]]:
     for index, step in enumerate(lesson["steps"]):
         if step.get("type") != "section_transition":
             continue
+        meta = step.get("meta", {})
         found.append(
             {
+                "number": meta.get("sectionNumber", len(found) + 1),
                 "id": step["id"],
                 "before": _next_real(lesson, index),
                 "title": step.get("title", ""),
-                "label": step.get("meta", {}).get("sectionLabel", ""),
+                "label": meta.get("sectionLabel", ""),
                 "poMessage": step.get("poMessage", ""),
+                "image": meta.get("image", {}),
             }
         )
     return found

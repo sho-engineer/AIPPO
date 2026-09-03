@@ -162,7 +162,14 @@
           "poMessage": "まずは、そのまま送ってみよう！",
           "poEmotion": "celebrate",
           "meta": {
-            "sectionLabel": "試す"
+            "sectionNumber": 1,
+            "sectionLabel": "試す",
+            "image": {
+              "src": "/assets/teaching/day1_section_01.webp",
+              "alt": "ポーが、読みにくい文章の吹き出しからAIへ向かう矢印を指し示している絵。",
+              "width": 941,
+              "height": 1672
+            }
           }
         },
         {
@@ -311,7 +318,14 @@
           "poMessage": "誰が読むかを、足してみよう！",
           "poEmotion": "celebrate",
           "meta": {
-            "sectionLabel": "相手"
+            "sectionNumber": 2,
+            "sectionLabel": "相手",
+            "image": {
+              "src": "/assets/teaching/day1_section_02.webp",
+              "alt": "ポーが、上司と友だちの2枚のカードを指し示している絵。",
+              "width": 941,
+              "height": 1672
+            }
           }
         },
         {
@@ -410,7 +424,14 @@
           "poMessage": "こんどは、言い方を変えてみよう！",
           "poEmotion": "celebrate",
           "meta": {
-            "sectionLabel": "言い方"
+            "sectionNumber": 3,
+            "sectionLabel": "言い方",
+            "image": {
+              "src": "/assets/teaching/day1_section_03.webp",
+              "alt": "ポーが、やさしく・丁寧に・短くの3つが並ぶつまみを指し示している絵。",
+              "width": 941,
+              "height": 1672
+            }
           }
         },
         {
@@ -518,7 +539,14 @@
           "poMessage": "覚えた3つを、いっしょに使ってみよう！",
           "poEmotion": "celebrate",
           "meta": {
-            "sectionLabel": "自分で"
+            "sectionNumber": 4,
+            "sectionLabel": "自分で",
+            "image": {
+              "src": "/assets/teaching/day1_section_04.webp",
+              "alt": "ポーが鉛筆を持ち、BeforeとAfterの2枚の紙のあいだに立っている絵。",
+              "width": 941,
+              "height": 1672
+            }
           }
         },
         {

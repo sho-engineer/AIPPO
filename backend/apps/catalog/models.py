@@ -334,10 +334,13 @@ class Lesson(models.Model):
     concept_anchors = models.JSONField(default=list, blank=True)
     #: 章扉。段が変わる切れ目で、絵1枚の画面を挟む。
     #:
-    #: 1つぶんは {id, before, title, label, poMessage}。`before` に
-    #: 置いたステップの直前へ入る。題も副題も**絵の中に焼き込まれている**
-    #: ので、ここが持つのは挟む位置と、進み具合の帯に出す短い名前だけ。
-    #: 絵そのものは画面側の course/teachingImages.ts が持つ。
+    #: 1つぶんは {number, id, before, title, label, poMessage, image}。
+    #: `before` に置いたステップの直前へ入る。
+    #:
+    #: **1つの章について言うことは、ここに全部ある。** 前は絵だけ画面側の
+    #: 別の表が持っていて、1枚足すのに2か所を直すことになっていた
+    #: ——片方を忘れても絵の無い章扉が出るだけで、画面を見るまで
+    #: 気づけない。題も副題も絵の中に焼き込まれているので、外には出さない。
     sections = models.JSONField(default=list, blank=True)
     review_points = models.JSONField(
         default=list, blank=True, help_text="結果を見るときの着眼点"

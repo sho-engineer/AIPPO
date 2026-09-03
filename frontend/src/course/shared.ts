@@ -30,16 +30,28 @@ import type {
 } from "./types";
 
 /**
- * 章扉1枚ぶん。
+ * 章扉1枚ぶん。**1つの章について言うことは、ここに全部ある。**
  *
- * 教材の中身は持たない——題も副題も**絵の中に焼き込まれている**ので、
- * ここが持つのは「どこに挟むか」と、進み具合の帯に出す短い名前だけ。
- * 絵そのものは `course/teachingImages.ts` が持つ（ステップの id で引く）。
+ * 前は絵だけ別の表（`course/teachingImages.ts`）が持っていた。章扉を
+ * 1枚足すのに2つのファイルを直すことになり、**片方を忘れても
+ * それらしく動く**——絵の無い章扉が出るだけなので、画面を見るまで
+ * 気づけない。Day2 以降へ広げると、その分岐が8日ぶんに増える。
+ *
+ * 番号・題・絵・次にやること（`before`）を1か所にまとめてある。
+ * 差し替えるときも、足すときも、見るのはここだけ。
  */
 export interface SectionTransition {
-  /** ステップの id。絵を引く鍵でもある（`section_1` など）。 */
+  /**
+   * 章の番号。
+   *
+   * 絵の中にも「Section 1」と焼き込まれている。**同じ番号を2か所に
+   * 書くことになる**が、片方は絵の中で読めないので、読める側を
+   * 持っておく（読み上げに渡すのと、並びの検査に使う）。
+   */
+  number: number;
+  /** ステップの id（`section_1` など）。 */
   id: string;
-  /** このステップの**直前**へ挟む。 */
+  /** このステップの**直前**へ挟む。＝この章で最初にやること。 */
   before: string;
   /** 読み上げと、絵が出ないときの見出し。 */
   title: string;
@@ -51,6 +63,21 @@ export interface SectionTransition {
    */
   label: string;
   poMessage: string;
+  /**
+   * 章扉の絵。**画面いっぱいに出す1枚。**
+   *
+   * 実寸を書くのは、読み込む前と後で箱の高さを変えないため
+   * （書かないと絵が届いた瞬間に下のボタンが飛ぶ）。
+   * 絵を差し替えたら、ここも測り直すこと——
+   * `tests/sectionTransition.test.tsx` が実物と突き合わせる。
+   */
+  image: {
+    src: string;
+    /** 何の絵かを1文で。**絵の中の文字を書き写さない**（題は `title`）。 */
+    alt: string;
+    width: number;
+    height: number;
+  };
 }
 
 /** 条件を1つだけ足すときの選択肢。 */
@@ -327,7 +354,18 @@ function insertSections(
       title: section.title,
       poMessage: section.poMessage,
       poEmotion: "celebrate",
-      meta: { sectionLabel: section.label },
+      /*
+        番号と絵も、ステップに持たせて運ぶ。
+
+        画面側が別の表を引きに行かなくて済む——引きに行く形だと、
+        章扉を足したのに絵の表へ書き忘れた日に、**絵の無い章扉**が
+        黙って出る（画面を見るまで気づけない）。
+      */
+      meta: {
+        sectionNumber: section.number,
+        sectionLabel: section.label,
+        image: section.image,
+      },
     });
   }
 

@@ -329,37 +329,70 @@ const LESSON_1: Lesson = {
           ① 試す        ② 相手を決める
           ③ トーンを変える  ④ 自分で使う
 
-      題も副題も絵の中に焼き込まれている（`teachingImages.ts`）ので、
-      ここが持つのは挟む位置と、帯に出す短い名前だけ。
+      **1つの章について言うことは、ここに全部ある。** 番号・題・絵・
+      次にやること（`before`）。前は絵だけ別の表（`teachingImages.ts`）
+      が持っていて、1枚足すのに2つのファイルを直すことになっていた
+      ——片方を忘れても**絵の無い章扉が出るだけ**で、画面を見るまで
+      気づけない。
+
+      題も副題も絵の中に焼き込まれているので、外に文字で出し直さない。
     */
     sections: [
       {
+        number: 1,
         id: "section_1",
         before: "outcome_preview",
         title: "まずは試してみよう",
         label: "試す",
         poMessage: "まずは、そのまま送ってみよう！",
+        image: {
+          src: "/assets/teaching/day1_section_01.webp",
+          alt: "ポーが、読みにくい文章の吹き出しからAIへ向かう矢印を指し示している絵。",
+          width: 941,
+          height: 1672,
+        },
       },
       {
+        number: 2,
         id: "section_2",
         before: "add_condition",
         title: "相手を決めよう",
         label: "相手",
         poMessage: "誰が読むかを、足してみよう！",
+        image: {
+          src: "/assets/teaching/day1_section_02.webp",
+          alt: "ポーが、上司と友だちの2枚のカードを指し示している絵。",
+          width: 941,
+          height: 1672,
+        },
       },
       {
+        number: 3,
         id: "section_3",
         before: "real_audience",
         title: "トーンを変えよう",
         label: "言い方",
         poMessage: "こんどは、言い方を変えてみよう！",
+        image: {
+          src: "/assets/teaching/day1_section_03.webp",
+          alt: "ポーが、やさしく・丁寧に・短くの3つが並ぶつまみを指し示している絵。",
+          width: 941,
+          height: 1672,
+        },
       },
       {
+        number: 4,
         id: "section_4",
         before: "real_task_intro",
         title: "自分で仕上げよう",
         label: "自分で",
         poMessage: "覚えた3つを、いっしょに使ってみよう！",
+        image: {
+          src: "/assets/teaching/day1_section_04.webp",
+          alt: "ポーが鉛筆を持ち、BeforeとAfterの2枚の紙のあいだに立っている絵。",
+          width: 941,
+          height: 1672,
+        },
       },
     ],
     conceptSkills: ["プロンプト", "ターゲット指定"],

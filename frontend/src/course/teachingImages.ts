@@ -146,38 +146,14 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       【章扉③】言い方    → 誰が読むか → トーン指定 → 口調を選ぶ
       【章扉④】自分で    → 自分の文章 → 送る → 結果 → ふりかえり
 
-    章扉は**画面いっぱいの1枚**で、ほかの絵と扱いが違う（`section`）。
+    章扉の絵はここに置かない。**1つの章について言うことは1か所に
+    まとめる**と決めたので、番号・題・絵・次にやることをまとめて
+    教材データ（`catalog.ts` の `sections`）が持っている。
+    ここに重ねて置くと、差し替えたときにどちらが効くのか決まらない。
+
     解説の絵（AI技）は続けて出さない。あいだに必ず手を動かす画面が入る。
   */
   rewrite_text: {
-    section_1: {
-      src: "/assets/teaching/day1_section_01.webp",
-      alt: "Section 1「まずは試してみよう」の章扉。ポーが、読みにくい文章の吹き出しからAIへ向かう矢印を指し示している絵。",
-      visualType: "section",
-      width: 941,
-      height: 1672,
-    },
-    section_2: {
-      src: "/assets/teaching/day1_section_02.webp",
-      alt: "Section 2「相手を決めよう」の章扉。ポーが、上司と友だちの2枚のカードを指し示している絵。",
-      visualType: "section",
-      width: 941,
-      height: 1672,
-    },
-    section_3: {
-      src: "/assets/teaching/day1_section_03.webp",
-      alt: "Section 3「トーンを変えよう」の章扉。ポーが、やさしく・丁寧に・短くの3つが並ぶつまみを指し示している絵。",
-      visualType: "section",
-      width: 941,
-      height: 1672,
-    },
-    section_4: {
-      src: "/assets/teaching/day1_section_04.webp",
-      alt: "Section 4「自分で仕上げよう」の章扉。ポーが鉛筆を持ち、BeforeとAfterの2枚の紙のあいだに立っている絵。",
-      visualType: "section",
-      width: 941,
-      height: 1672,
-    },
     outcome_preview: {
       src: "/assets/teaching/day1_overview.webp",
       alt: "Day1「文章を分かりやすくする」の全体図。専門用語・技術用語・略語が多く意味をつかみにくい文章が、専門用語を減らして相手に合わせて説明した文章に変わることを並べて示し、終えたらできるようになること3つと学習時間の目安を添えたもの。",
