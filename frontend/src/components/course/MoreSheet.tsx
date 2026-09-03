@@ -375,6 +375,19 @@ export function MoreButton({
  * 右下に「全文を見る」を添える。`<button>` にしてあるので、
  * キーボードでも読み上げでも同じように届く。
  */
+/**
+ * 行数と、Tailwind のクラス名の対応。
+ *
+ * 表にしてあるのは、**書いてあるクラス名しか CSS が作られない**ため。
+ * `line-clamp-${lines}` と組み立てると、その名前は出力に無く、
+ * 切れずに全文が出る（気づけるのは画面がはみ出したとき）。
+ */
+const CLAMP = {
+  2: "line-clamp-2",
+  3: "line-clamp-3",
+  4: "line-clamp-4",
+} as const;
+
 export function FullText({
   label,
   text,
@@ -392,11 +405,15 @@ export function FullText({
    * 直接置くときは2行にする——1行ぶん（28px）で画面がはみ出す
    * ことがある（iPhone の Safari で実際に起きた）。
    *
-   * 値は決め打ちの2つだけ。Tailwind は書いてあるクラス名しか
+   * AIの結果だけは4行。**1〜2行では、返ってきたものが読めない。**
+   * 読めないまま「分かりやすくなった？」を聞かれると、答えようが
+   * ないので勘で押すことになる（実際にそうなっていた）。
+   *
+   * 値は決め打ちの3つだけ。Tailwind は書いてあるクラス名しか
    * 作らないので、`line-clamp-${n}` のような組み立て方だと
    * **CSS が出てこない**（切れずに全文が出る）。
    */
-  lines?: 2 | 3;
+  lines?: 2 | 3 | 4;
 }) {
   const [open, setOpen] = useState(false);
   const body = text || "（入力なし）";
@@ -427,7 +444,7 @@ export function FullText({
           敷く `-webkit-box` で塊として並ぶので、`block` は要らない。
         */}
         <span
-          className={`${lines === 2 ? "line-clamp-2" : "line-clamp-3"}
+          className={`${CLAMP[lines]}
                       whitespace-pre-wrap break-words text-sm leading-7`}
         >
           {body}

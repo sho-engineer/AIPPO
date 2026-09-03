@@ -33,9 +33,28 @@ export function ObservationList({
     onChange(next.join(","));
   };
 
+  /*
+    短い2択は横に並べる。
+
+    縦に積むと 56px×2＋間で 120px 取る。いちばん低い持ち方
+    （402×684）では、その分だけ札が下の帯に隠れて**押せなかった**。
+    2つとも短い言葉なので、横に並べても読める。
+
+    3つ以上や長い言葉のときは縦のまま——横に詰めると折り返して、
+    札の高さが揃わなくなる。
+  */
+  const options = step.options ?? [];
+  const sideBySide =
+    options.length === 2 && options.every((option) => option.label.length <= 10);
+
   return (
-    <ul className="space-y-2" role="list" data-testid="observation-list">
-      {(step.options ?? []).map((option) => {
+    <ul
+      className={sideBySide ? "grid grid-cols-2 gap-2" : "space-y-2"}
+      role="list"
+      data-testid="observation-list"
+      data-layout={sideBySide ? "row" : "stack"}
+    >
+      {options.map((option) => {
         const active = selected.includes(option.value);
         return (
           <li key={option.value}>
@@ -43,8 +62,16 @@ export function ObservationList({
               type="button"
               onClick={() => toggle(option)}
               aria-pressed={active}
-              className={`flex w-full items-center gap-3 rounded-card border px-4 py-3
+              /*
+                横に並べるときは、左右の余白と印との間を詰める。
+                半分の幅（約175px）で `px-4 gap-3` のままだと
+                「分かりやすくなった」が折り返して札が2行になり、
+                詰めたぶんがそのまま帳消しになる。
+              */
+              className={`flex w-full items-center rounded-card border
                           text-left text-sm transition ${
+                            sideBySide ? "gap-2 px-3 py-2.5" : "gap-3 px-4 py-3"
+                          } ${
                             active
                               ? "border-brand bg-brand-soft"
                               : "border-line bg-surface hover:border-brand-line"

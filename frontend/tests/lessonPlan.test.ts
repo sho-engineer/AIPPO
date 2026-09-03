@@ -31,6 +31,25 @@ import {
   openingClause,
 } from "../src/course/lessonPlan";
 
+/**
+ * 元の文章に出てくる、そのままでは読めない言葉。
+ *
+ * できあがりの文にも、言いかえ先にも残っていてはいけない。
+ * 残っているということは、そこが言いかえられていないということ。
+ */
+const JARGON = [
+  "Query",
+  "Key",
+  "Softmax",
+  "Value",
+  "Attention",
+  "トークン",
+  "自己注意機構",
+  "内積",
+  "スケーリング",
+  "部分空間",
+];
+
 describe("今日やることの図", () => {
   it("図を持つ教材は、実在する", () => {
     for (const lessonId of Object.keys(LESSON_PLANS)) {
@@ -70,19 +89,41 @@ describe("今日やることの図", () => {
     }
   });
 
-  it("言いかえ後の言葉は、できあがりの文の中にある", () => {
+  it("言いかえ後に、むずかしい言葉が残っていない", () => {
     /*
-      ここが緩むと、対応表だけが正しくて本文が別のことを言っている
-      状態になる——**表を信じて読んだ人がいちばん混乱する。**
+      前はここで「できあがりの文にそのまま出てくるか」を見ていた。
+      表と本文はずれなくなるが、**そのために本文が「専門用語を1つずつ
+      訳しただけ」の形に引きずられていた**——用語は消えても、
+      言っていることの難しさは変わらない。
+
+      見るものを変える。言いかえたのに元の用語が残っていたら、
+      それは言いかえられていない。ここが Day1 のねらいそのもの。
     */
     for (const [lessonId, plan] of Object.entries(LESSON_PLANS)) {
-      const after = getLesson(lessonId)!.afterExample ?? "";
       for (const swap of plan.swaps) {
-        expect(
-          after.includes(swap.to),
-          `${lessonId}: 「${swap.to}」ができあがりの文に無い`,
-        ).toBe(true);
+        for (const term of JARGON) {
+          expect(
+            swap.to.includes(term),
+            `${lessonId}: 言いかえ先「${swap.to}」に「${term}」が残っている`,
+          ).toBe(false);
+        }
       }
+    }
+  });
+
+  it("できあがりの文に、内部の計算の話が残っていない", () => {
+    /*
+      Day1 は Transformer を教える回ではない。**難しい文章を読める
+      ようにする**回なので、Query や Softmax の説明は要らない。
+      残っていると、元の文章とほとんど同じ難しさのまま出てしまう
+      （実際そうなっていた）。
+    */
+    const after = getLesson("rewrite_text")!.afterExample ?? "";
+
+    for (const term of JARGON) {
+      expect(after.includes(term), `できあがりの文に「${term}」が残っている`).toBe(
+        false,
+      );
     }
   });
 

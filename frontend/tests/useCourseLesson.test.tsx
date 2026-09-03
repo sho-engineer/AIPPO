@@ -89,7 +89,7 @@ async function toFirstResult(user: ReturnType<typeof userEvent.setup>) {
  */
 async function toConceptCard(
   user: ReturnType<typeof userEvent.setup>,
-  observation = "うん",
+  observation = "分かりやすくなった",
 ) {
   await toFirstResult(user);
   await user.click(await screen.findByRole("button", { name: observation }));
@@ -241,7 +241,7 @@ describe("観察してから解説する", () => {
     await toFirstResult(user);
 
     // うまくいった人には出さない
-    await user.click(await screen.findByRole("button", { name: "うん" }));
+    await user.click(await screen.findByRole("button", { name: "分かりやすくなった" }));
     expect(screen.queryByTestId("observation-reason")).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "まだ難しい" }));
@@ -285,7 +285,7 @@ describe("条件を一つ足す", () => {
 
     renderLesson();
     await toFirstResult(user);
-    await user.click(await screen.findByRole("button", { name: "うん" }));
+    await user.click(await screen.findByRole("button", { name: "分かりやすくなった" }));
     await user.click(screen.getByTestId("primary-action"));
 
     // 解説はこの後（比べたあと）に出るので、ここでは通らない

@@ -7,7 +7,6 @@
 
 import { useState, type ReactNode } from "react";
 
-import { RevealText } from "../RevealText";
 import { FullText, MoreButton, MoreSheet } from "../MoreSheet";
 import { IconCaution } from "../../Icons";
 import { diffSentences, isMostlyUnchanged } from "../../../lib/diff";
@@ -27,6 +26,28 @@ interface ResultProps {
    * 積むと、比べる面がその分だけ潰れる。
    */
   more?: ReactNode;
+  /**
+   * 「変わったところを見る」を出すか。
+   *
+   * 出さない画面がある——結果の直後（`observation`）は、**この画面で
+   * 決めることが1つ**（分かりやすくなったか）なので、そこへ「差分を
+   * 読む」を並べると、答える前に読み物が増える。差分は次の画面
+   * （こんなに変わった）が持っている。
+   */
+  showChanges?: boolean;
+  /**
+   * 残りの高さいっぱいに広がるか。
+   *
+   * 既定は広がる（`true`）。結果を読むだけの画面は、下に載るのが
+   * 帯のボタンだけなので、残りに合わせて縮み、入りきらないぶんを
+   * この中で送ればよい。
+   *
+   * 結果を見て**答える**画面（`observation`）だけ `false`。あそこは
+   * 下に答えの札が載る。広がる形にすると、縮んだ枠が抜粋を切って
+   * **「全文を見る」ごと消える**（実測でそうなった）。高さを決めて
+   * しまえば、札の場所は必ず残る。
+   */
+  fill?: boolean;
 }
 
 /**
@@ -41,6 +62,8 @@ export function ResultCompare({
   reviewPoints,
   factCheck = false,
   more: extra,
+  showChanges = true,
+  fill = true,
 }: ResultProps) {
   const [tab, setTab] = useState<"before" | "after">("after");
   const [more, setMore] = useState(false);
@@ -59,54 +82,25 @@ export function ResultCompare({
     読み上げもコピーも途中の状態にはならない。
   */
   /*
-    AIが返す文章の長さは決まらない。**枠のほうで止める。**
+    AIが返す文章の長さは決まらない。**決まった行数の抜粋にする。**
 
-    止めないと、長い回答が来た日だけ画面が伸びて、下のボタンが
-    押せなくなる。ここで区切っておけば、長くてもこの面の中で送れる
-    （画面は動かない）。24rem は 390px で 10行ぶん。
+    前は「残りの高さ」を渡し、入りきらないぶんを面の中で送る形にして
+    いた。理屈は通っているが、この画面には下に問いと次へのボタンが載る。
+    残りが足りないと**この面の中身が枠の外へ出る**——実測では、
+    402×684 で「全文を見る」が下の選択肢に隠れていた（`overflow-y-auto`
+    が枠で切っていたので、押せる場所ごと消えていた）。
+
+    高さを決めてしまえば、その事故は形の上で起きない。3行で切り、
+    残りは中央の一枚で読む。
+
+    なぜ3行で、4行ではないか
+    ------------------------
+    4行だと、いちばん低い持ち方（402×684）で答えの札が 13px だけ
+    下の帯に隠れる。**押せない札を出すくらいなら、1行短くする。**
+    3行あれば、返ってきたものがどういう文章かは読み取れる。
   */
-  const panel = (
-    title: string,
-    body: string,
-    testId: string,
-    reveal = false,
-    heading = true,
-  ) => (
-    <section
-      className="flex min-h-0 flex-1 flex-col rounded-card border border-line
-                 bg-surface p-3.5"
-    >
-      {/*
-        タブで切り替えているときは、面の中の見出しを出さない。
-        すぐ上のタブが「元の文章 / AIの結果」と同じことを言っていて、
-        20px を使って二度言うぶん、肝心の本文が縮む。
-      */}
-      {heading && (
-        <h3 className="shrink-0 text-xs font-bold text-ink-muted">{title}</h3>
-      )}
-      {/*
-        下限は置かない。ここで置くと、上の入れ物がすべて `min-h-0` な
-        ので**この面だけが縮まず、枠の外へ描かれる**（実際に重なった）。
-        潰れ止めは入れ物の側（`result-compare` の `min-h`）が持つ。
-      */}
-      <div className="mt-2 min-h-0 flex-1 overflow-y-auto">
-        {reveal ? (
-          <RevealText
-            text={body}
-            trigger={body}
-            testId={testId}
-            className="whitespace-pre-wrap break-words text-sm leading-7"
-          />
-        ) : (
-          <p
-            data-testid={testId}
-            className="whitespace-pre-wrap break-words text-sm leading-7"
-          >
-            {body}
-          </p>
-        )}
-      </div>
-    </section>
+  const preview = (label: string, body: string, testId: string) => (
+    <FullText lines={3} label={label} text={body} testId={testId} />
   );
 
   /** 1文ずつの差分。開いた一枚の中にだけ出す。 */
@@ -153,9 +147,15 @@ export function ResultCompare({
       ふだんは送らずに収まる。中の本文が `flex-1` で残りに合わせて
       縮むので、ここが働くのは本当に場所が足りない端末だけ。
     */
+    /*
+      広がるかどうかは呼ぶ側が決める（`fill`）。答える画面だけ、
+      高さを決めて札の場所を残す。
+    */
     <div
       data-testid="result-compare"
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      className={`flex flex-col ${
+        fill ? "min-h-0 flex-1 overflow-y-auto" : "shrink-0"
+      }`}
     >
       {/* 狭い画面：タブ */}
       {/*
@@ -165,7 +165,20 @@ export function ResultCompare({
         面だけが枠から食み出して重なる（実際に重なった）。ここに
         置けば、足りないぶんは `result-compare` の側で送られる。
       */}
-      <div className="flex min-h-[8rem] flex-1 flex-col sm:hidden">
+      {/*
+        スマホは**決まった行数の抜粋**にする。
+
+        前は「残りの高さ」を渡して、入りきらないぶんを面の中で送る形に
+        していた。理屈は通っているが、この画面には下に問い（分かりやすく
+        なった？）と次へのボタンが載る。残りは 402×684 の実機で
+        **1行ぶんしか無く**、AIの結果が読めないまま「分かりやすく
+        なった？」を聞かれていた。読めなければ答えようがないので、
+        勘で押すことになる。
+
+        4行の抜粋＋「全文を見る」に替える。抜粋の高さは決まっているので
+        下は動かず、全文は中央の一枚で読める（`FullText`）。
+      */}
+      <div className="flex shrink-0 flex-col sm:hidden">
         <div role="tablist" className="flex shrink-0 gap-2">
           {(["before", "after"] as const).map((name) => (
             <button
@@ -182,24 +195,36 @@ export function ResultCompare({
             </button>
           ))}
         </div>
-        <div className="mt-3 flex min-h-0 flex-1 flex-col">
+        <div className="mt-3">
           {tab === "before"
-            ? panel("元の文章", before || "（入力なし）", "result-before-mobile", false, false)
-            : panel("AIの結果", after, "result-after-mobile", true, false)}
+            ? preview("元の文章", before, "result-before-mobile")
+            : preview("AIの結果", after, "result-after-mobile")}
         </div>
       </div>
 
-      {/* 広い画面：並べる */}
-      <div className="hidden min-h-[8rem] flex-1 gap-4 sm:grid sm:grid-cols-2">
-        {panel("元の文章", before || "（入力なし）", "result-before")}
-        {panel("AIの結果", after, "result-after", true)}
+      {/*
+        広い画面：並べる。
+
+        こちらも同じ抜粋にする。場所はあるが、**同じものが2つの形で
+        出る**ほうが困る——スマホで見た人とパソコンで見た人で、
+        「全文を見る」があったり無かったりする。
+      */}
+      <div className="hidden gap-4 sm:grid sm:grid-cols-2">
+        <div>
+          <h3 className="mb-1.5 text-xs font-bold text-ink-muted">元の文章</h3>
+          {preview("元の文章", before, "result-before")}
+        </div>
+        <div>
+          <h3 className="mb-1.5 text-xs font-bold text-ink-muted">AIの結果</h3>
+          {preview("AIの結果", after, "result-after")}
+        </div>
       </div>
 
       {/*
         差分は**その場で開かない**。開くとページが伸び、下のボタンが
         画面から出ていく。押したら別の一枚が出る形にする。
       */}
-      {showDiff && (
+      {showDiff && showChanges && (
         <div className="mt-4 shrink-0">
           <MoreButton testId="result-more" onClick={() => setMore(true)}>
             変わったところを見る

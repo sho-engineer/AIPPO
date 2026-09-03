@@ -295,9 +295,20 @@ export function StepRenderer({
             <ResultCompare
               before={lastRun.inputText}
               after={lastRun.outputText}
-              reviewPoints={meta.reviewPoints ?? []}
+              /*
+                ここで決めるのは1つ——分かりやすくなったかどうか。
+                見どころも差分も出さない。**答える前に読み物が増える**と、
+                肝心のAIの結果を読む場所がそのぶん狭くなる。
+                どちらも次の画面（こんなに変わった）が持っている。
+              */
+              reviewPoints={[]}
               factCheck={meta.factCheck}
-              more={<RunHistory runs={runs} flat />}
+              showChanges={false}
+              /*
+                広げない。広げると縮んだ枠が抜粋を切り、「全文を見る」も
+                答えの札も下の帯に隠れる（実測でそうなった）。
+              */
+              fill={false}
             />
           )}
           <div className="mt-3 shrink-0">

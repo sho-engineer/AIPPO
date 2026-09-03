@@ -621,8 +621,17 @@ export function LessonRunner({
           直す「なおす」がこの畳みの中にしか無い。消すと直す道が
           消える（e2e/diagnosisEdit.spec.ts が捕まえた）。
           成果物を持たない回では、そもそも押し出す相手がいない。
+
+          結果を見て答える回（`observation`）も同じ。あそこで決めるのは
+          **いま返ってきたものについて**で、前に答えた内容は判断材料に
+          ならない。34px はそのまま、読ませたいAIの結果から引かれる。
         */
-        summary={step.type === "completion" && lesson.usesAi ? [] : api.summary}
+        summary={
+          (step.type === "completion" && lesson.usesAi) ||
+          step.type === "observation"
+            ? []
+            : api.summary
+        }
         onEditSummary={editSummary}
         primaryLabel={primaryLabel(step)}
         onPrimary={onPrimary}

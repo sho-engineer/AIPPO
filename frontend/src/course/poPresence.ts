@@ -63,7 +63,15 @@ export type PoScene =
 export const PO_SIZE_BY_SCENE: Record<PoScene, PoSize> = {
   start: "lg",
   question: "lg",
-  compare: "lg",
+  /*
+    比べる場面だけ `md` にする。
+
+    ここは**返ってきた文章が主役**で、ポーは「どうだった？」と
+    ひとこと聞くだけ。`lg`（120px）にすると、ポーと吹き出しで 181px
+    ——いちばん低い持ち方（402×684）では、その分だけ読ませたい
+    AIの結果と答えの札が下へ押し出され、札が下の帯に隠れていた。
+  */
+  compare: "md",
   celebrate: "lg",
   thinking: "md",
   hint: "md",

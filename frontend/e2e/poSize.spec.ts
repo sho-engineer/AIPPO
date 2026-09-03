@@ -131,7 +131,7 @@ test.describe("ポーの大きさ", () => {
     const BY_SCENE: Record<string, keyof typeof EXPECTED> = {
       start: "lg",
       question: "lg",
-      compare: "lg",
+      compare: "md",
       celebrate: "lg",
       thinking: "md",
       hint: "md",
