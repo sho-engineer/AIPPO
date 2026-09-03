@@ -50,6 +50,20 @@ export interface LessonPlan {
   /** できあがりの呼び名。 */
   resultLabel: string;
   /**
+   * 「今日のねらい」に添える一言。
+   *
+   * ねらいの本文（`lesson.goal`）は**何ができるようになるか**しか
+   * 言っていない。なぜそれが効くのかを1行だけ足す。
+   */
+  goalNote: string;
+  /**
+   * 「完成イメージ」の Before / After に添える一言。
+   *
+   * 2つを並べただけだと「別の文になった」で終わる。**意味は変えて
+   * いない**ことは、並べても形からは読み取れないので言葉で言う。
+   */
+  changeNote: string;
+  /**
    * 図の下でポーが言う一言。
    *
    * 教材データの `poMessage`（「まず、できあがりを見てみましょう」）は
@@ -75,6 +89,8 @@ export const LESSON_PLANS: Record<string, LessonPlan> = {
   rewrite_text: {
     sourceLabel: "専門的な文章",
     resultLabel: "分かりやすい説明",
+    goalNote: "読む相手と伝え方を足すだけで、同じ内容でも伝わりやすさが変わります。",
+    changeNote: "意味は変えずに、相手に合わせて伝わりやすくします。",
     poLine: "この2つを足してみよう！",
     /*
       選択肢の文字列をそのまま持つ。図では「AI初心者向け」と縮めたく
@@ -102,4 +118,57 @@ export const LESSON_PLANS: Record<string, LessonPlan> = {
 /** その教材の図の材料。無ければ図を出さない。 */
 export function lessonPlan(lessonId: string): LessonPlan | null {
   return LESSON_PLANS[lessonId] ?? null;
+}
+
+// ------------------------------------------------- 見せるぶんだけ切り出す
+
+/**
+ * 長い例文から、**見せるぶんだけ**を切り出す。
+ *
+ * なぜ切るか
+ * ----------
+ * 「完成イメージ」に元の文章を丸ごと置いていた。Day1 の題材は 202字の
+ * 専門文で、それを読み下してからでないと After に進めない——**始める前に
+ * いちばん難しい文章を読ませる**形になっていた。ここで要るのは
+ * 「どういう文が、どういう文になるか」が分かることだけで、
+ * 全文は本編（実際に書き直す画面）で読む。
+ *
+ * 別に短い例文を書いて持たない
+ * ----------------------------
+ * 手で書いた抜粋を持つと、教材の本文を直したときに**抜粋だけが古くなる**。
+ * しかも本文と見比べないと気づけない。だから本文から機械的に切り出す。
+ *
+ * 切り方は2通りで、それぞれ理由がある。
+ */
+
+/** 何も見つからないときの上限。長い1文で埋め尽くさないため。 */
+const MAX = 46;
+
+function cut(text: string, at: number): string {
+  return `${text.slice(0, at)}…`;
+}
+
+/**
+ * 最初のひと区切りだけ（`、` まで）。読点が無ければ頭から切る。
+ *
+ * Before に使う。専門文は**最初のひと区切りでもう読めない**ので、
+ * そこまで見せれば「難しい」は伝わる。続きを見せても、伝わる量は
+ * 増えずに読む負担だけが増える。
+ */
+export function openingClause(text: string): string {
+  const at = text.indexOf("、");
+  if (at > 0 && at <= MAX) return cut(text, at);
+  return text.length > MAX ? cut(text, MAX) : text;
+}
+
+/**
+ * 最初のひと文だけ（`。` まで）。句点が無ければ頭から切る。
+ *
+ * After に使う。こちらは**ひと文で意味が通る**ことがそのまま
+ * 「分かりやすくなった」の証拠なので、途中で切らずに1文を出す。
+ */
+export function firstSentence(text: string): string {
+  const at = text.indexOf("。");
+  if (at > 0) return text.slice(0, at + 1);
+  return text.length > MAX ? cut(text, MAX) : text;
 }

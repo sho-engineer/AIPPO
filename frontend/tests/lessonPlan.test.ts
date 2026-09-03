@@ -24,7 +24,12 @@
 import { describe, expect, it } from "vitest";
 
 import { getLesson } from "../src/course/catalog";
-import { LESSON_PLANS, lessonPlan } from "../src/course/lessonPlan";
+import {
+  LESSON_PLANS,
+  firstSentence,
+  lessonPlan,
+  openingClause,
+} from "../src/course/lessonPlan";
 
 describe("今日やることの図", () => {
   it("図を持つ教材は、実在する", () => {
@@ -108,6 +113,47 @@ describe("今日やることの図", () => {
     const quick = day1.steps.find((step) => step.type === "quick_try");
     const defaults = (quick?.meta as { defaults?: Record<string, string> })?.defaults;
     expect(defaults?.length, "黙って長さを頼んでいる").toBeUndefined();
+  });
+
+  it("完成イメージの Before は、最初のひと区切りだけ", () => {
+    /*
+      Day1 の題材は 202字の専門文。丸ごと置くと、**始めるかどうかを
+      決める前に、いちばん難しい文章を読み下す**ことになる。
+      最初のひと区切りで「難しい」は伝わる。
+    */
+    const before = getLesson("rewrite_text")!.beforeExample!;
+    const shown = openingClause(before);
+
+    expect(shown).toBe("Transformer型言語モデルにおける自己注意機構では…");
+    expect(shown.length).toBeLessThan(before.length / 3);
+    // 元の文の頭から取る。書き下ろした別の文にしない
+    expect(before.startsWith(shown.replace("…", ""))).toBe(true);
+  });
+
+  it("完成イメージの After は、ひと文まるごと", () => {
+    /*
+      こちらは途中で切らない。**ひと文で意味が通る**ことが、
+      そのまま「分かりやすくなった」の証拠になる。
+    */
+    const after = getLesson("rewrite_text")!.afterExample!;
+    const shown = firstSentence(after);
+
+    expect(shown.endsWith("。")).toBe(true);
+    expect(shown).not.toContain("…");
+    expect(after.startsWith(shown)).toBe(true);
+  });
+
+  it("区切りの無い短い文は、そのまま出す", () => {
+    // 切るものが無いのに「…」を付けない
+    expect(openingClause("みじかい")).toBe("みじかい");
+    expect(firstSentence("みじかい")).toBe("みじかい");
+  });
+
+  it("区切りが遠い長文は、それでも切る", () => {
+    // 読点が来ないまま何百字も続く文で、枠を埋め尽くさない
+    const long = "あ".repeat(200);
+    expect(openingClause(long)).toHaveLength(47);
+    expect(openingClause(long).endsWith("…")).toBe(true);
   });
 
   it("図を持たない教材では、図を出さない", () => {

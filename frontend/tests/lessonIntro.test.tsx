@@ -29,8 +29,14 @@ const PLAN = lessonPlan("rewrite_text")!;
 
 const DETAIL = {
   goal: "むずかしい文章を、意味を変えずに分かりやすくする",
-  before: "自己注意機構は……",
-  after: "AIは文の中の言葉どうしを見比べて……",
+  /*
+    切り出しを見たいので、**本物と同じくらい長い**文にしてある。
+    短い文を渡すと切るところが無く、切っていないことに気づけない。
+  */
+  before:
+    "Transformer型言語モデルにおける自己注意機構では、各トークンから生成されたQueryとKeyの内積をスケーリングし、系列内の依存関係を動的に表現する。",
+  after:
+    "TransformerというAIは、文章の中にある言葉同士の関係を調べながら、どの言葉に注目するべきかを判断します。さらに複数の視点から同時に見ます。",
   skills: ["読む相手を伝える"],
   outcomes: [
     "むずかしい文章を、意味を変えずに分かりやすくできる",
@@ -200,6 +206,42 @@ describe("レッスンの入口", () => {
     expect(screen.getByTestId("outcome-flow")).toBeInTheDocument();
     // 導入は下に残る。閉じれば読んでいた続きから始められる
     expect(screen.getByTestId("lesson-intro")).toBeInTheDocument();
+  });
+
+  it("「このレッスンについて」に、元の文章を丸ごと置かない", async () => {
+    /*
+      Day1 の題材は 202字の専門文。丸ごと置くと、**始めるかどうかを
+      決める前に、いちばん難しい文章を読み下す**ことになる。全文は
+      本編（実際に書き直す画面）で読む。
+    */
+    const user = userEvent.setup();
+    renderOutcome();
+    await user.click(screen.getByTestId("lesson-intro-detail"));
+
+    const before = screen.getByTestId("outcome-before").textContent ?? "";
+    expect(before.length).toBeLessThan(DETAIL.before.length);
+    expect(before.endsWith("…")).toBe(true);
+
+    // After は途中で切らない。ひと文で意味が通ることが証拠になる
+    const after = screen.getByTestId("outcome-after").textContent ?? "";
+    expect(after.endsWith("。")).toBe(true);
+  });
+
+  it("読み切った人に、出口を置く", async () => {
+    /*
+      ×で閉じるだけだと、いちばん進みたい人に**戻る操作を1つ**
+      挟ませることになる。2枚とも閉じて、そのまま次の画面へ出す。
+    */
+    const user = userEvent.setup();
+    const onStart = vi.fn();
+    renderOutcome(onStart);
+    await user.click(screen.getByTestId("lesson-intro-detail"));
+
+    await user.click(screen.getByTestId("lesson-detail-start"));
+
+    expect(onStart).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("lesson-detail")).toBeNull();
+    expect(screen.queryByTestId("lesson-intro")).toBeNull();
   });
 
   it("Esc は、いちばん上の一枚だけを閉じる", async () => {

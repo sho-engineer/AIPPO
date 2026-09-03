@@ -250,12 +250,27 @@ export function OutcomePreview({
       {detailOpen && (
         <LessonDetailModal
           goal={goal}
+          goalNote={plan?.goalNote}
           before={before}
           after={after}
+          changeNote={plan?.changeNote}
           swaps={plan?.swaps}
           skills={skills}
           outcomes={outcomes}
           flow={flow}
+          /*
+            読み切った人の出口。導入の一枚も一緒に閉じて、そのまま
+            次の画面へ出す——2枚とも自分で閉じさせない。
+          */
+          onStart={
+            onStart
+              ? () => {
+                  setDetailOpen(false);
+                  setIntroOpen(false);
+                  onStart();
+                }
+              : undefined
+          }
           onClose={() => setDetailOpen(false)}
         />
       )}

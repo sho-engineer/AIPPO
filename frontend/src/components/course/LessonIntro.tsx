@@ -29,20 +29,27 @@ import type { ReactNode } from "react";
 import { Card, CardHeading } from "../AppShell";
 import { MoreSheet } from "./MoreSheet";
 import {
+  IconArrow,
   IconArrowDown,
+  IconBookmark,
   IconCheckCircle,
+  IconChecklist,
+  IconDocument,
   IconList,
-  IconSparkle,
   IconTarget,
 } from "../Icons";
 import { PoSpeech } from "../../po/PoSpeech";
-import type { LessonPlan } from "../../course/lessonPlan";
+import { firstSentence, openingClause, type LessonPlan } from "../../course/lessonPlan";
 
 export interface LessonDetailContent {
   /** ねらい。1行。 */
   goal?: string;
+  /** ねらいに添える一言（`course/lessonPlan.ts`）。 */
+  goalNote?: string;
   before?: string;
   after?: string;
+  /** Before / After に添える一言（`course/lessonPlan.ts`）。 */
+  changeNote?: string;
   /**
    * むずかしい言葉の言いかえ。Before / After の下に並べる。
    *
@@ -75,11 +82,27 @@ export function hasLessonDetail(detail: LessonDetailContent): boolean {
  * 面（Card）を縦に積む。ここは**読む場所**なので、1画面に収める
  * 決まりは当てない——開いた人が自分で開いた一枚の中だからで、
  * 送れば最後まで読める。
+ *
+ * ただし**上の2枚だけは、送らずに読める**ようにする
+ * -------------------------------------------------
+ * 送れることと、送らないと要点が分からないことは別。開いた瞬間に
+ * 見えているのは「今日のねらい」と「完成イメージ」の2枚で、そこまでで
+ * 始めるかどうかは決められる。流れ・AI技・できることは、決めたあとに
+ * 読む人のためのもの。
+ *
+ * 印は控えめに、文字は少なく
+ * --------------------------
+ * 前は「完成イメージ」の印がキラキラ（`IconSparkle`）だった。魔法や
+ * AI らしさの記号で、**学習アプリの節の見出しに付くものではない**。
+ * 中身も 202字の専門文を丸ごと置いていて、始める前にいちばん難しい
+ * 文章を読み下させていた。印は単色の線画、例文は見せるぶんだけに絞る。
  */
 function LessonDetailBody({
   goal,
+  goalNote,
   before,
   after,
+  changeNote,
   swaps,
   skills,
   outcomes,
@@ -92,15 +115,30 @@ function LessonDetailBody({
           <CardHeading icon={IconTarget} tone="plain">
             今日のねらい
           </CardHeading>
-          <p data-testid="outcome-goal" className="mt-2 text-sm leading-7">
+          {/*
+            リード1文。ここだけ本文より少し大きくする——この一枚で
+            いちばん先に目に入ってほしいのがこの行なので。
+          */}
+          <p
+            data-testid="outcome-goal"
+            className="mt-2.5 text-[0.9375rem] font-bold leading-7"
+          >
             {goal}
           </p>
+          {goalNote && (
+            <p className="mt-1.5 text-xs leading-6 text-ink-muted">{goalNote}</p>
+          )}
         </Card>
       )}
 
       {before && after && (
         <Card>
-          <CardHeading icon={IconSparkle} tone="plain">
+          {/*
+            印は書類にする。前はキラキラだったが、あれは「魔法で
+            変わる」の記号で、ここで見せたいこと——**同じ内容の、
+            書き方だけ違う2つ**——と逆のことを言っていた。
+          */}
+          <CardHeading icon={IconDocument} tone="plain">
             完成イメージ
           </CardHeading>
 
@@ -108,60 +146,72 @@ function LessonDetailBody({
             上下に並べて、あいだに矢印を落とす。
             横並びだと「左右にある2つ」で終わり、
             片方がもう片方に変わったことが読み取れない。
+
+            出すのは**見せるぶんだけ**（`openingClause` / `firstSentence`）。
+            全文は本編で読む。ここに 202字の専門文を置くと、始めるかどうかを
+            決める前に、いちばん難しい文章を読み下すことになる。
           */}
-          <section className="mt-4 rounded-card bg-canvas p-4">
-            <h3 className="text-xs font-bold text-ink-muted">Before</h3>
-            <p
-              data-testid="outcome-before"
-              className="mt-2 whitespace-pre-wrap text-sm leading-7"
-            >
-              {before}
+          <section className="mt-3 rounded-card bg-canvas px-3.5 py-3">
+            <h3 className="text-[0.6875rem] font-bold tracking-wide text-ink-muted">
+              Before
+            </h3>
+            <p data-testid="outcome-before" className="mt-1 text-sm leading-6">
+              {openingClause(before)}
             </p>
           </section>
 
-          <div className="flex justify-center py-1.5" aria-hidden="true">
-            <IconArrowDown className="h-6 w-6 text-brand" />
+          <div className="flex justify-center py-1" aria-hidden="true">
+            <IconArrowDown className="h-4 w-4 text-brand" />
           </div>
 
-          <section className="rounded-card bg-brand-soft p-4 ring-1 ring-brand-line">
-            <h3 className="text-xs font-bold text-brand-dark">After</h3>
-            <p
-              data-testid="outcome-after"
-              className="mt-2 whitespace-pre-wrap text-sm leading-7"
-            >
-              {after}
+          <section className="rounded-card bg-brand-soft px-3.5 py-3 ring-1 ring-brand-line">
+            <h3 className="text-[0.6875rem] font-bold tracking-wide text-brand-dark">
+              After
+            </h3>
+            <p data-testid="outcome-after" className="mt-1 text-sm leading-6">
+              {firstSentence(after)}
             </p>
           </section>
 
+          {changeNote && (
+            /*
+              並べただけでは「別の文になった」で終わる。**意味は変えて
+              いない**ことは形からは読み取れないので、1行だけ言う。
+            */
+            <p className="mt-2.5 text-xs leading-6 text-ink-muted">{changeNote}</p>
+          )}
+
           {/*
-            何がどう変わったか。
-
-            2つの文を並べるだけだと、**読み比べる仕事**が残る。長い専門文と
-            長い説明文を突き合わせて、どこが対応しているかを自力で探させる
-            ことになり、分かりやすくなった実感より先に読む負担が来る。
-
-            言葉の対応を3組だけ抜き出して並べる。「意味は同じまま、
-            言い方が変わった」ことが、読まなくても形で分かる。
-            **削られたのではなく、言いかえられた**ことが伝わればよい。
+            言葉の対応。ここは**証拠**なので、要点（上の Before / After）の
+            下に置く。開いた最初の画面に置くと、要点と証拠が同じ重さで
+            並んで、どちらを読めばよいのか決められなくなる。
           */}
           {swaps && swaps.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-4 border-t border-line pt-3">
               <h3 className="text-xs font-bold text-ink-muted">
-                むずかしい言葉は、こう変わりました
+                むずかしい言葉は、こう言いかえます
               </h3>
-              <ul className="mt-2 space-y-1.5" role="list" data-testid="outcome-swaps">
+              <ul className="mt-2 space-y-1" role="list" data-testid="outcome-swaps">
                 {swaps.map((swap) => (
+                  /*
+                    矢印は**行き先の側に付ける**。前は3つを横に並べていて、
+                    幅が足りない行だけ「元の言葉 →」で折り返し、矢印だけが
+                    前の行に取り残されていた（Multi-Head Attention で実際に
+                    そうなった）。行き先と同じ塊にしておけば、折り返しても
+                    「→ 行き先」でひとまとまりになる。
+                  */
                   <li
                     key={swap.from}
-                    className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5
-                               rounded-card bg-canvas px-3 py-2 text-sm leading-6"
+                    className="flex flex-wrap items-baseline gap-x-1.5 text-xs leading-6"
                   >
-                    <span className="text-ink-muted line-through">{swap.from}</span>
-                    <IconArrowDown
-                      className="h-3.5 w-3.5 shrink-0 -rotate-90 text-brand"
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0 font-bold text-brand-dark">{swap.to}</span>
+                    <span className="text-ink-muted">{swap.from}</span>
+                    <span className="flex min-w-0 items-baseline gap-1">
+                      <IconArrow
+                        className="h-3 w-3 shrink-0 translate-y-px text-brand"
+                        aria-hidden="true"
+                      />
+                      <span className="font-bold">{swap.to}</span>
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -198,7 +248,11 @@ function LessonDetailBody({
 
       {skills.length > 0 && (
         <Card>
-          <CardHeading icon={IconTarget} tone="plain">
+          {/*
+            ねらいと同じ印（的）を使わない。同じ形が2回出ると、
+            同じ話の続きに見える——「ねらい」と「覚える技」は別のもの。
+          */}
+          <CardHeading icon={IconBookmark} tone="plain">
             今日覚えるAI技
           </CardHeading>
           {/*
@@ -219,7 +273,11 @@ function LessonDetailBody({
 
       {outcomes && outcomes.length > 0 && (
         <Card>
-          <CardHeading icon={IconCheckCircle} tone="plain">
+          {/*
+            見出しの印と、並ぶ項目の印を同じにしない。同じ丸が
+            見出し＋3行で4つ縦に並ぶと、印のほうが文字より目立つ。
+          */}
+          <CardHeading icon={IconChecklist} tone="plain">
             終えたらできること
           </CardHeading>
           <ul data-testid="outcome-after-lesson" className="mt-3 space-y-1.5" role="list">
@@ -239,8 +297,19 @@ function LessonDetailBody({
 /** 「詳しく見る」の中身。画面いっぱいに近い一枚で、中は縦に送れる。 */
 export function LessonDetailModal({
   onClose,
+  onStart,
   ...detail
-}: LessonDetailContent & { onClose: () => void }) {
+}: LessonDetailContent & {
+  onClose: () => void;
+  /**
+   * 読み終えた人の出口。
+   *
+   * 無ければ×で閉じるだけになる。読み切った人がいちばん進みたい
+   * ところなのに、そこで**戻る操作を1つ挟ませる**ことになるので、
+   * 押せる先をここにも置く。
+   */
+  onStart?: () => void;
+}) {
   return (
     <MoreSheet
       placement="full"
@@ -250,6 +319,21 @@ export function LessonDetailModal({
     >
       <div data-testid="lesson-detail">
         <LessonDetailBody {...detail} />
+
+        {onStart && (
+          <div className="pb-1 pt-1">
+            <button
+              type="button"
+              onClick={onStart}
+              data-testid="lesson-detail-start"
+              className="flex min-h-[3rem] w-full items-center justify-center rounded-cta
+                         bg-brand px-4 text-base font-bold text-white shadow-cta
+                         transition active:scale-[0.99]"
+            >
+              さっそく試す
+            </button>
+          </div>
+        )}
       </div>
     </MoreSheet>
   );
