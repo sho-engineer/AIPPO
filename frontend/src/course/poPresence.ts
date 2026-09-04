@@ -100,6 +100,26 @@ export interface PoAppearance {
    * そばに1度だけ置く。顔だけは warning にして、様子がおかしいことは伝える。
    */
   speaks: boolean;
+  /**
+   * 見出しとポーを、左そろえにするか中央にするか。
+   *
+   * ふだんは左（`start`）。日本語は左から読むので、見出しの頭が
+   * そろっていないと目が迷う。
+   *
+   * **技を受け取る回だけ中央**（`center`）。あそこは読む画面ではなく
+   * 祝う画面で、下に「AI技 GET」「技の名前」「説明」が中央に並ぶ。
+   * ポーだけ右端に居ると、左側が大きく空いて画面の重心がずれる
+   * ——実測で左に 180px の空白ができていた。
+   */
+  align?: "start" | "center";
+  /**
+   * ポーのまわりに紙とキラキラを散らすか。
+   *
+   * **技を受け取る回だけ。** 完了画面（同じ `celebrate`）には
+   * `LessonCelebration` が別に紙を撒くので、ここでは出さない
+   * ——2つ重なると、祝いではなく演出そのものが目的に見える。
+   */
+  burst?: boolean;
 }
 
 export interface PoSituation {
@@ -191,7 +211,20 @@ export function poAppearance(where: PoSituation): PoAppearance | null {
     読んでしまう。
   */
   if (where.skill) {
-    return { scene: "celebrate", speaks: false, emotion: "celebrate" };
+    return {
+      scene: "celebrate",
+      speaks: false,
+      emotion: "celebrate",
+      /*
+        中央に置いて、まわりに紙を散らす。**この画面の主役はポー。**
+
+        前は右端に寄っていて、左に大きな空白があった。技の名前も
+        説明も中央にあるのに、祝っている当人だけが端に立っている
+        形で、画面の重心が右へずれて見えていた。
+      */
+      align: "center",
+      burst: true,
+    };
   }
 
   const scene = BY_STEP[where.stepType];

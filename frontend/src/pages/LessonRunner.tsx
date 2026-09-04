@@ -21,6 +21,7 @@ import {
   SectionTransition,
   type SectionImage,
 } from "../components/course/SectionTransition";
+import { SkillStampCard } from "../components/course/SkillStampCard";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
 import { useCourse } from "../course/live";
@@ -134,6 +135,34 @@ export function LessonRunner({
     帯の「←」で完了画面へ戻れる——祝われて行き止まり、にしない。
   */
   const [celebrating, setCelebrating] = useState(false);
+
+  /*
+    スタンプ台紙を出しているか。
+
+    「覚えた」を押した直後に1枚だけ挟む。**進む先は変わらない**
+    ——閉じれば次の画面へ行く。ここで止めるのは、集まっていく形を
+    見せる 1〜2 秒ぶんだけ。
+
+    値は「いま押す技が、そのレッスンの何個目か」。`null` は出さない。
+    番号を持つのは、閉じたあとに次の技を取ったとき**別の台紙として
+    描き直す**ため（同じ値のままだと、押す動きが再生されない）。
+  */
+  const [stamping, setStamping] = useState<number | null>(null);
+
+  /*
+    そのレッスンで覚える技を、出てくる順に。
+
+    **教材データから数える。** サーバーには聞かない——通信が失敗
+    しても、覚えたこと自体は変わらないし、台紙に出すのは「このレッスン
+    の中で何個目か」だけなので、手元のデータで足りる。
+
+    AI技図鑑（`skillDex`）が持っているのは**通算で覚えた技**で、
+    別の話。あちらを使うと、2回目に開いたレッスンで最初から全部
+    押されている台紙が出る。
+  */
+  const skillOrder = lesson.steps
+    .filter((each) => each.type === "concept_card" && each.skill)
+    .map((each) => each.skill as string);
 
   /*
     完了画面で使う、コース全体の進み具合と次の行き先。
@@ -345,10 +374,30 @@ export function LessonRunner({
       case "improvement_choice":
         void send(values.improvement || "もう一度");
         return;
+      case "concept_card":
+        /*
+          技を受け取る回だけ、進む前に台紙を1枚挟む。
+
+          「覚えた」で画面がすぐ切り替わると、取ったものが**次の画面
+          に押し流される**。その日の何個目なのか、あと何個で揃うのかも
+          どこにも出ない。台紙はそこだけを見せて、閉じれば進む。
+
+          解説を並べただけの回（`skill` が無い）は素通り。あそこは
+          読み物で、取るものが無い。
+        */
+        if (step.skill) {
+          const at = skillOrder.indexOf(step.skill);
+          if (at >= 0) {
+            setStamping(at);
+            return;
+          }
+        }
+        setRevealed(false);
+        api.goNext();
+        return;
       case "quick_try":
       case "condition_choice":
       case "observation":
-      case "concept_card":
         setRevealed(false);
         api.goNext();
         return;
@@ -728,6 +777,12 @@ export function LessonRunner({
           下のエラー欄が1度だけ言う担当なので、そちらと重ならない。
         */
         showPo={po !== null}
+        /*
+          置き場所と飾りも `poPresence` が決める。ここで条件を
+          書き始めると、また画面の都合でポーが動き出す。
+        */
+        poAlign={po?.align}
+        poBurst={po?.burst}
         poSpeaks={po?.speaks ?? false}
         poScene={po?.scene}
         /* 場面ごとの大きさ。表は `course/poPresence.ts` が持つ */
@@ -748,6 +803,27 @@ export function LessonRunner({
           onSend={() =>
             step.type === "real_task" ? api.continueAnyway() : void confirmAndSend()
           }
+        />
+      )}
+
+      {/*
+        スタンプ台紙。「覚えた」を押した直後の1枚。
+
+        `key` に番号を入れて、技ごとに**別の台紙として作り直す**。
+        同じ部品を使い回すと、2つ目を取ったときに押す動きが再生
+        されない（React は同じものが残っていると見なす）。
+      */}
+      {stamping !== null && (
+        <SkillStampCard
+          key={stamping}
+          skills={skillOrder}
+          earnedIndex={stamping}
+          lessonNumber={lesson.number}
+          onClose={() => {
+            setStamping(null);
+            setRevealed(false);
+            api.goNext();
+          }}
         />
       )}
         </>

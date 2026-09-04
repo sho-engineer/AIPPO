@@ -35,7 +35,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro } from "./support/lessonIntro";
+import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
 
 /** 台紙に対する neutral の背丈（`PO_BOX.neutral.height`）。 */
 const VISIBLE_RATIO = 0.723;
@@ -140,6 +140,13 @@ test.describe("ポーの大きさ", () => {
 
     const seen: { scene: string; height: number }[] = [];
     for (let step = 0; step < 12; step += 1) {
+      /*
+        技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
+        閉じずに下のボタンを押そうとすると、背景（閉じるための面）が
+        受け取ってしまう。
+      */
+      if (await passSkillStamp(page)) continue;
+
       const primary = page.getByTestId("primary-action").first();
       if (!(await primary.count())) break;
 

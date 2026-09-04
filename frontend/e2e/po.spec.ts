@@ -16,7 +16,7 @@
 import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro } from "./support/lessonIntro";
+import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
 
 /**
  * 進めない状態か。
@@ -48,6 +48,12 @@ async function openRewrite(page: Page): Promise<void> {
 
 /** 1歩進める。進めなければ false。（lesson.spec.ts と同じ考え方） */
 async function advance(page: Page): Promise<boolean> {
+  /*
+    技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
+    閉じずに下のボタンを押そうとすると、背景が受け取ってしまう。
+  */
+  if (await passSkillStamp(page)) return true;
+
   const primary = page.getByTestId("primary-action").first();
   if (!(await primary.isVisible().catch(() => false))) return false;
 

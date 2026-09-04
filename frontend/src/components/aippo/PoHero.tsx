@@ -69,6 +69,16 @@ export interface PoHeroProps {
   showPo?: boolean;
   /** ポーが出ている理由（course/poPresence.ts）。検査の手がかりに出す。 */
   scene?: string;
+  /**
+   * 見出しとポーを、左そろえにするか中央にするか。
+   *
+   * 既定は左。中央にするのは**祝う画面だけ**で、そこは下に続く
+   * 中身（「AI技 GET」「技の名前」「説明」）も中央に並ぶ。
+   * 決めるのは `course/poPresence.ts`——ここは受けるだけ。
+   */
+  align?: "start" | "center";
+  /** ポーのまわりに紙とキラキラを散らすか。 */
+  burst?: boolean;
 }
 
 export function PoHero({
@@ -81,9 +91,18 @@ export function PoHero({
   size = "md",
   showPo = true,
   scene,
+  align = "start",
+  burst = false,
 }: PoHeroProps) {
+  const centered = align === "center";
+
   return (
-    <section className="pt-2" data-testid="po-hero" data-po-scene={scene}>
+    <section
+      className={`pt-2 ${centered ? "text-center" : ""}`}
+      data-testid="po-hero"
+      data-po-scene={scene}
+      data-po-align={align}
+    >
       {/*
         見出しの側。ポーとは**重ねない**。
 
@@ -124,6 +143,8 @@ export function PoHero({
             message={message}
             size={size}
             scene={scene}
+            side={centered ? "center" : "right"}
+            burst={burst}
           />
         </div>
       )}

@@ -29,7 +29,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro } from "./support/lessonIntro";
+import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
 
 /** iPhone の幅。ここを最優先にする。 */
 const PHONE = { width: 390, height: 844 };
@@ -99,6 +99,13 @@ async function openRewrite(page: Page): Promise<void> {
 /** 完了画面まで進める。何歩かかるかは教材が決めるので、上限だけ置く。 */
 async function runToEnd(page: Page, limit = 40): Promise<void> {
   for (let i = 0; i < limit; i += 1) {
+    /*
+      技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
+      閉じずに下のボタンを押そうとすると、背景（閉じるための面）が
+      受け取ってしまう。
+    */
+    if (await passSkillStamp(page)) continue;
+
     if (await page.getByTestId("completion-view").isVisible().catch(() => false)) return;
 
     const primary = page.getByTestId("primary-action").first();

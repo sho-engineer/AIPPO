@@ -240,6 +240,47 @@ export default {
             opacity: "0",
           },
         },
+        /*
+          はんこが押される。**上から降りてきて、一度だけ沈む。**
+
+          大きく始めて縮めるのは、判子を紙に近づける動きを真上から
+          見た形。最後に 1.0 を少し超えてから戻すと、押した反動に
+          見える——ここを等速で 1.0 に着けると、置いただけに見える。
+        */
+        "stamp-in": {
+          /*
+            始まりの倍率は 1.7。**2.1 は大きすぎた。**
+
+            枠は 68px なので 2.1 倍で 143px になり、いちばん左の枠から
+            降りてくると台紙の外へはみ出して、隣の枠と自分の名前を
+            覆っていた（実機の途中の絵で見つけた）。1.7 なら 116px で
+            枠1つぶんの中に収まり、降りてくる感じは残る。
+          */
+          "0%": { transform: "scale(1.7) rotate(-12deg)", opacity: "0" },
+          "40%": { transform: "scale(1.7) rotate(-12deg)", opacity: "1" },
+          "70%": { transform: "scale(0.94) rotate(2deg)", opacity: "1" },
+          "85%": { transform: "scale(1.05) rotate(-1deg)", opacity: "1" },
+          "100%": { transform: "scale(1) rotate(0deg)", opacity: "1" },
+        },
+        /*
+          インクのにじみ。押した場所から輪が1つ広がって消える。
+
+          輪は**1本だけ**。何重にも広げると、水面の波紋になって
+          「押した」から離れる。
+        */
+        "stamp-ink": {
+          "0%": { transform: "scale(0.55)", opacity: "0" },
+          "45%": { transform: "scale(0.55)", opacity: "0" },
+          "60%": { transform: "scale(0.8)", opacity: "0.45" },
+          "100%": { transform: "scale(1.7)", opacity: "0" },
+        },
+        // 押された台紙が、ひと跳ねする
+        "stamp-bounce": {
+          "0%, 52%, 100%": { transform: "translateY(0)" },
+          "66%": { transform: "translateY(-6px)" },
+          "82%": { transform: "translateY(0)" },
+          "90%": { transform: "translateY(-2px)" },
+        },
         // ふわりと浮く。上下だけだと機械的なので、わずかに傾ける
         float: {
           "0%, 100%": { transform: "translateY(0) rotate(-1.2deg)" },
@@ -360,6 +401,16 @@ export default {
           `animationDelay` と `--confetti-x` で渡す。
         */
         confetti: "confetti 800ms ease-out forwards",
+        /*
+          スタンプ。3つで1組の演出なので、**長さをそろえる**。
+
+          900ms は「ポンッ」と鳴らすのにちょうどよい長さ。これより
+          短いと降りてくるところが見えず、長いと待たされる。
+          `both` を付けて、始まる前（透明）と終わった後の姿を固定する。
+        */
+        "stamp-in": "stamp-in 900ms cubic-bezier(0.3, 1.3, 0.5, 1) both",
+        "stamp-ink": "stamp-ink 900ms ease-out both",
+        "stamp-bounce": "stamp-bounce 900ms ease-out both",
       },
     },
   },

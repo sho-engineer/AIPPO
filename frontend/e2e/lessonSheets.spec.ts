@@ -20,10 +20,16 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro } from "./support/lessonIntro";
+import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
 
 /** 次へ進む。答えが要る回は、その場にあるもので埋める。 */
 async function advance(p: Page): Promise<boolean> {
+  /*
+    技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
+    閉じずに下のボタンを押そうとすると、背景が受け取ってしまう。
+  */
+  if (await passSkillStamp(p)) return true;
+
   const primary = p.getByTestId("primary-action").first();
   if (!(await primary.count())) return false;
 
@@ -250,6 +256,94 @@ test.describe("AI技を受け取る画面", () => {
 
     // ポーも出る（受け取る瞬間なので、顔だけ・黙って喜ぶ）
     await expect(page.locator("[data-po-scene='celebrate']").first()).toBeVisible();
+  });
+
+  test("ポーが画面の真ん中に立つ", async ({ page }) => {
+    /*
+      前は右端に寄っていた。技の名前も説明も中央にあるのに、祝って
+      いる当人だけが端に立っている形で、**左に大きな空白**ができて
+      画面の重心が右へずれていた（実測で左に 180px）。
+    */
+    await start(page);
+    await runUntil(page, "skill-get");
+
+    const po = (await page.getByTestId("po-avatar").first().boundingBox())!;
+    const main = (await page.locator("main").first().boundingBox())!;
+
+    const leftGap = po.x - main.x;
+    const rightGap = main.x + main.width - (po.x + po.width);
+    expect(
+      Math.abs(leftGap - rightGap),
+      `左に ${Math.round(leftGap)}px、右に ${Math.round(rightGap)}px`,
+    ).toBeLessThanOrEqual(2);
+  });
+
+  test("説明は2行に収まる", async ({ page }) => {
+    /*
+      祝う画面が読む画面にならないように、説明は2〜3行まで。
+
+      幅も見る。`px-2` を足していたころは本文の幅が 337px しか無く、
+      2文め（345px 要る）が「さっき送ったお願いが、その／ままプロン
+      プトです。」と**語の途中で折り返して**いた。
+    */
+    await start(page);
+    await runUntil(page, "skill-get");
+
+    const lines = await page.evaluate(() => {
+      const detail = document.querySelector<HTMLElement>(
+        "[data-testid='skill-get-detail']",
+      )!;
+      const step = parseFloat(getComputedStyle(detail).lineHeight);
+      return Math.round(detail.getBoundingClientRect().height / step);
+    });
+
+    expect(lines, `説明が ${lines} 行で出ている`).toBeLessThanOrEqual(2);
+  });
+
+  test("「覚えた」を押すと、その日の何個目かが出る", async ({ page }) => {
+    /*
+      技を受け取る画面は1つぶんの出来事しか言わない。「覚えた」で
+      すぐ次へ行くと、その日の何個目なのか、あと何個で揃うのかが
+      どこにも出ない。閉じれば進む、寄り道の一枚。
+    */
+    await start(page);
+    await runUntil(page, "skill-get");
+
+    await page.getByTestId("primary-action").click();
+
+    const card = page.getByTestId("skill-stamp-card");
+    await expect(card).toBeVisible();
+    await expect(page.getByTestId("skill-stamp-count")).toHaveText("1 / 3 GET");
+    await expect(page.getByTestId("skill-stamp-note")).toContainText(
+      "あと2つで Day 1 コンプリート",
+    );
+    // 枠は3つとも出る。まだ取っていないものも名前ごと
+    await expect(page.getByTestId("skill-stamp-slot")).toHaveCount(3);
+
+    /*
+      押した印が、台紙からはみ出さない。
+
+      降りてくるときの倍率を 2.1 にしていたころ、68px の枠が 143px に
+      なって隣の枠と自分の名前を覆っていた（実機の途中の絵で見つけた）。
+      いちばん大きくなる 40〜70% のあいだで見る。
+    */
+    await page.waitForTimeout(450);
+    const sheet = (await page.getByTestId("skill-stamp-sheet").boundingBox())!;
+    const stamp = (await page
+      .getByTestId("skill-stamp-slot")
+      .first()
+      .locator("span.rounded-full")
+      .last()
+      .boundingBox())!;
+    expect(stamp.x, "印が台紙の左へはみ出している").toBeGreaterThanOrEqual(sheet.x);
+    expect(stamp.x + stamp.width, "印が台紙の右へはみ出している").toBeLessThanOrEqual(
+      sheet.x + sheet.width,
+    );
+
+    // 行き止まりにしない。閉じれば次へ進む
+    await page.getByTestId("skill-stamp-continue").click();
+    await expect(card).toHaveCount(0);
+    await expect(page.getByTestId("section-transition")).toBeVisible();
   });
 });
 

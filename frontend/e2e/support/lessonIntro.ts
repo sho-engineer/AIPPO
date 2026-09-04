@@ -29,6 +29,24 @@ export async function passSectionCover(page: Page): Promise<boolean> {
 }
 
 /**
+ * スタンプ台紙が出ていれば、閉じて次へ進める。
+ *
+ * 技を受け取る回で「覚えた」を押すと、進む前に台紙が1枚挟まる
+ * （`SkillStampCard`）。閉じずに下のボタンを押そうとすると、
+ * 背景（閉じるための面）が受け取ってしまう。
+ *
+ * レッスンを通す検査は、どれも `advance()` の先頭でこれを呼ぶこと。
+ */
+export async function passSkillStamp(page: Page): Promise<boolean> {
+  const card = page.getByTestId("skill-stamp-sheet");
+  if ((await card.count()) === 0) return false;
+
+  await page.getByTestId("skill-stamp-continue").click();
+  await expect(card).toHaveCount(0);
+  return true;
+}
+
+/**
  * 教材が始まるところまで進める。
  *
  * 章扉が出ていれば通り抜け、導入の一枚が出ていれば閉じる。

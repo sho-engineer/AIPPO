@@ -16,7 +16,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro } from "./support/lessonIntro";
+import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
 
 
 async function openDiagnosisQuestion(page: Page): Promise<void> {
@@ -49,6 +49,13 @@ async function openConditionTiles(page: Page): Promise<void> {
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 
   for (let step = 0; step < 25; step += 1) {
+    /*
+      技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
+      閉じずに下のボタンを押そうとすると、背景（閉じるための面）が
+      受け取ってしまう。
+    */
+    if (await passSkillStamp(page)) continue;
+
     if (await page.getByTestId("choice-tiles").isVisible().catch(() => false)) return;
 
     const primary = page.getByTestId("primary-action").first();

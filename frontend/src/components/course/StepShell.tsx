@@ -103,6 +103,15 @@ export interface StepShellProps {
   poSpeaks?: boolean;
   /** ポーが出ている理由。`data-po-scene` として出す。 */
   poScene?: string;
+  /**
+   * 見出しとポーを、左そろえにするか中央にするか。
+   *
+   * 決めるのは `course/poPresence.ts`。ここは受けて渡すだけ
+   * ——画面ごとに条件を書き始めると、また画面の都合でポーが動く。
+   */
+  poAlign?: "start" | "center";
+  /** ポーのまわりに紙とキラキラを散らすか。 */
+  poBurst?: boolean;
   /** その場面での大きさ。決めるのは `course/poPresence.ts`。 */
   poSize?: PoSize;
   children: ReactNode;
@@ -141,6 +150,8 @@ export function StepShell({
   showPo = true,
   poSpeaks = true,
   poScene,
+  poAlign = "start",
+  poBurst = false,
   poSize = "md",
   children,
 }: StepShellProps) {
@@ -278,6 +289,8 @@ export function StepShell({
           size={poSize}
           showPo={showPo}
           scene={poScene}
+          align={poAlign}
+          burst={poBurst}
         />
       </div>
 

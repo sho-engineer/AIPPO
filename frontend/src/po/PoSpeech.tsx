@@ -34,6 +34,7 @@
 
 import { PoFace } from "./PoAvatar";
 import { poInk, type PoSize } from "./sizes";
+import { PoBurst } from "./PoBurst";
 import type { PoEmotion } from "../course/types";
 
 /** 見えている体から、しっぽの先までの距離。 */
@@ -71,10 +72,21 @@ export interface PoSpeechProps {
    *
    * 既定は右。日本語は左から読むので、読み終わった先にポーが居るほうが
    * 「言い終わった」感じになる。
+   *
+   * `center` は**言葉を持たない場面だけ**。祝う画面でポーが主役に
+   * なるときに使う。吹き出しを付けたまま中央に置くと、しっぽが
+   * どちらを向いても不自然になる（誰に向かって言っているのか
+   * 決まらない）ので、言葉があるときは右か左のどちらかに寄せる。
    */
-  side?: "left" | "right";
+  side?: "left" | "right" | "center";
   /** 検査の手がかり。ポーが出ている理由（`course/poPresence.ts`）。 */
   scene?: string;
+  /**
+   * まわりに紙とキラキラを散らすか。
+   *
+   * 出す場面は `course/poPresence.ts` が決める。ここは受けるだけ。
+   */
+  burst?: boolean;
 }
 
 export function PoSpeech({
@@ -83,8 +95,17 @@ export function PoSpeech({
   size = "md",
   side = "right",
   scene,
+  burst = false,
 }: PoSpeechProps) {
   const pad = sidePadding(size);
+  /*
+    中央に置くのは、言葉を持たない場面だけ。
+
+    吹き出しが付いたまま中央へ寄せると、ポーと吹き出しの2つを
+    まん中に並べることになり、どちらが軸なのか決まらない。
+    言葉があるなら、これまでどおり右へ寄せる。
+  */
+  const centered = side === "center" && !message;
 
   /*
     しっぽ。小さな三角を1つ、吹き出しの角から出す。
@@ -118,7 +139,17 @@ export function PoSpeech({
         見えるポーと吹き出しのあいだが余白ぶん開く。負の margin で
         その分を戻すと、**見えている体**が 12px の位置に来る。
       */
-      style={side === "right" ? { marginLeft: -pad } : { marginRight: -pad }}
+      /*
+        中央に置くときは詰めない。左右どちらへも寄せないので、
+        片側だけ引くと**引いたぶんだけ中心からずれる**。
+      */
+      style={
+        centered
+          ? undefined
+          : side === "right"
+            ? { marginLeft: -pad }
+            : { marginRight: -pad }
+      }
       className="pointer-events-none shrink-0"
     >
       <PoFace emotion={emotion} size={size} />
@@ -129,9 +160,18 @@ export function PoSpeech({
     return (
       <div
         style={{ marginTop: -topPadding(size) }}
-        className="flex justify-end"
+        className={`flex ${centered ? "justify-center" : "justify-end"}`}
       >
-        {face}
+        {/*
+          紙とキラキラは、**ポーと同じ箱の中**に置く。
+
+          外に出すと位置を別々に決められる形になり、ポーの大きさや
+          置き場所を変えた日に、紙だけが元の場所へ残る。
+        */}
+        <div className="relative">
+          {face}
+          {burst && <PoBurst />}
+        </div>
       </div>
     );
   }

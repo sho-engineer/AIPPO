@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LessonRunner } from "../src/pages/LessonRunner";
 import { passSections } from "./support/sections";
+import { passSkillStamp } from "./support/skills";
 import { PrivacyDialog } from "../src/components/course/PrivacyDialog";
 import { getLesson } from "../src/course/catalog";
 import { loadDraft } from "../src/lib/draft";
@@ -96,9 +97,10 @@ async function toConceptCard(
 ) {
   await toFirstResult(user);
   await user.click(await screen.findByRole("button", { name: observation }));
-  // 観察 → プロンプトの解説 → 〈章扉②〉 → 条件を足す
+  // 観察 → プロンプトの解説 →〈スタンプ台紙〉→〈章扉②〉→ 条件を足す
   await user.click(screen.getByTestId("primary-action"));
-  await user.click(await screen.findByTestId("primary-action"));
+  await user.click(await screen.findByTestId("primary-action")); // 覚えた
+  await passSkillStamp(user);
   await passSections(user);
 
   await user.click(await screen.findByRole("button", { name: "AI初心者向けに" }));
@@ -232,9 +234,10 @@ describe("観察してから解説する", () => {
       次へ進める。ここで止めると、答えられない人が行き止まりになる。
     */
     await user.click(await screen.findByRole("button", { name: "まだ難しい" }));
-    // 観察 → プロンプトの解説 → 〈章扉②〉 → 条件を足す
+    // 観察 → プロンプトの解説 →〈スタンプ台紙〉→〈章扉②〉→ 条件を足す
     await user.click(screen.getByTestId("primary-action"));
-    await user.click(await screen.findByTestId("primary-action"));
+    await user.click(await screen.findByTestId("primary-action")); // 覚えた
+    await passSkillStamp(user);
     await passSections(user);
 
     // 気づけなくても止めない。次（条件を足す）へ進めること
@@ -299,9 +302,10 @@ describe("条件を一つ足す", () => {
     renderLesson();
     await toFirstResult(user);
     await user.click(await screen.findByRole("button", { name: "分かりやすくなった" }));
-    // 観察 → プロンプトの解説 → 〈章扉②〉 → 条件を足す
+    // 観察 → プロンプトの解説 →〈スタンプ台紙〉→〈章扉②〉→ 条件を足す
     await user.click(screen.getByTestId("primary-action"));
-    await user.click(await screen.findByTestId("primary-action"));
+    await user.click(await screen.findByTestId("primary-action")); // 覚えた
+    await passSkillStamp(user);
     await passSections(user);
 
     // ターゲット指定の解説はこの後（比べたあと）に出るので、ここでは通らない

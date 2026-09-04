@@ -23,7 +23,7 @@
  */
 
 import { expect, test, type Page, type Locator } from "@playwright/test";
-import { dismissLessonIntro } from "./support/lessonIntro";
+import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
 
 /**
  * 進めない状態か。
@@ -74,6 +74,12 @@ async function toCourse(page: Page): Promise<void> {
 }
 
 async function advance(page: Page): Promise<boolean> {
+  /*
+    技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
+    閉じずに下のボタンを押そうとすると、背景が受け取ってしまう。
+  */
+  if (await passSkillStamp(page)) return true;
+
   const primary = page.getByTestId("primary-action").first();
   if (!(await primary.isVisible().catch(() => false))) return false;
 

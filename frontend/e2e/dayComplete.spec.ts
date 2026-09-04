@@ -29,11 +29,18 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro } from "./support/lessonIntro";
+import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
 
 /** すでにレッスンに入っている状態から、完了画面まで進める。 */
 async function runToCompletion(page: Page) {
   for (let step = 0; step < 30; step += 1) {
+    /*
+      技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
+      閉じずに下のボタンを押そうとすると、背景（閉じるための面）が
+      受け取ってしまう。
+    */
+    if (await passSkillStamp(page)) continue;
+
     if (await page.getByTestId("completion-view").count()) return;
 
     const primary = page.getByTestId("primary-action").first();

@@ -78,20 +78,38 @@ export function SkillGet({ name, summary, detail }: SkillGetProps) {
     <div
       data-testid="skill-get"
       role="status"
-      className="flex min-h-0 flex-1 flex-col items-center justify-center
-                 px-2 text-center"
+      /*
+        左右の余白を足さない。**外の枠がもう 20px 空けている。**
+
+        ここに `px-2` を足すと本文の幅が 353 → 337px になり、説明の
+        2文め（345px 要る）が入らずに「さっき送ったお願いが、その／
+        ままプロンプトです。」と語の途中で折り返していた。
+      */
+      className="flex min-h-0 flex-1 flex-col items-center justify-center text-center"
       style={{
         transition: `opacity ${MOTION.normal}ms ${EASING}, transform ${MOTION.normal}ms ${EASING}`,
         opacity: arrived ? 1 : 0,
         transform: arrived ? "translateY(0)" : "translateY(8px)",
       }}
     >
-      <p className="flex items-center gap-1.5 text-sm font-bold text-brand">
+      {/*
+        「AI技 GET」。**札にする。**
+
+        前は青い文字が1行あるだけで、下の技の名前（2xl）に埋もれて
+        いた。取った瞬間を言っている行なので、地の色を持たせて
+        1つの印にする。派手にはしない——面の色は既に画面じゅうで
+        使っている `brand-soft` で、光らせも枠線も足さない。
+      */}
+      <p
+        className="flex items-center gap-1.5 rounded-badge bg-brand-soft px-3 py-1
+                   text-sm font-bold tracking-wide text-brand-dark"
+        data-testid="skill-get-badge"
+      >
         <IconSparkle className="h-4 w-4 shrink-0" />
         AI技 GET
       </p>
       <p
-        className="mt-2 text-2xl font-bold leading-9"
+        className="mt-2.5 text-2xl font-bold leading-9"
         data-testid="skill-get-name"
       >
         {name}
@@ -105,7 +123,12 @@ export function SkillGet({ name, summary, detail }: SkillGetProps) {
       */}
       {detail && (
         <p
-          className="mt-5 max-w-xs text-sm leading-7 text-ink-muted"
+          /*
+            幅は `sm`（24rem）。`xs`（20rem）だと、2文めが
+            「さっき送ったお願いが、その／ままプロンプトです。」と
+            **語の途中で折り返して**いた。1行に収まる幅まで広げる。
+          */
+          className="mt-5 max-w-sm text-sm leading-7 text-ink-muted"
           data-testid="skill-get-detail"
         >
           {detail}

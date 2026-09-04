@@ -29,7 +29,7 @@
 import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro } from "./support/lessonIntro";
+import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
 
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
 
@@ -52,6 +52,12 @@ async function openRewrite(page: Page): Promise<void> {
 }
 
 async function advance(page: Page): Promise<boolean> {
+  /*
+    技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
+    閉じずに下のボタンを押そうとすると、背景が受け取ってしまう。
+  */
+  if (await passSkillStamp(page)) return true;
+
   const primary = page.getByTestId("primary-action").first();
   if (!(await primary.isVisible().catch(() => false))) return false;
 

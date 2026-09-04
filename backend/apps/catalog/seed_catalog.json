@@ -287,13 +287,13 @@
           "type": "concept_card",
           "phase": "try",
           "title": "プロンプト",
-          "poMessage": "AIにしてほしいことを伝える指示。さっき送ったお願いが、そのままプロンプト。",
+          "poMessage": "AIに「何をしてほしいか」を伝える言葉。さっき送ったお願いが、そのままプロンプトです。",
           "poEmotion": "neutral",
           "skippable": true,
           "skill": "プロンプト",
           "card": {
             "title": "プロンプト",
-            "body": "AIにしてほしいことを伝える指示。さっき送ったお願いが、そのままプロンプト。",
+            "body": "AIに「何をしてほしいか」を伝える言葉。さっき送ったお願いが、そのままプロンプトです。",
             "visual": "three_points",
             "points": [
               "何をしてほしい？",
