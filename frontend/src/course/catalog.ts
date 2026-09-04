@@ -361,7 +361,7 @@ const LESSON_1: Lesson = {
         poMessage: "誰が読むかを、足してみよう！",
         image: {
           src: "/assets/teaching/day1_section_02.webp",
-          alt: "ポーが、上司と友だちの2枚のカードを指し示している絵。",
+          alt: "ポーが、AI初心者とくわしい人の2枚のカードを指し示している絵。",
           width: 941,
           height: 1672,
         },
