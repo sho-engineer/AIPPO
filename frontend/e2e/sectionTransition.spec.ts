@@ -171,12 +171,23 @@ test.describe("段が変わったことを、1枚で言う", () => {
     }
 
     /*
-      切りすぎない。4枚を測ると、濃い要素（題・ロゴ・カード）までの
-      余白は 上 5.4% / 下 5.7% / 左 7.1% / 右 6.4% ある。
+      切りすぎない。上は下寄りに切ることで守っている
+      （`object-position`）ので、ここで見るのは**左右**。
 
-      上は下寄りに切ることで守っている（`object-position`）ので、
-      ここで見るのは**左右**——横は寄せずにまん中から切るため、
-      いちばん狭い 6.4% を超えたら題やカードに届く。
+      ただし左右は**寄せようがない**。絵は縦長（比 0.563）で、画面が
+      それより縦長になるほど横を切ることになり、切る量は画面の比だけで
+      決まる。ここは上限を置いて、それを超えたら気づけるようにする
+      だけ。
+
+      題までの余白を測り直すと、思っていたより狭い。
+
+          章①左 6.4% 右 6.8% ／ 章②左 5.1% 右 5.0%
+          章③左 6.4% 右 7.2% ／ 章④左 7.2% 右 4.6%
+
+      いちばん狭いのは章④の右 4.6%。細長い持ち方（402×874）では
+      左右を 7.0% 切るので、**章②と章④は題の端が欠ける**。
+      端まで敷く（余白を作らない）ことと引き換えになっている。
+      直すなら絵の側に横の余白を足すしかない。
     */
     expect(m.cropX, `左右を ${(m.cropX * 100).toFixed(1)}% 切っている`).toBeLessThan(0.075);
   });
@@ -215,10 +226,91 @@ test.describe("段が変わったことを、1枚で言う", () => {
     expect(fromBottom, "絵の下端に貼り付いている").toBeGreaterThan(8);
 
     // 中央にある。左右の余白がそろっていること
-    const leftGap = cta.x - main.x;
-    const rightGap = main.x + main.width - (cta.x + cta.width);
+    const box = (await page.getByTestId("section-transition").boundingBox())!;
+    const leftGap = cta.x - box.x;
+    const rightGap = box.x + box.width - (cta.x + cta.width);
     expect(Math.abs(leftGap - rightGap), "左右の余白がそろっていない").toBeLessThanOrEqual(2);
     expect(leftGap, "左右の余白が無い").toBeGreaterThan(8);
+  });
+
+  test("「つづける」が、絵より前に出ない", async ({ page }) => {
+    /*
+      重ねたあと、今度はボタンのほうが主役になっていた——幅は画面の
+      90%、高さ 56px、不透明の青に濃い影。絵の上に**青い帯**が1本
+      渡っていて、章の絵より先に目に入る。
+
+      ここで見るのは3つ。小さいこと、Po を隠さないこと、
+      透けていても文字が読めること。
+    */
+    await start(page);
+    await expect(page.getByTestId("section-transition")).toBeVisible();
+    await page.waitForTimeout(700);
+
+    const box = (await page.getByTestId("section-transition").boundingBox())!;
+    const cta = (await page.getByTestId("primary-action").boundingBox())!;
+
+    // 小さい。端から端まで伸ばさず、左右に絵が見えている
+    const ratio = cta.width / box.width;
+    expect(ratio, `幅が枠の ${(ratio * 100).toFixed(0)}%`).toBeGreaterThan(0.75);
+    expect(ratio, `幅が枠の ${(ratio * 100).toFixed(0)}%`).toBeLessThan(0.81);
+    expect(cta.height, "高さが前のまま").toBeLessThanOrEqual(50);
+
+    /*
+      Po を隠さない。
+
+      4枚を測ると、Po の足と主モチーフは**絵の 88〜90% まで**下りて
+      いて、その下は雲と影しかない。だからボタンの上端が絵の何%に
+      当たるかを見る——`object-cover` で切ってあるので、画面の座標
+      ではなく**絵そのものの座標**に直してから測る。
+    */
+    const top = await page.evaluate(() => {
+      const cover = document.querySelector<HTMLElement>(
+        "[data-testid='section-transition']",
+      )!;
+      const img = cover.querySelector<HTMLImageElement>("img:not([aria-hidden])")!;
+      const button = document.querySelector<HTMLElement>(
+        "[data-testid='primary-action']",
+      )!;
+      const r = img.getBoundingClientRect();
+      const scale = Math.max(r.width / img.naturalWidth, r.height / img.naturalHeight);
+      const full = img.naturalHeight * scale;
+      // object-position: center 25% ぶん、絵の上端は枠の外にある
+      const virtualTop = r.top - (full - r.height) * 0.25;
+      return (button.getBoundingClientRect().top - virtualTop) / full;
+    });
+    expect(top, `ボタンの上端が絵の ${(top * 100).toFixed(1)}%`).toBeGreaterThan(0.885);
+
+    /*
+      透けていても読める。
+
+      `brand`（#1268E8）を 90% で白地に重ねると、白文字との差が
+      4.27 まで落ちて 4.5 を割る。一段濃い `brand-dark` なら 4.88。
+      いちばん明るい背景は Po の白い体なので、白地が最悪の場合。
+    */
+    const look = await page.evaluate(() => {
+      const button = document.querySelector<HTMLElement>(
+        "[data-testid='primary-action']",
+      )!;
+      const s = getComputedStyle(button);
+      const rgba = s.backgroundColor.match(/[\d.]+/g)!.map(Number);
+      return { rgba, blur: s.backdropFilter, color: s.color };
+    });
+
+    const [r, g, b, alpha = 1] = look.rgba;
+    expect(alpha, `透け具合が ${alpha}`).toBeGreaterThanOrEqual(0.86);
+    expect(alpha, `透け具合が ${alpha}`).toBeLessThanOrEqual(0.94);
+    expect(look.blur, "後ろをぼかしていない").toContain("blur");
+    expect(look.color, "文字が白でない").toBe("rgb(255, 255, 255)");
+
+    const lum = (c: number[]) =>
+      c
+        .map((v) => v / 255)
+        .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+        .reduce((a, v, i) => a + v * [0.2126, 0.7152, 0.0722][i], 0);
+    // 白地の上に敷いたときの色
+    const onWhite = [r, g, b].map((v) => v * alpha + 255 * (1 - alpha));
+    const contrast = 1.05 / (lum(onWhite) + 0.05);
+    expect(contrast, `白文字との差が ${contrast.toFixed(2)}`).toBeGreaterThanOrEqual(4.5);
   });
 
   test("画面のどこを押しても進む", async ({ page }) => {

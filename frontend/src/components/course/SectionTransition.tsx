@@ -41,7 +41,12 @@
  * 切ってよい量は、絵が持っている余白まで。4枚を測るとこうなっている。
  *
  *     濃い要素（題・ロゴ・カード）までの余白
- *     上 5.4% / 下 5.7% / 左 7.1% / 右 6.4%   ← 4枚の最小
+ *     上 5.4% / 下 5.7% / 左 5.1% / 右 4.6%   ← 4枚の最小
+ *
+ * 左右は寄せようがない（切る量は画面の比だけで決まる）。細長い持ち方
+ * （402×874）では 7.0% 切るので、**章②と章④は題の端が欠ける**。
+ * 端まで敷くことと引き換えになっている——直すなら絵の側に横の余白を
+ * 足すしかない。
  *
  * だから**上下の帯も余白も置かない**。置いた分だけ箱が縦に縮み、
  * そのぶん切る量が増える（`pt-2` と下の余白で、いちばん低い持ち方の
@@ -53,8 +58,68 @@
 
 import { useEffect, useState } from "react";
 
+import { playSound } from "../../course/sound";
 import { IconChevronRight } from "../Icons";
-import { PrimaryButton } from "../aippo/PrimaryButton";
+
+/**
+ * 「つづける」の大きさと見た目。**4章ぶん、ここだけで決める。**
+ *
+ * 章ごとに書くと、絵に合わせて少しずつ動かしたくなり、通したときに
+ * ボタンが章ごとに跳ねる。決めるのは1か所にする。
+ *
+ * なぜ `PrimaryButton` を使わないか
+ * ---------------------------------
+ * あちらは「支給デザインの、下端に幅いっぱいの青いボタン」で、
+ * `w-full` / `min-h-3.5rem` / 不透明の `bg-brand` / `shadow-cta` が
+ * 骨に入っている。ここで要るのは**そのどれでもない**——絵の上に
+ * 小さく、すこし透けて浮くもの。`className` で上書きしようとすると
+ * `w-full` と `w-[78%]`、`min-h-[3.5rem]` と `h-12` のように**同じ性質
+ * どうしがぶつかり**、どちらが勝つかは生成されたCSSの並び順で決まる。
+ * 見た目が並び順に左右される作りにはしない。
+ *
+ * 押した音と、押したときの縮みは同じものを使う（画面が変わっても
+ * 「押した」の手応えは変えない）。
+ */
+const CTA = {
+  /*
+    絵の幅の 78%。
+
+    前は 90%（`inset-x-5`）で、端から端まで伸びた青い帯になっていた。
+    章扉の主役は絵なので、**ボタンは絵の中の一部品**に見える幅で止める。
+  */
+  width: "w-[78%]",
+
+  /*
+    48px。指で押す最小の 44px より大きく、`PrimaryButton` の 56px より
+    小さい。8px 低くしたぶん、上端が絵の 1.1% ぶん下がる。
+  */
+  height: "h-12",
+
+  /*
+    下から 16px（＋安全領域）。
+
+    4枚を測ると、Po の足と主モチーフは**絵の 88〜90% まで下りている**。
+    高さ48・下16 にすると CTA は 90.6%〜97.6% に入り、覆うのは
+    雲と影だけになる（覆う面積は 9.2/7.4/10.4/10.4% → 5.8/6.3/0.6/8.4%）。
+    これ以上は下げない——iPhone のホームバーに近づく。
+  */
+  bottom: "bottom-[calc(1rem+env(safe-area-inset-bottom))]",
+
+  /*
+    すこし透ける青。**絵の上に浮いている**ところまで。
+
+    透かす色に `brand`（#1268E8）を使うと、白地の上で白文字との差が
+    4.27 まで落ちる（4.5 を割る）。一段濃い `brand-dark` なら 4.88 で
+    残るので、そちらを 90% で敷く。背景でいちばん明るいのは Po の
+    白い体なので、白地が最悪の場合。
+
+    後ろは軽くぼかす（8px）。ガラスに見せるためではなく、絵の細かい
+    模様がボタンの文字に重なって見えるのを止めるため。影は `raised`
+    ——いちばん弱いもの。強い影を付けると、また絵より前に出る。
+  */
+  look: `rounded-cta border border-white/25 bg-brand-dark/90 shadow-raised
+         backdrop-blur-[8px]`,
+} as const;
 
 /**
  * 章扉の絵。
@@ -194,7 +259,7 @@ export function SectionTransition({
         </h1>
 
         {/*
-          「つづける」。**絵の下部中央へ重ねる。**
+          「つづける」。**絵の下部中央へ、小さく重ねる。**
 
           下端ぎりぎりには置かない。絵の縁に貼り付くと画面の端から
           生えているように見えるうえ、iPhone のホームバーと近づく
@@ -206,23 +271,32 @@ export function SectionTransition({
           押せば次へ進む点はどこも同じ。別の名前を付けると、
           レッスンを頭から通す仕組みが章扉のところだけ止まる。
         */}
-        <div
-          className="absolute inset-x-5 bottom-[calc(1.5rem+env(safe-area-inset-bottom))]"
-        >
-          <PrimaryButton
-            onClick={onContinue}
-            testId="primary-action"
-            /*
-              右に山を添える。**行き先を表す印**で、押すと先へ進む
-              ことを言っている。読み上げには渡さない——文字が
-              「つづける」と言っているので、同じことを2回言うだけになる。
-            */
-            trailing={
-              <IconChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
-            }
+        <div className={`absolute inset-x-0 flex justify-center ${CTA.bottom}`}>
+          <button
+            type="button"
+            onClick={() => {
+              playSound("tap");
+              onContinue();
+            }}
+            data-testid="primary-action"
+            className={`flex items-center justify-center gap-2 px-6
+                        text-base font-bold text-white transition
+                        active:scale-[0.98]
+                        ${CTA.width} ${CTA.height} ${CTA.look}`}
           >
-            {label}
-          </PrimaryButton>
+            {/* 折り返さない。2行になると高さが変わって、章ごとに跳ねる */}
+            <span className="whitespace-nowrap">{label}</span>
+            {/*
+              右に山を添える。**行き先を表す印**で、押すと先へ進む
+              ことを言っている。控えめにする——ここで見せたいのは
+              文字のほうで、印はその添え物。読み上げには渡さない
+              （文字が「つづける」と、同じことを言っている）。
+            */}
+            <IconChevronRight
+              className="h-3.5 w-3.5 shrink-0 opacity-80"
+              aria-hidden="true"
+            />
+          </button>
         </div>
       </div>
     </section>

@@ -231,6 +231,43 @@ describe("章扉の画面", () => {
     expect(cta.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
   });
 
+  it("「つづける」は、絵より前に出ない", () => {
+    /*
+      重ねたはいいが、今度はボタンのほうが主役になっていた——幅は
+      画面の 90%、高さ 56px、不透明の青に濃い影。絵の上に**青い帯**が
+      1本渡っている状態で、章の絵より先に目に入る。
+
+      章扉で見せたいのは絵のほう。ボタンは「押せる場所はここ」と
+      言うだけの、絵の中の一部品でよい。
+
+        小さく … 幅 78%（前は 90%）／高さ 48px（前は 56px）
+        透かす … 90%。ただし白文字が読めるところまで
+        影    … いちばん弱いもの（前は CTA 用の濃い影）
+    */
+    render(
+      <SectionTransition title="まずは試してみよう" image={IMAGE} onContinue={() => {}} />,
+    );
+
+    const cta = screen.getByTestId("primary-action");
+
+    // 端から端まで伸ばさない。左右に絵が見えている
+    expect(cta.className, "幅いっぱいに伸びている").not.toContain("w-full");
+    expect(cta.className).toContain("w-[78%]");
+    expect(cta.className, "高さが前のまま").toContain("h-12");
+
+    /*
+      透かす色は `brand-dark`。`brand`（#1268E8）を 90% で白地に
+      重ねると、白文字との差が 4.27 まで落ちて 4.5 を割る。
+      一段濃い `brand-dark` なら 4.88 で残る。
+    */
+    expect(cta.className).toContain("bg-brand-dark/90");
+    expect(cta.className, "文字が白でない").toContain("text-white");
+
+    // 影は弱いほうだけ。CTA 用の濃い影を付けると、また前に出る
+    expect(cta.className).toContain("shadow-raised");
+    expect(cta.className).not.toContain("shadow-cta");
+  });
+
   it("押せるものを、押せるものの中へ入れない", () => {
     /*
       画面ぜんぶを押せるようにしてあるが、その中へ「つづける」を
