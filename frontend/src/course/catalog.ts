@@ -83,9 +83,15 @@ const LESSON_0: Lesson = {
     {
       id: "intro",
       type: "intro",
-      title: "5つの質問で、現在地を見ます",
-      instruction: "1〜2分で終わります。うしろの2問は、実際に選んでみる問題です。",
-      poMessage: "できるかどうかを試す場ではありません。気楽にどうぞ。",
+      /*
+        見出しと1行だけ。**絵が中身を説明している**ので、その説明を
+        文字でもう一度書かない。前は絵の下に同じ文を白いカードで
+        置いていて、そのぶん画面が伸び、下の「はじめる」が送らないと
+        押せなかった。
+      */
+      title: "5つの質問で、今のAIの使い方を見てみよう",
+      instruction: "",
+      poMessage: "1〜2分で終わるよ！",
       poEmotion: "question",
     },
 
@@ -93,6 +99,7 @@ const LESSON_0: Lesson = {
     {
       id: "ai_usage",
       type: "single_choice",
+      primaryLabel: "次へ",
       title: "AIをどれくらい使っていますか？",
       /*
         「週に何回か」は聞かない。回数が同じでも、**仕事の流れに
@@ -115,6 +122,7 @@ const LESSON_0: Lesson = {
     {
       id: "ask_style",
       type: "single_choice",
+      primaryLabel: "次へ",
       title: "AIにお願いするとき、どれに近い？",
       /*
         主観を聞かない。「自信がありますか」だと、同じ力の人でも
@@ -137,6 +145,7 @@ const LESSON_0: Lesson = {
     {
       id: "build_prompt",
       type: "assemble",
+      primaryLabel: "次へ",
       title: "この場面なら、どう頼む？",
       instruction:
         "新しく始まる社内制度について、初めて読む社員にも伝わるように説明したい。",
@@ -181,6 +190,7 @@ const LESSON_0: Lesson = {
     {
       id: "match_purpose",
       type: "assemble",
+      primaryLabel: "次へ",
       title: "こんなとき、AIに何を頼む？",
       instruction: "3つの場面に、合いそうな使い方をひとつずつ。",
       poMessage: "迷ったら、近いと思うほうで大丈夫です。",
@@ -227,6 +237,7 @@ const LESSON_0: Lesson = {
     {
       id: "want_to_do",
       type: "multi_choice",
+      primaryLabel: "この内容で進む",
       title: "AIで何をできるようになりたい？",
       instruction: "いくつでも選べます。",
       poMessage: "ここは希望なので、気になるものを。",
@@ -252,7 +263,7 @@ const LESSON_0: Lesson = {
       id: "result",
       type: "completion",
       title: "いまの現在地です",
-      poMessage: "ここから始めるのがおすすめです。",
+      poMessage: "ここから始めるのがおすすめ！",
       poEmotion: "hint",
       skill: "自分の現在地が分かる",
     },

@@ -35,6 +35,33 @@ async function openDiagnosis(page: Page) {
   await page.getByTestId("primary-action").click();
 }
 
+/**
+ * いまの画面が、送らずに全部見えるか。
+ *
+ * **ページの高さだけでは足りない。** 中身の入れ物には
+ * `overflow-y-auto` が掛かっていて（`StepShell` の逃げ道）、収まらない
+ * ぶんはそこで送れるようになる。ページは伸びないので、外から見ると
+ * 収まっているように見えてしまう——行の高さを 44 → 80px に増やして
+ * 試したら、はみ出しているのに素通りした。
+ *
+ * だから2つ見る。ページが伸びていないことと、**入れ物の中でも
+ * 送る先が無いこと**。
+ */
+async function expectFits(page: Page, where: string): Promise<void> {
+  const page_over = await page.evaluate(
+    () => document.documentElement.scrollHeight - window.innerHeight,
+  );
+  expect(page_over, `「${where}」でページが ${page_over}px はみ出している`)
+    .toBeLessThanOrEqual(SLACK);
+
+  const stage_over = await page.evaluate(() => {
+    const stage = document.querySelector("[data-testid='step-stage']");
+    return stage ? stage.scrollHeight - stage.clientHeight : 0;
+  });
+  expect(stage_over, `「${where}」の中身が ${stage_over}px 送れる`)
+    .toBeLessThanOrEqual(SLACK);
+}
+
 /** いま出ている画面で答えて、次へ。答え終わっていれば false。 */
 async function answerOne(page: Page): Promise<boolean> {
   if (await page.getByTestId("completion-view").count()) return false;
@@ -160,4 +187,91 @@ test.describe("AI活用診断", () => {
       expect(shown, `「${banned}」が出ている`).not.toContain(banned);
     }
   });
+
+  test("結果は、次の1つを決めるだけの画面にする", async ({ page }) => {
+    /*
+      前はここにおすすめが3本並んでいた。選べるように見えて、
+      「次に何をするか」をもう一度選ばせているだけだった。
+    */
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+
+    await expect(page.getByTestId("diagnosis-stage")).toBeVisible();
+    await expect(
+      page.getByTestId("diagnosis-strengths").getByRole("listitem"),
+    ).toHaveCount(2);
+    await expect(page.getByTestId("diagnosis-next-skill")).toBeVisible();
+    // おすすめは1本だけ
+    await expect(page.getByTestId("diagnosis-lesson")).toHaveCount(1);
+    await expect(page.getByTestId("completion-view")).not.toContainText("おすすめ2");
+
+    // 押す先は2つ。おすすめから始める／Day1から確かめる
+    await expect(page.getByTestId("primary-action")).toHaveText(
+      /おすすめLessonから始める/,
+    );
+    await expect(
+      page.getByRole("button", { name: "Day1から確認する" }),
+    ).toBeVisible();
+  });
+
+  test("長い話は「理由を見る」の中だけ", async ({ page }) => {
+    /*
+      通常の画面に長文を置くと、読む画面になって次の一歩が遠くなる。
+      開いた一枚の中だけは送ってよい。
+    */
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+
+    await expect(page.getByTestId("completion-view")).not.toContainText(
+      "いまの4つの力",
+    );
+
+    await page.getByTestId("diagnosis-reason-open").click();
+
+    const sheet = page.getByTestId("diagnosis-reason-sheet");
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toHaveAttribute("data-placement", "center");
+    await expect(sheet).toContainText("いまの4つの力");
+    await expect(sheet).toContainText("どの回答から判断したか");
+
+    // Esc で閉じられる
+    await page.keyboard.press("Escape");
+    await expect(sheet).toHaveCount(0);
+  });
+
+  for (const [name, width, height] of [
+    ["iPhone 14", 390, 844],
+    ["iPhone Pro Max", 430, 932],
+    /*
+      いちばん低い持ち方（Safari の上下の帯が両方出ている状態）。
+
+      上の2つだけでは**見張りとして働かない**。844px あると、行の
+      高さを 44 → 80px に増やしても収まってしまい、太らせたことに
+      気づけない（実際に試した）。ここが本当の締め切りになる。
+    */
+    ["Safari の帯あり", 402, 660],
+  ] as const) {
+    test(`${name} で、診断のどの画面も送らずに見える`, async ({ page }) => {
+      /*
+        `overflow: hidden` で切って収めない。**中身を減らしてから**
+        収める——切ると、見えなくなった要素に気づけない。
+
+        ここで見るのはページそのものの縦。開いた一枚（理由を見る）の
+        中だけは送ってよいので、そこは通らない。
+      */
+      await page.setViewportSize({ width, height });
+      await openDiagnosis(page);
+
+      for (let guard = 0; guard < 9; guard += 1) {
+        const where = (await page.locator("main h1").first().innerText()).trim();
+        await expectFits(page, where);
+        if (!(await answerOne(page))) break;
+      }
+      await expectFits(page, "結果画面");
+    });
+  }
 });

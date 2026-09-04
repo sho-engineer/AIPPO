@@ -104,6 +104,17 @@ export interface StepShellProps {
   /** ポーが出ている理由。`data-po-scene` として出す。 */
   poScene?: string;
   /**
+   * 下の帯から飾りを外すか。
+   *
+   * ふだんは「次にやること」に星の印を添えている。押す先が1つしか
+   * ない画面で、そこが特別だと分かる。
+   *
+   * ただし**同じ印が毎画面に付くと、特別ではなくなる**。診断は5問
+   * 続けて答えるだけの画面で、星と電球が5回並ぶと「AIが作った画面」
+   * に見える——実際そう指摘された。ここでは文字だけにする。
+   */
+  quiet?: boolean;
+  /**
    * 見出しとポーを、左そろえにするか中央にするか。
    *
    * 決めるのは `course/poPresence.ts`。ここは受けて渡すだけ
@@ -150,6 +161,7 @@ export function StepShell({
   showPo = true,
   poSpeaks = true,
   poScene,
+  quiet = false,
   poAlign = "start",
   poBurst = false,
   poSize = "md",
@@ -317,7 +329,10 @@ export function StepShell({
         出ても切り落とさないための保険で、ふだんの回は送らずに収まる
         （`e2e/stepFits.spec.ts` が実寸で見張る）。
       */}
-      <div className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto pb-2">
+      <div
+        data-testid="step-stage"
+        className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto pb-2"
+      >
         <StepTransition stepKey={title}>{children}</StepTransition>
       </div>
 
@@ -379,8 +394,9 @@ export function StepShell({
               role="status"
             >
               {refused ? (
+                // 断られたときだけは印を出す。ふだんの案内とは意味が違う
                 <IconCaution className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              ) : (
+              ) : quiet ? null : (
                 <IconBulb
                   className="mt-0.5 h-4 w-4 shrink-0 text-brand"
                   aria-hidden="true"
@@ -417,7 +433,7 @@ export function StepShell({
               blocked={primaryDisabled && !busy}
               onBlockedClick={() => setRefused(true)}
               icon={
-                busy ? undefined : autoAdvancing ? (
+                busy || quiet ? undefined : autoAdvancing ? (
                   <IconCheck className="h-5 w-5 shrink-0" />
                 ) : (
                   <IconSparkle className="h-5 w-5 shrink-0" />

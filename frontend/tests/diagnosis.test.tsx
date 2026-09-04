@@ -23,7 +23,15 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { AssembleStep } from "../src/components/course/steps/Assemble";
-import { getLesson } from "../src/course/catalog";
+import { DiagnosisResult } from "../src/components/course/DiagnosisResult";
+import { COURSE, getLesson } from "../src/course/catalog";
+import {
+  AXES,
+  NEXT_SKILL,
+  STAGES,
+  scoreDiagnosis,
+} from "../src/course/diagnosisScore";
+import { recommendLesson, recommendReason } from "../src/course/recommend";
 import { isAnswered } from "../src/course/autoAdvance";
 import { poAppearance } from "../src/course/poPresence";
 
@@ -186,5 +194,228 @@ describe("ポー", () => {
       最中に出ると、見られながら解いている感じになる。
     */
     expect(poAppearance({ stepType: "assemble" })).toBeNull();
+  });
+});
+
+describe("採点（4つの軸と現在地）", () => {
+  /** 5問すべてに答えた形をつくる。 */
+  const answers = (over: Partial<Record<string, string>> = {}) => ({
+    ai_usage: "never",
+    ask_style: "lost",
+    build_prompt: "ideas|expert|technical",
+    match_purpose: "compare|ideas|organize",
+    want_to_do: "writing",
+    ...over,
+  });
+
+  it("実際の回答のほうを重く見る", () => {
+    /*
+      自己申告だけだと、できると答えた人が本当にできるのかが
+      分からない（それが3問だったころの弱点そのもの）。
+      **自己申告3 : ミニ問題7。**
+
+      自己申告は最高・ミニ問題は最低、という人と、その逆の人を
+      比べる。ミニ問題ができているほうが上に来ること。
+    */
+    const talker = scoreDiagnosis(
+      answers({ ai_usage: "daily", ask_style: "design" }),
+    );
+    const doer = scoreDiagnosis(
+      answers({
+        build_prompt: "explain|first_time|kind_polite",
+        match_purpose: "organize|compare|ideas",
+      }),
+    );
+
+    expect(doer.axes.purpose).toBeGreaterThan(talker.axes.purpose);
+    expect(doer.axes.condition).toBeGreaterThan(talker.axes.condition);
+  });
+
+  it("模範解答を当てる遊びにしない", () => {
+    /*
+      Q3 の「誰向け？」は、初めて読む社員向けも新入社員向けも
+      どちらも高く採る。1つだけの正解にすると、測っているのは
+      「出題者の意図を読む力」になる。
+
+      同点にはしない。**段階的に加点する**——満点の組み合わせが
+      いちばん上で、文脈に合う別の答えもそのすぐ下、文脈から
+      外れたものだけがはっきり下がる、という並びにする。
+    */
+    const best = scoreDiagnosis(answers({ build_prompt: "explain|first_time|kind_polite" }));
+    const alt = scoreDiagnosis(answers({ build_prompt: "explain|newcomer|kind" }));
+    const off = scoreDiagnosis(answers({ build_prompt: "explain|expert|technical" }));
+
+    // 別の答えも「できている」側（3以上）に入る。落第にしない
+    expect(alt.axes.condition).toBeGreaterThanOrEqual(3);
+    expect(best.axes.condition).toBeGreaterThanOrEqual(alt.axes.condition);
+    // 差は1段まで。外した答えとは、はっきり離れる
+    expect(best.axes.condition - alt.axes.condition).toBeLessThanOrEqual(1);
+    expect(off.axes.condition).toBeLessThan(alt.axes.condition);
+  });
+
+  it("現在地は積み上げで決める（順番が飛ばない）", () => {
+    /*
+      平均だと、頼めないのに仕事で組み立てられる、という順番の
+      おかしい位置に出ることがある。
+    */
+    const beginner = scoreDiagnosis(answers());
+    expect(beginner.stage.name).toBe("まず触ってみる段階");
+
+    const expert = scoreDiagnosis(
+      answers({
+        ai_usage: "daily",
+        ask_style: "design",
+        build_prompt: "explain|first_time|kind_polite",
+        match_purpose: "organize|compare|ideas",
+      }),
+    );
+    expect(expert.stage.number).toBeGreaterThanOrEqual(4);
+  });
+
+  it("現在地の名前は、レベル番号ではなく「できること」で言う", () => {
+    for (const stage of STAGES) {
+      expect(stage.name).not.toMatch(/Level|レベル|[0-9]/);
+      expect(stage.name).toMatch(/段階$/);
+    }
+  });
+
+  it("できていることは2つまで", () => {
+    // 並べるほど「できている感」は出るが、次にやることが埋もれる
+    for (const usage of ["never", "tried", "sometimes", "work", "daily"]) {
+      const result = scoreDiagnosis(answers({ ai_usage: usage }));
+      expect(result.strengths.length).toBeGreaterThan(0);
+      expect(result.strengths.length).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("次に覚える技は、数字の低さではなく順番で決める", () => {
+    /*
+      AIを使ったことがないのにミニ問題ができた人は `workflow` が
+      いちばん低くなる。素直に最小値を採ると、「まず触ってみる段階」の
+      人に「出力形式の指定」を勧めることになる（実機でそうなった）。
+    */
+    const result = scoreDiagnosis(
+      answers({
+        ai_usage: "never",
+        ask_style: "lost",
+        build_prompt: "explain|first_time|kind_polite",
+        match_purpose: "organize|compare|ideas",
+      }),
+    );
+
+    expect(result.axes.ask).toBeLessThan(4);
+    expect(NEXT_SKILL[result.weakest].name).toBe("プロンプト");
+  });
+
+  it("細かい点数は持たない（1〜5だけ）", () => {
+    const result = scoreDiagnosis(answers());
+    for (const axis of AXES) {
+      expect(Number.isInteger(result.axes[axis])).toBe(true);
+      expect(result.axes[axis]).toBeGreaterThanOrEqual(1);
+      expect(result.axes[axis]).toBeLessThanOrEqual(5);
+    }
+  });
+});
+
+describe("おすすめは1本だけ", () => {
+  const base = {
+    ai_usage: "never",
+    ask_style: "lost",
+    build_prompt: "ideas|expert|technical",
+    match_purpose: "compare|ideas|organize",
+  };
+
+  it("土台ができていない人には、やりたいことより先に土台を渡す", () => {
+    /*
+      画像をやりたい人にいきなり Day7 を出しても、AIへの基本的な
+      頼み方ができていなければそこで詰まる。
+    */
+    expect(recommendLesson({ ...base, want_to_do: "images" })).toBe("rewrite_text");
+  });
+
+  it("土台ができている人には、行きたい方向を渡す", () => {
+    // できていることをもう一度やらせるのは、いちばん早く飽きさせる
+    const able = {
+      ai_usage: "daily",
+      ask_style: "design",
+      build_prompt: "explain|first_time|kind_polite",
+      match_purpose: "organize|compare|ideas",
+      want_to_do: "comparing",
+    };
+    expect(recommendLesson(able)).toBe("compare_options");
+  });
+
+  it("理由は1行で返す", () => {
+    const line = recommendReason({ ...base, want_to_do: "writing" });
+    expect(line.length).toBeGreaterThan(0);
+    expect(line.length).toBeLessThanOrEqual(60);
+    expect(line).not.toContain("\n");
+  });
+});
+
+describe("結果画面", () => {
+  const values = {
+    ai_usage: "sometimes",
+    ask_style: "condition",
+    build_prompt: "explain|first_time|kind",
+    match_purpose: "organize|compare|ideas",
+    want_to_do: "writing",
+  };
+
+  it("現在地・できていること2・次のAI技1・おすすめ1だけを出す", () => {
+    /*
+      前はここにおすすめが3本並んでいた。選べるように見えて、
+      「次に何をするか」をもう一度選ばせているだけだった。
+    */
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    expect(screen.getByTestId("diagnosis-stage")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("diagnosis-strengths").querySelectorAll("li"),
+    ).toHaveLength(2);
+    expect(screen.getByTestId("diagnosis-next-skill")).toBeInTheDocument();
+    // おすすめは1つ。2つ目・3つ目の節は無い
+    expect(screen.getAllByTestId("diagnosis-lesson")).toHaveLength(1);
+    expect(screen.queryByText(/おすすめ ?2/)).toBeNull();
+    expect(screen.queryByText(/おすすめ ?3/)).toBeNull();
+  });
+
+  it("細かい点数を、通常の画面に出さない", () => {
+    // 5問から出した数字に、68点・82点のような精度は無い
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    const shown = screen.getByTestId("completion-view").textContent ?? "";
+    expect(shown).not.toMatch(/\d+点/);
+    expect(shown).not.toMatch(/\d\s*\/\s*5/);
+  });
+
+  it("長い話は「理由を見る」の中へ逃がす", async () => {
+    const user = userEvent.setup();
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    // 通常の画面には、軸の名前も回答の一覧も出ていない
+    const shown = screen.getByTestId("completion-view").textContent ?? "";
+    expect(shown).not.toContain("いまの4つの力");
+    expect(shown).not.toContain("どの回答から判断したか");
+
+    await user.click(screen.getByTestId("diagnosis-reason-open"));
+
+    const sheet = screen.getByTestId("diagnosis-reason-sheet");
+    expect(sheet).toHaveTextContent("いまの4つの力");
+    expect(sheet).toHaveTextContent("どの回答から判断したか");
+    expect(sheet).toHaveTextContent("次に伸ばすとよいところ");
+    // 中央に浮かべる一枚（送れるのはこの中だけ）
+    expect(sheet).toHaveAttribute("data-placement", "center");
+  });
+
+  it("理由の中では、記号ではなく選んだ言葉で返す", async () => {
+    const user = userEvent.setup();
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+    await user.click(screen.getByTestId("diagnosis-reason-open"));
+
+    const sheet = screen.getByTestId("diagnosis-reason-sheet");
+    expect(sheet).toHaveTextContent("困ったときにAIを使う");
+    expect(sheet).not.toHaveTextContent("sometimes");
+    expect(sheet).not.toHaveTextContent("first_time");
   });
 });

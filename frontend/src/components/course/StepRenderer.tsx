@@ -19,6 +19,7 @@ import { IconCaution } from "../Icons";
 import { SafetyNote } from "../SafetyNote";
 import { FullText } from "./MoreSheet";
 import { AssembleStep } from "./steps/Assemble";
+import { DiagnosisResult } from "./DiagnosisResult";
 import { SkillGet } from "./SkillGet";
 import { StepDone } from "./StepDone";
 import {
@@ -39,8 +40,6 @@ import {
   ThreeWayCompare,
 } from "./StepViews";
 import { buildAiInput } from "../../course/engine";
-import { lookupLesson } from "../../course/live";
-import { recommendLessons } from "../../course/recommend";
 import { nextLessons, startableLessons } from "../../course/availability";
 import { lessonOverview, lessonOverviewFallback } from "../../course/lessonOverview";
 import { teachingImage } from "../../course/teachingImages";
@@ -167,9 +166,18 @@ export function StepRenderer({
               height={picture.height}
             />
           )}
-          <div className="rounded-card border border-brand-line bg-surface p-5">
-            <p className="text-sm leading-7">{step.poMessage}</p>
-          </div>
+          {/*
+            絵の下に、同じことをもう一度書かない。
+
+            前はここに `poMessage` を白いカードで置いていた。ところが
+            その文は**すでにポーの吹き出しに出ている**（`PoHero` が
+            同じ値を読む）。つまり1画面に同じ1文が2回あり、しかも
+            2つ目のせいで画面が縦に伸びて、下の「はじめる」が
+            送らないと押せなくなっていた（診断の開始画面で実際にそうなった）。
+
+            絵が中身を説明しているので、その説明を HTML でもう一度
+            書き起こす必要も無い。
+          */}
         </div>
       );
 
@@ -608,32 +616,14 @@ export function StepRenderer({
 
     case "completion":
       if (lesson.id === "diagnosis") {
-        const ids = recommendLessons(values);
+        /*
+          結果は**4つだけ**（現在地・できていること2・次のAI技1・
+          おすすめ1）。前はここにおすすめが3本並んでいて、選べるように
+          見えて「次に何をするか」をもう一度選ばせているだけだった。
+          詳しい話は「理由を見る」の一枚の中（`DiagnosisResult.tsx`）。
+        */
         return (
-          <div data-testid="completion-view">
-            <p className="text-sm leading-7 text-ink-muted">
-              答えに近いものを3つ選びました。上から順に試すのがおすすめです。
-            </p>
-            <ol className="mt-4 space-y-3" role="list">
-              {ids.map((id, index) => {
-                const target = lookupLesson(id);
-                if (!target) return null;
-                return (
-                  <li
-                    key={id}
-                    data-testid={`recommended-${id}`}
-                    className="rounded-card border border-brand-line bg-surface p-4"
-                  >
-                    <p className="text-xs text-brand-dark">おすすめ {index + 1}</p>
-                    <h3 className="mt-1 text-base font-bold">{target.title}</h3>
-                    <p className="mt-1 text-sm leading-6 text-ink-muted">
-                      {target.goal}
-                    </p>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
+          <DiagnosisResult values={values} lessons={course.lessons} />
         );
       }
       return (

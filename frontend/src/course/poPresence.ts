@@ -49,7 +49,17 @@ export type PoScene =
   | "hint"
   | "compare"
   | "warning"
-  | "celebrate";
+  | "celebrate"
+  /*
+    診断の結果。**祝う場面ではない。**
+
+    何かを終えたのではなく、次の一歩を受け取る場面なので、
+    `celebrate` とは分ける。大きさも `lg`（120px）ではなく `md`
+    ——結果画面には現在地・できていること・次の技・おすすめが縦に
+    並ぶので、ここでポーが大きいと、いちばん低い持ち方でその全部が
+    画面の下へ押し出される（実測で 165px ぶん送れる状態になっていた）。
+  */
+  | "result";
 
 /**
  * その場面でのポーの大きさ。
@@ -73,6 +83,15 @@ export const PO_SIZE_BY_SCENE: Record<PoScene, PoSize> = {
   */
   compare: "md",
   celebrate: "lg",
+  /*
+    診断の結果だけ `sm`（56px）。
+
+    結果画面には現在地・できていること・次の一歩・おすすめが縦に並ぶ。
+    ポーが `md`（96px）だと、いちばん低い持ち方（402×660）でその全部が
+    入れ物からあふれ、**ページは伸びないまま中で送れる**状態になる。
+    ここのポーは案内役で、主役は下の4つ。
+  */
+  result: "sm",
   thinking: "md",
   hint: "md",
   warning: "md",
@@ -132,6 +151,14 @@ export interface PoSituation {
   hinting?: boolean;
   /** 技の名前を受け取る回か（解説カードのうち `skill` を持つもの）。 */
   skill?: boolean;
+  /**
+   * AI活用診断か。
+   *
+   * 診断の結果は、レッスンと同じ `completion` の型で出るが、場面は
+   * 別もの——**終えたのではなく、次の一歩を受け取っている**。
+   * ここを画面側で分岐すると、また画面の都合でポーが変わる。
+   */
+  diagnosis?: boolean;
 }
 
 /**
@@ -232,6 +259,11 @@ export function poAppearance(where: PoSituation): PoAppearance | null {
       align: "center",
       burst: true,
     };
+  }
+
+  // 診断の結果。祝う場面ではなく、次の一歩を渡す場面
+  if (where.diagnosis && where.stepType === "completion") {
+    return { scene: "result", speaks: true, emotion: "hint" };
   }
 
   const scene = BY_STEP[where.stepType];

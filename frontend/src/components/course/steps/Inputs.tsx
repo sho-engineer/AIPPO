@@ -83,46 +83,98 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
   const tiles = longest > 8;
 
   /*
-    絵の無い選択肢は、2列ではなく**1列**に並べる。
-
-    2列だと1枚あたりの幅が半分になり、「専門用語を減らす」のような
-    一文はすぐ2行になる。絵が無ければ縦に積む理由も無いので、
-    幅いっぱいの行にしたほうが読みやすく、選ぶ的も大きい。
-
-    多いときは1列だと縦に伸びるので、4つまで。
-
-    **ただし、言葉が長ければ数に関わらず1列**にする。2列だと1枚が
-    375px の画面で 170px 前後になり、そこから余白を引くと文字に残るのは
-    9字ぶん。診断の「まだ使ったことがない」（10字）はそれで2行になって
-    いた（`e2e/choiceLayoutShift.spec.ts` が捕まえた）。
-
-    境目は12字。ここまでなら2列でも1行に収まり、超えると必ず折り返す。
-    いまこれに当たるのは診断の Q1・Q2 だけで、ほかの教材の選択肢は
-    いちばん長いものでも10字。
+    2列にすると1枚が 375px の画面で 170px 前後になり、余白を引くと
+    文字に残るのは9字ぶん。「まだ使ったことがない」（10字）はそれで
+    2行に折り返していた（`e2e/choiceLayoutShift.spec.ts` が捕まえた）。
+    絵が無いなら2列にする理由も無いので、下の `rows` で1列にする。
   */
   const withIcons = options.some(
     (option) => optionIcon(option.icon) ?? diagnosisIcon(option.value),
   );
-  const oneColumn = tiles && !withIcons && (options.length <= 4 || longest > 12);
+
+  /*
+    絵の無い選択肢は、**カードではなく行**にする。
+
+    前はここも `ChoiceButton`（角丸14px・影・52〜104pxの高さ）で、
+    それが縦に5つ並ぶと画面の大半が白い箱で埋まった。学習アプリでは
+    なく、管理画面か「AIが自動生成したUI」に見える——実際そう指摘された。
+
+    見た目を落とすだけではない。5つで 52px + 影 + 余白だと 300px を
+    超え、診断の Q1・Q2 が1画面に収まらない。行にすると 44px 前後まで
+    落ちて、質問と選択肢と「次へ」が同時に見える。
+
+    行にするのは絵が無いときだけ。絵を横に置く札（Day1 の条件タイル）は
+    絵が意味を持っているので、そのまま残す。
+  */
+  const rows = tiles && !withIcons;
 
   return (
     <div>
       <ul
         className={
           tiles
-            ? oneColumn
-              ? "grid grid-cols-1 gap-2"
+            ? rows
+              ? "flex flex-col gap-1.5"
               : "grid grid-cols-2 gap-2.5"
             : "flex flex-wrap gap-2"
         }
         role="list"
-        data-layout={tiles ? (oneColumn ? "rows" : "tiles") : "chips"}
+        data-layout={tiles ? (rows ? "rows" : "tiles") : "chips"}
       >
         {options.map((option) => {
           const active = option.free
             ? showFree
             : selected.includes(option.value);
           const Glyph = optionIcon(option.icon) ?? diagnosisIcon(option.value);
+
+          if (rows) {
+            return (
+              <li key={option.label}>
+                <button
+                  type="button"
+                  onClick={() => toggle(option)}
+                  aria-pressed={active}
+                  /*
+                    影も濃い枠も付けない。選んだことは
+                    **地の色・印・字の太さ**の3つで示す（色だけに
+                    頼らない）。角丸は `badge`（8px）まで落として、
+                    カードではなく行に見せる。
+                  */
+                  className={`flex min-h-[2.75rem] w-full items-center gap-2.5
+                              rounded-badge border px-3 py-2 text-left transition
+                              ${
+                                active
+                                  ? "border-brand bg-brand-soft"
+                                  : "border-line bg-surface hover:border-brand-line"
+                              }`}
+                >
+                  {/*
+                    左の丸。**選ぶ前から同じ大きさで置いておく。**
+                    現れる形にすると、選んだ瞬間に文字が右へ動く。
+                  */}
+                  <span
+                    aria-hidden="true"
+                    className={`flex h-[1.125rem] w-[1.125rem] shrink-0 items-center
+                                justify-center rounded-full border transition
+                                ${
+                                  active
+                                    ? "border-brand bg-brand text-white"
+                                    : "border-brand-line bg-surface"
+                                }`}
+                  >
+                    {active && <IconCheck className="h-2.5 w-2.5" />}
+                  </span>
+                  <span
+                    className={`min-w-0 text-sm leading-6 ${
+                      active ? "font-bold text-brand-dark" : ""
+                    }`}
+                  >
+                    {option.label}
+                  </span>
+                </button>
+              </li>
+            );
+          }
 
           if (tiles) {
             return (
@@ -133,7 +185,6 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
               <li
                 key={option.label}
                 className={
-                  !oneColumn &&
                   options.length % 2 === 1 &&
                   option === options[options.length - 1]
                     ? "col-span-2"

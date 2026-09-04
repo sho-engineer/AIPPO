@@ -38,7 +38,11 @@ import { poAppearance, PO_SIZE_BY_SCENE } from "../course/poPresence";
 import { primaryLabel } from "../course/primaryLabel";
 import { nextLessons } from "../course/availability";
 import { dayOutcomeLine } from "../course/dayOutcome";
-import { recommendLessons, saveRecommendations } from "../course/recommend";
+import {
+  recommendLesson,
+  recommendLessons,
+  saveRecommendations,
+} from "../course/recommend";
 import { saveProfile } from "../api/diagnosis";
 import { useCompletedLessons } from "../course/progress";
 import { useCourseLesson } from "../course/useCourseLesson";
@@ -411,6 +415,19 @@ export function LessonRunner({
         return;
       case "completion":
         /*
+          診断の結果は、**そのままおすすめの1本へ入る**。
+
+          祝いの画面（Day 完了）には行かない。診断は Day ではないし、
+          あそこは「1日やり切った」を受け止める場所。診断で受け取った
+          のは次にやることなので、押した先はその1本にする。
+        */
+        if (lesson.id === "diagnosis") {
+          finalizeCompletion();
+          if (onSelectLesson) onSelectLesson(recommendLesson(values));
+          else onOpenCourse();
+          return;
+        }
+        /*
           レッスンを終える。押した先は Day 完了の画面。
 
           記録はここで確定する。祝いの画面から先に何を選んでも
@@ -439,6 +456,7 @@ export function LessonRunner({
     hinting: api.po.action === "show_hint",
     /* 技を受け取る回だけは、解説カードでもポーが出る */
     skill: step.type === "concept_card" && Boolean(step.skill),
+    diagnosis: lesson.id === "diagnosis",
   });
 
   /*
@@ -657,7 +675,15 @@ export function LessonRunner({
       ) : (
         <>
       <StepShell
-        {...(step.type === "concept_card" && step.skill
+        {...(lesson.id === "diagnosis" && step.type === "completion"
+          ? {
+              /*
+                見出しは「診断の結果」。中身の1つ目が「いまの現在地」
+                なので、上でも同じ言葉を使うと1画面に2回並ぶ。
+              */
+              title: "診断の結果",
+            }
+          : step.type === "concept_card" && step.skill
           ? {
               /*
                 技を受け取る回は、見出しを「新しいAI技」にする。
@@ -715,12 +741,26 @@ export function LessonRunner({
             ——3つの枠と選択肢で埋まる画面なので、34px がそのまま
             はみ出しになる。前に答えた内容は、ここでの判断材料でもない。
           */
-          step.type === "assemble"
+          step.type === "assemble" ||
+          /*
+            診断の**質問の画面**では出さない。質問そのものを主役に
+            する——畳んであっても見出しの行だけで 34px 取り、5問とも
+            同じだけ質問と選択肢を下へ押す。
+
+            **結果の画面には残す。** ここの「なおす」が、答えを直す
+            唯一の道になっている（一度これごと消して、直す道が
+            消えた——`e2e/diagnosisEdit.spec.ts` が10件とも落ちた）。
+          */
+          (lesson.id === "diagnosis" && step.type !== "completion")
             ? []
             : api.summary
         }
         onEditSummary={editSummary}
-        primaryLabel={primaryLabel(step)}
+        primaryLabel={
+          lesson.id === "diagnosis" && step.type === "completion"
+            ? "おすすめLessonから始める"
+            : primaryLabel(step)
+        }
         onPrimary={onPrimary}
         /*
           答えるまで、次へは押せない。
@@ -751,15 +791,46 @@ export function LessonRunner({
             ? { label: "次のレッスンへ", onClick: api.finishEarly }
             : step.type === "real_task"
             ? { label: "今回はスキップする", onClick: api.skipRealTask }
-            : step.type === "completion"
+            : lesson.id === "diagnosis" && step.type === "intro"
+              ? /*
+                  診断は強くすすめるが、**必須にはしない。**
+
+                  帯の「スキップ」だけでも出られるが、あれは小さくて
+                  「間違えて押すもの」に見える。降りる道は、進む道の
+                  すぐ下に同じ言葉で置く。
+                */
+                { label: "診断せずに始める", onClick: onExit }
+            : lesson.id === "diagnosis" && step.type === "completion"
+              ? /*
+                  おすすめより前を飛ばさせない。
+
+                  「Day1から確認する」は、おすすめが Day2 以降だった人
+                  のための道。基礎を飛ばしたくない人が自分で選べる形に
+                  しておく——こちらから強制はしない。
+                */
+                {
+                  label: "Day1から確認する",
+                  onClick: () =>
+                    onSelectLesson
+                      ? onSelectLesson("rewrite_text")
+                      : onOpenCourse(),
+                }
+              : step.type === "completion"
               ? // 同じレッスンをもう一度。身についたか確かめたい人の逃げ道
                 { label: "もう一度試す", onClick: api.restart }
               : step.skippable
                 ? { label: "解説を飛ばす", onClick: api.skipConcept }
                 : undefined
         }
-        // 終わったあとだけ、逃げ道も同じ大きさで並べる（どちらも正しい行き先）
-        secondaryProminent={step.type === "completion"}
+        /*
+          終わったあとだけ、逃げ道も同じ大きさで並べる（どちらも正しい行き先）。
+
+          **診断の結果だけは並べない。** 「おすすめLessonから始める」と
+          「Day1から確認する」はどちらも長く、390px で横に並べると
+          右側が画面の外へ出る（実機で切れていた）。主役を1つに
+          決めて、もう片方は下の文字の行にする。
+        */
+        secondaryProminent={step.type === "completion" && lesson.id !== "diagnosis"}
         /*
           自動で進む回では、下のボタンに「送っています」ではなく
           進む合図を出す。押さなくてよいことが、押す前に分かる。
@@ -784,6 +855,11 @@ export function LessonRunner({
           置き場所と飾りも `poPresence` が決める。ここで条件を
           書き始めると、また画面の都合でポーが動き出す。
         */
+        /*
+          診断は5問続けて答えるだけの画面。星と電球が毎回並ぶと、
+          印が印として働かなくなる（`StepShell` の `quiet`）。
+        */
+        quiet={lesson.id === "diagnosis"}
         poAlign={po?.align}
         poBurst={po?.burst}
         poSpeaks={po?.speaks ?? false}

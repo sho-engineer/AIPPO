@@ -15,6 +15,7 @@
  */
 
 import { COURSE } from "./catalog";
+import { scoreDiagnosis, type Axis } from "./diagnosisScore";
 
 /**
  * 「やりたいこと」（Q5）→ そこへ向かうレッスン。
@@ -115,4 +116,82 @@ export function loadRecommendations(): string[] {
 export function recommendationsForHome(): string[] {
   const saved = loadRecommendations();
   return saved.length > 0 ? saved : recommendLessons({});
+}
+
+
+/**
+ * おすすめのレッスンを**1本だけ**返す。
+ *
+ * 決め方は「弱いところを先に、行きたい方向を加味して」。
+ *
+ * 弱点を先に見るのは、**近道が近道にならない**ため。画像をやりたい人に
+ * いきなり Day7 を出しても、AIへの基本的な頼み方ができていなければ
+ * そこで詰まる。まず土台の1本を渡す。
+ *
+ * ただし土台ができている人には、行きたい方向のほうを渡す。できている
+ * ことをもう一度やらせるのは、いちばん早く飽きさせる方法なので。
+ *
+ * 3本返していたころとの違い
+ * -------------------------
+ * 前は3本並べていた。選べるように見えて、**次に何をするかをもう一度
+ * 選ばせている**だけだった。結果画面の役目は「次の1つを決める」ことで、
+ * ほかを見たい人にはコースの一覧がある。
+ */
+export function recommendLesson(answers: Record<string, string>): string {
+  const { axes, weakest } = scoreDiagnosis(answers);
+
+  /** 軸ごとの、そこを埋める1本。 */
+  const FOR_AXIS: Record<Axis, string> = {
+    ask: "rewrite_text",
+    condition: "rewrite_text",
+    purpose: "explain_topic",
+    workflow: "make_plan",
+  };
+
+  /*
+    土台ができているか。
+
+    「AIに頼む」と「条件を加える」の2つが3以上なら、Day1 で渡すものは
+    ひととおり持っている。そこから先は行きたい方向で選んでよい。
+  */
+  const hasBasics = axes.ask >= 3 && axes.condition >= 3;
+  if (hasBasics) {
+    const wants = (answers.want_to_do ?? "").split(",").filter(Boolean);
+    for (const want of wants) {
+      const id = (BY_WANT[want] ?? [])[0];
+      if (id && lessonExists(id)) return id;
+    }
+  }
+
+  const fromAxis = FOR_AXIS[weakest];
+  return lessonExists(fromAxis) ? fromAxis : DEFAULTS[0];
+}
+
+function lessonExists(id: string): boolean {
+  return COURSE.lessons.some((lesson) => lesson.id === id && lesson.usesAi);
+}
+
+/**
+ * なぜこの1本なのかを、1行で。
+ *
+ * 結果画面に出すのはこれだけ。詳しい話は「理由を見る」の中へ回す
+ * ——通常の画面に長文を置くと、読む画面になって次の一歩が遠くなる。
+ *
+ * **24文字まで。** 402px の画面で `text-sm`（15px）なら1行に入る
+ * 上限がそこ。超えると2行になり、そのぶん下の「理由を見る」が
+ * 入れ物からあふれる（いちばん低い持ち方で実際にあふれた）。
+ */
+export function recommendReason(answers: Record<string, string>): string {
+  const { axes } = scoreDiagnosis(answers);
+
+  if (axes.ask < 3) {
+    return "まずは、AIへの頼み方から始めましょう。";
+  }
+  if (axes.condition < 3) {
+    return "お願いはできています。次は「誰向けか」を。";
+  }
+  if (axes.purpose < 4) {
+    return "頼み方は身についています。次は場面に合う使い方を。";
+  }
+  return "土台はそろっています。次は仕事の流れの中へ。";
 }

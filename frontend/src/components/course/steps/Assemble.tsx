@@ -70,26 +70,31 @@ export function AssembleStep({ step, value, onChange }: AssembleStepProps) {
       それぞれの札が2行に折り返すので、1行あたり数 px の差が
       3倍になって効く。
 
-          札の高さ 44 → 38px、字 15 → 14px、間 8 → 6px
-          枠の名前 15 → 13px
+          札の高さ 44 → 38px、字 15 → 14px、間 8 → 4px
+          枠の名前 15 → 13px、枠どうしの間 10 → 8px
+
+      それでも、いちばん低い持ち方（402×660）では 17px 足りなかった
+      ——**ページは伸びないので外からは分からず**、入れ物の中で
+      静かに送れる状態になっていた（`e2e/diagnosis.spec.ts` の
+      `expectFits` が入れ物の中まで見るようにして見つけた）。
 
       指で押す最小（44px）は、`py` ではなく**押せる面の高さ**で
       満たしている——38px の札に上下 3px ずつの当たりを付けると
       44px になる（`-my-[3px]` の透明な縁）。字を小さくしすぎない
       ために、縮めるのは余白のほうから。
     */
-    <div className="flex min-h-0 flex-1 flex-col gap-2.5" data-testid="assemble">
+    <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="assemble">
       {parts.map((part, index) => (
         <fieldset key={part.key} data-testid="assemble-part" data-part={part.key}>
           {/*
             枠の名前。**問いそのものは見出しが言っている**ので、
             ここは短く、札より小さくする。
           */}
-          <legend className="mb-1 text-[0.8125rem] font-bold leading-5">
+          <legend className="mb-0.5 text-[0.8125rem] font-bold leading-5">
             {part.label}
           </legend>
 
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1">
             {part.options.map((option) => {
               const on = picked[index] === option.value;
               return (
