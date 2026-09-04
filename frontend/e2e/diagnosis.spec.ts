@@ -43,7 +43,10 @@ async function answerOne(page: Page): Promise<boolean> {
   const count = await parts.count();
   if (count > 0) {
     for (let index = 0; index < count; index += 1) {
-      await parts.nth(index).getByTestId("assemble-choice").first().click();
+      const part = parts.nth(index);
+      // もう選んである枠は触らない。**押すと取り消しになる**
+      if (await part.locator("[aria-pressed='true']").count()) continue;
+      await part.getByTestId("assemble-choice").first().click();
     }
     await page.getByTestId("primary-action").click();
     await page.waitForTimeout(700);

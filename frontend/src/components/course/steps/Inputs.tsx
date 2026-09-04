@@ -90,11 +90,20 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
     幅いっぱいの行にしたほうが読みやすく、選ぶ的も大きい。
 
     多いときは1列だと縦に伸びるので、4つまで。
+
+    **ただし、言葉が長ければ数に関わらず1列**にする。2列だと1枚が
+    375px の画面で 170px 前後になり、そこから余白を引くと文字に残るのは
+    9字ぶん。診断の「まだ使ったことがない」（10字）はそれで2行になって
+    いた（`e2e/choiceLayoutShift.spec.ts` が捕まえた）。
+
+    境目は12字。ここまでなら2列でも1行に収まり、超えると必ず折り返す。
+    いまこれに当たるのは診断の Q1・Q2 だけで、ほかの教材の選択肢は
+    いちばん長いものでも10字。
   */
   const withIcons = options.some(
     (option) => optionIcon(option.icon) ?? diagnosisIcon(option.value),
   );
-  const oneColumn = tiles && !withIcons && options.length <= 4;
+  const oneColumn = tiles && !withIcons && (options.length <= 4 || longest > 12);
 
   return (
     <div>

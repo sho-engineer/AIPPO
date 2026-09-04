@@ -61,12 +61,23 @@ async function answerRemaining(page: Page): Promise<void> {
     const parts = page.getByTestId("assemble-part");
     const count = await parts.count();
     if (count > 0) {
-      // 枠を埋める回。全部埋めないと進めない
       for (let index = 0; index < count; index += 1) {
-        await parts.nth(index).getByTestId("assemble-choice").first().click();
+        const part = parts.nth(index);
+        /*
+          もう選んである枠は触らない。**押すと取り消しになる。**
+
+          「なおす」で戻ったあとは、あとの回の答えがそのまま残って
+          いる。そこで一律に1つ目を押すと、選んであった枠が空になり、
+          下のボタンが押せないまま止まる（実際そうして時間切れになった）。
+        */
+        if (await part.locator("[aria-pressed='true']").count()) continue;
+        await part.getByTestId("assemble-choice").first().click();
       }
-      await page.getByTestId("primary-action").click();
-      await page.waitForTimeout(700);
+      const next = page.getByTestId("primary-action");
+      if (await next.count()) {
+        await next.click();
+        await page.waitForTimeout(700);
+      }
       continue;
     }
 

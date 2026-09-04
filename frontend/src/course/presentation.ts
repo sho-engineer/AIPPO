@@ -11,7 +11,6 @@
 import {
   IconBook,
   IconBuilding,
-  IconCheck,
   IconBulb,
   IconCalendar,
   IconChat,
@@ -123,23 +122,27 @@ export function optionIcon(name?: OptionIconName): Icon | null {
  *
  * 引けなかった値には何も出さない。それらしい絵を当てるより、
  * 文字だけのほうが読み違えない。
+ *
+ * ここに載せるのは「やりたいこと」（Q5）だけ。**Q1・Q2 には付けない。**
+ *
+ * 前はここが3問だったころの表のままで、いまは存在しない値
+ * （`reading` `none` `occasional` `regular` …）が並んでいた。中でも
+ * `tried` だけが Q1 の値と偶然ぶつかり、**5つのうち1つにだけ絵が付く**
+ * 状態になっていた。しかも絵が1つでもあると札の組み方が2列に切り替わり、
+ * 「まだ使ったことがない」（10字）が 375px の画面で2行に折り返していた
+ * （`e2e/choiceLayoutShift.spec.ts` が捕まえた）。
+ *
+ * Q1・Q2 は言葉そのものが長く、絵と並べる余地が無い。付けないほうが
+ * 1列で1行に収まる。
  */
 const DIAGNOSIS_ICONS: Record<string, Icon> = {
-  // ふだんの仕事 / いま面倒なこと（同じ言葉は同じ絵にする）
   writing: IconMail,
-  reading: IconBook,
-  researching: IconQuestion,
-  explaining: IconQuestion,
   summarizing: IconList,
+  researching: IconQuestion,
   ideas: IconBulb,
   comparing: IconScale,
-  planning: IconCalendar,
   organizing: IconFolder,
-  // AIを使ったことがあるか
-  none: IconQuestion,
-  tried: IconSparkle,
-  occasional: IconChat,
-  regular: IconCheck,
+  images: IconSparkle,
 };
 
 export function diagnosisIcon(value: string): Icon | null {
