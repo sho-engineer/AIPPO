@@ -194,14 +194,13 @@ describe("章扉の画面", () => {
     expect(screen.getAllByRole("button")).toHaveLength(2);
   });
 
-  it("「つづける」は、絵の中に重なっている", () => {
+  it("「つづける」は、絵の上に重なっている", () => {
     /*
       前は縦2段だった——上が絵、下が独立したボタンの行。「絵」＋
-      「別ブロックのボタン」に分かれて見えるうえ、ボタンの行が 80px
-      取るぶん絵が小さくなっていた（402px の画面で絵は 295px）。
+      「別ブロックのボタン」に分かれて見えるうえ、ボタンの行が場所を
+      取るぶん絵が小さくなっていた。
 
-      いまはボタンを**絵の箱の中**へ重ねる。絵は 371px まで大きくなり、
-      画面は1枚になった。
+      いまは絵が箱いっぱいで、ボタンはその上に浮いている。
     */
     render(
       <SectionTransition title="まずは試してみよう" image={IMAGE} onContinue={() => {}} />,
@@ -209,24 +208,27 @@ describe("章扉の画面", () => {
 
     const main = screen.getByRole("img");
     const cta = screen.getByTestId("primary-action");
-
-    // ボタンが絵と同じ箱の中にある（外の兄弟ではない）
-    const box = main.parentElement!;
-    expect(box.contains(cta), "ボタンが絵の箱の外にある").toBe(true);
-
-    // 下部中央へ、左右に余白を残して重ねる
     const placed = cta.parentElement!;
+
+    // 絵と同じ面にあり、下部中央へ左右の余白を残して重なる
+    expect(main.parentElement).toBe(placed.parentElement);
     expect(placed.className).toContain("absolute");
-    expect(placed.className).toContain("bottom-");
     expect(placed.className).toContain("inset-x-");
+    expect(placed.className).toContain("bottom-");
 
     /*
-      絵の箱は**実寸そのままの比**で取る。そうすると、この枠が絵の縁に
-      なるので、ボタンは画面の下端ではなく**絵の下端**を基準に置ける。
+      下端は**安全領域のぶんだけ**空ける。外側に余白を置くと、そのぶん
+      箱が縦に縮んで、絵を切る量が増える。
     */
-    expect(box.getAttribute("style")).toContain(
-      `aspect-ratio: ${IMAGE.width} / ${IMAGE.height}`,
-    );
+    expect(placed.className).toContain("safe-area-inset-bottom");
+
+    /*
+      文字は「つづける」ひとつ。右の山は**行き先を表す印**で、
+      読み上げには渡さない（文字が同じことを言っている）。
+    */
+    expect(cta).toHaveTextContent("つづける");
+    expect(cta.querySelectorAll("svg")).toHaveLength(1);
+    expect(cta.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("押せるものを、押せるものの中へ入れない", () => {
@@ -247,43 +249,28 @@ describe("章扉の画面", () => {
     }
   });
 
-  it("余白は、同じ絵をぼかして埋める", () => {
+  it("絵は、箱いっぱいに敷く（余白を作らない）", () => {
     /*
-      絵は縦長なので、横長の画面では左右に余白が出る。白いままだと
-      **絵の四角い縁が浮く**。同じ絵を横に伸ばしてぼかし、背面へ
-      敷けば、どの高さでも色が合う——測る値も、覚えておく値も無い。
+      絵は 941×1672（比 0.563）で、画面よりずっと縦長。比の差は
+      **切るか、余白か**のどちらかでしか埋まらない。
 
-      伸ばすのは横だけ。`object-cover` は縦を切るので、背面と前面で
-      縦の位置がずれる（境目の色が中ほどで 20 飛んだ）。
+      余白を選ぶと、絵の四角い縁が地から浮いて見える——章扉は
+      **絵が画面そのもの**なので、端まで届いていないと1枚に見えない。
+      だから切るほうを選ぶ。
 
-      背面の1枚は読み上げに渡さない。渡すと同じ絵が2回読まれる。
+      切る位置は下寄り（`object-position`）。まん中から切ると、
+      いちばん低い持ち方で上下を 6.9% ずつ落とすことになり、
+      **AIPPO のロゴの上が切れた**。下は「つづける」が覆う場所なので、
+      多く切ってよい。
     */
-    const { rerender } = render(
+    render(
       <SectionTransition title="まずは試してみよう" image={IMAGE} onContinue={() => {}} />,
     );
 
-    const all = screen.getByTestId("section-transition").querySelectorAll("img");
-    expect(all, "絵が2枚（背面と本体）出ていない").toHaveLength(2);
-
-    const [backdrop, main] = all;
-    expect(backdrop.getAttribute("src")).toBe(IMAGE.src);
-    expect(backdrop.getAttribute("aria-hidden")).toBe("true");
-    expect(backdrop.getAttribute("alt")).toBe("");
-    // 伸ばすのは横だけ。縦は前面と同じ位置に重ねる
-    expect(backdrop.className).toContain("scale-x-150");
-    expect(backdrop.className).not.toContain("object-cover");
-    expect(backdrop.className).toContain("blur");
-    // 本体は切らずに収める（絵の中の題が切れないように）
-    expect(main.className).toContain("object-contain");
-    // 読み上げに渡すのは本体だけ
-    expect(screen.getByRole("img")).toBe(main);
-
-    rerender(
-      <SectionTransition title="まずは試してみよう" image={null} onContinue={() => {}} />,
-    );
-    expect(
-      screen.getByTestId("section-transition").querySelectorAll("img"),
-    ).toHaveLength(0);
+    const main = screen.getByRole("img");
+    expect(main.className).toContain("object-cover");
+    expect(main.className).toContain("inset-0");
+    expect(main.getAttribute("style")).toContain("object-position: center 25%");
   });
 
   it("送る先が無い（スクロールしない）", () => {

@@ -123,94 +123,71 @@ test.describe("段が変わったことを、1枚で言う", () => {
     }
   });
 
-  test("余白が、絵の続きで埋まっている", async ({ page }) => {
+  test("絵が画面の端まで届いていて、余白が無い", async ({ page }) => {
     /*
-      絵は縦長（941×1672）で、横長の画面では**高さで頭打ち**になる。
-      402px 幅の実機で絵に使えるのは 295px しかなく、残りは左右の余白
-      ——白い地の上に絵の四角い縁が浮いて見えていた。
+      絵は 941×1672（比 0.563）で、画面よりずっと縦長。比の差は
+      **切るか、余白か**のどちらかでしか埋まらない。
 
-      同じ絵を横に伸ばしてぼかし、背面へ敷いてある。
+      余白を選ぶと、絵の四角い縁が地から浮く。章扉は**絵が画面
+      そのもの**なので、端まで届いていないと1枚に見えない。
 
-      色の一致は見ない。横に伸ばす以上、境目には絵の 25% あたりの色が
-      来るので、前面の左端とは合わない（合わせようとすると背面を前面と
-      同じ大きさにするしかなく、それでは余白が埋まらない）。**消したいのは
-      硬い縁**のほうで、それはぼかしが受け持っている。
-
-      ここで見るのは、余白が**本当に埋まっているか**。
+      見るのは2つ。端まで届いているか、切りすぎていないか。
     */
     await start(page);
-    const cover = page.getByTestId("section-transition");
-    await expect(cover).toBeVisible();
+    await expect(page.getByTestId("section-transition")).toBeVisible();
     await page.waitForTimeout(700);
 
-    const layout = await page.evaluate(() => {
-      /*
-        絵はタップ面の**中**ではなく、同じ面に並べて敷いてある
-        ——押せるものの中へ押せるものを入れないため。
-      */
-      const tap = document.querySelector<HTMLElement>(
-        "[data-testid='section-transition-tap']",
-      )!;
+    const m = await page.evaluate(() => {
       const cover = document.querySelector<HTMLElement>(
         "[data-testid='section-transition']",
       )!;
-      const backdrop = cover.querySelector<HTMLImageElement>("img[aria-hidden='true']");
-      const main = cover.querySelector<HTMLImageElement>("img:not([aria-hidden])");
-      const box = (el: Element | null) => {
-        if (!el) return null;
-        const r = el.getBoundingClientRect();
-        return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
-      };
+      const img = cover.querySelector<HTMLImageElement>("img")!;
+      const r = img.getBoundingClientRect();
+      /*
+        比べる相手は**章扉の枠**。ウィンドウではない——広い画面では
+        枠を端末1台ぶんに絞って真ん中へ置くので、ウィンドウと比べると
+        その左右が「余白」に見えてしまう（実際そうして落ちた）。
+        スマホでは枠が画面いっぱいなので、どちらでも同じ。
+      */
+      const box = cover.getBoundingClientRect();
+      const scale = Math.max(r.width / img.naturalWidth, r.height / img.naturalHeight);
       return {
-        tap: box(tap)!,
-        backdrop: box(backdrop),
-        main: box(main),
-        blurred: backdrop ? getComputedStyle(backdrop).filter : "",
-        sameImage: backdrop?.getAttribute("src") === main?.getAttribute("src"),
+        left: r.left - box.left,
+        right: box.right - r.right,
+        bottom: box.bottom - r.bottom,
+        cropX: (img.naturalWidth * scale - r.width) / 2 / (img.naturalWidth * scale),
+        cropY: (img.naturalHeight * scale - r.height) / 2 / (img.naturalHeight * scale),
+        fit: getComputedStyle(img).objectFit,
       };
     });
 
-    expect(layout.backdrop, "背面の1枚が無い").not.toBeNull();
-    expect(layout.main, "前面の絵が無い").not.toBeNull();
-    // 同じ絵を使う（通信は1回のまま。色も必ず似る）
-    expect(layout.sameImage, "背面が別の絵を指している").toBe(true);
-    expect(layout.blurred, "背面がぼけていない").toContain("blur");
-
-    // 前面には左右の余白が出ている（出ていなければ埋めるものが無い）
-    expect(layout.main!.left - layout.tap.left).toBeGreaterThan(4);
+    expect(m.fit, "切らずに収めている（余白が出る）").toBe("cover");
+    for (const [where, gap] of [
+      ["左", m.left],
+      ["右", m.right],
+      ["下", m.bottom],
+    ] as const) {
+      expect(gap, `${where}に ${Math.round(gap)}px の余白がある`).toBeLessThanOrEqual(1);
+    }
 
     /*
-      その余白を、背面が**外まではみ出して**埋めている。
+      切りすぎない。4枚を測ると、濃い要素（題・ロゴ・カード）までの
+      余白は 上 5.4% / 下 5.7% / 左 7.1% / 右 6.4% ある。
 
-      「ちょうど覆う」では足りない。ぼかした絵は縁が薄まって消えるので、
-      枠ぴったりだと**画面の端に地色がにじみ出す**。外へ追い出すには、
-      枠より外まで届いていること。
-
-      ここを `以上／以下` で書いていたときは、はみ出しを外しても検査が
-      通ってしまった（実際に壊して確かめた）。
+      上は下寄りに切ることで守っている（`object-position`）ので、
+      ここで見るのは**左右**——横は寄せずにまん中から切るため、
+      いちばん狭い 6.4% を超えたら題やカードに届く。
     */
-    const bleed = 8;
-    expect(layout.backdrop!.left, "左のぼかしの縁が画面の中に出る").toBeLessThan(
-      layout.tap.left - bleed,
-    );
-    expect(layout.backdrop!.right, "右のぼかしの縁が画面の中に出る").toBeGreaterThan(
-      layout.tap.right + bleed,
-    );
-    expect(layout.backdrop!.top, "上のぼかしの縁が画面の中に出る").toBeLessThan(
-      layout.main!.top - bleed,
-    );
-    expect(layout.backdrop!.bottom, "下のぼかしの縁が画面の中に出る").toBeGreaterThan(
-      layout.main!.bottom + bleed,
-    );
+    expect(m.cropX, `左右を ${(m.cropX * 100).toFixed(1)}% 切っている`).toBeLessThan(0.075);
   });
 
-  test("「つづける」が、絵の中に重なっている", async ({ page }) => {
+  test("「つづける」が、絵の上に重なっている", async ({ page }) => {
     /*
       前は縦2段だった——上が絵、下が独立したボタンの行。「絵」＋
-      「別ブロックのボタン」に分かれて見えるうえ、ボタンの行が 80px
-      取るぶん絵が小さくなっていた（393px の画面で絵は 295px）。
+      「別ブロックのボタン」に分かれて見えるうえ、ボタンの行が場所を
+      取るぶん絵が小さくなっていた。
 
-      いまはボタンを絵の箱の中へ重ねる。絵は 371px まで大きくなった。
+      いまは絵が画面いっぱいで、ボタンはその上に浮いている。
     */
     await start(page);
     await expect(page.getByTestId("section-transition")).toBeVisible();
@@ -234,6 +211,7 @@ test.describe("段が変わったことを、1枚で言う", () => {
     // 下部にある（真ん中や上ではない）
     const fromBottom = main.y + main.height - (cta.y + cta.height);
     expect(fromBottom, "絵の下端から離れすぎている").toBeLessThan(main.height * 0.15);
+    // 画面の端に貼り付かない（iPhone のホームバーと近づきすぎる）
     expect(fromBottom, "絵の下端に貼り付いている").toBeGreaterThan(8);
 
     // 中央にある。左右の余白がそろっていること

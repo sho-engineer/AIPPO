@@ -60,6 +60,16 @@ async function advance(page: Page): Promise<boolean> {
   if (await blocked(primary)) return false;
 
   await primary.click();
+  /*
+    押したあと、画面が入れ替わるのを待つ。
+
+    待たずに次の周回へ入ると、まだ前の画面のボタンを見てもう一度
+    押してしまう。選ぶだけの回は 500ms で自動送りが走り、届いた合図
+    （`StepDone`）は 1.8 秒出るので、**120ms では足りない**
+    ——章扉4枚と解説1枚で歩数が増えたぶん、そこが表に出た
+    （並列で回したとき、この spec だけ落ちた）。
+  */
+  await page.waitForTimeout(400);
   return true;
 }
 
