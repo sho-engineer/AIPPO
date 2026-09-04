@@ -306,11 +306,7 @@ export function LessonRunner({
       // 診断の結果は端末に残す。次に開いたときも同じ順で出す
       saveRecommendations(recommendLessons(values));
       // 誰が来たかを実証実験で見るために送る。待たない
-      void saveProfile({
-        ai_experience: values.ai_experience ?? "",
-        job_category: values.work_kind ?? "",
-        pain_point: values.pain_point ?? "",
-      });
+      void saveProfile(values);
     }
     api.complete();
   };
@@ -712,7 +708,14 @@ export function LessonRunner({
         */
         summary={
           (step.type === "completion" && lesson.usesAi) ||
-          step.type === "observation"
+          step.type === "observation" ||
+          /*
+            枠を埋める回（診断のミニ問題）も出さない。畳んであっても
+            見出しの行だけで 34px 取り、そのぶん枠が下へ押し出される
+            ——3つの枠と選択肢で埋まる画面なので、34px がそのまま
+            はみ出しになる。前に答えた内容は、ここでの判断材料でもない。
+          */
+          step.type === "assemble"
             ? []
             : api.summary
         }

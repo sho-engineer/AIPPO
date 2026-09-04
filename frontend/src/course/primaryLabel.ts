@@ -62,6 +62,11 @@ export const LABEL_BY_TYPE: Record<StepType, string> = {
   condition_choice: "この条件で試す",
   single_choice: "決めた",
   multi_choice: "決めた",
+  /*
+    枠を埋める回。「答え合わせ」や「送信」にしない——押した先で
+    合っているかを返さないので、その気にさせる言葉を置かない。
+  */
+  assemble: "これでいく",
   text_input: "書けた",
   template_builder: "できた",
   prompt_preview: "この内容でAIに送る",

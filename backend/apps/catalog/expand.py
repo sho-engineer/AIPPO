@@ -82,6 +82,7 @@ def step_row_to_dict(row: LessonStep) -> dict[str, Any]:
         "poEmotion": row.po_emotion,
         "key": row.input_key,
         "options": row.options,
+        "parts": row.parts,
         "placeholder": row.placeholder,
         "example": row.example,
         "hints": row.hints,

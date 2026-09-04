@@ -510,6 +510,11 @@ class LessonStep(models.Model):
         max_length=60, blank=True, help_text="入力の保存先。同じ名前を複数画面から読める"
     )
     options = models.JSONField(default=list, blank=True)
+    #: `assemble` の枠。名前の付いた枠と、それぞれの選択肢。
+    #:
+    #: `options` と分けてあるのは、**枠ごとに選択肢が違う**ため。
+    #: 平らな一覧に潰すと、どの選択肢がどの枠のものか分からなくなる。
+    parts = models.JSONField(default=list, blank=True)
     placeholder = models.CharField(max_length=200, blank=True)
     example = models.CharField(max_length=300, blank=True)
     hints = models.JSONField(default=list, blank=True)

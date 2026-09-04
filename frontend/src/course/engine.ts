@@ -152,7 +152,22 @@ export function checkStep(step: LessonStep, values: StepValues): StepIssue | nul
   const value = (values[key] ?? "").trim();
   const required = step.required ?? rules.required ?? false;
 
-  if (required && !value) {
+  /*
+    枠を埋める回は、**空でないこと**では足りない。
+
+    答えは `|` でつないだ1つの文字列なので、3つのうち2つ選んだ状態も
+    「空ではない」。それを答えたことにすると、下のボタンが押せてしまい、
+    埋まっていない枠のまま次へ行ける（E2E がここで捕まえた）。
+
+    `isAnswered`（`course/autoAdvance.ts`）は同じことを既に見ているが、
+    下のボタンを止めているのはこちら。片方だけ直しても効かない。
+  */
+  const filled = step.parts?.length
+    ? value.split("|").length === step.parts.length &&
+      value.split("|").every((one) => one.trim().length > 0)
+    : Boolean(value);
+
+  if (required && !filled) {
     /*
       見出しを文に混ぜない。
 
@@ -162,7 +177,12 @@ export function checkStep(step: LessonStep, values: StepValues): StepIssue | nul
       何をすればよいかは、書く欄か選ぶ札かで決まる。そこだけを言う。
     */
     return {
-      reason: step.options?.length ? "ひとつ選んでください。" : "入力してください。",
+      reason: step.parts?.length
+        ? // 枠を埋める回。**どれか1つ**ではなく、全部が要る
+          "ぜんぶ選んでください。"
+        : step.options?.length
+          ? "ひとつ選んでください。"
+          : "入力してください。",
       blocking: true,
     };
   }

@@ -240,6 +240,7 @@ def _rows(lesson: dict[str, Any], flow_start: int | None) -> list[dict[str, Any]
                 "po_emotion": step.get("poEmotion", ""),
                 "input_key": step.get("key", ""),
                 "options": step.get("options", []),
+                "parts": step.get("parts", []),
                 "placeholder": step.get("placeholder", ""),
                 "example": step.get("example", ""),
                 "hints": step.get("hints", []),

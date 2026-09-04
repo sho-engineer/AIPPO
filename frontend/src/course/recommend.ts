@@ -16,24 +16,39 @@
 
 import { COURSE } from "./catalog";
 
-/** 「いま面倒なこと」→ まず試すレッスン。 */
-const BY_PAIN: Record<string, string[]> = {
+/**
+ * 「やりたいこと」（Q5）→ そこへ向かうレッスン。
+ *
+ * 診断が3問から5問に変わり、「いま面倒なこと」を聞くのをやめた
+ * ——面倒だと感じていることと、次に覚えるべきことは別だったため。
+ * いまは**本人が向かいたい方向**を複数で受け取る。
+ *
+ * ここは Q5 だけを見る素朴な引き当てで、**弱点は見ていない**。
+ * 弱点を優先して1本に絞るのは、採点（4軸）が入ってから
+ * （`course/diagnosisScore.ts`）。それまでの間、おすすめが空に
+ * ならないようにする役目を持つ。
+ */
+const BY_WANT: Record<string, string[]> = {
   writing: ["rewrite_text", "improve_answer"],
   summarizing: ["summarize_text", "rewrite_text"],
-  explaining: ["explain_topic", "summarize_text"],
-  comparing: ["compare_options", "explain_topic"],
-  planning: ["make_plan", "compare_options"],
-};
-
-/** 「仕事の種類」→ 相性のよいレッスン。 */
-const BY_WORK: Record<string, string[]> = {
-  writing: ["rewrite_text", "improve_answer"],
-  reading: ["summarize_text", "explain_topic"],
   researching: ["explain_topic", "compare_options"],
   ideas: ["improve_answer", "make_plan"],
-  comparing: ["compare_options", "make_plan"],
-  planning: ["make_plan", "summarize_text"],
+  comparing: ["compare_options", "explain_topic"],
   organizing: ["make_plan", "summarize_text"],
+  images: ["rewrite_text", "summarize_text"],
+};
+
+/**
+ * 「お願いのしかた」（Q2）→ 相性のよいレッスン。
+ *
+ * まだ迷っている人には、いちばん短く結果まで届く1本を先に置く。
+ */
+const BY_ASK_STYLE: Record<string, string[]> = {
+  lost: ["rewrite_text"],
+  short: ["rewrite_text"],
+  condition: ["summarize_text", "rewrite_text"],
+  adapt: ["explain_topic", "compare_options"],
+  design: ["make_plan", "compare_options"],
 };
 
 /** 診断を飛ばした人にも出す既定。最初の一歩として無難な順。 */
@@ -51,8 +66,15 @@ export function recommendLessons(answers: Record<string, string>): string[] {
     }
   };
 
-  push(BY_PAIN[answers.pain_point ?? ""] ?? []);
-  push(BY_WORK[answers.work_kind ?? ""] ?? []);
+  /*
+    Q5 は複数選べる。選んだ順に見る——先に押したものほど、その人が
+    先に思いついたこと。カンマでつないだ1つの文字列で来る
+    （`components/course/steps/Inputs.tsx`）。
+  */
+  for (const want of (answers.want_to_do ?? "").split(",").filter(Boolean)) {
+    push(BY_WANT[want] ?? []);
+  }
+  push(BY_ASK_STYLE[answers.ask_style ?? ""] ?? []);
   push(DEFAULTS);
   // ここまでで埋まらない設定ミスに備えて、番号順で埋める
   push(COURSE.lessons.filter((lesson) => lesson.usesAi).map((lesson) => lesson.id));

@@ -18,6 +18,7 @@
 import { IconCaution } from "../Icons";
 import { SafetyNote } from "../SafetyNote";
 import { FullText } from "./MoreSheet";
+import { AssembleStep } from "./steps/Assemble";
 import { SkillGet } from "./SkillGet";
 import { StepDone } from "./StepDone";
 import {
@@ -391,6 +392,19 @@ export function StepRenderer({
             />
           </div>
         </div>
+      );
+
+    case "assemble":
+      /*
+        枠を埋める回。押しても「正解！」は出さない——採点されている感が
+        出た瞬間、診断はテストになる（`steps/Assemble.tsx`）。
+      */
+      return (
+        <AssembleStep
+          step={step}
+          value={values[step.key ?? ""] ?? ""}
+          onChange={(next) => api.setValue(step.key ?? "", next)}
+        />
       );
 
     case "single_choice":

@@ -153,13 +153,26 @@ class TestValidation:
         [
             ("ai_experience", "とても使う"),  # 選択肢にない
             ("ai_experience", ""),
-            ("job_category", ""),
-            ("pain_point", ""),
         ],
     )
     def test_invalid_answers_are_refused(self, api_client, field, value):
         assert _post(api_client, **{field: value}).status_code == 400
         assert LearnerProfile.objects.count() == 0
+
+    @pytest.mark.parametrize("field", ["job_category", "pain_point"])
+    def test_fields_we_stopped_asking_may_be_empty(self, api_client, field):
+        """もう聞いていない項目は、空で来ても受け取る。
+
+        診断が3問から5問へ変わり、職種は聞くのをやめた（初回で聞いても、
+        答えたことで次の一歩が変わらないため）。ここで空を弾くと、
+        **聞くのをやめた項目のせいで診断の保存が 400 になる**。
+        保存は待たずに投げているので、画面には何も出ずに気づけない。
+
+        選択肢のある項目（`ai_experience`）は、これまでどおり弾く。
+        あちらは値そのものが集計の単位になっている。
+        """
+        assert _post(api_client, **{field: ""}).status_code == 204
+        assert LearnerProfile.objects.count() == 1
 
     def test_overlong_values_are_refused(self, api_client):
         assert _post(api_client, job_category="あ" * 101).status_code == 400

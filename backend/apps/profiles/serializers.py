@@ -6,15 +6,21 @@ from apps.profiles.models import AiExperience, LearnerProfile
 
 
 class LearnerProfileSerializer(serializers.ModelSerializer):
-    """診断3問の回答。
+    """AI活用診断の回答。
 
-    MVP で埋めるのは3項目だけ（Q-1）。
-    残りのフィールドはフェーズ3で使い始めるので、ここでは受け取らない。
+    診断が3問から5問へ変わり、**職種はもう聞いていない**
+    （初回で聞いても、答えたことで次の一歩が変わらないため）。
+    受け取る形はそのままにして、空を許すだけにしてある——
+    5問に合う形（4軸・現在地・履歴）へ作り替えるのは別の段取りで、
+    そのときにこの入れ物ごと置き換える。
+
+    空を弾かないのが肝心。弾くと、聞くのをやめた項目のせいで
+    診断の保存が 400 になる（画面には出ないので気づけない）。
     """
 
     ai_experience = serializers.ChoiceField(choices=AiExperience.choices)
-    job_category = serializers.CharField(max_length=100)
-    pain_point = serializers.CharField(max_length=200)
+    job_category = serializers.CharField(max_length=100, allow_blank=True)
+    pain_point = serializers.CharField(max_length=200, allow_blank=True)
 
     class Meta:
         model = LearnerProfile

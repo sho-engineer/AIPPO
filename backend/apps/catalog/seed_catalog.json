@@ -7,9 +7,9 @@
       "id": "diagnosis",
       "number": 0,
       "title": "AI活用診断",
-      "goal": "自分に合いそうなAIの使い道を見つける",
+      "goal": "いまの現在地と、次に覚えるAI技を知る",
       "outcomes": [
-        "自分の仕事でAIに任せられそうなことが分かる"
+        "いま何ができていて、次に何を覚えればよいかが分かる"
       ],
       "tags": [],
       "usesAi": false,
@@ -17,115 +17,260 @@
         {
           "id": "intro",
           "type": "intro",
-          "title": "まずは3つだけ教えてください",
-          "instruction": "答えに合わせて、試すレッスンを3つ選びます。",
-          "poMessage": "ひとつずつ聞きますね。近いものを選んでください。",
+          "title": "5つの質問で、現在地を見ます",
+          "instruction": "1〜2分で終わります。うしろの2問は、実際に選んでみる問題です。",
+          "poMessage": "できるかどうかを試す場ではありません。気楽にどうぞ。",
           "poEmotion": "question"
         },
         {
-          "id": "work_kind",
+          "id": "ai_usage",
           "type": "single_choice",
-          "title": "ふだんの仕事に近いのはどれですか",
-          "poMessage": "近いものが無ければ「そのほか」で大丈夫です。",
+          "title": "AIをどれくらい使っていますか？",
+          "poMessage": "いまの正直なところで大丈夫です。",
           "poEmotion": "question",
-          "key": "work_kind",
+          "key": "ai_usage",
           "required": true,
           "options": [
             {
-              "value": "writing",
-              "label": "文章を書く"
-            },
-            {
-              "value": "reading",
-              "label": "長い文章を読む"
-            },
-            {
-              "value": "researching",
-              "label": "調べて理解する"
-            },
-            {
-              "value": "ideas",
-              "label": "アイデアを考える"
-            },
-            {
-              "value": "comparing",
-              "label": "選択肢を比較する"
-            },
-            {
-              "value": "planning",
-              "label": "計画を作る"
-            },
-            {
-              "value": "organizing",
-              "label": "作業を整理する"
-            }
-          ]
-        },
-        {
-          "id": "ai_experience",
-          "type": "single_choice",
-          "title": "AIを使ったことはありますか",
-          "poMessage": "はじめてでも大丈夫です。手順どおりに進めば動きます。",
-          "poEmotion": "neutral",
-          "key": "ai_experience",
-          "required": true,
-          "options": [
-            {
-              "value": "none",
-              "label": "使ったことがない"
+              "value": "never",
+              "label": "まだ使ったことがない"
             },
             {
               "value": "tried",
-              "label": "数回だけ使った"
+              "label": "試したことはある"
             },
             {
-              "value": "occasional",
-              "label": "ときどき使う"
+              "value": "sometimes",
+              "label": "困ったときに使う"
             },
             {
-              "value": "regular",
-              "label": "日常的に使う"
+              "value": "work",
+              "label": "仕事でよく使う"
+            },
+            {
+              "value": "daily",
+              "label": "ほぼ毎日、いろいろな用途で使う"
             }
           ]
         },
         {
-          "id": "pain_point",
+          "id": "ask_style",
           "type": "single_choice",
-          "title": "いま、いちばん面倒に感じているのはどれですか",
-          "poMessage": "いちばん時間を取られているものを選んでください。",
+          "title": "AIにお願いするとき、どれに近い？",
+          "poMessage": "いちばん近いものをひとつ。",
           "poEmotion": "question",
-          "key": "pain_point",
+          "key": "ask_style",
+          "required": true,
+          "options": [
+            {
+              "value": "lost",
+              "label": "何を書けばいいか迷う"
+            },
+            {
+              "value": "short",
+              "label": "とりあえず短くお願いする"
+            },
+            {
+              "value": "condition",
+              "label": "条件を足して頼むことがある"
+            },
+            {
+              "value": "adapt",
+              "label": "相手や目的に合わせて頼み方を変える"
+            },
+            {
+              "value": "design",
+              "label": "仕事の流れに合わせて、頼み方を組み立てる"
+            }
+          ]
+        },
+        {
+          "id": "build_prompt",
+          "type": "assemble",
+          "title": "この場面なら、どう頼む？",
+          "instruction": "新しく始まる社内制度について、初めて読む社員にも伝わるように説明したい。",
+          "poMessage": "3つ選んで、お願いを組み立ててみましょう。",
+          "poEmotion": "question",
+          "key": "build_prompt",
+          "required": true,
+          "parts": [
+            {
+              "key": "what",
+              "label": "何をしてほしい？",
+              "options": [
+                {
+                  "value": "explain",
+                  "label": "分かりやすく説明して"
+                },
+                {
+                  "value": "summarize",
+                  "label": "要約して"
+                },
+                {
+                  "value": "ideas",
+                  "label": "アイデアを増やして"
+                }
+              ]
+            },
+            {
+              "key": "who",
+              "label": "誰向け？",
+              "options": [
+                {
+                  "value": "first_time",
+                  "label": "初めて読む社員向け"
+                },
+                {
+                  "value": "newcomer",
+                  "label": "新入社員向け"
+                },
+                {
+                  "value": "expert",
+                  "label": "専門家向け"
+                }
+              ]
+            },
+            {
+              "key": "how",
+              "label": "どんな言い方？",
+              "options": [
+                {
+                  "value": "kind",
+                  "label": "やさしく"
+                },
+                {
+                  "value": "polite",
+                  "label": "丁寧に"
+                },
+                {
+                  "value": "kind_polite",
+                  "label": "やさしく丁寧に"
+                },
+                {
+                  "value": "technical",
+                  "label": "専門的に"
+                },
+                {
+                  "value": "casual",
+                  "label": "かなりカジュアルに"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "match_purpose",
+          "type": "assemble",
+          "title": "こんなとき、AIに何を頼む？",
+          "instruction": "3つの場面に、合いそうな使い方をひとつずつ。",
+          "poMessage": "迷ったら、近いと思うほうで大丈夫です。",
+          "poEmotion": "question",
+          "key": "match_purpose",
+          "required": true,
+          "parts": [
+            {
+              "key": "messy",
+              "label": "会議メモがバラバラで読み返しにくい",
+              "options": [
+                {
+                  "value": "organize",
+                  "label": "情報を整理する"
+                },
+                {
+                  "value": "compare",
+                  "label": "選択肢を比較する"
+                },
+                {
+                  "value": "ideas",
+                  "label": "アイデアを広げる"
+                }
+              ]
+            },
+            {
+              "key": "choosing",
+              "label": "2つの案で迷っている",
+              "options": [
+                {
+                  "value": "organize",
+                  "label": "情報を整理する"
+                },
+                {
+                  "value": "compare",
+                  "label": "選択肢を比較する"
+                },
+                {
+                  "value": "ideas",
+                  "label": "アイデアを広げる"
+                }
+              ]
+            },
+            {
+              "key": "stuck",
+              "label": "新しい企画案が思いつかない",
+              "options": [
+                {
+                  "value": "organize",
+                  "label": "情報を整理する"
+                },
+                {
+                  "value": "compare",
+                  "label": "選択肢を比較する"
+                },
+                {
+                  "value": "ideas",
+                  "label": "アイデアを広げる"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "want_to_do",
+          "type": "multi_choice",
+          "title": "AIで何をできるようになりたい？",
+          "instruction": "いくつでも選べます。",
+          "poMessage": "ここは希望なので、気になるものを。",
+          "poEmotion": "question",
+          "key": "want_to_do",
           "required": true,
           "options": [
             {
               "value": "writing",
-              "label": "文章を書く・直す"
+              "label": "文章"
             },
             {
               "value": "summarizing",
-              "label": "長い資料をまとめる"
+              "label": "要約"
             },
             {
-              "value": "explaining",
-              "label": "調べる・説明する"
+              "value": "researching",
+              "label": "調べもの"
+            },
+            {
+              "value": "ideas",
+              "label": "アイデア"
             },
             {
               "value": "comparing",
-              "label": "選択肢を比べる"
+              "label": "比較"
             },
             {
-              "value": "planning",
-              "label": "段取りを決める"
+              "value": "organizing",
+              "label": "整理"
+            },
+            {
+              "value": "images",
+              "label": "画像"
             }
           ]
         },
         {
           "id": "result",
           "type": "completion",
-          "title": "おすすめの3つが決まりました",
-          "poMessage": "まずは一つだけ、実際に試してみましょう。",
+          "title": "いまの現在地です",
+          "poMessage": "ここから始めるのがおすすめです。",
           "poEmotion": "hint",
-          "skill": "自分に合った使い道を選べる"
+          "skill": "自分の現在地が分かる"
         }
       ]
     },

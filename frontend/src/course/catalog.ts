@@ -28,83 +28,233 @@ import type { Course, CourseStage, Lesson } from "./types";
 /**
  * AI活用診断。
  *
- * AI API を使わない。ルールで決める（要件 §9）。
- * ここで AI を呼ぶと、初回起動が遅くなるうえ費用もかかる。
- * 診断の精度は使ってもらった後でないと検証できないので、先に作り込まない。
+ * AI API を使わない。ルールで決める（要件 §9）。ここで AI を呼ぶと
+ * 初回起動が遅くなるうえ費用もかかり、しかも**判定の理由を後から
+ * 説明できない**——結果画面では「どの回答からそう判断したか」を
+ * 返すので、決め方は読める形で持っている必要がある。
+ *
+ * 3問から5問へ
+ * ------------
+ * 前は3問とも自己申告だった（仕事の種類・使ったことがあるか・面倒な
+ * こと）。**自分でどう思っているか**しか集まらないので、
+ *
+ *   ・できると答えた人が本当にできるのか
+ *   ・できないと答えた人が何でつまずくのか
+ *
+ * のどちらも分からない。おすすめも「面倒なこと」の言葉合わせで
+ * 決まっていて、実際の力とは関係が無かった。
+ *
+ * いまは5問。**うしろの2問は手を動かす**。
+ *
+ *     Q1 自己申告   AIがどれくらい日常に入っているか
+ *     Q2 自己申告   お願いのしかた
+ *     Q3 ミニ問題   1つのお願いを3つの枠で組み立てる
+ *     Q4 ミニ問題   3つの状況に、合う使い方を当てる
+ *     Q5 希望       やりたいこと（複数選べる）
+ *
+ * 問題を増やさない
+ * ----------------
+ * 5問のままで4つの軸（AIに頼む / 条件を加える / 目的に合わせる /
+ * 仕事で組み立てる）を出す。**1つの回答を複数の観点から読む**ので、
+ * 軸ごとに質問を足す必要はない。増やすと1〜2分で終わらなくなる。
+ *
+ * テストにしない
+ * --------------
+ * ミニ問題でも、その場で正解・不正解を出さない。出した瞬間に診断は
+ * テストになり、「間違えた」で終わる人が出る。合っているかどうかは
+ * 最後の結果でまとめて返す。
+ *
+ * 1つだけの正解にしない
+ * ---------------------
+ * Q3 の「誰向け？」は、初めて読む社員向けも新入社員向けも高く採る。
+ * 言い方も文脈しだいで複数が成り立つ。模範解答を当てる遊びにすると、
+ * 測っているのは「出題者の意図を読む力」になる。
+ * 配点は `course/diagnosisScore.ts` が持つ。
  */
 const LESSON_0: Lesson = {
   id: "diagnosis",
   number: 0,
   title: "AI活用診断",
-  goal: "自分に合いそうなAIの使い道を見つける",
-  outcomes: ["自分の仕事でAIに任せられそうなことが分かる"],
+  goal: "いまの現在地と、次に覚えるAI技を知る",
+  outcomes: ["いま何ができていて、次に何を覚えればよいかが分かる"],
   tags: [],
   usesAi: false,
   steps: [
     {
       id: "intro",
       type: "intro",
-      title: "まずは3つだけ教えてください",
-      instruction: "答えに合わせて、試すレッスンを3つ選びます。",
-      poMessage: "ひとつずつ聞きますね。近いものを選んでください。",
+      title: "5つの質問で、現在地を見ます",
+      instruction: "1〜2分で終わります。うしろの2問は、実際に選んでみる問題です。",
+      poMessage: "できるかどうかを試す場ではありません。気楽にどうぞ。",
       poEmotion: "question",
     },
+
+    /* ── Q1 ── どれくらい日常に入っているか。回数ではなく入り込み方 ── */
     {
-      id: "work_kind",
+      id: "ai_usage",
       type: "single_choice",
-      title: "ふだんの仕事に近いのはどれですか",
-      poMessage: "近いものが無ければ「そのほか」で大丈夫です。",
+      title: "AIをどれくらい使っていますか？",
+      /*
+        「週に何回か」は聞かない。回数が同じでも、**仕事の流れに
+        入っているかどうか**で next の一歩が変わる。
+      */
+      poMessage: "いまの正直なところで大丈夫です。",
       poEmotion: "question",
-      key: "work_kind",
+      key: "ai_usage",
       required: true,
       options: [
-        { value: "writing", label: "文章を書く" },
-        { value: "reading", label: "長い文章を読む" },
-        { value: "researching", label: "調べて理解する" },
-        { value: "ideas", label: "アイデアを考える" },
-        { value: "comparing", label: "選択肢を比較する" },
-        { value: "planning", label: "計画を作る" },
-        { value: "organizing", label: "作業を整理する" },
+        { value: "never", label: "まだ使ったことがない" },
+        { value: "tried", label: "試したことはある" },
+        { value: "sometimes", label: "困ったときに使う" },
+        { value: "work", label: "仕事でよく使う" },
+        { value: "daily", label: "ほぼ毎日、いろいろな用途で使う" },
       ],
     },
+
+    /* ── Q2 ── 頼み方。「自信がありますか」とは聞かない ── */
     {
-      id: "ai_experience",
+      id: "ask_style",
       type: "single_choice",
-      title: "AIを使ったことはありますか",
-      poMessage: "はじめてでも大丈夫です。手順どおりに進めば動きます。",
-      poEmotion: "neutral",
-      key: "ai_experience",
-      required: true,
-      options: [
-        { value: "none", label: "使ったことがない" },
-        { value: "tried", label: "数回だけ使った" },
-        { value: "occasional", label: "ときどき使う" },
-        { value: "regular", label: "日常的に使う" },
-      ],
-    },
-    {
-      id: "pain_point",
-      type: "single_choice",
-      title: "いま、いちばん面倒に感じているのはどれですか",
-      poMessage: "いちばん時間を取られているものを選んでください。",
+      title: "AIにお願いするとき、どれに近い？",
+      /*
+        主観を聞かない。「自信がありますか」だと、同じ力の人でも
+        性格で答えが割れる。**どうやって頼んでいるか**という行動を聞く。
+      */
+      poMessage: "いちばん近いものをひとつ。",
       poEmotion: "question",
-      key: "pain_point",
+      key: "ask_style",
       required: true,
       options: [
-        { value: "writing", label: "文章を書く・直す" },
-        { value: "summarizing", label: "長い資料をまとめる" },
-        { value: "explaining", label: "調べる・説明する" },
-        { value: "comparing", label: "選択肢を比べる" },
-        { value: "planning", label: "段取りを決める" },
+        { value: "lost", label: "何を書けばいいか迷う" },
+        { value: "short", label: "とりあえず短くお願いする" },
+        { value: "condition", label: "条件を足して頼むことがある" },
+        { value: "adapt", label: "相手や目的に合わせて頼み方を変える" },
+        { value: "design", label: "仕事の流れに合わせて、頼み方を組み立てる" },
       ],
     },
+
+    /* ── Q3 ── ミニ問題1。Day1 の3つ（プロンプト / ターゲット / トーン） ── */
+    {
+      id: "build_prompt",
+      type: "assemble",
+      title: "この場面なら、どう頼む？",
+      instruction:
+        "新しく始まる社内制度について、初めて読む社員にも伝わるように説明したい。",
+      poMessage: "3つ選んで、お願いを組み立ててみましょう。",
+      poEmotion: "question",
+      key: "build_prompt",
+      required: true,
+      parts: [
+        {
+          key: "what",
+          label: "何をしてほしい？",
+          options: [
+            { value: "explain", label: "分かりやすく説明して" },
+            { value: "summarize", label: "要約して" },
+            { value: "ideas", label: "アイデアを増やして" },
+          ],
+        },
+        {
+          key: "who",
+          label: "誰向け？",
+          options: [
+            { value: "first_time", label: "初めて読む社員向け" },
+            { value: "newcomer", label: "新入社員向け" },
+            { value: "expert", label: "専門家向け" },
+          ],
+        },
+        {
+          key: "how",
+          label: "どんな言い方？",
+          options: [
+            { value: "kind", label: "やさしく" },
+            { value: "polite", label: "丁寧に" },
+            { value: "kind_polite", label: "やさしく丁寧に" },
+            { value: "technical", label: "専門的に" },
+            { value: "casual", label: "かなりカジュアルに" },
+          ],
+        },
+      ],
+    },
+
+    /* ── Q4 ── ミニ問題2。目的に応じて使い方を選べるか ── */
+    {
+      id: "match_purpose",
+      type: "assemble",
+      title: "こんなとき、AIに何を頼む？",
+      instruction: "3つの場面に、合いそうな使い方をひとつずつ。",
+      poMessage: "迷ったら、近いと思うほうで大丈夫です。",
+      poEmotion: "question",
+      key: "match_purpose",
+      required: true,
+      /*
+        枠は3つまで。4つ並べると、スマホでは送らないと最後が見えない。
+        選択肢は3つの枠で共通にしてある——場面ごとに別の一覧を出すと、
+        「その場面用の答え」が1つしか無いように見える。
+      */
+      parts: [
+        {
+          key: "messy",
+          label: "会議メモがバラバラで読み返しにくい",
+          options: [
+            { value: "organize", label: "情報を整理する" },
+            { value: "compare", label: "選択肢を比較する" },
+            { value: "ideas", label: "アイデアを広げる" },
+          ],
+        },
+        {
+          key: "choosing",
+          label: "2つの案で迷っている",
+          options: [
+            { value: "organize", label: "情報を整理する" },
+            { value: "compare", label: "選択肢を比較する" },
+            { value: "ideas", label: "アイデアを広げる" },
+          ],
+        },
+        {
+          key: "stuck",
+          label: "新しい企画案が思いつかない",
+          options: [
+            { value: "organize", label: "情報を整理する" },
+            { value: "compare", label: "選択肢を比較する" },
+            { value: "ideas", label: "アイデアを広げる" },
+          ],
+        },
+      ],
+    },
+
+    /* ── Q5 ── やりたいこと。職種も業界も使っているAIも聞かない ── */
+    {
+      id: "want_to_do",
+      type: "multi_choice",
+      title: "AIで何をできるようになりたい？",
+      instruction: "いくつでも選べます。",
+      poMessage: "ここは希望なので、気になるものを。",
+      poEmotion: "question",
+      key: "want_to_do",
+      required: true,
+      /*
+        職種・業界・使っているAIサービスは**初回では聞かない**。
+        答えても次の一歩は変わらないのに、答える手間だけが増える。
+      */
+      options: [
+        { value: "writing", label: "文章" },
+        { value: "summarizing", label: "要約" },
+        { value: "researching", label: "調べもの" },
+        { value: "ideas", label: "アイデア" },
+        { value: "comparing", label: "比較" },
+        { value: "organizing", label: "整理" },
+        { value: "images", label: "画像" },
+      ],
+    },
+
     {
       id: "result",
       type: "completion",
-      title: "おすすめの3つが決まりました",
-      poMessage: "まずは一つだけ、実際に試してみましょう。",
+      title: "いまの現在地です",
+      poMessage: "ここから始めるのがおすすめです。",
       poEmotion: "hint",
-      skill: "自分に合った使い道を選べる",
+      skill: "自分の現在地が分かる",
     },
   ],
 };

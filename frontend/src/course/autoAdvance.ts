@@ -23,7 +23,7 @@
  */
 
 import { findStep, nextStepId } from "./engine";
-import type { Lesson, LessonStep, StepValues } from "./types";
+import { assembleParts, type Lesson, type LessonStep, type StepValues } from "./types";
 
 /** 選ぶだけで答えが決まる回。 */
 const CHOICE_ONLY = new Set(["single_choice", "observation"]);
@@ -68,7 +68,23 @@ export function canAutoAdvance(lesson: Lesson, step: LessonStep): boolean {
  */
 export function isAnswered(step: LessonStep, values: StepValues): boolean {
   if (!step.key) return false;
-  return (values[step.key] ?? "").trim().length > 0;
+  const value = (values[step.key] ?? "").trim();
+
+  /*
+    枠を埋める回（`assemble`）は、**全部埋まって初めて答えたこと**にする。
+
+    1つでも空のまま送れると、採点する側は「選ばなかった」のか
+    「まだ途中」なのかを区別できない。診断のミニ問題は、埋まって
+    いない枠があると軸の点が出せない。
+  */
+  if (step.parts?.length) {
+    const picked = assembleParts(value);
+    return (
+      picked.length === step.parts.length && picked.every((one) => one.trim().length > 0)
+    );
+  }
+
+  return value.length > 0;
 }
 
 /**

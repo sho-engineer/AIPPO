@@ -41,16 +41,49 @@ async function answerAll(page: Page): Promise<void> {
   await page.getByTestId("lesson-diagnosis").first().click();
   await dismissLessonIntro(page);
 
-  // 最初の1枚は説明。そこから3問
+  // 最初の1枚は説明。そこから5問
   await page.getByTestId("primary-action").click();
-  for (let asked = 0; asked < 3; asked += 1) {
-    await page.locator("[aria-pressed]").first().click();
-    // 自動送りを待つ
+  await answerRemaining(page);
+  await expect(page.getByTestId("completion-view")).toBeVisible();
+}
+
+/**
+ * いま出ている質問から、結果画面まで答え切る。
+ *
+ * 画面の種類を決め打ちにしない。診断は5問あって答え方が3通りある
+ * （ひとつ選ぶ / 枠を埋める / いくつでも選ぶ）ので、**出ているものを
+ * 見て決める**——並びや型が変わっても、ここは直さずに済む。
+ */
+async function answerRemaining(page: Page): Promise<void> {
+  for (let guard = 0; guard < 12; guard += 1) {
+    if (await page.getByTestId("completion-view").count()) return;
+
+    const parts = page.getByTestId("assemble-part");
+    const count = await parts.count();
+    if (count > 0) {
+      // 枠を埋める回。全部埋めないと進めない
+      for (let index = 0; index < count; index += 1) {
+        await parts.nth(index).getByTestId("assemble-choice").first().click();
+      }
+      await page.getByTestId("primary-action").click();
+      await page.waitForTimeout(700);
+      continue;
+    }
+
+    const cards = page.locator("[aria-pressed]");
+    if (await cards.count()) await cards.first().click();
+    // ひとつ選ぶ回は自動で進む。いくつでも選ぶ回は自分で押す
     await page.waitForTimeout(900);
+    const primary = page.getByTestId("primary-action");
+    if (
+      (await primary.count()) &&
+      (await primary.getAttribute("aria-disabled")) !== "true"
+    ) {
+      await primary.click();
+      await page.waitForTimeout(700);
+    }
   }
-  await expect(
-    page.getByRole("heading", { name: /おすすめ/ }),
-  ).toBeVisible();
+  throw new Error("診断から抜けられない");
 }
 
 /** まとめを開いて、行の文字を読む。 */
@@ -126,12 +159,8 @@ test.describe("診断の「なおす」", () => {
 
     await page.locator("[aria-pressed='false']").first().click();
     // 残りの質問を通って結果へ戻る
-    for (let asked = 0; asked < 3; asked += 1) {
-      await page.waitForTimeout(900);
-      const cards = page.locator("[aria-pressed]");
-      if ((await cards.count()) > 0) await cards.first().click();
-    }
     await page.waitForTimeout(900);
+    await answerRemaining(page);
 
     const after = await summaryLines(page);
     expect(after.join("\n")).toContain(picked.split("\n")[0].trim());
@@ -140,7 +169,7 @@ test.describe("診断の「なおす」", () => {
 
   test("まとめに、教材の中の記号を出さない", async ({ page }) => {
     /*
-      答えは `writing` `tried` のような記号で持っている。
+      答えは `tried` `first_time` のような記号で持っている。
       そのまま出すと日本語の画面に英語が並び、別の質問の
       同じ記号どうしが同じ答えに見える。
     */

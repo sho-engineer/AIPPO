@@ -156,6 +156,13 @@ const BY_STEP: Record<StepType, PoScene | null> = {
   quick_try: null,
   single_choice: null,
   multi_choice: null,
+  /*
+    枠を埋める回（診断のミニ問題）。**ここでは出さない。**
+
+    出すのは答えたあと——「なるほど！」と受け取るのがポーの役目で、
+    考えている最中に横から話しかけると、採点されている感じになる。
+  */
+  assemble: null,
   text_input: null,
   template_builder: null,
   prompt_preview: null,

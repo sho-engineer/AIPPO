@@ -522,9 +522,9 @@ describe("入力済みのまとめ", () => {
     const last = diagnosis.steps[diagnosis.steps.length - 1];
 
     const summary = summaryOf(diagnosis, last.id, {
-      work_kind: "writing",
-      ai_experience: "tried",
-      pain_point: "writing",
+      ai_usage: "tried",
+      ask_style: "short",
+      want_to_do: "writing",
     });
 
     for (const entry of summary) {
@@ -533,11 +533,10 @@ describe("入力済みのまとめ", () => {
     /*
       札に書いてある言葉がそのまま出ること。
 
-      文言は短くしたので（折り返し対策で「文章を書くことが多い」→
-      「文章を書く」）、ここも合わせる。見ているのは**記号ではなく
-      人の言葉が出るか**で、文言そのものではない。
+      見ているのは**記号ではなく人の言葉が出るか**で、文言そのもの
+      ではない（文言は診断を5問へ変えたときに入れ替わっている）。
     */
-    expect(summary.map((entry) => entry.value)).toContain("文章を書く");
+    expect(summary.map((entry) => entry.value)).toContain("試したことはある");
   });
 
   it("自分で書いた言葉は、そのまま出す", () => {
@@ -561,15 +560,33 @@ describe("おすすめの選び方", () => {
     );
   });
 
-  it("いま面倒なことに直結するものが先頭に来る", () => {
-    expect(recommendLessons({ pain_point: "summarizing" })[0]).toBe(
+  it("やりたいことに直結するものが先頭に来る", () => {
+    /*
+      診断が5問になり、「いま面倒なこと」を聞くのをやめた——面倒だと
+      感じていることと、次に覚えるべきことは別だったため。いまは
+      **本人が向かいたい方向**（Q5）を複数で受け取る。
+    */
+    expect(recommendLessons({ want_to_do: "summarizing" })[0]).toBe(
       "summarize_text",
     );
-    expect(recommendLessons({ pain_point: "planning" })[0]).toBe("make_plan");
+    expect(recommendLessons({ want_to_do: "organizing" })[0]).toBe("make_plan");
+  });
+
+  it("先に押したものほど先に出る", () => {
+    // 複数選べる。先に思いついたものを先に返す
+    expect(recommendLessons({ want_to_do: "comparing,writing" })[0]).toBe(
+      "compare_options",
+    );
+    expect(recommendLessons({ want_to_do: "writing,comparing" })[0]).toBe(
+      "rewrite_text",
+    );
   });
 
   it("同じレッスンを二重に出さない", () => {
-    const ids = recommendLessons({ pain_point: "writing", work_kind: "writing" });
+    const ids = recommendLessons({
+      want_to_do: "writing,summarizing",
+      ask_style: "short",
+    });
     expect(new Set(ids).size).toBe(ids.length);
   });
 

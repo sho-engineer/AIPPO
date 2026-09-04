@@ -53,6 +53,24 @@ export const STEP_TYPES = [
   "quick_try",
   "single_choice",
   "multi_choice",
+  /*
+    いくつかの枠を、それぞれ選んで埋める回。
+
+    AI活用診断のミニ問題に使う。1つの問いに1つ答える形（`single_choice`）
+    では、**組み立てられるか**も**対応づけられるか**も測れない。
+
+      Q3 … 1つのお願いを3つの枠で組み立てる
+            （何をしてほしい？ / 誰向け？ / どんな言い方？）
+      Q4 … 3つの状況に、それぞれ合う使い方を当てる
+
+    見た目は違うが、やっていることは同じ——**名前の付いた枠が並び、
+    それぞれを一覧から選ぶ**。型を2つに分けると、その分だけ
+    `poPresence` の表と検査を二重に持つことになる。
+
+    答えは `|` でつないだ1つの文字列にする（値はすべて文字列で持つ、
+    という決まりに合わせる）。全部の枠が埋まるまで「答えた」にしない。
+  */
+  "assemble",
   "text_input",
   "template_builder",
   "prompt_preview",
@@ -224,6 +242,31 @@ export interface LessonStep {
   primaryLabel?: string;
   /** concept_card の中身。 */
   card?: ConceptCard;
+  /** `assemble` の枠。並んだ順に、答えを `|` でつなぐ。 */
+  parts?: AssemblePart[];
+}
+
+/**
+ * 埋める枠を1つ。
+ *
+ * `label` は枠の名前（「誰向け？」「会議メモがバラバラで読み返しにくい」）。
+ * 問いそのものはステップの見出しが言うので、ここは短くする。
+ */
+export interface AssemblePart {
+  /** 採点で引くための名前。画面には出さない。 */
+  key: string;
+  label: string;
+  options: StepOption[];
+}
+
+/** `assemble` の答えを、枠ごとの配列に戻す。 */
+export function assembleParts(value: string): string[] {
+  return value.split("|");
+}
+
+/** 枠ごとの答えを、1つの文字列にまとめる。 */
+export function assembleValue(picked: string[]): string {
+  return picked.join("|");
 }
 
 /** ミニ解説カードの見せ方。凝った図は作らない。 */
