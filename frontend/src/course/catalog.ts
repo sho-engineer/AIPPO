@@ -269,7 +269,7 @@ const LESSON_0: Lesson = {
       id: "result",
       type: "completion",
       title: "いまの場所が見えました",
-      poMessage: "5つの答えから、まとめました。",
+      poMessage: "いまはここ！",
       poEmotion: "hint",
       skill: "自分の現在地が分かる",
     },

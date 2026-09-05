@@ -211,12 +211,10 @@ test.describe("AI活用診断", () => {
       page.getByTestId("diagnosis-strengths").getByRole("listitem"),
     ).toHaveCount(2);
 
-    // 大きく出すおすすめは1本、添えるのが2本
+    // 大きく出すおすすめは1本。ほかの候補は名前も出さない
     await expect(page.getByTestId("diagnosis-next-skill")).toBeVisible();
     await expect(page.getByTestId("diagnosis-lesson")).toHaveCount(1);
-    await expect(
-      page.getByTestId("diagnosis-also").getByRole("listitem"),
-    ).toHaveCount(2);
+    await expect(page.getByTestId("diagnosis-also")).toHaveCount(0);
 
     await expect(page.getByTestId("primary-action")).toHaveText(/ここから始める/);
     await expect(
@@ -571,7 +569,8 @@ test.describe("AI活用診断", () => {
       if (!(await answerOne(page))) break;
     }
 
-    const also = page.getByTestId("diagnosis-also-open").first();
+    await page.getByTestId("diagnosis-also-open").click();
+    const also = page.getByTestId("diagnosis-also-pick").first();
     const label = (await also.innerText()).replace(/\s+/g, "");
     await also.click();
 

@@ -65,6 +65,15 @@ export interface ChartSwitchProps {
    * 高さに合わせる理由が無い。
    */
   grow?: boolean;
+  /**
+   * 図の下に添える行。
+   *
+   * 「くわしく見る」をここへ入れる。独立した1行にしていたころは
+   * **何の詳細なのかが分からなかった**——現在地の話なのか、
+   * おすすめの話なのかが、置き場からは読めない。図と同じ札の中に
+   * あれば、図の続きだと分かる。
+   */
+  footer?: ReactNode;
 }
 
 export function ChartSwitch({
@@ -73,11 +82,34 @@ export function ChartSwitch({
   children,
   onExpand,
   grow = false,
+  footer,
 }: ChartSwitchProps) {
   return (
     <div
+      /*
+        伸びるのは**図が使える分まで**（`max-h`）。
+
+        上限を付けないと、縦の長い端末で余りがぜんぶこの札に入る。
+        ひし形はいっぱいまで大きくなるからよいが、道は横に伸びる図で
+        高さを使わないので、**空の白い箱の真ん中に細い線が1本**という
+        姿になっていた（390×844 で実測）。
+      */
       className={`rounded-card border border-line bg-surface px-3 pb-2 pt-1.5 ${
-        grow ? "flex min-h-0 flex-1 flex-col" : ""
+        grow
+          ? /*
+              伸び縮みするが、**下限を持つ**。
+
+              `min-h-0` のままだと、低い持ち方で札が中身より低く
+              つぶれた。中の点は道の上下へはみ出して座るぶん、
+              つぶれると上の切り替えに乗り上げる——402×660 で
+              「いまの段階」の札の上に丸が重なって出ていた。
+
+              縮まない形（`basis-auto`）にすると今度は高さが定まらず、
+              中のひし形（`h-full`）が上限まで伸びてあふれた。
+              **高さは決まったまま、下限だけ置く**のが要る。
+            */
+            "flex min-h-[8rem] flex-1 flex-col max-h-[17rem]"
+          : "shrink-0"
       }`}
       data-testid="chart-switch"
       data-kind={value}
@@ -141,6 +173,8 @@ export function ChartSwitch({
           {children}
         </div>
       )}
+
+      {footer && <div className="mt-1 flex shrink-0 justify-end">{footer}</div>}
     </div>
   );
 }

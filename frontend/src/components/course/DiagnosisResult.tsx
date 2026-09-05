@@ -83,6 +83,8 @@ export function DiagnosisResult({
   const [open, setOpen] = useState(false);
   /* もう一段奥（答えと理由）。上の一枚を閉じずに重ねる */
   const [deep, setDeep] = useState(false);
+  /* ほかの候補。通常の画面では名前も出さない */
+  const [also, setAlso] = useState(false);
   /*
     どちらの図を出しているか。**画面の中に持つ。**
 
@@ -98,7 +100,22 @@ export function DiagnosisResult({
   const first = find(plan.first);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" data-testid="completion-view">
+    /*
+      余りは、**全部の切れ目へ等しく配る**（`justify-between`）。
+
+      1か所にまとめて置くと、そこだけぽっかり空く。伸びる仕切りを
+      1つ置いて上限を付けたときは、縦の長い端末で下に 380px の
+      空白が残った——「上半分に詰まって下半分が空く」と言われた形が、
+      場所を変えて出ただけだった。
+
+      余りが無いとき（402×660）は上詰めと同じ振る舞いになる。
+      足りないときに上が切れることも無いので、送れる入れ物の中でも
+      安全に使える。
+    */
+    <div
+      className="flex min-h-0 flex-1 flex-col justify-between"
+      data-testid="completion-view"
+    >
       {/*
         図。押すと、同じものが一枚の中で大きく開く。
 
@@ -115,9 +132,40 @@ export function DiagnosisResult({
           setOpen(true);
           onOpenReason?.();
         }}
+        /*
+          「くわしく見る」は**図の札の中**に置く。
+
+          独立した1行にしていたころは、何の詳細なのかが置き場から
+          読めなかった——現在地の話なのか、おすすめの話なのか。
+          図と同じ札の中にあれば、図の続きだと分かる。
+        */
+        footer={
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(true);
+              onOpenReason?.();
+            }}
+            data-testid="diagnosis-reason-open"
+            className="flex items-center gap-0.5 rounded-badge px-1 py-0.5
+                       text-[0.6875rem] font-bold text-brand-dark
+                       transition hover:bg-brand-soft"
+          >
+            くわしく見る
+            <IconChevronRight className="h-3 w-3 shrink-0" aria-hidden="true" />
+          </button>
+        }
       >
         {chart === "stage" ? (
-          <GrowthTrack stage={result.stage.number} />
+          /*
+            道のときは、段階の説明も添える。
+
+            道は横に伸びる図なので、札を伸ばしても中の余白が増える
+            だけ——空の白い箱の真ん中に細い線が1本、という姿に
+            なっていた（390×844 で実測）。空くところは、**読んで
+            意味のあるもの**で埋める。低い持ち方では2行で切る。
+          */
+          <GrowthTrack stage={result.stage.number} summary />
         ) : (
           <RadarChart axes={result.axes} focus={result.weakest} />
         )}
@@ -134,7 +182,7 @@ export function DiagnosisResult({
         見出しを入れて3行ぶんの高さを取るが、札なら1行に収まる。
       */}
       <ul
-        className="mt-2 flex flex-wrap gap-1.5"
+        className="mt-2 shrink-0 flex flex-wrap gap-1.5"
         role="list"
         data-testid="diagnosis-strengths"
       >
@@ -161,14 +209,21 @@ export function DiagnosisResult({
         しきい値がずれていて、「次の一歩 プロンプト ／ Day 5・選択肢を
         比較する」のように**技と行き先が食い違う**ことがあった。
       */}
-      <div className="mt-2 rounded-card border border-brand-line bg-brand-soft px-3 py-2"
+      {/*
+        ここが切れ目。**上は「いまの話」、下は「次の話」。**
+        ほかの切れ目より一段広く取って、読む向きを切り替えてもらう。
+      */}
+      <div className="mt-5 rounded-card border border-brand-line bg-brand-soft px-3 py-2.5"
            data-testid="diagnosis-next-skill">
-        <p className="leading-5">
-          <span className="text-[0.6875rem] font-bold text-ink-muted">次の一歩</span>{" "}
-          <span className="text-[0.9375rem] font-bold text-brand-dark">
-            {skill.name}
-          </span>
-        </p>
+        {/*
+          技の名前を、この画面でいちばん大きく出す。
+
+          前は「次の一歩 トーン指定」と1行に並べていて、見出しと
+          同じ大きさに埋もれていた。診断のあとにすることは**この技を
+          覚えること**なので、そこだけ字を上げる。行数は増やさない。
+        */}
+        <p className="text-[0.625rem] font-bold leading-4 text-ink-muted">次の一歩</p>
+        <p className="text-lg font-bold leading-7 text-brand-dark">{skill.name}</p>
         {first && (
           <p
             className="text-[0.8125rem] leading-5 text-ink-muted"
@@ -186,87 +241,75 @@ export function DiagnosisResult({
         なる。決めるのは上の1本で、ここは「そこが違ったとき」の
         行き先。小さくしてあるのは、選び直しを勧めていないため。
       */}
+      {/*
+        ほかの候補。**通常の画面では、名前も出さない。**
+
+        前は Day2 と Day5 を横に並べていた。小さくはしてあったが、
+        上の1本と同じ画面に3つ並ぶと、結局「どれにするか」をもう一度
+        考えることになる。この画面の役目は**次の1本を決めること**。
+
+        消しはしない。上の1本が刺さらなかった人の行き先が無くなる。
+        名前を隠して、開いた人にだけ見せる。
+      */}
       {plan.rest.length > 0 && (
-        <ul className="mt-1.5 flex gap-1.5" role="list" data-testid="diagnosis-also">
-          {plan.rest.map((id) => {
-            const one = find(id);
-            if (!one) return null;
-            /*
-              題は**2行まで折り返す。** 1行に押し込んで「Day 3 分からない
-              ことを説明し…」と切っていたころは、どの回なのかが読めない
-              うえ、切れた点だけが目に付いた。
-            */
-            const inside = (
-              <>
-                <span className="block text-[0.625rem] font-bold leading-4 text-ink-muted">
-                  Day {one.number}
-                </span>
-                <span className="mt-0.5 block text-[0.6875rem] leading-4 line-clamp-2">
-                  {one.title}
-                </span>
-              </>
-            );
-            const shape = `block w-full min-w-0 rounded-badge
-                           border border-line bg-surface px-2 py-1.5 text-left`;
-            return (
-              <li key={id} className="min-w-0 flex-1">
-                {onPickLesson ? (
-                  <button
-                    type="button"
-                    onClick={() => onPickLesson(id)}
-                    data-testid="diagnosis-also-open"
-                    className={`${shape} transition hover:border-brand-line`}
-                  >
-                    {inside}
-                  </button>
-                ) : (
-                  <span className={shape}>{inside}</span>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <button
+          type="button"
+          onClick={() => setAlso(true)}
+          data-testid="diagnosis-also-open"
+          className="mt-1.5 self-start rounded-badge px-1 py-0.5 text-[0.6875rem]
+                     text-ink-muted underline transition hover:text-ink"
+        >
+          ほかの候補を見る
+        </button>
       )}
 
-      {/*
-        なぜこの1本かを1行だけ。**「くわしく見る」は同じ段落の続きに。**
-
-        別の行にすると、それだけで 30px 取る。結果画面はいちばん低い
-        持ち方（402×660）で余りが無く、その 30px が入れ物からあふれる
-        ぶんそのものだった。文の続きとして読めるので、離す理由も無い。
-      */}
-      {/*
-        なぜこの1本かと、その先の入口。
-
-        前は理由の文の**続き**に「くわしく見る」を置いていた。場所は
-        取らないが、文中の下線に見えて押す価値が伝わらない——実際
-        「役割が弱い」と言われた。いまは1行の行ボタンにして、
-        理由をその中の説明として抱える。
-      */}
-      <button
-        type="button"
-        onClick={() => {
-          setOpen(true);
-          onOpenReason?.();
-        }}
-        data-testid="diagnosis-reason-open"
-        className="mt-2 flex w-full items-center gap-2 rounded-badge border border-line
-                   bg-surface px-3 py-2 text-left transition hover:border-brand-line"
-      >
-        <span
-          className="min-w-0 flex-1 text-[0.8125rem] leading-4 text-ink-muted"
-          data-testid="diagnosis-reason-line"
+      {also && (
+        <MoreSheet
+          placement="center"
+          testId="diagnosis-also-sheet"
+          title="ほかの候補"
+          onClose={() => setAlso(false)}
         >
-          {recommendReason(values)}
-        </span>
-        <span className="shrink-0 text-[0.6875rem] font-bold text-brand-dark">
-          くわしく見る
-        </span>
-        <IconChevronRight
-          className="h-3.5 w-3.5 shrink-0 text-ink-muted"
-          aria-hidden="true"
-        />
-      </button>
+          <p className="text-sm leading-6 text-ink-muted">
+            上の1本が合わないときは、こちらから。
+          </p>
+          <ul className="mt-3 space-y-2" role="list" data-testid="diagnosis-also">
+            {plan.rest.map((id) => {
+              const one = find(id);
+              if (!one) return null;
+              const inside = (
+                <>
+                  <span className="block text-xs font-bold leading-4 text-ink-muted">
+                    Day {one.number}
+                  </span>
+                  <span className="mt-0.5 block text-sm leading-5">{one.title}</span>
+                </>
+              );
+              const shape = `block w-full rounded-card border border-line
+                             bg-surface px-3 py-2.5 text-left`;
+              return (
+                <li key={id}>
+                  {onPickLesson ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAlso(false);
+                        onPickLesson(id);
+                      }}
+                      data-testid="diagnosis-also-pick"
+                      className={`${shape} transition hover:border-brand-line`}
+                    >
+                      {inside}
+                    </button>
+                  ) : (
+                    <span className={shape}>{inside}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </MoreSheet>
+      )}
 
       {open && (
         <MoreSheet
@@ -306,6 +349,19 @@ export function DiagnosisResult({
               </div>
             ))}
           </dl>
+
+          {/*
+            なぜこの1本か。**通常の画面から、ここへ移した。**
+
+            画面では独立した1行になっていて、何の話なのかが置き場から
+            読めなかった。3行のすぐ下なら、その続きとして読める。
+          */}
+          <p
+            className="mt-3 text-sm leading-6 text-ink-muted"
+            data-testid="diagnosis-reason-line"
+          >
+            {recommendReason(values)}
+          </p>
 
           <button
             type="button"

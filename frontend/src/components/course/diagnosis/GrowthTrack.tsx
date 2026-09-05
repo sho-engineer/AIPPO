@@ -49,9 +49,21 @@ export interface GrowthTrackProps {
    * 縛られる理由が無い。
    */
   size?: "sm" | "lg";
+  /**
+   * 段階の説明も出すか。
+   *
+   * 小さいほうでも、置き場が縦に余るときは出す。道は横に伸びる図で
+   * 高さを使わないので、出さないと**空の箱の真ん中に線が1本**という
+   * 姿になる。低い持ち方では2行で切って、あふれさせない。
+   */
+  summary?: boolean;
 }
 
-export function GrowthTrack({ stage, size = "sm" }: GrowthTrackProps) {
+export function GrowthTrack({
+  stage,
+  size = "sm",
+  summary = false,
+}: GrowthTrackProps) {
   const big = size === "lg";
   const [drawn, setDrawn] = useState(false);
   useEffect(() => {
@@ -160,9 +172,21 @@ export function GrowthTrack({ stage, size = "sm" }: GrowthTrackProps) {
       >
         {STAGES[index].name}
       </p>
-      {/* 一枚の中では、段階の説明も添える。読むために開いた場所なので */}
-      {big && (
-        <p className="mt-1 text-center text-sm leading-6 text-ink-muted">
+      {(big || summary) && (
+        <p
+          /*
+            小さいほうでは、**縦に余裕のある端末でだけ**出す。
+
+            402×660（Safari の上下の帯が両方出た状態）には、この2行を
+            置く余りが無い。入れると下のボタンまで届かなくなるので、
+            画面の高さで出し分ける。
+          */
+          className={`mt-1 text-ink-muted ${
+            big
+              ? "text-center text-sm leading-6"
+              : "hidden line-clamp-2 text-[0.8125rem] leading-5 [@media(min-height:780px)]:block"
+          }`}
+        >
           {STAGES[index].summary}
         </p>
       )}

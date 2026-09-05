@@ -545,7 +545,8 @@ describe("結果画面", () => {
       />,
     );
 
-    await user.click(screen.getAllByTestId("diagnosis-also-open")[0]);
+    await user.click(screen.getByTestId("diagnosis-also-open"));
+    await user.click(screen.getAllByTestId("diagnosis-also-pick")[0]);
     expect(picked).toHaveLength(1);
   });
 
@@ -572,7 +573,20 @@ describe("結果画面", () => {
     expect(screen.getByTestId("diagnosis-next-skill")).toBeInTheDocument();
     // 大きく出すのは1本だけ
     expect(screen.getAllByTestId("diagnosis-lesson")).toHaveLength(1);
-    // 添えるのは2本まで
+    // ほかの候補は、通常の画面では名前も出さない
+    expect(screen.queryByTestId("diagnosis-also")).toBeNull();
+  });
+
+  it("ほかの候補は、開いた人にだけ2本", async () => {
+    /*
+      消しはしない。上の1本が刺さらなかった人の行き先が無くなる。
+      ただし同じ画面に3つ並ぶと、結局「どれにするか」をもう一度
+      考えることになるので、名前は隠す。
+    */
+    const user = userEvent.setup();
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    await user.click(screen.getByTestId("diagnosis-also-open"));
     expect(
       screen.getByTestId("diagnosis-also").querySelectorAll("li"),
     ).toHaveLength(2);
