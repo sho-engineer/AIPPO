@@ -43,7 +43,6 @@ const DETAIL = {
     "読む相手を伝えて、説明のしかたを変えられる",
     "言い方を指定して、伝わり方を整えられる",
   ],
-  flow: ["ためす", "くらべる", "しあげる"],
 };
 
 function renderOutcome(
@@ -202,8 +201,10 @@ describe("レッスンの入口", () => {
     );
     expect(screen.getByTestId("outcome-goal")).toHaveTextContent(DETAIL.goal);
     expect(screen.getByTestId("outcome-before")).toBeInTheDocument();
-    expect(screen.getByTestId("outcome-after")).toBeInTheDocument();
-    expect(screen.getByTestId("outcome-flow")).toBeInTheDocument();
+    expect(screen.getAllByTestId("outcome-after").length).toBeGreaterThan(0);
+    expect(screen.getByTestId("outcome-skills")).toBeInTheDocument();
+    // 「この後の流れ」は外した（歩数と現在地は帯が持っている）
+    expect(screen.queryByTestId("outcome-flow")).toBeNull();
     // 導入は下に残る。閉じれば読んでいた続きから始められる
     expect(screen.getByTestId("lesson-intro")).toBeInTheDocument();
   });
@@ -222,9 +223,16 @@ describe("レッスンの入口", () => {
     expect(before.length).toBeLessThan(DETAIL.before.length);
     expect(before.endsWith("…")).toBe(true);
 
-    // After は途中で切らない。ひと文で意味が通ることが証拠になる
-    const after = screen.getByTestId("outcome-after").textContent ?? "";
-    expect(after.endsWith("。")).toBe(true);
+    /*
+      After は切らない。**元の意味が残っていること**そのものが
+      見せたいものなので、1文で切ると落ちた側が見えないまま
+      「短くなっただけ」に見える。
+    */
+    const after = screen
+      .getAllByTestId("outcome-after")
+      .map((line) => line.textContent ?? "")
+      .join("\n");
+    expect(after).toBe(DETAIL.after);
   });
 
   it("読み切った人に、出口を置く", async () => {

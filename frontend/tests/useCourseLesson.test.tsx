@@ -132,20 +132,17 @@ describe("成果物ファースト", () => {
 
     // 段の頭の章扉。絵1枚だけなので通り抜ける
     await passSections(user);
-    // 続いて導入の一枚が出る。閉じると下の画面が残る
-    await user.click(screen.getByTestId("lesson-intro-close"));
 
-    expect(screen.getByTestId("outcome-preview")).toBeInTheDocument();
+    // 続いて導入の一枚が出る。詳しい話は、まだ開いていない
+    expect(screen.getByTestId("lesson-intro")).toBeInTheDocument();
     expect(screen.queryByTestId("outcome-before")).toBeNull();
     // 先に長い説明を読ませない
     expect(screen.queryByTestId("concept-card")).toBeNull();
 
-    await user.click(screen.getByTestId("outcome-detail-toggle"));
+    await user.click(screen.getByTestId("lesson-intro-detail"));
 
     /*
-      開くのを待つ。<details> の開閉は、押した直後ではなく
-      次の順番で効く（jsdom も同じ）。待たずに見ると、
-      押したのに閉じたまま、という形で落ちる。
+      開くのを待つ。押した直後ではなく次の順番で効く（jsdom も同じ）。
     */
     // Before / After を1組見せる。抽象的な目標だけにしない
     await waitFor(() => expect(screen.getByTestId("outcome-before")).toBeVisible());
@@ -157,10 +154,16 @@ describe("成果物ファースト", () => {
     const user = userEvent.setup();
     renderLesson();
     await passSections(user);
-    await user.click(screen.getByTestId("outcome-detail-toggle"));
+    await user.click(screen.getByTestId("lesson-intro-detail"));
 
     await waitFor(() => expect(screen.getByTestId("outcome-goal")).toBeVisible());
-    expect(screen.getByTestId("outcome-flow")).toBeVisible();
+    /*
+      「この後の流れ」は外した。歩数と現在地は帯が出しっぱなしで持って
+      いるし、段の頭では章扉が名前を出す。ここでもう一度並べても、
+      読む量が増えるだけで決めやすくはならない。
+    */
+    expect(screen.queryByTestId("outcome-flow")).toBeNull();
+    expect(screen.getByTestId("outcome-skills")).toBeVisible();
     expect(screen.getByTestId("outcome-after-lesson")).toBeVisible();
   });
 

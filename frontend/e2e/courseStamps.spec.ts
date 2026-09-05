@@ -110,7 +110,13 @@ test.describe("道のりのスタンプ", () => {
     「あと何回でもらえるか」にすり替わる。
   */
   test("いまの進み具合が丸で出る", async ({ page }) => {
-    await seedCompleted(page, ["diagnosis"]);
+    /*
+      終えたことにするのは**本編の1本**。診断（`diagnosis`）は
+      スタンプの分母にも分子にも入らないので、それだけ仕込むと
+      0個のまま——見たいのは「終えた数が丸に出ること」なので、
+      数えられる側を1本置く。
+    */
+    await seedCompleted(page, ["rewrite_text"]);
     await page.getByRole("button", { name: "はじめる" }).first().click();
     await page.getByTestId("open-path").click();
 

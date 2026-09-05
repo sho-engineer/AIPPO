@@ -193,8 +193,16 @@ export function PoSpeech({
       */}
       <div className="relative min-w-0">
         <p
-          className="rounded-panel border border-line bg-surface px-4 py-2.5
-                     text-sm leading-6 shadow-card"
+          /*
+            改行は書いたとおりに折る（`whitespace-pre-line`）。
+
+            2つの短い文をつなげると「この流れでやってみよう！ 約3分で
+            終わるよ！」が幅で切れて、「約3分で」が前の行の尻に付く。
+            話し言葉は**息継ぎのところで折れて**いないと、読み上げの
+            調子が変わって聞こえる。
+          */
+          className="whitespace-pre-line rounded-panel border border-line bg-surface
+                     px-4 py-2.5 text-sm leading-6 shadow-card"
           data-testid="po-hero-message"
           // 言葉が変わったことを読み上げへ届ける（要件 §6.12）
           aria-live="polite"

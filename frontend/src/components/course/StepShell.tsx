@@ -16,8 +16,8 @@ import {
   IconBulb,
   IconCaution,
   IconCheck,
+  IconChevronRight,
   IconRefresh,
-  IconSparkle,
   type Icon,
 } from "../Icons";
 import { PoHero } from "../aippo/PoHero";
@@ -440,11 +440,30 @@ export function StepShell({
               disabled={busy}
               blocked={primaryDisabled && !busy}
               onBlockedClick={() => setRefused(true)}
+              /*
+                印は**進む向き**にする。
+
+                前はキラキラ（`IconSparkle`）だった。押すたびに「AIが
+                魔法をかける」の記号が出るので、レッスン中いちばん多く
+                目に入る場所が AI らしさの記号で埋まっていた。ここが
+                言っているのは「次へ」なので、矢じり1つで足りる。
+
+                自動で進む回だけはチェックのまま。あちらは「次へ」では
+                なく「もう決まっている」を言っている。
+              */
               icon={
-                busy || quiet ? undefined : autoAdvancing ? (
+                busy || quiet || !autoAdvancing ? undefined : (
                   <IconCheck className="h-5 w-5 shrink-0" />
-                ) : (
-                  <IconSparkle className="h-5 w-5 shrink-0" />
+                )
+              }
+              /*
+                矢じりは**文字の後ろ**。進む向きの印なので、進む先の側に
+                置く。前に置くと「戻る」の印に見える。自動で進む回の
+                チェックだけは前のまま——あちらは向きではなく状態。
+              */
+              trailing={
+                busy || quiet || autoAdvancing ? undefined : (
+                  <IconChevronRight className="h-5 w-5 shrink-0" />
                 )
               }
               className={secondaryProminent ? "flex-1" : ""}

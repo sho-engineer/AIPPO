@@ -140,10 +140,30 @@ test.describe("レッスンを最後まで進める", () => {
     // 詳しい話は畳んである。絵を見る前に読み下させない
     await expect(page.getByTestId("outcome-before")).not.toBeVisible();
 
-    await page.getByTestId("outcome-detail-toggle").click();
+    /*
+      詳しい話の入口は「今日やること」の中。開始画面に3つ並べると、
+      どれを押せばよいのか決められなくなるので一段奥へ下げた。
+    */
+    await page.getByTestId("outcome-intro-open").click();
+    await page.getByTestId("lesson-intro-detail").click();
 
     await expect(page.getByTestId("outcome-before")).toBeVisible();
-    await expect(page.getByTestId("outcome-after")).toBeVisible();
+    await expect(page.getByTestId("outcome-after").first()).toBeVisible();
+  });
+
+  test("開始画面の入口は2つだけ", async ({ page }) => {
+    /*
+      「さっそく試す」と「今日やることを見る」。前はここに
+      「全体図を見る」「詳しく見る」「初級」まで並んでいて、
+      押せる先が4つあった。
+    */
+    await openRewrite(page);
+
+    await expect(page.getByTestId("primary-action").first()).toBeVisible();
+    await expect(page.getByTestId("outcome-intro-open")).toBeVisible();
+    await expect(page.getByTestId("outcome-overview-toggle")).toHaveCount(0);
+    await expect(page.getByTestId("outcome-detail-toggle")).toHaveCount(0);
+    await expect(page.getByText("初級")).toHaveCount(0);
   });
 
   test("最後まで進んで、完了画面が出る", async ({ page }) => {

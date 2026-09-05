@@ -45,7 +45,6 @@ import { lessonOverview, lessonOverviewFallback } from "../../course/lessonOverv
 import { teachingImage } from "../../course/teachingImages";
 import { lessonPlan } from "../../course/lessonPlan";
 import { TeachingImage } from "../lessons/TeachingImage";
-import { missionStateOf } from "../../course/missions";
 import { promptCards, promptText } from "../../course/promptSummary";
 import type { Course, Lesson, StepOption } from "../../course/types";
 import type { useCourseLesson } from "../../course/useCourseLesson";
@@ -228,7 +227,6 @@ export function StepRenderer({
           after={lesson.afterExample}
           skills={lesson.learnedSkills ?? []}
           outcomes={lesson.outcomes}
-          flow={missionStateOf(lesson, 0).missions.map((mission) => mission.label)}
           overview={lessonOverview(lesson)}
           thumbnail={lessonOverviewFallback(lesson)}
         />

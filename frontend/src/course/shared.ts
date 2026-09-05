@@ -384,7 +384,11 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       type: "outcome_preview",
       phase: "try",
       title: "今日つくるもの",
-      poMessage: "まず、できあがりを見てみましょう。",
+      /*
+        話しかける言い方にする。「見てみましょう」は案内文の言い回しで、
+        隣に立って一緒に始める役のポーの言葉ではない。
+      */
+      poMessage: "まず、できあがりを見てみよう！",
       poEmotion: "neutral",
     },
     {

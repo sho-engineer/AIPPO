@@ -37,7 +37,6 @@
 
 import { useEffect, useState } from "react";
 
-import { MetaPill } from "../../AppShell";
 import { MoreButton } from "../MoreSheet";
 import {
   hasLessonDetail,
@@ -45,7 +44,7 @@ import {
   LessonIntroModal,
   LessonOverviewModal,
 } from "../LessonIntro";
-import { IconBars, IconClock } from "../../Icons";
+import { IconDocument } from "../../Icons";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 import { TeachingImage } from "../../lessons/TeachingImage";
 import type { TeachingImageEntry } from "../../../course/teachingImages";
@@ -60,7 +59,6 @@ export function OutcomePreview({
   after,
   skills,
   outcomes,
-  flow,
   overview,
   thumbnail,
   plan,
@@ -79,8 +77,6 @@ export function OutcomePreview({
   skills: string[];
   /** 終えたらできるようになること。 */
   outcomes?: string[];
-  /** レッスンの流れ。区切りの名前が順に並ぶ。 */
-  flow?: string[];
   /**
    * このレッスンのために作った1枚。無ければ null。
    *
@@ -137,114 +133,75 @@ export function OutcomePreview({
     if (introOpen) onIntroSeen?.();
   }, [introOpen, onIntroSeen]);
 
-  const hasDetail = hasLessonDetail({ goal, before, after, skills, outcomes, flow });
+  const hasDetail = hasLessonDetail({ goal, before, after, skills, outcomes });
 
   return (
     /*
-      縦の flex にして、絵にだけ「残りの高さ」を渡す。
-      下の2つ（かかる時間・くわしく）は自分の高さのまま動かない。
+      入口は**2つだけ**。
+
+      前はここに「今日やることの全体図を見る」「初級」「詳しく見る」が
+      縦に並び、下の帯に「さっそく試す」があった。押せる先が4つで、
+      **どれが本題なのか決められない**。奥のもの（全体図・詳しい話）は
+      「今日やること」の一枚から辿る形にして、この画面に残すのは
+
+          さっそく試す         … 下の帯（`StepShell` が出す）
+          今日やることを見る   … ここ
+
+      の2つにする。
     */
     <div data-testid="outcome-preview" className="flex min-h-0 flex-1 flex-col gap-3">
       {/*
-        1枚の絵。この画面の主役。
+        今日やる1本の絵。
 
-        教材として作った絵で、アプリの画面を写したものではない
-        （course/lessonOverview.ts）。専用の1枚がまだ無いレッスンでは
-        一覧と同じ絵で代える——絵の場所を空けて待たない。
+        専用の1枚（全体図）は**ここには置かない**。1画面＝1アクションに
+        収めると渡せる高さが 30px しか残らず、読めない絵になる。
+        押して大きく見てもらう形にして、入口は「今日やること」の中。
 
-        代わりの絵だけは 4:3 を切り取って出す（一覧と同じ見え方に
-        そろえるため）。専用の1枚は切り取らない。
+        専用の1枚がまだ無いレッスンでは、一覧と同じ絵で代える
+        ——絵の場所を空けて待たない。
       */}
-      {overview ? (
-        /*
-          全体図は**押したら開く一枚**にする。
-
-          1画面＝1アクションに収めると、この絵に渡せる高さは 30px しか
-          残らない（Pixel 5 で実測）。読めない絵を置くくらいなら、
-          一手ぶん押してもらって**大きく**見せるほうがよい。
-
-          前は開いた状態で置いていた（畳める `<details>`）。原寸で
-          391px あり、この画面が 331px はみ出す一番の原因だった。
-        */
-        <div className="shrink-0" data-testid="outcome-overview">
-          <MoreButton
-            testId="outcome-overview-toggle"
-            onClick={() => setOverviewOpen(true)}
-          >
-            今日やることの全体図を見る
-          </MoreButton>
-          {overviewOpen && (
-            /*
-              絵に幅を全部渡す（`bleed`）。一枚の高さの上限は画面の 8 割。
-
-              左右の余白をやめるだけで 353px → 393px になる。この絵は
-              ほぼ正方形で、スマホでは**幅が上限**なので、ここが効く。
-              高さのほうを 8 割で固定しても絵は大きくならず、白い余白が
-              135px 増えるだけだった（実測して戻した。MoreSheet の `bleed`）。
-            */
-            <LessonOverviewModal onClose={() => setOverviewOpen(false)}>
-              <TeachingImage
-                src={overview.src}
-                alt={overview.alt}
-                width={overview.width}
-                height={overview.height}
-                className="rounded-none"
-              />
-            </LessonOverviewModal>
-          )}
+      {!overview && thumbnail && (
+        <div className="shrink-0">
+          <LessonThumbnail src={thumbnail} variant="banner" />
         </div>
-      ) : (
-        thumbnail && (
-          <div className="shrink-0">
-            <LessonThumbnail src={thumbnail} variant="banner" />
-          </div>
-        )
       )}
 
       {/*
-        始める前に知りたいのは、かかる時間とむずかしさの2つだけ。
+        副の入口。**下の帯のすぐ上に置く。**
 
-        ただし**絵が時間を言っているなら、ここは黙る**。
-        Day1〜8 の全体図には「学習時間の目安」が焼き込まれていて、
-        そのすぐ下にアプリの数字を出すと、同じ画面に数字が2つ並ぶ。
+        絵をこの画面から外したので、上に置くと真ん中に 450px の空白が
+        残り、押せるものが画面の上下に離れて散る。押す先の2つは
+        隣どうしにあったほうが選びやすい（`mt-auto` で下へ寄せる）。
 
-        揃っていても2つは要らないし、揃っていないときは**どちらが
-        正しいか絵を見ても分からない**（Day1 は実際にずれていて、
-        絵が「約3分」、アプリが「8分」だった）。絵の中の数字は
-        動かせないので、下げるのはこちら側になる
-        （course/teachingImages.ts の `showsMinutes`）。
-
-        ずれ自体は別のところで見張る。絵が何と言っているかを
-        `scripts/teaching-images/overviews.json` に控えてあり、
-        教材データと食い違うと `tests/teachingImageFacts.test.ts` が落ちる。
+        見た目は主にしない。囲いはあるが淡く、下の「さっそく試す」と
+        同じ重さにはしない——ここは「先に中身を見たい人」のための道で、
+        押さずに始めてよい。
       */}
-      {/*
-        面に載せない。**多くの回で中身が「初級」の一語**になる
-        （絵が時間を言っていれば、こちらは黙るため）。一語のために
-        白い面と影を1枚使うと 54px 取る——iPhone の Safari（上下の帯が
-        出ている高さ）では、それだけでこの画面がはみ出していた。
-      */}
-      <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 px-1">
-        {minutes !== undefined && !overview?.showsMinutes && (
-          <MetaPill icon={IconClock} label="所要時間" value={`${minutes}分`} />
-        )}
-        <MetaPill icon={IconBars} value="初級" />
+      <div className="mt-auto shrink-0">
+        <MoreButton testId="outcome-intro-open" onClick={() => setIntroOpen(true)}>
+          <IconDocument className="h-4 w-4 shrink-0" />
+          今日やることを見る
+        </MoreButton>
       </div>
 
-      {hasDetail && (
+      {overviewOpen && overview && (
         /*
-          「詳しく見る」は**押した人にだけ**開く。
+          絵に幅を全部渡す（`bleed`）。一枚の高さの上限は画面の 8 割。
 
-          前はこの場に畳んだ `<details>` で置いていた。畳んでいても
-          行1本ぶんの場所を取り、開けばその場でページが伸びる——
-          開いた瞬間に「長いページを読まされる」形になっていた。
-          画面いっぱいの一枚へ移して、中で送ってもらう。
+          左右の余白をやめるだけで 353px → 393px になる。この絵は
+          ほぼ正方形で、スマホでは**幅が上限**なので、ここが効く。
+          高さのほうを 8 割で固定しても絵は大きくならず、白い余白が
+          135px 増えるだけだった（実測して戻した。MoreSheet の `bleed`）。
         */
-        <div className="shrink-0">
-          <MoreButton testId="outcome-detail-toggle" onClick={() => setDetailOpen(true)}>
-            詳しく見る（ねらい・流れ・覚えるAI技）
-          </MoreButton>
-        </div>
+        <LessonOverviewModal onClose={() => setOverviewOpen(false)}>
+          <TeachingImage
+            src={overview.src}
+            alt={overview.alt}
+            width={overview.width}
+            height={overview.height}
+            className="rounded-none"
+          />
+        </LessonOverviewModal>
       )}
 
       {detailOpen && (
@@ -257,7 +214,6 @@ export function OutcomePreview({
           swaps={plan?.swaps}
           skills={skills}
           outcomes={outcomes}
-          flow={flow}
           /*
             読み切った人の出口。導入の一枚も一緒に閉じて、そのまま
             次の画面へ出す——2枚とも自分で閉じさせない。
@@ -283,6 +239,7 @@ export function OutcomePreview({
             残り2つは「詳しく見る」の中で会う。
           */
           goalLine={description ?? outcomes?.[0]}
+          minutes={minutes}
           plan={plan}
           source={before}
           result={after}
@@ -292,6 +249,7 @@ export function OutcomePreview({
             onStart?.();
           }}
           onDetail={hasDetail ? () => setDetailOpen(true) : undefined}
+          onOverview={overview ? () => setOverviewOpen(true) : undefined}
           onClose={() => setIntroOpen(false)}
         />
       )}

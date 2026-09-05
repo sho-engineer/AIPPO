@@ -197,9 +197,13 @@ describe("必ず見せるものと、見たい人に見せるもの", () => {
     expect(screen.queryByTestId("teaching-image")).toBeNull();
 
     const user = userEvent.setup();
-    // 開いた最初に出る導入の一枚を閉じてから、下の画面のボタンを押す
-    await user.click(screen.getByTestId("lesson-intro-close"));
-    await user.click(screen.getByTestId("outcome-overview-toggle"));
+    /*
+      全体図の入口は「今日やること」の中へ移した。開始画面に
+      「全体図を見る」「詳しく見る」「初級」を並べると、どれを押せば
+      よいのか決められなくなるため。導入の一枚は開いた最初に出るので、
+      閉じずにそのまま押す。
+    */
+    await user.click(screen.getByTestId("lesson-intro-overview"));
 
     expect(screen.getByTestId("lesson-overview-sheet")).toBeInTheDocument();
     expect(screen.getByTestId("teaching-image")).toBeInTheDocument();

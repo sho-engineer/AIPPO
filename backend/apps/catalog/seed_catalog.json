@@ -296,10 +296,11 @@
       "outcomeDescription": "読む相手と言い方を伝えて、意味を変えずに分かりやすくします。",
       "estimatedMinutes": 3,
       "beforeExample": "Transformer型言語モデルにおける自己注意機構では、各トークンから生成されたQueryとKeyの内積をスケーリングし、Softmax関数によって正規化したAttention WeightをValueに適用することで、系列内のトークン間依存関係を動的に表現する。さらに、多層化されたMulti-Head Attentionにより異なる表現部分空間における依存関係を並列的に学習することが可能となる。",
-      "afterExample": "AIは文章を読むとき、すべての言葉を同じように見るわけではありません。\n「この言葉と、この言葉は関係がありそう」と考えながら、文章の中で大事な言葉に注目します。\nさらに、いくつかの見方を同時に使うことで、言葉同士のつながりを捉え、文章の意味を理解しやすくしています。",
+      "afterExample": "AIは、文章の中で言葉どうしがどう関係しているかを見て、どの言葉を重視するかを決めます。\nさらに、複数の見方を使って、言葉どうしの関係を同時に捉えます。",
       "learnedSkills": [
-        "誰向けかを伝える",
-        "言い方を伝える"
+        "プロンプト",
+        "ターゲット指定",
+        "トーン指定"
       ],
       "outcomes": [
         "むずかしい文章を、意味を変えずに分かりやすくできる",
@@ -335,7 +336,7 @@
           "type": "outcome_preview",
           "phase": "try",
           "title": "今日つくるもの",
-          "poMessage": "まず、できあがりを見てみましょう。",
+          "poMessage": "まず、できあがりを見てみよう！",
           "poEmotion": "neutral"
         },
         {
@@ -851,7 +852,7 @@
           "type": "outcome_preview",
           "phase": "try",
           "title": "今日つくるもの",
-          "poMessage": "まず、できあがりを見てみましょう。",
+          "poMessage": "まず、できあがりを見てみよう！",
           "poEmotion": "neutral"
         },
         {
@@ -1306,7 +1307,7 @@
           "type": "outcome_preview",
           "phase": "try",
           "title": "今日つくるもの",
-          "poMessage": "まず、できあがりを見てみましょう。",
+          "poMessage": "まず、できあがりを見てみよう！",
           "poEmotion": "neutral"
         },
         {
@@ -1787,7 +1788,7 @@
           "type": "outcome_preview",
           "phase": "try",
           "title": "今日つくるもの",
-          "poMessage": "まず、できあがりを見てみましょう。",
+          "poMessage": "まず、できあがりを見てみよう！",
           "poEmotion": "neutral"
         },
         {
@@ -2223,7 +2224,7 @@
           "type": "outcome_preview",
           "phase": "try",
           "title": "今日つくるもの",
-          "poMessage": "まず、できあがりを見てみましょう。",
+          "poMessage": "まず、できあがりを見てみよう！",
           "poEmotion": "neutral"
         },
         {
@@ -2638,7 +2639,7 @@
           "type": "outcome_preview",
           "phase": "try",
           "title": "今日つくるもの",
-          "poMessage": "まず、できあがりを見てみましょう。",
+          "poMessage": "まず、できあがりを見てみよう！",
           "poEmotion": "neutral"
         },
         {
@@ -3297,7 +3298,7 @@
           "type": "outcome_preview",
           "phase": "try",
           "title": "今日つくるもの",
-          "poMessage": "まず、できあがりを見てみましょう。",
+          "poMessage": "まず、できあがりを見てみよう！",
           "poEmotion": "neutral"
         },
         {
