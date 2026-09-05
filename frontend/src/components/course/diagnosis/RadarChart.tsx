@@ -48,41 +48,71 @@ const ANGLE: Record<Axis, number> = {
 
 const MAX = 5;
 
+/*
+  図の形は、**大きさに依らない座標で描く。**
+
+  前は 92px 角と 208px 角の2つを、それぞれの実寸で書いていた。結果の
+  画面に置けるのは 92px——いちばん低い持ち方（402×660）で送らずに
+  収まる上限がそこだったため——で、**読むには小さい**と言われた。
+
+  いまは 100×100 の升目で描き、実寸は置いた側が決める。置き場が
+  縦に余っていれば、そのぶん図が大きくなる（下の `fluid`）。同じ
+  ものを2度書かないので、片方だけ直して形がずれることも無い。
+
+  線の太さだけは升目に連れて太らせない（`non-scaling-stroke`）。
+  一緒に太らせると、大きい図で輪郭ばかりが目立つ。
+*/
+const BOX = 100;
+const CENTER = BOX / 2;
+const RADIUS = 35;
+
+function at(axis: Axis, value: number): [number, number] {
+  const radians = (ANGLE[axis] * Math.PI) / 180;
+  const length = (Math.max(0, Math.min(MAX, value)) / MAX) * RADIUS;
+  return [CENTER + Math.cos(radians) * length, CENTER + Math.sin(radians) * length];
+}
+
+function polygon(values: Record<Axis, number>): string {
+  return AXES.map((axis) => at(axis, values[axis]).join(",")).join(" ");
+}
+
 /**
- * 大きさは2通り。
+ * 置き方は2通り。
  *
- * 結果の画面に置くほう（`sm`）は、いちばん低い持ち方（402×660）で
- * 送らずに収まる上限がここ。**それでも小さい**ので、押すと一枚の中で
- * 大きく開く（`lg`）。図を読むこと自体が目的の場面では、収める都合に
- * 縛られる理由が無い。
+ *   fluid  … 置き場の縦幅いっぱいまで。結果の画面はこちら
+ *   lg     … 決め打ち。開いた一枚の中はこちら
+ *
+ * `fluid` に下限（92px）を置いてあるのは、いちばん低い持ち方でも
+ * 形が潰れないため。上限（220px）は、横に広い端末で図だけが
+ * 大きくなりすぎないため。
  */
-const SIZES = {
-  sm: { box: 92, radius: 31, label: "text-[0.625rem]", dot: 2.8, focusDot: 4 },
-  lg: { box: 208, radius: 74, label: "text-xs", dot: 4.5, focusDot: 6.5 },
+const SHAPE = {
+  fluid: {
+    box: "aspect-square h-full max-h-[13.75rem] min-h-[5.75rem]",
+    label: "text-[0.6875rem]",
+    dot: 2.6,
+    focusDot: 3.6,
+  },
+  lg: {
+    box: "aspect-square w-[13rem]",
+    label: "text-xs",
+    dot: 2.6,
+    focusDot: 3.6,
+  },
 } as const;
 
-export type RadarSize = keyof typeof SIZES;
-
-function at(box: number, radius: number, axis: Axis, value: number): [number, number] {
-  const center = box / 2;
-  const radians = (ANGLE[axis] * Math.PI) / 180;
-  const length = (Math.max(0, Math.min(MAX, value)) / MAX) * radius;
-  return [center + Math.cos(radians) * length, center + Math.sin(radians) * length];
-}
+export type RadarSize = keyof typeof SHAPE;
 
 export interface RadarChartProps {
   axes: Record<Axis, number>;
   /** 次に伸ばすところ。頂点を1つだけ強く出す。 */
   focus?: Axis;
+  /** 置き方。既定は置き場の高さいっぱい。 */
   size?: RadarSize;
 }
 
-export function RadarChart({ axes, focus, size = "sm" }: RadarChartProps) {
-  const { box: SIZE, radius: RADIUS, label: LABEL, dot, focusDot } = SIZES[size];
-  const CENTER = SIZE / 2;
-  const point = (axis: Axis, value: number) => at(SIZE, RADIUS, axis, value);
-  const polygon = (values: Record<Axis, number>) =>
-    AXES.map((axis) => point(axis, values[axis]).join(",")).join(" ");
+export function RadarChart({ axes, focus, size = "fluid" }: RadarChartProps) {
+  const { box, label: LABEL, dot, focusDot } = SHAPE[size];
   const [drawn, setDrawn] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setDrawn(true));
@@ -104,12 +134,15 @@ export function RadarChart({ axes, focus, size = "sm" }: RadarChartProps) {
   );
 
   return (
-    <div data-testid="radar-chart" data-size={size}>
-      <div className="relative mx-auto" style={{ width: SIZE, height: SIZE }}>
+    <div
+      data-testid="radar-chart"
+      data-size={size}
+      className={size === "fluid" ? "flex min-h-0 flex-1 flex-col" : ""}
+    >
+      <div className={`relative mx-auto ${box}`}>
         <svg
-          viewBox={`0 0 ${SIZE} ${SIZE}`}
-          width={SIZE}
-          height={SIZE}
+          viewBox={`0 0 ${BOX} ${BOX}`}
+          className="h-full w-full"
           role="img"
           aria-label={AXES.map(
             (axis) => `${AXIS_LABELS[axis]} 5段階のうち ${axes[axis]}`,
@@ -122,6 +155,7 @@ export function RadarChart({ axes, focus, size = "sm" }: RadarChartProps) {
               points={polygon({ ask: ring, condition: ring, purpose: ring, workflow: ring })}
               className="fill-none stroke-brand-line"
               strokeWidth={ring === MAX ? 1.2 : 0.8}
+              vectorEffect="non-scaling-stroke"
             />
           ))}
           {/* 軸の線 */}
@@ -130,10 +164,11 @@ export function RadarChart({ axes, focus, size = "sm" }: RadarChartProps) {
               key={axis}
               x1={CENTER}
               y1={CENTER}
-              x2={point(axis, MAX)[0]}
-              y2={point(axis, MAX)[1]}
+              x2={at(axis, MAX)[0]}
+              y2={at(axis, MAX)[1]}
               className="stroke-brand-line"
               strokeWidth={0.8}
+              vectorEffect="non-scaling-stroke"
             />
           ))}
 
@@ -149,8 +184,9 @@ export function RadarChart({ axes, focus, size = "sm" }: RadarChartProps) {
             <polygon
               points={polygon(target)}
               className="fill-none stroke-brand"
-              strokeWidth={1.2}
+              strokeWidth={1.5}
               strokeDasharray="3 3"
+              vectorEffect="non-scaling-stroke"
               opacity={0.55}
             />
             {/* いまの形 */}
@@ -160,9 +196,10 @@ export function RadarChart({ axes, focus, size = "sm" }: RadarChartProps) {
               fillOpacity={0.18}
               strokeWidth={2}
               strokeLinejoin="round"
+              vectorEffect="non-scaling-stroke"
             />
             {AXES.map((axis) => {
-              const [x, y] = point(axis, axes[axis]);
+              const [x, y] = at(axis, axes[axis]);
               return (
                 <circle
                   key={axis}
@@ -175,6 +212,7 @@ export function RadarChart({ axes, focus, size = "sm" }: RadarChartProps) {
                       : "fill-brand stroke-brand"
                   }
                   strokeWidth={2}
+                  vectorEffect="non-scaling-stroke"
                 />
               );
             })}

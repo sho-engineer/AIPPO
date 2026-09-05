@@ -34,6 +34,8 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+import { useCloseOnBack } from "./BackStack";
+
 export interface MoreSheetProps {
   title: string;
   onClose: () => void;
@@ -139,6 +141,15 @@ export function MoreSheet({
   testId,
   children,
 }: MoreSheetProps) {
+  /*
+    開いているあいだは、帯の「←」で**この一枚が閉じる**。
+
+    前は「←」が教材のステップを直に戻していたので、一枚を開いた
+    まま押すと、閉じたいだけなのに背面ごと前の問いへ移っていた。
+    入れ子で重ねたときも、後から積んだ奥のほうから閉じる。
+  */
+  useCloseOnBack(onClose);
+
   const centered = placement !== "sheet";
   const full = placement === "full";
   const panel = useRef<HTMLDivElement>(null);

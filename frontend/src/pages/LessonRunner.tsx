@@ -17,6 +17,7 @@ import { PrivacyDialog } from "../components/course/PrivacyDialog";
 import { DayCompletePage } from "../components/course/DayCompletePage";
 import { LessonHeader } from "../components/course/LessonHeader";
 import { LessonPaused } from "../components/course/LessonPaused";
+import { BackStackProvider, useBackStack } from "../components/course/BackStack";
 import { MoreSheet } from "../components/course/MoreSheet";
 import { PrimaryButton } from "../components/aippo/PrimaryButton";
 import {
@@ -118,6 +119,14 @@ export function LessonRunner({
   onOpenRecipe,
 }: LessonRunnerProps) {
   const api = useCourseLesson(lesson);
+  /*
+    「←」で戻る先を、画面ではなく**直前の状態**にするための積み場。
+
+    一枚（`MoreSheet`）が開いているあいだは、そこが戻る先。開いて
+    いなければ、これまでどおり1つ前のステップへ戻る。詳しくは
+    `components/course/BackStack.tsx`。
+  */
+  const backStack = useBackStack();
   const { step, values, runs } = api;
   const [revealed, setRevealed] = useState(false);
   /*
@@ -624,7 +633,17 @@ export function LessonRunner({
           celebrating
             ? () => setCelebrating(false)
             : api.canBack
-              ? api.goBack
+              ? () => {
+                  /*
+                    開いている一枚があれば、まずそれを閉じる。
+
+                    閉じるだけで、背面には何もしない。選んだ札・図の
+                    切り替え・送った位置は背面の画面が持ったままなので、
+                    閉じれば元の姿に戻る。
+                  */
+                  if (backStack.closeTop()) return;
+                  api.goBack();
+                }
               : undefined
         }
         /*
@@ -667,6 +686,7 @@ export function LessonRunner({
         いまは中の画面がそれぞれ `calc(100dvh - 2.75rem)` を取る。
       */}
       <main>
+      <BackStackProvider stack={backStack}>
 
       {celebrating ? (
         <DayCompletePage
@@ -760,10 +780,11 @@ export function LessonRunner({
         {...(lesson.id === "diagnosis" && step.type === "completion"
           ? {
               /*
-                見出しは「診断の結果」。中身の1つ目が「いまの現在地」
-                なので、上でも同じ言葉を使うと1画面に2回並ぶ。
+                「診断の結果」をやめた。**評価された感じ**が残る言い方で、
+                この画面でしているのは点を付けることではなく、
+                いまの場所を一緒に確かめること。
               */
-              title: "診断の結果",
+              title: "いまの現在地",
             }
           : step.type === "concept_card" && step.skill
           ? {
@@ -1057,6 +1078,7 @@ export function LessonRunner({
       )}
         </>
       )}
+      </BackStackProvider>
       </main>
     </>
   );

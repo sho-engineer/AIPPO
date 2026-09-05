@@ -224,7 +224,7 @@ test.describe("AI活用診断", () => {
     ).toBeVisible();
   });
 
-  test("長い話は「くわしく見る」の中だけ", async ({ page }) => {
+  test("長い話は、開いた一枚のさらに奥だけ", async ({ page }) => {
     /*
       通常の画面に長文を置くと、読む画面になって次の一歩が遠くなる。
       開いた一枚の中だけは送ってよい。
@@ -238,20 +238,31 @@ test.describe("AI活用診断", () => {
       "答えた内容",
     );
     await expect(page.getByTestId("completion-view")).not.toContainText(
-      "4つの力の内訳",
+      "次にやると良いこと",
     );
 
     await page.getByTestId("diagnosis-reason-open").click();
 
+    /*
+      1枚目は**補足**。切り替えと図と3行だけで、長い話は入れない。
+      別ページのように見えると、開くこと自体が重くなる。
+    */
     const sheet = page.getByTestId("diagnosis-reason-sheet");
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAttribute("data-placement", "center");
-    await expect(sheet).toContainText("答えた内容");
-    await expect(sheet).toContainText("次に伸ばすとよいところ");
-    await expect(sheet).toContainText("4つの力の内訳");
-    await expect(sheet.getByTestId("axis-bar")).toHaveCount(4);
+    await expect(sheet).not.toContainText("答えた内容");
+    await expect(sheet.getByTestId("axis-bar")).toHaveCount(0);
 
-    // Esc で閉じられる
+    await page.getByTestId("diagnosis-detail-open").click();
+    const deep = page.getByTestId("diagnosis-detail-sheet");
+    await expect(deep).toContainText("答えた内容");
+    await expect(deep).toContainText("次にやると良いこと");
+    await expect(deep.getByTestId("axis-bar")).toHaveCount(4);
+
+    // Esc は、いちばん奥から順に閉じる
+    await page.keyboard.press("Escape");
+    await expect(deep).toHaveCount(0);
+    await expect(sheet).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(sheet).toHaveCount(0);
   });
@@ -453,6 +464,7 @@ test.describe("AI活用診断", () => {
       if (!(await answerOne(page))) break;
     }
 
+    // 画面に置くほうは小さい版。道は横に伸びるので、寸法は据え置き
     await expect(page.getByTestId("growth-track")).toHaveAttribute(
       "data-size",
       "sm",
@@ -473,10 +485,79 @@ test.describe("AI活用診断", () => {
     await expect(sheet).toHaveCount(0);
     await expect(page.getByTestId("radar-chart")).toHaveAttribute(
       "data-size",
-      "sm",
+      "fluid",
     );
     await page.waitForTimeout(600);
     await expectFits(page, "結果（開いて閉じたあと）");
+  });
+
+  test("端末の「戻る」は、開いた一枚から順に閉じる", async ({ page }) => {
+    /*
+      ここがいちばん効く直し。
+
+      このアプリは**画面**（TOP / HOME / LESSON …）を履歴に積んで
+      いて、一枚（モーダル）は積んでいなかった。開いている最中に
+      端末の「戻る」を押すと、一枚は無視されて画面ごと前へ移る
+      ——閉じたいだけの人が、診断の外まで出されていた。
+
+      いまは一枚が開くとき、画面はそのままの履歴を1つ積む。押された
+      「戻る」はその1つを消費し、こちらは閉じるだけで済む。
+      背面には何もしないので、図の切り替えも選んだ札もそのまま残る。
+    */
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+
+    // 図を切り替えてから開く。閉じたときに戻っていないことを見るため
+    await page.getByTestId("chart-tab-balance").click();
+    await page.getByTestId("chart-expand").click();
+    await expect(page.getByTestId("diagnosis-reason-sheet")).toBeVisible();
+    await page.getByTestId("diagnosis-detail-open").click();
+    await expect(page.getByTestId("diagnosis-detail-sheet")).toBeVisible();
+
+    /*
+      押すのは端末の「戻る」。`page.goBack()` は使わない——あれは
+      文書の読み込みを待つので、`pushState` だけで積んだ同じURLの
+      履歴では待ち切れず、余分に戻ることがある（実際そうなった）。
+      履歴を1つ戻すこと自体は、こちらのほうが正確に写せる。
+    */
+    const back = () => page.evaluate(() => window.history.back());
+
+    // 1回目 … 奥の一枚だけ閉じる
+    await back();
+    await expect(page.getByTestId("diagnosis-detail-sheet")).toHaveCount(0);
+    await expect(page.getByTestId("diagnosis-reason-sheet")).toBeVisible();
+
+    // 2回目 … 一枚を閉じて、結果の画面へ。**切り替えは戻っていない**
+    await back();
+    await expect(page.getByTestId("diagnosis-reason-sheet")).toHaveCount(0);
+    await expect(page.getByTestId("completion-view")).toBeVisible();
+    await expect(page.getByTestId("chart-switch").first()).toHaveAttribute(
+      "data-kind",
+      "balance",
+    );
+  });
+
+  test("×で閉じたあとも、「戻る」の数がずれない", async ({ page }) => {
+    /*
+      開くときに積んだ履歴は、×やEscで閉じたときにも戻す。戻さないと
+      閉じたあとの1回目の「戻る」が空振りする（押しても何も起きない）。
+    */
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+
+    await page.getByTestId("chart-expand").click();
+    await expect(page.getByTestId("diagnosis-reason-sheet")).toBeVisible();
+    await page.getByTestId("diagnosis-reason-close").click();
+    await expect(page.getByTestId("diagnosis-reason-sheet")).toHaveCount(0);
+
+    // ここでの「戻る」は、診断そのものから出る（空振りしない）
+    await page.evaluate(() => window.history.back());
+    await page.waitForTimeout(400);
+    await expect(page.getByTestId("completion-view")).toHaveCount(0);
   });
 
   test("添えたレッスンを押すと、その回が始まる", async ({ page }) => {

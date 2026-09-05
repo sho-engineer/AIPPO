@@ -25,9 +25,16 @@ import { IconExpand } from "../../Icons";
 
 export type ChartKind = "stage" | "balance";
 
+/*
+  名前は「何が見えるか」で言う。
+
+  前は「現在地」「スキルバランス」だった。前者は画面の見出しとも
+  重なり、後者は**押すまで何が出るのか分からない**（初見で
+  「バランス」が何のバランスなのか手がかりが無い）。
+*/
 const OPTIONS: { value: ChartKind; label: string }[] = [
-  { value: "stage", label: "現在地" },
-  { value: "balance", label: "スキルバランス" },
+  { value: "stage", label: "いまの段階" },
+  { value: "balance", label: "使い方のバランス" },
 ];
 
 export interface ChartSwitchProps {
@@ -46,6 +53,18 @@ export interface ChartSwitchProps {
    * 渡されなければ押せない見た目にする（`button` を出さない）。
    */
   onExpand?: () => void;
+  /**
+   * 余った高さを、図に渡すか。
+   *
+   * 結果の画面はこちら（`true`）。中身の高さを決め打ちにすると、
+   * **いちばん低い持ち方に合わせた小ささが、縦の長い端末にもそのまま
+   * 出る**——92px 角の図が 844px の画面の真ん中にぽつんと乗り、下に
+   * 200px の余白が残っていた。余りは図に渡す。
+   *
+   * 開いた一枚の中は決め打ち（`false`）。あちらは送ってよい場所なので、
+   * 高さに合わせる理由が無い。
+   */
+  grow?: boolean;
 }
 
 export function ChartSwitch({
@@ -53,17 +72,20 @@ export function ChartSwitch({
   onChange,
   children,
   onExpand,
+  grow = false,
 }: ChartSwitchProps) {
   return (
     <div
-      className="rounded-card border border-line bg-surface px-3 pb-2 pt-1.5"
+      className={`rounded-card border border-line bg-surface px-3 pb-2 pt-1.5 ${
+        grow ? "flex min-h-0 flex-1 flex-col" : ""
+      }`}
       data-testid="chart-switch"
       data-kind={value}
     >
       <div
         role="tablist"
         aria-label="結果の見せ方"
-        className="mx-auto flex w-full gap-0.5 rounded-badge bg-brand-soft p-0.5"
+        className="mx-auto flex w-full shrink-0 gap-0.5 rounded-badge bg-brand-soft p-0.5"
       >
         {OPTIONS.map((option) => {
           const on = option.value === value;
@@ -103,8 +125,10 @@ export function ChartSwitch({
             もともと札の中にあり、そこへさらに枠を重ねると、押す先が
             2段あるように見える。
           */
-          className="relative mt-1.5 block w-full rounded-badge transition
-                     hover:bg-brand-soft/40"
+          className={`relative mt-1.5 w-full rounded-badge transition
+                      hover:bg-brand-soft/40 ${
+                        grow ? "flex min-h-0 flex-1 flex-col justify-center" : "block"
+                      }`}
         >
           {children}
           <IconExpand
@@ -113,7 +137,9 @@ export function ChartSwitch({
           />
         </button>
       ) : (
-        <div className="mt-1.5">{children}</div>
+        <div className={`mt-1.5 ${grow ? "flex min-h-0 flex-1 flex-col" : ""}`}>
+          {children}
+        </div>
       )}
     </div>
   );

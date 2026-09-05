@@ -497,9 +497,9 @@ describe("結果画面", () => {
     await user.click(
       sheet.querySelector("[data-testid='chart-tab-balance']") as HTMLElement,
     );
-    await user.click(screen.getAllByLabelText("閉じる").at(-1) as HTMLElement);
+    await user.click(screen.getByTestId("diagnosis-reason-close"));
 
-    expect(screen.getByTestId("radar-chart")).toHaveAttribute("data-size", "sm");
+    expect(screen.getByTestId("radar-chart")).toHaveAttribute("data-size", "fluid");
     expect(screen.queryByTestId("growth-track")).toBeNull();
   });
 
@@ -514,18 +514,22 @@ describe("結果画面", () => {
     ).toHaveLength(2);
   });
 
-  it("軸ごとの内訳は、通常の画面に出さない", async () => {
+  it("軸ごとの内訳は、いちばん奥まで開いた人にだけ", async () => {
     /*
       内訳は「なぜそう出たか」を知りたい人のもので、次の1本を
-      決めるのに要るものではない。横棒4本で 85px 取ると、その分
-      おすすめと「くわしく見る」が下のボタンに隠れる。
+      決めるのに要るものではない。1枚目まで出すと、開いた瞬間から
+      送らないと読み終わらない量になる（補足ではなく別ページに見える）。
     */
     const user = userEvent.setup();
     render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
 
     expect(screen.queryAllByTestId("axis-bar")).toHaveLength(0);
 
+    // 1枚目は、切り替えと図と3行だけ
     await user.click(screen.getByTestId("diagnosis-reason-open"));
+    expect(screen.queryAllByTestId("axis-bar")).toHaveLength(0);
+
+    await user.click(screen.getByTestId("diagnosis-detail-open"));
     expect(screen.getAllByTestId("axis-bar")).toHaveLength(4);
   });
 
@@ -590,26 +594,32 @@ describe("結果画面", () => {
     expect(shown).not.toMatch(/\d\s*\/\s*5/);
   });
 
-  it("長い話は「くわしく見る」の中へ逃がす", async () => {
+  it("長い話は、開いた一枚のさらに奥へ逃がす", async () => {
     const user = userEvent.setup();
     render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
 
-    // 通常の画面には、答えの一覧も段階の説明も出ていない
+    // 通常の画面には、答えの一覧も内訳も出ていない
     const shown = screen.getByTestId("completion-view").textContent ?? "";
     expect(shown).not.toContain("答えた内容");
-    expect(shown).not.toContain("次に伸ばすとよいところ");
-    expect(shown).not.toContain("4つの力の内訳");
+    expect(shown).not.toContain("次にやると良いこと");
 
     await user.click(screen.getByTestId("diagnosis-reason-open"));
 
+    /*
+      1枚目は**補足**。切り替えと図と3行だけで、長い話は入れない。
+      別ページのように見えると、開くこと自体が重くなる。
+    */
     const sheet = screen.getByTestId("diagnosis-reason-sheet");
-    expect(sheet).toHaveTextContent("答えた内容");
-    expect(sheet).toHaveTextContent("次に伸ばすとよいところ");
-    expect(sheet).toHaveTextContent("4つの力の内訳");
-    // 段階の名前と説明は、大きい図のほうが持つ（見出しを重ねない）
-    expect(sheet).toHaveTextContent(STAGES[3].name);
-    // 中央に浮かべる一枚（送れるのはこの中だけ）
     expect(sheet).toHaveAttribute("data-placement", "center");
+    expect(sheet).toHaveTextContent(STAGES[3].name);
+    expect(sheet).not.toHaveTextContent("答えた内容");
+
+    await user.click(screen.getByTestId("diagnosis-detail-open"));
+
+    const deep = screen.getByTestId("diagnosis-detail-sheet");
+    expect(deep).toHaveTextContent("答えた内容");
+    expect(deep).toHaveTextContent("次にやると良いこと");
+    expect(deep).toHaveTextContent("できていること");
   });
 
   it("答えの直しは、その一枚の中から", async () => {
@@ -628,8 +638,9 @@ describe("結果画面", () => {
     );
 
     await user.click(screen.getByTestId("diagnosis-reason-open"));
+    await user.click(screen.getByTestId("diagnosis-detail-open"));
     const buttons = screen
-      .getByTestId("diagnosis-reason-sheet")
+      .getByTestId("diagnosis-detail-sheet")
       .querySelectorAll("button");
     const fix = [...buttons].find((one) => one.textContent?.includes("なおす"));
     expect(fix).toBeDefined();
@@ -641,8 +652,9 @@ describe("結果画面", () => {
     const user = userEvent.setup();
     render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
     await user.click(screen.getByTestId("diagnosis-reason-open"));
+    await user.click(screen.getByTestId("diagnosis-detail-open"));
 
-    const sheet = screen.getByTestId("diagnosis-reason-sheet");
+    const sheet = screen.getByTestId("diagnosis-detail-sheet");
     expect(sheet).toHaveTextContent("困ったときにAIを使う");
     expect(sheet).not.toHaveTextContent("sometimes");
     expect(sheet).not.toHaveTextContent("first_time");

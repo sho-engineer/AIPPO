@@ -260,9 +260,19 @@ export function poAppearance(where: PoSituation): PoAppearance | null {
     };
   }
 
-  // 診断の結果。祝う場面ではなく、次の一歩を渡す場面
+  /*
+    診断の結果。祝う場面ではなく、次の一歩を渡す場面。
+
+    **顔だけ出して黙る。** 吹き出しで言っていたのは「5つの答えから、
+    まとめました」——画面を見れば分かることで、そのために 55px を
+    使っていた。この画面はもともと図・札・次の一歩・おすすめが縦に
+    続いていて、目の休みどころが無いと言われている。ポーが黙れば、
+    上にひと呼吸ぶんの間ができる。
+
+    顔は残す。ここは受け取る場面なので、居ること自体に役がある。
+  */
   if (where.diagnosis && where.stepType === "completion") {
-    return { scene: "result", speaks: true, emotion: "hint" };
+    return { scene: "result", speaks: false, emotion: "hint" };
   }
 
   /*

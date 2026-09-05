@@ -106,16 +106,19 @@ async function answerRemaining(page: Page): Promise<void> {
  *
  * 置き場が変わった。前は結果画面のいちばん上に折りたたみ
  * （「ここまでに答えた内容（5件）」）で出ていたが、結果を見に来た人の
- * 最初に自分の答えが目に入る形だったので、「くわしく見る」の一枚の
- * 中へ移した（`DiagnosisResult.tsx`）。開けば「なおす」もそこにある。
+ * 最初に自分の答えが目に入る形だったので、開いた一枚の**さらに奥**へ
+ * 移した（`DiagnosisResult.tsx`）。1枚目は補足として軽くしてある。
  */
 async function summaryLines(page: Page): Promise<string[]> {
-  const sheet = page.getByTestId("diagnosis-reason-sheet");
-  if ((await sheet.count()) === 0) {
-    await page.getByTestId("diagnosis-reason-open").click();
-    await expect(sheet).toBeVisible();
+  const deep = page.getByTestId("diagnosis-detail-sheet");
+  if ((await deep.count()) === 0) {
+    if ((await page.getByTestId("diagnosis-reason-sheet").count()) === 0) {
+      await page.getByTestId("diagnosis-reason-open").click();
+    }
+    await page.getByTestId("diagnosis-detail-open").click();
+    await expect(deep).toBeVisible();
   }
-  const lines = await sheet.locator("li").allInnerTexts();
+  const lines = await deep.locator("li").allInnerTexts();
   return lines.map((line) => line.replace(/\s*なおす\s*$/, "").trim());
 }
 

@@ -81,6 +81,8 @@ export function DiagnosisResult({
   onPickLesson,
 }: DiagnosisResultProps) {
   const [open, setOpen] = useState(false);
+  /* もう一段奥（答えと理由）。上の一枚を閉じずに重ねる */
+  const [deep, setDeep] = useState(false);
   /*
     どちらの図を出しているか。**画面の中に持つ。**
 
@@ -108,6 +110,7 @@ export function DiagnosisResult({
       <ChartSwitch
         value={chart}
         onChange={setChart}
+        grow
         onExpand={() => {
           setOpen(true);
           onOpenReason?.();
@@ -188,18 +191,23 @@ export function DiagnosisResult({
           {plan.rest.map((id) => {
             const one = find(id);
             if (!one) return null;
+            /*
+              題は**2行まで折り返す。** 1行に押し込んで「Day 3 分からない
+              ことを説明し…」と切っていたころは、どの回なのかが読めない
+              うえ、切れた点だけが目に付いた。
+            */
             const inside = (
               <>
-                <span className="shrink-0 text-[0.625rem] font-bold text-ink-muted">
+                <span className="block text-[0.625rem] font-bold leading-4 text-ink-muted">
                   Day {one.number}
                 </span>
-                <span className="min-w-0 truncate text-[0.6875rem] leading-5">
+                <span className="mt-0.5 block text-[0.6875rem] leading-4 line-clamp-2">
                   {one.title}
                 </span>
               </>
             );
-            const shape = `flex w-full min-w-0 items-baseline gap-1 rounded-badge
-                           border border-line bg-surface px-2 py-1 text-left`;
+            const shape = `block w-full min-w-0 rounded-badge
+                           border border-line bg-surface px-2 py-1.5 text-left`;
             return (
               <li key={id} className="min-w-0 flex-1">
                 {onPickLesson ? (
@@ -227,42 +235,53 @@ export function DiagnosisResult({
         持ち方（402×660）で余りが無く、その 30px が入れ物からあふれる
         ぶんそのものだった。文の続きとして読めるので、離す理由も無い。
       */}
-      <p
-        className="mt-2 text-[0.8125rem] leading-5 text-ink-muted"
-        data-testid="diagnosis-reason-line"
+      {/*
+        なぜこの1本かと、その先の入口。
+
+        前は理由の文の**続き**に「くわしく見る」を置いていた。場所は
+        取らないが、文中の下線に見えて押す価値が伝わらない——実際
+        「役割が弱い」と言われた。いまは1行の行ボタンにして、
+        理由をその中の説明として抱える。
+      */}
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(true);
+          onOpenReason?.();
+        }}
+        data-testid="diagnosis-reason-open"
+        className="mt-2 flex w-full items-center gap-2 rounded-badge border border-line
+                   bg-surface px-3 py-2 text-left transition hover:border-brand-line"
       >
-        {recommendReason(values)}{" "}
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(true);
-            onOpenReason?.();
-          }}
-          data-testid="diagnosis-reason-open"
-          className="whitespace-nowrap font-bold text-brand-dark underline"
+        <span
+          className="min-w-0 flex-1 text-[0.8125rem] leading-4 text-ink-muted"
+          data-testid="diagnosis-reason-line"
         >
+          {recommendReason(values)}
+        </span>
+        <span className="shrink-0 text-[0.6875rem] font-bold text-brand-dark">
           くわしく見る
-          <IconChevronRight
-            className="ml-0.5 inline h-3 w-3 shrink-0 align-[-0.1em]"
-            aria-hidden="true"
-          />
-        </button>
-      </p>
+        </span>
+        <IconChevronRight
+          className="h-3.5 w-3.5 shrink-0 text-ink-muted"
+          aria-hidden="true"
+        />
+      </button>
 
       {open && (
         <MoreSheet
           placement="center"
           testId="diagnosis-reason-sheet"
-          title="診断の見かた"
+          title="いまの様子"
           onClose={() => setOpen(false)}
         >
           {/*
-            図を、大きく。**一枚のいちばん上に置く。**
+            一枚の中は、**上から 切り替え → 図 → 3行**だけ。
 
-            ここは読むために開いた場所なので、1画面に収める都合から
-            外れてよい。切り替えは結果の画面と同じものを使い、
-            状態も共有する——開いてから切り替えて閉じたのに、後ろの
-            小さい図だけ元のまま、では何を見ていたのか分からなくなる。
+            前はここに軸の内訳・長い説明・答えの一覧まで入れていて、
+            開いた瞬間に送らないと読み終わらない量があった。補足を
+            見る場所が「別のページ」に見えていた、と言われたのが
+            そこ。読み物は下の「答えと理由」へもう一段落とす。
           */}
           <ChartSwitch value={chart} onChange={setChart}>
             {chart === "stage" ? (
@@ -272,27 +291,60 @@ export function DiagnosisResult({
             )}
           </ChartSwitch>
 
-          {/*
-            軸ごとの内訳。**通常の画面から、ここへ移した。**
+          {/* 3行だけ。名前と中身を1行に収めて、段落にしない */}
+          <dl className="mt-4 space-y-2 text-sm leading-5">
+            {[
+              ["いまの現在地", result.stage.name],
+              ["できていること", result.strengths.join("・")],
+              ["次にやると良いこと", skill.name],
+            ].map(([label, value]) => (
+              <div key={label} className="flex gap-2">
+                <dt className="w-24 shrink-0 text-xs leading-5 text-ink-muted">
+                  {label}
+                </dt>
+                <dd className="min-w-0 flex-1 font-bold text-brand-dark">{value}</dd>
+              </div>
+            ))}
+          </dl>
 
-            結果の画面に横棒4本を置くと 85px を取り、そのぶん
-            おすすめと「くわしく見る」が下のボタンに隠れていた。
-            内訳は「なぜそう出たか」を知りたい人のもので、
-            次の1本を決めるのに要るものではない。
-          */}
-          <section className="mt-5 border-t border-line pt-4">
-            <h3 className="text-xs font-bold text-ink-muted">4つの力の内訳</h3>
+          <button
+            type="button"
+            onClick={() => setDeep(true)}
+            data-testid="diagnosis-detail-open"
+            className="mt-4 flex w-full items-center justify-center gap-1 rounded-cta
+                       border border-line py-2 text-sm font-bold text-brand-dark
+                       transition hover:bg-brand-soft"
+          >
+            答えと理由を見る
+            <IconChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          </button>
+        </MoreSheet>
+      )}
+
+      {/*
+        もう一段奥。**読みたい人だけが来る場所。**
+
+        ここだけは文章が長くてよい。「←」は奥から順に閉じるので
+        （`components/course/BackStack.tsx`）、ここから戻れば上の一枚が
+        そのまま残る。
+      */}
+      {deep && (
+        <MoreSheet
+          elevated
+          placement="center"
+          testId="diagnosis-detail-sheet"
+          title="答えと理由"
+          onClose={() => setDeep(false)}
+        >
+          <section>
+            <h3 className="text-xs font-bold text-ink-muted">できていること</h3>
             <div className="mt-2">
               <AxisBars axes={result.axes} focus={result.weakest} />
             </div>
-            <p className="mt-2 text-xs leading-5 text-ink-muted">
-              5段階で出しています。細かい点数は出しません——5つの質問から
-              出した数字に、そこまでの精度は無いためです。
-            </p>
           </section>
 
           <section className="mt-5 border-t border-line pt-4">
-            <h3 className="text-xs font-bold text-ink-muted">次に伸ばすとよいところ</h3>
+            <h3 className="text-xs font-bold text-ink-muted">次にやると良いこと</h3>
             <p className="mt-1 text-sm leading-6">
               {AXIS_LABELS[result.weakest]}。{skill.name}（{skill.summary}）を
               覚えると、ここが動きます。
@@ -308,8 +360,7 @@ export function DiagnosisResult({
             答えた内容と、直す道。
 
             結果を見てから「そこは違う」と気づく人がいる。気づいたのに
-            直せないと、出た結果を信じるしかなくなる。ここに置くのは、
-            **結果より先に自分の答えが目に入らない**ようにするため。
+            直せないと、出た結果を信じるしかなくなる。
           */}
           <section className="mt-5 border-t border-line pt-4">
             <h3 className="text-xs font-bold text-ink-muted">答えた内容</h3>
@@ -323,7 +374,19 @@ export function DiagnosisResult({
                   {onEditAnswer && (
                     <button
                       type="button"
-                      onClick={() => onEditAnswer(entry.stepId)}
+                      /*
+                        先に一枚を閉じてから移る。
+
+                        開いたまま問いへ移ると、一枚は画面ごと消える。
+                        消え方が「閉じた」ではないので、開くときに
+                        積んだ履歴が1つ残り、そのあとの「戻る」が
+                        1回空振りする。
+                      */
+                      onClick={() => {
+                        setDeep(false);
+                        setOpen(false);
+                        onEditAnswer(entry.stepId);
+                      }}
                       className="shrink-0 rounded-badge border border-line px-3 py-1
                                  text-xs text-brand-dark transition hover:bg-brand-soft"
                     >
@@ -336,6 +399,7 @@ export function DiagnosisResult({
           </section>
         </MoreSheet>
       )}
+
     </div>
   );
 }
