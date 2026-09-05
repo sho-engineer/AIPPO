@@ -106,9 +106,12 @@ export function ChartSwitch({
 
               縮まない形（`basis-auto`）にすると今度は高さが定まらず、
               中のひし形（`h-full`）が上限まで伸びてあふれた。
-              **高さは決まったまま、下限だけ置く**のが要る。
+              **高さは決まったまま、下限だけ置く**のが要る。下限は
+              「道＋段階の名前」が入る高さ（9rem）。ここを下回ると
+              点が切り替えに乗り上げ、**切り替え自体が押せなくなる**
+              （393×727 で、点が押下を横取りしていた）。
             */
-            "flex min-h-[8rem] flex-1 flex-col max-h-[17rem]"
+            "flex min-h-[9rem] flex-1 flex-col max-h-[17rem]"
           : "shrink-0"
       }`}
       data-testid="chart-switch"

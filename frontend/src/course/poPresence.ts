@@ -83,14 +83,14 @@ export const PO_SIZE_BY_SCENE: Record<PoScene, PoSize> = {
   compare: "md",
   celebrate: "lg",
   /*
-    診断の結果だけ `sm`（56px）。
+    診断の結果だけ `xs`（44px）。
 
     結果画面には現在地・できていること・次の一歩・おすすめが縦に並ぶ。
     ポーが `md`（96px）だと、いちばん低い持ち方（402×660）でその全部が
     入れ物からあふれ、**ページは伸びないまま中で送れる**状態になる。
     ここのポーは案内役で、主役は下の4つ。
   */
-  result: "sm",
+  result: "xs",
   thinking: "md",
   hint: "md",
   warning: "md",

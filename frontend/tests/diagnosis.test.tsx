@@ -514,22 +514,20 @@ describe("結果画面", () => {
     ).toHaveLength(2);
   });
 
-  it("軸ごとの内訳は、いちばん奥まで開いた人にだけ", async () => {
+  it("軸ごとの内訳は、図を開いた人にだけ", async () => {
     /*
-      内訳は「なぜそう出たか」を知りたい人のもので、次の1本を
-      決めるのに要るものではない。1枚目まで出すと、開いた瞬間から
-      送らないと読み終わらない量になる（補足ではなく別ページに見える）。
+      内訳は「なぜそう出たか」を知りたい人のもの。次の1本を決めるのに
+      要るものではないので、通常の画面には出さない。
+
+      図と同じ一枚の中に置く——図を見に来た人が知りたいのはまさに
+      この中身で、さらに奥へ置くと扉が1つ多かった。
     */
     const user = userEvent.setup();
     render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
 
     expect(screen.queryAllByTestId("axis-bar")).toHaveLength(0);
 
-    // 1枚目は、切り替えと図と3行だけ
     await user.click(screen.getByTestId("diagnosis-reason-open"));
-    expect(screen.queryAllByTestId("axis-bar")).toHaveLength(0);
-
-    await user.click(screen.getByTestId("diagnosis-detail-open"));
     expect(screen.getAllByTestId("axis-bar")).toHaveLength(4);
   });
 
@@ -545,7 +543,6 @@ describe("結果画面", () => {
       />,
     );
 
-    await user.click(screen.getByTestId("diagnosis-also-open"));
     await user.click(screen.getAllByTestId("diagnosis-also-pick")[0]);
     expect(picked).toHaveLength(1);
   });
@@ -573,20 +570,7 @@ describe("結果画面", () => {
     expect(screen.getByTestId("diagnosis-next-skill")).toBeInTheDocument();
     // 大きく出すのは1本だけ
     expect(screen.getAllByTestId("diagnosis-lesson")).toHaveLength(1);
-    // ほかの候補は、通常の画面では名前も出さない
-    expect(screen.queryByTestId("diagnosis-also")).toBeNull();
-  });
-
-  it("ほかの候補は、開いた人にだけ2本", async () => {
-    /*
-      消しはしない。上の1本が刺さらなかった人の行き先が無くなる。
-      ただし同じ画面に3つ並ぶと、結局「どれにするか」をもう一度
-      考えることになるので、名前は隠す。
-    */
-    const user = userEvent.setup();
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
-
-    await user.click(screen.getByTestId("diagnosis-also-open"));
+    // 添えるのは2本まで。上の1本より弱く見せる
     expect(
       screen.getByTestId("diagnosis-also").querySelectorAll("li"),
     ).toHaveLength(2);
@@ -626,6 +610,7 @@ describe("結果画面", () => {
     const sheet = screen.getByTestId("diagnosis-reason-sheet");
     expect(sheet).toHaveAttribute("data-placement", "center");
     expect(sheet).toHaveTextContent(STAGES[3].name);
+    // 読み物（答えの一覧）は、さらに奥
     expect(sheet).not.toHaveTextContent("答えた内容");
 
     await user.click(screen.getByTestId("diagnosis-detail-open"));
@@ -633,7 +618,6 @@ describe("結果画面", () => {
     const deep = screen.getByTestId("diagnosis-detail-sheet");
     expect(deep).toHaveTextContent("答えた内容");
     expect(deep).toHaveTextContent("次にやると良いこと");
-    expect(deep).toHaveTextContent("できていること");
   });
 
   it("答えの直しは、その一枚の中から", async () => {

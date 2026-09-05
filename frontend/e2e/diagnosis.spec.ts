@@ -204,17 +204,19 @@ test.describe("AI活用診断", () => {
     // 光る点は1つだけ。2つあると現在地が決められない
     await expect(page.locator("[data-testid='growth-node'][data-state='here']"))
       .toHaveCount(1);
-    // 軸ごとの内訳は、まだ出さない（「くわしく見る」の中）
+    // 軸ごとの内訳は、まだ出さない（図を開いた一枚の中）
     await expect(page.getByTestId("axis-bar")).toHaveCount(0);
 
     await expect(
       page.getByTestId("diagnosis-strengths").getByRole("listitem"),
     ).toHaveCount(2);
 
-    // 大きく出すおすすめは1本。ほかの候補は名前も出さない
+    // 大きく出すおすすめは1本、添えるのが2本
     await expect(page.getByTestId("diagnosis-next-skill")).toBeVisible();
     await expect(page.getByTestId("diagnosis-lesson")).toHaveCount(1);
-    await expect(page.getByTestId("diagnosis-also")).toHaveCount(0);
+    await expect(
+      page.getByTestId("diagnosis-also").getByRole("listitem"),
+    ).toHaveCount(2);
 
     await expect(page.getByTestId("primary-action")).toHaveText(/ここから始める/);
     await expect(
@@ -236,7 +238,7 @@ test.describe("AI活用診断", () => {
       "答えた内容",
     );
     await expect(page.getByTestId("completion-view")).not.toContainText(
-      "次にやると良いこと",
+      "4つの力の内訳",
     );
 
     await page.getByTestId("diagnosis-reason-open").click();
@@ -249,13 +251,13 @@ test.describe("AI活用診断", () => {
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAttribute("data-placement", "center");
     await expect(sheet).not.toContainText("答えた内容");
-    await expect(sheet.getByTestId("axis-bar")).toHaveCount(0);
+    // 内訳は、図を見に来た人が知りたいところ。同じ一枚の中に置く
+    await expect(sheet.getByTestId("axis-bar")).toHaveCount(4);
 
     await page.getByTestId("diagnosis-detail-open").click();
     const deep = page.getByTestId("diagnosis-detail-sheet");
     await expect(deep).toContainText("答えた内容");
     await expect(deep).toContainText("次にやると良いこと");
-    await expect(deep.getByTestId("axis-bar")).toHaveCount(4);
 
     // Esc は、いちばん奥から順に閉じる
     await page.keyboard.press("Escape");
@@ -489,6 +491,27 @@ test.describe("AI活用診断", () => {
     await expectFits(page, "結果（開いて閉じたあと）");
   });
 
+  test("低い持ち方では、ほかのおすすめを行1本にたたむ", async ({ page }) => {
+    /*
+      Safari の上下の帯が両方出た状態（402×660）には、2枚の札を置く
+      余りが無い。そこでは名前を伏せて行1本にし、押した人にだけ
+      一枚の中で見せる——**どちらの道でも同じ2本に届く**。
+    */
+    await page.setViewportSize({ width: 402, height: 660 });
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+
+    await expect(page.getByTestId("diagnosis-also")).not.toBeVisible();
+    await expectFits(page, "結果（低い持ち方）");
+
+    await page.getByTestId("diagnosis-also-open").click();
+    const sheet = page.getByTestId("diagnosis-also-sheet");
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByRole("listitem")).toHaveCount(2);
+  });
+
   test("端末の「戻る」は、開いた一枚から順に閉じる", async ({ page }) => {
     /*
       ここがいちばん効く直し。
@@ -569,7 +592,6 @@ test.describe("AI活用診断", () => {
       if (!(await answerOne(page))) break;
     }
 
-    await page.getByTestId("diagnosis-also-open").click();
     const also = page.getByTestId("diagnosis-also-pick").first();
     const label = (await also.innerText()).replace(/\s+/g, "");
     await also.click();

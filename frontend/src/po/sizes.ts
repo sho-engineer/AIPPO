@@ -46,10 +46,17 @@ import { PO_REFERENCE } from "./assets";
  * 決めない——「どの画面に居るか」を画面ごとに決め始めると、全部
  * 足したときに何段あるのか誰にも分からなくなる。
  */
-export type PoSize = "sm" | "md" | "lg" | "celebration";
+export type PoSize = "xs" | "sm" | "md" | "lg" | "celebration";
 
 /** 見えてほしい背丈（px）。 */
 const VISIBLE_HEIGHT: Record<PoSize, number> = {
+  /*
+    いちばん小さい段。**添えるだけの場面**に使う。
+
+    診断の結果がこれ。あそこの主役は図と「次の一歩」で、ポーは
+    ひとこと添えるだけ。56px でも、見出しの右で場所を取っていた。
+  */
+  xs: 44,
   sm: 56,
   md: 96,
   /*

@@ -44,6 +44,7 @@ import {
   NEXT_SKILL,
   scoreDiagnosis,
 } from "../../course/diagnosisScore";
+import { lookOf } from "../../course/presentation";
 import { recommendPlan, recommendReason } from "../../course/recommend";
 import type { Lesson } from "../../course/types";
 
@@ -181,8 +182,11 @@ export function DiagnosisResult({
         言葉は2つまで、札にする。「✓ ＋ 1行」を2つ縦に積むと
         見出しを入れて3行ぶんの高さを取るが、札なら1行に収まる。
       */}
+      <p className="mt-3 shrink-0 text-[0.6875rem] font-bold leading-4 text-ink-muted">
+        できていること
+      </p>
       <ul
-        className="mt-2 shrink-0 flex flex-wrap gap-1.5"
+        className="mt-1.5 shrink-0 flex flex-wrap gap-1.5"
         role="list"
         data-testid="diagnosis-strengths"
       >
@@ -213,54 +217,144 @@ export function DiagnosisResult({
         ここが切れ目。**上は「いまの話」、下は「次の話」。**
         ほかの切れ目より一段広く取って、読む向きを切り替えてもらう。
       */}
-      <div className="mt-5 rounded-card border border-brand-line bg-brand-soft px-3 py-2.5"
-           data-testid="diagnosis-next-skill">
-        {/*
+      {(() => {
+        /*
           技の名前を、この画面でいちばん大きく出す。
 
           前は「次の一歩 トーン指定」と1行に並べていて、見出しと
           同じ大きさに埋もれていた。診断のあとにすることは**この技を
           覚えること**なので、そこだけ字を上げる。行数は増やさない。
-        */}
-        <p className="text-[0.625rem] font-bold leading-4 text-ink-muted">次の一歩</p>
-        <p className="text-lg font-bold leading-7 text-brand-dark">{skill.name}</p>
-        {first && (
-          <p
-            className="text-[0.8125rem] leading-5 text-ink-muted"
-            data-testid="diagnosis-lesson"
+
+          絵と「＞」を添えて、**押せる札**にする。下のボタンと同じ
+          行き先だが、目が止まるのはこの札のほうなので、そこから
+          直接入れないと「押したのに何も起きない」に見える。
+        */
+        const look = first ? lookOf(first.id) : null;
+        const inside = (
+          <>
+            {look && (
+              <span
+                aria-hidden="true"
+                className="flex h-9 w-9 shrink-0 items-center justify-center
+                           rounded-card bg-surface text-brand"
+              >
+                <look.icon className="h-5 w-5" />
+              </span>
+            )}
+            <span className="min-w-0 flex-1">
+              <span className="block text-[0.625rem] font-bold leading-4 text-ink-muted">
+                次の一歩
+              </span>
+              <span className="block text-lg font-bold leading-7 text-brand-dark">
+                {skill.name}
+              </span>
+              {first && (
+                <span
+                  className="block text-[0.8125rem] leading-5 text-ink-muted"
+                  data-testid="diagnosis-lesson"
+                >
+                  Day {first.number}・{first.title}
+                </span>
+              )}
+            </span>
+            <IconChevronRight
+              className="h-4 w-4 shrink-0 self-center text-brand"
+              aria-hidden="true"
+            />
+          </>
+        );
+        const shape = `mt-5 flex shrink-0 items-start gap-3 rounded-card
+                       border border-brand-line bg-brand-soft px-3 py-2.5 text-left`;
+        return onPickLesson && first ? (
+          <button
+            type="button"
+            onClick={() => onPickLesson(first.id)}
+            data-testid="diagnosis-next-skill"
+            className={`${shape} w-full transition hover:border-brand`}
           >
-            Day {first.number}・{first.title}
-          </p>
-        )}
-      </div>
+            {inside}
+          </button>
+        ) : (
+          <div className={shape} data-testid="diagnosis-next-skill">
+            {inside}
+          </div>
+        );
+      })()}
 
       {/*
-        2本目・3本目。**1本目とは大きさを変える。**
+        ほかのおすすめ。**上の1本より弱く見せる。**
 
         同じ大きさで3枚並べると、どれを選ぶかをもう一度考えることに
         なる。決めるのは上の1本で、ここは「そこが違ったとき」の
-        行き先。小さくしてあるのは、選び直しを勧めていないため。
-      */}
-      {/*
-        ほかの候補。**通常の画面では、名前も出さない。**
+        行き先。地の色を持たず、字も小さくして、一段下げる。
 
-        前は Day2 と Day5 を横に並べていた。小さくはしてあったが、
-        上の1本と同じ画面に3つ並ぶと、結局「どれにするか」をもう一度
-        考えることになる。この画面の役目は**次の1本を決めること**。
-
-        消しはしない。上の1本が刺さらなかった人の行き先が無くなる。
-        名前を隠して、開いた人にだけ見せる。
+        **画面の高さで出し分ける。** いちばん低い持ち方（402×660）には
+        この2枚を置く余りが無いので、そこでは名前を伏せて行1本にし、
+        押した人にだけ一枚の中で見せる。どちらの道でも同じ2本に届く。
       */}
       {plan.rest.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setAlso(true)}
-          data-testid="diagnosis-also-open"
-          className="mt-1.5 self-start rounded-badge px-1 py-0.5 text-[0.6875rem]
-                     text-ink-muted underline transition hover:text-ink"
-        >
-          ほかの候補を見る
-        </button>
+        <>
+          <div className="mt-3 hidden shrink-0 [@media(min-height:700px)]:block">
+            <p className="text-[0.6875rem] font-bold leading-4 text-ink-muted">
+              ほかのおすすめも見る
+            </p>
+            <ul className="mt-1.5 flex gap-2" role="list" data-testid="diagnosis-also">
+              {plan.rest.map((id) => {
+                const one = find(id);
+                if (!one) return null;
+                const look = lookOf(id);
+                const inside = (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center
+                                 rounded-badge bg-brand-soft text-brand"
+                    >
+                      <look.icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[0.625rem] font-bold leading-4 text-ink-muted">
+                        Day {one.number}
+                      </span>
+                      <span className="mt-0.5 block text-[0.6875rem] leading-4 line-clamp-2">
+                        {one.title}
+                      </span>
+                    </span>
+                  </>
+                );
+                const shape = `flex w-full min-w-0 items-center gap-2 rounded-card
+                               border border-line bg-surface px-2 py-1.5 text-left`;
+                return (
+                  <li key={id} className="min-w-0 flex-1">
+                    {onPickLesson ? (
+                      <button
+                        type="button"
+                        onClick={() => onPickLesson(id)}
+                        data-testid="diagnosis-also-pick"
+                        className={`${shape} transition hover:border-brand-line`}
+                      >
+                        {inside}
+                      </button>
+                    ) : (
+                      <span className={shape}>{inside}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setAlso(true)}
+            data-testid="diagnosis-also-open"
+            className="mt-2 shrink-0 self-start rounded-badge px-1 py-0.5
+                       text-[0.6875rem] text-ink-muted underline transition
+                       hover:text-ink [@media(min-height:700px)]:hidden"
+          >
+            ほかのおすすめも見る
+          </button>
+        </>
       )}
 
       {also && (
@@ -334,6 +428,23 @@ export function DiagnosisResult({
             )}
           </ChartSwitch>
 
+          {/*
+            軸ごとの内訳。**図と同じ一枚の中に置く。**
+
+            もう一段奥へ置いていたが、図を見に来た人が知りたいのは
+            まさにこの中身で、そこだけ扉が1つ多かった。長い説明は
+            付けない——横棒4本と、一行の但し書きだけ。
+          */}
+          <section className="mt-4">
+            <h3 className="text-xs font-bold text-ink-muted">4つの力の内訳</h3>
+            <div className="mt-2">
+              <AxisBars axes={result.axes} focus={result.weakest} />
+            </div>
+            <p className="mt-2 text-[0.6875rem] leading-4 text-ink-muted">
+              ※ 5段階で表示しています。くわしい説明は、レッスンの中で。
+            </p>
+          </section>
+
           {/* 3行だけ。名前と中身を1行に収めて、段落にしない */}
           <dl className="mt-4 space-y-2 text-sm leading-5">
             {[
@@ -393,13 +504,6 @@ export function DiagnosisResult({
           onClose={() => setDeep(false)}
         >
           <section>
-            <h3 className="text-xs font-bold text-ink-muted">できていること</h3>
-            <div className="mt-2">
-              <AxisBars axes={result.axes} focus={result.weakest} />
-            </div>
-          </section>
-
-          <section className="mt-5 border-t border-line pt-4">
             <h3 className="text-xs font-bold text-ink-muted">次にやると良いこと</h3>
             <p className="mt-1 text-sm leading-6">
               {AXIS_LABELS[result.weakest]}。{skill.name}（{skill.summary}）を
