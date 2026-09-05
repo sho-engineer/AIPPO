@@ -353,6 +353,78 @@ describe("おすすめは1本だけ", () => {
   });
 });
 
+describe("次の一歩と、おすすめの1本", () => {
+  /*
+    **この2つが食い違わないこと。**
+
+    実機で「次の一歩 プロンプト ／ Day 5・選択肢を比較する」と出た。
+    Day5 はプロンプトを渡す回ではない。原因は物差しのずれで、
+
+        次に伸ばすところ … 4 未満の軸を探す（`scoreDiagnosis`）
+        土台はできている … `ask >= 3 && condition >= 3`（`recommendLesson`）
+
+    と 1 ずれていた。「AIに頼む」が**ちょうど 3**の人は、技として
+    「プロンプト」を出しながら、行き先は行きたい方向のほうへ渡って
+    いた。1件だけでなく、答えの組み合わせ 1125 通りを総当たりで見る。
+  */
+  const USAGE = ["never", "tried", "sometimes", "work", "daily"];
+  const STYLE = ["lost", "short", "condition", "adapt", "design"];
+  const WHAT = ["explain", "summarize", "ideas"];
+  const WHO = ["first_time", "newcomer", "expert"];
+  const HOW = ["kind", "polite", "kind_polite", "technical", "casual"];
+
+  /** 総当たり。5問ぶんの答えを作って回す。 */
+  function everyAnswer(): Record<string, string>[] {
+    const all: Record<string, string>[] = [];
+    for (const ai_usage of USAGE)
+      for (const ask_style of STYLE)
+        for (const what of WHAT)
+          for (const who of WHO)
+            for (const how of HOW)
+              all.push({
+                ai_usage,
+                ask_style,
+                build_prompt: `${what}|${who}|${how}`,
+                match_purpose: "organize|compare|ideas",
+                // 行きたい方向は、土台とわざとぶつける
+                want_to_do: "comparing,images",
+              });
+    return all;
+  }
+
+  it("土台が弱いうちは、行きたい方向より土台の1本を渡す", () => {
+    /*
+      「頼む」「条件」が次に伸ばすところなら、渡すのは Day1。
+      ここで行きたい方向（比較・画像）へ渡すと、技の名前と
+      行き先が食い違う。
+    */
+    const wrong: string[] = [];
+    for (const answers of everyAnswer()) {
+      const { weakest } = scoreDiagnosis(answers);
+      if (weakest !== "ask" && weakest !== "condition") continue;
+      const lesson = recommendLesson(answers);
+      if (lesson !== "rewrite_text") {
+        wrong.push(`${JSON.stringify(answers)} → ${lesson}`);
+      }
+    }
+    expect(wrong.slice(0, 3).join("\n")).toBe("");
+  });
+
+  it("1行の理由も、同じ軸から出す", () => {
+    // 技は「プロンプト」なのに「頼み方は身についています」と言わない
+    const LINE: Record<string, string> = {
+      ask: "まずは、AIへの頼み方から始めましょう。",
+      condition: "お願いはできています。次は「誰向けか」を。",
+      purpose: "頼み方は身についています。次は場面に合う使い方を。",
+      workflow: "土台はそろっています。次は仕事の流れの中へ。",
+    };
+    for (const answers of everyAnswer()) {
+      const { weakest } = scoreDiagnosis(answers);
+      expect(recommendReason(answers)).toBe(LINE[weakest]);
+    }
+  });
+});
+
 describe("結果画面", () => {
   const values = {
     ai_usage: "sometimes",
@@ -362,7 +434,7 @@ describe("結果画面", () => {
     want_to_do: "writing",
   };
 
-  it("読まなくても分かる形——図を2つ、上に置く", () => {
+  it("読まなくても分かる形——まず図が出る", () => {
     /*
       前はここが文字だけだった。「いまの現在地」「できていること」
       「次の一歩」と見出しが縦に並び、下に短い文がぶら下がる。読めば
@@ -370,10 +442,71 @@ describe("結果画面", () => {
     */
     render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
 
-    // どこにいるか（5つの点の道）と、何が埋まっているか（4本の横棒）
+    // 開いた直後は道。5つの点でどこまで来たかを出す
     expect(screen.getByTestId("growth-track")).toBeInTheDocument();
     expect(screen.getAllByTestId("growth-node")).toHaveLength(5);
+  });
+
+  it("図は2通りから選べる", async () => {
+    /*
+      同じ4つの答えでも知りたいことは人によって違う。両方を同時に
+      出すと縦に伸びるうえ、どちらを読めばよいのか決められない。
+    */
+    const user = userEvent.setup();
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    expect(screen.queryByTestId("radar-chart")).toBeNull();
+
+    await user.click(screen.getByTestId("chart-tab-balance"));
+    expect(screen.getByTestId("radar-chart")).toBeInTheDocument();
+    // 片方ずつ。2つ同時には出さない
+    expect(screen.queryByTestId("growth-track")).toBeNull();
+
+    await user.click(screen.getByTestId("chart-tab-stage"));
+    expect(screen.getByTestId("growth-track")).toBeInTheDocument();
+    expect(screen.queryByTestId("radar-chart")).toBeNull();
+  });
+
+  it("図を切り替えても、できていることは消えない", async () => {
+    // 切り替えるのは図の見せ方であって、できていることではない
+    const user = userEvent.setup();
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    await user.click(screen.getByTestId("chart-tab-balance"));
+    expect(
+      screen.getByTestId("diagnosis-strengths").querySelectorAll("li"),
+    ).toHaveLength(2);
+  });
+
+  it("軸ごとの内訳は、通常の画面に出さない", async () => {
+    /*
+      内訳は「なぜそう出たか」を知りたい人のもので、次の1本を
+      決めるのに要るものではない。横棒4本で 85px 取ると、その分
+      おすすめと「くわしく見る」が下のボタンに隠れる。
+    */
+    const user = userEvent.setup();
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    expect(screen.queryAllByTestId("axis-bar")).toHaveLength(0);
+
+    await user.click(screen.getByTestId("diagnosis-reason-open"));
     expect(screen.getAllByTestId("axis-bar")).toHaveLength(4);
+  });
+
+  it("添えたレッスンは、押せば始められる", async () => {
+    // 押せる形にしてあるのに押せないと、見えているだけで届かない道になる
+    const user = userEvent.setup();
+    const picked: string[] = [];
+    render(
+      <DiagnosisResult
+        values={values}
+        lessons={COURSE.lessons}
+        onPickLesson={(id) => picked.push(id)}
+      />,
+    );
+
+    await user.click(screen.getAllByTestId("diagnosis-also-open")[0]);
+    expect(picked).toHaveLength(1);
   });
 
   it("いまいる点が1つだけ光り、次の点が分かる", () => {
@@ -429,6 +562,7 @@ describe("結果画面", () => {
     const shown = screen.getByTestId("completion-view").textContent ?? "";
     expect(shown).not.toContain("答えた内容");
     expect(shown).not.toContain("次に伸ばすとよいところ");
+    expect(shown).not.toContain("4つの力の内訳");
 
     await user.click(screen.getByTestId("diagnosis-reason-open"));
 
@@ -436,6 +570,7 @@ describe("結果画面", () => {
     expect(sheet).toHaveTextContent("答えた内容");
     expect(sheet).toHaveTextContent("次に伸ばすとよいところ");
     expect(sheet).toHaveTextContent("いまの段階");
+    expect(sheet).toHaveTextContent("4つの力の内訳");
     // 中央に浮かべる一枚（送れるのはこの中だけ）
     expect(sheet).toHaveAttribute("data-placement", "center");
   });

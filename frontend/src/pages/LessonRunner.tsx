@@ -391,6 +391,23 @@ export function LessonRunner({
             }
           : undefined
       }
+      /*
+        診断の結果に添えたレッスンを押したとき。**下のボタンと同じ道を通す。**
+
+        `onSelectLesson` を直に渡すと、診断を終えた記録
+        （`finalizeCompletion`）を飛ばしてそのレッスンへ移る。受けたのに
+        受けていないことになり、ホームのおすすめも既定のままになる
+        ——「次のコースを見る」で同じことが起きたのを直したのが、
+        すぐ上の `onOpenRecipe`。
+      */
+      onPickLesson={
+        onSelectLesson
+          ? (lessonId: string) => {
+              finalizeCompletion();
+              onSelectLesson(lessonId);
+            }
+          : undefined
+      }
     />
   );
 

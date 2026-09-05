@@ -138,7 +138,7 @@ export function recommendationsForHome(): string[] {
  * ほかを見たい人にはコースの一覧がある。
  */
 export function recommendLesson(answers: Record<string, string>): string {
-  const { axes, weakest } = scoreDiagnosis(answers);
+  const { weakest } = scoreDiagnosis(answers);
 
   /** 軸ごとの、そこを埋める1本。 */
   const FOR_AXIS: Record<Axis, string> = {
@@ -149,12 +149,23 @@ export function recommendLesson(answers: Record<string, string>): string {
   };
 
   /*
-    土台ができているか。
+    土台ができているか。**「次に伸ばすところ」と同じ物差しで決める。**
 
-    「AIに頼む」と「条件を加える」の2つが3以上なら、Day1 で渡すものは
-    ひととおり持っている。そこから先は行きたい方向で選んでよい。
+    前はここだけ 3 以上（`axes.ask >= 3 && axes.condition >= 3`）で
+    見ていた。ところが「次に伸ばすところ」は 4 未満を探す
+    （`scoreDiagnosis` の `weakest`）。物差しが 1 ずれているので、
+    たとえば「AIに頼む」が **ちょうど 3** の人は
+
+        次に伸ばすところ … AIに頼む（3 < 4）→ 技は「プロンプト」
+        土台はできている … 3 >= 3 → 行きたい方向の Day5 をすすめる
+
+    となり、画面には「次の一歩 プロンプト ／ Day 5・選択肢を比較する」
+    と出た。Day5 はプロンプトを渡す回ではない。実機で撮れている。
+
+    いまは `weakest` そのものを見る。土台の2軸が「次に伸ばすところ」
+    でなくなったとき＝土台ができたとき、という1つの定義で決まる。
   */
-  const hasBasics = axes.ask >= 3 && axes.condition >= 3;
+  const hasBasics = weakest !== "ask" && weakest !== "condition";
   if (hasBasics) {
     const wants = (answers.want_to_do ?? "").split(",").filter(Boolean);
     for (const want of wants) {
@@ -223,16 +234,21 @@ export function recommendPlan(answers: Record<string, string>): Recommendation {
  * 入れ物からあふれる（いちばん低い持ち方で実際にあふれた）。
  */
 export function recommendReason(answers: Record<string, string>): string {
-  const { axes } = scoreDiagnosis(answers);
+  /*
+    **「次に伸ばすところ」から引く。** ここで別のしきい値を書かない。
 
-  if (axes.ask < 3) {
-    return "まずは、AIへの頼み方から始めましょう。";
-  }
-  if (axes.condition < 3) {
-    return "お願いはできています。次は「誰向けか」を。";
-  }
-  if (axes.purpose < 4) {
-    return "頼み方は身についています。次は場面に合う使い方を。";
-  }
-  return "土台はそろっています。次は仕事の流れの中へ。";
+    前はこの関数だけ独自に `axes.ask < 3` などで判定していて、
+    技（4未満で決まる）と食い違っていた。「AIに頼む」が 3 の人には
+    技として「プロンプト」を出しながら、この行では「頼み方は
+    身についています」と言っていた——同じ画面が2つのことを言う。
+  */
+  const { weakest } = scoreDiagnosis(answers);
+
+  const LINES: Record<Axis, string> = {
+    ask: "まずは、AIへの頼み方から始めましょう。",
+    condition: "お願いはできています。次は「誰向けか」を。",
+    purpose: "頼み方は身についています。次は場面に合う使い方を。",
+    workflow: "土台はそろっています。次は仕事の流れの中へ。",
+  };
+  return LINES[weakest];
 }

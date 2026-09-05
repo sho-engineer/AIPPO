@@ -71,6 +71,14 @@ export interface StepRendererProps {
   onOpenCourseCatalog?: () => void;
   /** 「やり方をくわしく見る」を押したとき。 */
   onOpenRecipe?: (tipId: string) => void;
+  /**
+   * 診断の結果から、添えたレッスンを直接始めるとき。
+   *
+   * `onSelectLesson` をそのまま渡さない。診断を終えた記録
+   * （端末のおすすめ・サーバーへの送信）は `LessonRunner` が持って
+   * いて、そこを通らずに移ると**受けたことが残らない**。
+   */
+  onPickLesson?: (lessonId: string) => void;
 }
 
 export function StepRenderer({
@@ -85,6 +93,7 @@ export function StepRenderer({
   onSelectLesson,
   onOpenCourseCatalog,
   onOpenRecipe,
+  onPickLesson,
 }: StepRendererProps) {
   const { step, values, runs } = api;
   const completedCount = completedIds.length;
@@ -639,6 +648,7 @@ export function StepRenderer({
             values={values}
             lessons={course.lessons}
             onEditAnswer={api.goTo}
+            onPickLesson={onPickLesson}
           />
         );
       }

@@ -198,13 +198,14 @@ test.describe("AI活用診断", () => {
       if (!(await answerOne(page))) break;
     }
 
-    // どこにいるか（5つの点の道）と、何が埋まっているか（4本の横棒）
+    // 開いた直後は道。5つの点でどこまで来たかを出す
     await expect(page.getByTestId("growth-track")).toBeVisible();
     await expect(page.getByTestId("growth-node")).toHaveCount(5);
-    await expect(page.getByTestId("axis-bar")).toHaveCount(4);
     // 光る点は1つだけ。2つあると現在地が決められない
     await expect(page.locator("[data-testid='growth-node'][data-state='here']"))
       .toHaveCount(1);
+    // 軸ごとの内訳は、まだ出さない（「くわしく見る」の中）
+    await expect(page.getByTestId("axis-bar")).toHaveCount(0);
 
     await expect(
       page.getByTestId("diagnosis-strengths").getByRole("listitem"),
@@ -236,6 +237,9 @@ test.describe("AI活用診断", () => {
     await expect(page.getByTestId("completion-view")).not.toContainText(
       "答えた内容",
     );
+    await expect(page.getByTestId("completion-view")).not.toContainText(
+      "4つの力の内訳",
+    );
 
     await page.getByTestId("diagnosis-reason-open").click();
 
@@ -244,6 +248,8 @@ test.describe("AI活用診断", () => {
     await expect(sheet).toHaveAttribute("data-placement", "center");
     await expect(sheet).toContainText("答えた内容");
     await expect(sheet).toContainText("次に伸ばすとよいところ");
+    await expect(sheet).toContainText("4つの力の内訳");
+    await expect(sheet.getByTestId("axis-bar")).toHaveCount(4);
 
     // Esc で閉じられる
     await page.keyboard.press("Escape");
@@ -400,6 +406,62 @@ test.describe("AI活用診断", () => {
       "aria-disabled",
       "true",
     );
+  });
+
+  test("図は2通りから選べて、どちらも送らずに収まる", async ({ page }) => {
+    /*
+      ひし形（レーダー）のほうが縦に高い。ここを見ていないと、
+      切り替えた人だけが送らないと下のボタンに届かない状態になる
+      ——切り替えは押した人にしか起きないので、気づきにくい。
+    */
+    await page.setViewportSize({ width: 402, height: 660 });
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+    await expect(page.getByTestId("completion-view")).toBeVisible();
+
+    await expectFits(page, "結果（現在地）");
+
+    await page.getByTestId("chart-tab-balance").click();
+    await expect(page.getByTestId("radar-chart")).toBeVisible();
+    // 片方ずつ。2つ同時には出さない
+    await expect(page.getByTestId("growth-track")).toHaveCount(0);
+    await page.waitForTimeout(600);
+    await expectFits(page, "結果（スキルバランス）");
+
+    // できていることは、切り替えても消えない
+    await expect(
+      page.getByTestId("diagnosis-strengths").getByRole("listitem"),
+    ).toHaveCount(2);
+
+    await page.getByTestId("chart-tab-stage").click();
+    await expect(page.getByTestId("growth-track")).toBeVisible();
+    await expect(page.getByTestId("radar-chart")).toHaveCount(0);
+  });
+
+  test("添えたレッスンを押すと、その回が始まる", async ({ page }) => {
+    /*
+      押せる形にしてあるのに押せないと、見えているだけで届かない道になる。
+      **診断を受けた記録も残ること**——ここを飛ばすと、受けたのに
+      受けていないことになる（ホームのおすすめが既定のまま戻る）。
+    */
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+
+    const also = page.getByTestId("diagnosis-also-open").first();
+    const label = (await also.innerText()).replace(/\s+/g, "");
+    await also.click();
+
+    // 診断から出て、そのレッスンが開いている
+    await expect(page.getByTestId("completion-view")).toHaveCount(0);
+    const title = (await page.getByTestId("lesson-header").innerText()).replace(
+      /\s+/g,
+      "",
+    );
+    expect(label).toContain(title);
   });
 
   test("診断の途中で「×」を押すと、一度たしかめる", async ({ page }) => {
