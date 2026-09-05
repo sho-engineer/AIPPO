@@ -440,6 +440,45 @@ test.describe("AI活用診断", () => {
     await expect(page.getByTestId("radar-chart")).toHaveCount(0);
   });
 
+  test("図を押すと、一枚の中で大きく開く", async ({ page }) => {
+    /*
+      結果の画面に置ける大きさは、いちばん低い持ち方（402×660）で
+      送らずに収まる上限まで——ひし形は 92px 角しかなく、**読むには
+      小さい**。収める都合と読める大きさは両立しないので、読みたい人
+      には開いた一枚のほうで応える。
+    */
+    await page.setViewportSize({ width: 402, height: 660 });
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+
+    await expect(page.getByTestId("growth-track")).toHaveAttribute(
+      "data-size",
+      "sm",
+    );
+    await page.getByTestId("chart-expand").click();
+
+    const sheet = page.getByTestId("diagnosis-reason-sheet");
+    await expect(sheet).toBeVisible();
+    await expect(sheet.getByTestId("growth-track")).toHaveAttribute(
+      "data-size",
+      "lg",
+    );
+
+    // 中で切り替えたものが、閉じたあとの図にも残る
+    await sheet.getByTestId("chart-tab-balance").click();
+    await expect(sheet.getByTestId("radar-chart")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByTestId("radar-chart")).toHaveAttribute(
+      "data-size",
+      "sm",
+    );
+    await page.waitForTimeout(600);
+    await expectFits(page, "結果（開いて閉じたあと）");
+  });
+
   test("添えたレッスンを押すと、その回が始まる", async ({ page }) => {
     /*
       押せる形にしてあるのに押せないと、見えているだけで届かない道になる。

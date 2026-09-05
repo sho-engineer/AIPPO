@@ -46,28 +46,43 @@ const ANGLE: Record<Axis, number> = {
   workflow: 180,
 };
 
-const SIZE = 92;
-const CENTER = SIZE / 2;
-const RADIUS = 31;
 const MAX = 5;
 
-function at(axis: Axis, value: number): [number, number] {
-  const radians = (ANGLE[axis] * Math.PI) / 180;
-  const length = (Math.max(0, Math.min(MAX, value)) / MAX) * RADIUS;
-  return [CENTER + Math.cos(radians) * length, CENTER + Math.sin(radians) * length];
-}
+/**
+ * 大きさは2通り。
+ *
+ * 結果の画面に置くほう（`sm`）は、いちばん低い持ち方（402×660）で
+ * 送らずに収まる上限がここ。**それでも小さい**ので、押すと一枚の中で
+ * 大きく開く（`lg`）。図を読むこと自体が目的の場面では、収める都合に
+ * 縛られる理由が無い。
+ */
+const SIZES = {
+  sm: { box: 92, radius: 31, label: "text-[0.625rem]", dot: 2.8, focusDot: 4 },
+  lg: { box: 208, radius: 74, label: "text-xs", dot: 4.5, focusDot: 6.5 },
+} as const;
 
-function polygon(values: Record<Axis, number>): string {
-  return AXES.map((axis) => at(axis, values[axis]).join(",")).join(" ");
+export type RadarSize = keyof typeof SIZES;
+
+function at(box: number, radius: number, axis: Axis, value: number): [number, number] {
+  const center = box / 2;
+  const radians = (ANGLE[axis] * Math.PI) / 180;
+  const length = (Math.max(0, Math.min(MAX, value)) / MAX) * radius;
+  return [center + Math.cos(radians) * length, center + Math.sin(radians) * length];
 }
 
 export interface RadarChartProps {
   axes: Record<Axis, number>;
   /** 次に伸ばすところ。頂点を1つだけ強く出す。 */
   focus?: Axis;
+  size?: RadarSize;
 }
 
-export function RadarChart({ axes, focus }: RadarChartProps) {
+export function RadarChart({ axes, focus, size = "sm" }: RadarChartProps) {
+  const { box: SIZE, radius: RADIUS, label: LABEL, dot, focusDot } = SIZES[size];
+  const CENTER = SIZE / 2;
+  const point = (axis: Axis, value: number) => at(SIZE, RADIUS, axis, value);
+  const polygon = (values: Record<Axis, number>) =>
+    AXES.map((axis) => point(axis, values[axis]).join(",")).join(" ");
   const [drawn, setDrawn] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setDrawn(true));
@@ -89,7 +104,7 @@ export function RadarChart({ axes, focus }: RadarChartProps) {
   );
 
   return (
-    <div data-testid="radar-chart">
+    <div data-testid="radar-chart" data-size={size}>
       <div className="relative mx-auto" style={{ width: SIZE, height: SIZE }}>
         <svg
           viewBox={`0 0 ${SIZE} ${SIZE}`}
@@ -115,8 +130,8 @@ export function RadarChart({ axes, focus }: RadarChartProps) {
               key={axis}
               x1={CENTER}
               y1={CENTER}
-              x2={at(axis, MAX)[0]}
-              y2={at(axis, MAX)[1]}
+              x2={point(axis, MAX)[0]}
+              y2={point(axis, MAX)[1]}
               className="stroke-brand-line"
               strokeWidth={0.8}
             />
@@ -147,13 +162,13 @@ export function RadarChart({ axes, focus }: RadarChartProps) {
               strokeLinejoin="round"
             />
             {AXES.map((axis) => {
-              const [x, y] = at(axis, axes[axis]);
+              const [x, y] = point(axis, axes[axis]);
               return (
                 <circle
                   key={axis}
                   cx={x}
                   cy={y}
-                  r={axis === focus ? 4 : 2.8}
+                  r={axis === focus ? focusDot : dot}
                   className={
                     axis === focus
                       ? "fill-canvas stroke-brand"
@@ -191,7 +206,7 @@ export function RadarChart({ axes, focus }: RadarChartProps) {
             <span
               key={axis}
               aria-hidden="true"
-              className={`absolute whitespace-nowrap text-[0.625rem] leading-4 ${
+              className={`absolute whitespace-nowrap leading-4 ${LABEL} ${
                 axis === focus ? "font-bold text-brand-dark" : "text-ink-muted"
               } ${place[axis]}`}
             >

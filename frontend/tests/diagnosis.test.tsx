@@ -467,6 +467,42 @@ describe("結果画面", () => {
     expect(screen.queryByTestId("radar-chart")).toBeNull();
   });
 
+  it("図を押すと、一枚の中で大きく開く", async () => {
+    /*
+      結果の画面に置ける大きさは、いちばん低い持ち方で送らずに収まる
+      上限まで——ひし形は 92px 角しかなく、読むには小さい。収める都合と
+      読める大きさは両立しないので、読みたい人には開いた一枚で応える。
+    */
+    const user = userEvent.setup();
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    expect(screen.getByTestId("growth-track")).toHaveAttribute("data-size", "sm");
+
+    await user.click(screen.getByTestId("chart-expand"));
+
+    const sheet = screen.getByTestId("diagnosis-reason-sheet");
+    expect(sheet.querySelector("[data-testid='growth-track']")).toHaveAttribute(
+      "data-size",
+      "lg",
+    );
+  });
+
+  it("開いた中で切り替えると、後ろの図も同じものになる", async () => {
+    // 閉じたときに、見ていたものと違う図が残っていると混乱する
+    const user = userEvent.setup();
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    await user.click(screen.getByTestId("chart-expand"));
+    const sheet = screen.getByTestId("diagnosis-reason-sheet");
+    await user.click(
+      sheet.querySelector("[data-testid='chart-tab-balance']") as HTMLElement,
+    );
+    await user.click(screen.getAllByLabelText("閉じる").at(-1) as HTMLElement);
+
+    expect(screen.getByTestId("radar-chart")).toHaveAttribute("data-size", "sm");
+    expect(screen.queryByTestId("growth-track")).toBeNull();
+  });
+
   it("図を切り替えても、できていることは消えない", async () => {
     // 切り替えるのは図の見せ方であって、できていることではない
     const user = userEvent.setup();
@@ -569,8 +605,9 @@ describe("結果画面", () => {
     const sheet = screen.getByTestId("diagnosis-reason-sheet");
     expect(sheet).toHaveTextContent("答えた内容");
     expect(sheet).toHaveTextContent("次に伸ばすとよいところ");
-    expect(sheet).toHaveTextContent("いまの段階");
     expect(sheet).toHaveTextContent("4つの力の内訳");
+    // 段階の名前と説明は、大きい図のほうが持つ（見出しを重ねない）
+    expect(sheet).toHaveTextContent(STAGES[3].name);
     // 中央に浮かべる一枚（送れるのはこの中だけ）
     expect(sheet).toHaveAttribute("data-placement", "center");
   });

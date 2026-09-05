@@ -41,9 +41,18 @@ const SHORT: readonly string[] = ["試す", "頼む", "条件", "使い分け", 
 export interface GrowthTrackProps {
   /** いまの段階（1〜5）。 */
   stage: number;
+  /**
+   * 大きさ。
+   *
+   * 結果の画面では小さく（`sm`）、押して開いた一枚の中では大きく
+   * （`lg`）。図を読むこと自体が目的の場面では、1画面に収める都合に
+   * 縛られる理由が無い。
+   */
+  size?: "sm" | "lg";
 }
 
-export function GrowthTrack({ stage }: GrowthTrackProps) {
+export function GrowthTrack({ stage, size = "sm" }: GrowthTrackProps) {
+  const big = size === "lg";
   const [drawn, setDrawn] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setDrawn(true));
@@ -56,14 +65,25 @@ export function GrowthTrack({ stage }: GrowthTrackProps) {
   const filled = (index / last) * 100;
 
   return (
-    <div data-testid="growth-track">
+    /*
+      大きいときは、上に場所を空ける。
+
+      いまいる点は道の**上下へはみ出して**座る（`-mt`）。大きくすると
+      はみ出す量も増え、6px しか空けていない上の切り替えに乗り上げて
+      いた——「現在地」の札の上に丸が重なって出ていた。
+    */
+    <div data-testid="growth-track" data-size={size} className={big ? "pt-2" : ""}>
       <div className="relative">
         {/*
           道そのもの。左右に点の半径ぶんの余白を作らず、**点の中心を
           端に置く**——道が点からはみ出していると、まだ先があるのか
           そこで終わりなのかが読めない。
         */}
-        <div className="relative mx-[10%] h-1 rounded-full bg-brand-line">
+        <div
+          className={`relative mx-[10%] rounded-full bg-brand-line ${
+            big ? "h-1.5" : "h-1"
+          }`}
+        >
           <div
             className="h-full rounded-full bg-brand transition-[width] duration-500 ease-out"
             style={{ width: `${drawn ? filled : 0}%` }}
@@ -79,7 +99,7 @@ export function GrowthTrack({ stage }: GrowthTrackProps) {
             return (
               <li
                 key={one.number}
-                className="flex flex-1 flex-col items-center"
+                className="flex flex-1 flex-col items-center px-0.5"
                 data-testid="growth-node"
                 data-state={here ? "here" : done ? "done" : next ? "next" : "todo"}
               >
@@ -92,14 +112,18 @@ export function GrowthTrack({ stage }: GrowthTrackProps) {
                     なので、4つとも道に溶けて見えず、光っている1つ以外
                     どこにも点が無い（＝5つ並んだ道に見えない）状態だった。
                   */
-                  className={`-mt-[3px] block rounded-full border-2 transition duration-300 ease-out ${
+                  className={`block rounded-full border-2 transition duration-300 ease-out ${
+                    big ? "-mt-[9px]" : "-mt-[3px]"
+                  } ${
                     here
-                      ? "h-4 w-4 border-brand bg-brand ring-4 ring-brand-soft"
-                      : done
-                        ? "h-2.5 w-2.5 border-brand bg-brand"
-                        : next
-                          ? "h-2.5 w-2.5 border-brand bg-canvas"
-                          : "h-2.5 w-2.5 border-brand-line bg-canvas"
+                      ? `${big ? "h-6 w-6" : "h-4 w-4"} border-brand bg-brand ring-4 ring-brand-soft`
+                      : `${big ? "h-4 w-4" : "h-2.5 w-2.5"} ${
+                          done
+                            ? "border-brand bg-brand"
+                            : next
+                              ? "border-brand bg-canvas"
+                              : "border-brand-line bg-canvas"
+                        }`
                   }`}
                   style={{
                     transform: drawn && here ? "scale(1)" : here ? "scale(0.6)" : undefined,
@@ -112,7 +136,7 @@ export function GrowthTrack({ stage }: GrowthTrackProps) {
                   ただの飾りになる。
                 */}
                 <span
-                  className={`mt-2 text-[0.6875rem] leading-4 ${
+                  className={`leading-4 ${big ? "mt-3 text-xs" : "mt-2 text-[0.6875rem]"} ${
                     here ? "font-bold text-brand-dark" : "text-ink-muted"
                   }`}
                 >
@@ -129,11 +153,19 @@ export function GrowthTrack({ stage }: GrowthTrackProps) {
         ——点の並びは飾りとして隠してある。
       */}
       <p
-        className="mt-8 text-[0.9375rem] font-bold leading-6 text-brand-dark"
+        className={`font-bold leading-6 text-brand-dark ${
+          big ? "mt-11 text-center text-base" : "mt-8 text-[0.9375rem]"
+        }`}
         data-testid="growth-stage-name"
       >
         {STAGES[index].name}
       </p>
+      {/* 一枚の中では、段階の説明も添える。読むために開いた場所なので */}
+      {big && (
+        <p className="mt-1 text-center text-sm leading-6 text-ink-muted">
+          {STAGES[index].summary}
+        </p>
+      )}
       <p className="sr-only">
         5つの段階のうち {STAGES[index].number} つ目です。
       </p>

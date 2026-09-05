@@ -464,6 +464,20 @@ export function IconMore({ className }: IconProps) {
   );
 }
 
+/**
+ * 四隅へ開く矢印。図を大きく見る。
+ *
+ * 虫めがねにしない。あれは「探す」の記号で、押すと検索欄が出ると
+ * 読まれる。ここで起きるのは**同じものが大きくなる**ことだけ。
+ */
+export function IconExpand({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <path d="M9.5 4.5H4.5V9.5M14.5 4.5h5v5M9.5 19.5h-5v-5M14.5 19.5h5v-5" />
+    </Svg>
+  );
+}
+
 /** ベル。お知らせ。 */
 export function IconBell({ className }: IconProps) {
   return (

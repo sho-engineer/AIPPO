@@ -21,6 +21,8 @@
 
 import type { ReactNode } from "react";
 
+import { IconExpand } from "../../Icons";
+
 export type ChartKind = "stage" | "balance";
 
 const OPTIONS: { value: ChartKind; label: string }[] = [
@@ -33,9 +35,25 @@ export interface ChartSwitchProps {
   onChange: (next: ChartKind) => void;
   /** 図の中身。切り替えた先がここへ入る。 */
   children: ReactNode;
+  /**
+   * 図を押したときに、大きく開く。
+   *
+   * 結果の画面に置ける大きさは、いちばん低い持ち方（402×660）で
+   * 送らずに収まる上限まで——実物は 92px 角で、**読むには小さい**。
+   * 収める都合と、読める大きさは両立しないので、読みたい人には
+   * 一枚の中で大きく出す。
+   *
+   * 渡されなければ押せない見た目にする（`button` を出さない）。
+   */
+  onExpand?: () => void;
 }
 
-export function ChartSwitch({ value, onChange, children }: ChartSwitchProps) {
+export function ChartSwitch({
+  value,
+  onChange,
+  children,
+  onExpand,
+}: ChartSwitchProps) {
   return (
     <div
       className="rounded-card border border-line bg-surface px-3 pb-2 pt-1.5"
@@ -74,7 +92,29 @@ export function ChartSwitch({ value, onChange, children }: ChartSwitchProps) {
         })}
       </div>
 
-      <div className="mt-1.5">{children}</div>
+      {onExpand ? (
+        <button
+          type="button"
+          onClick={onExpand}
+          data-testid="chart-expand"
+          aria-label="図を大きく見る"
+          /*
+            押せることを、隅の印1つで示す。枠や影は足さない——この面は
+            もともと札の中にあり、そこへさらに枠を重ねると、押す先が
+            2段あるように見える。
+          */
+          className="relative mt-1.5 block w-full rounded-badge transition
+                     hover:bg-brand-soft/40"
+        >
+          {children}
+          <IconExpand
+            className="absolute right-0 top-0 h-3.5 w-3.5 text-ink-muted"
+            aria-hidden="true"
+          />
+        </button>
+      ) : (
+        <div className="mt-1.5">{children}</div>
+      )}
     </div>
   );
 }

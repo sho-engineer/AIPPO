@@ -97,7 +97,22 @@ export function DiagnosisResult({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="completion-view">
-      <ChartSwitch value={chart} onChange={setChart}>
+      {/*
+        図。押すと、同じものが一枚の中で大きく開く。
+
+        ここに置ける大きさは、いちばん低い持ち方（402×660）で送らずに
+        収まる上限まで——ひし形は 92px 角しかなく、**読むには小さい**。
+        収める都合と読める大きさは両立しないので、読みたい人には
+        開いた一枚のほうで応える。
+      */}
+      <ChartSwitch
+        value={chart}
+        onChange={setChart}
+        onExpand={() => {
+          setOpen(true);
+          onOpenReason?.();
+        }}
+      >
         {chart === "stage" ? (
           <GrowthTrack stage={result.stage.number} />
         ) : (
@@ -241,13 +256,21 @@ export function DiagnosisResult({
           title="診断の見かた"
           onClose={() => setOpen(false)}
         >
-          <section>
-            <h3 className="text-xs font-bold text-ink-muted">いまの段階</h3>
-            <p className="mt-1 text-sm font-bold leading-6">{result.stage.name}</p>
-            <p className="mt-1 text-sm leading-6 text-ink-muted">
-              {result.stage.summary}
-            </p>
-          </section>
+          {/*
+            図を、大きく。**一枚のいちばん上に置く。**
+
+            ここは読むために開いた場所なので、1画面に収める都合から
+            外れてよい。切り替えは結果の画面と同じものを使い、
+            状態も共有する——開いてから切り替えて閉じたのに、後ろの
+            小さい図だけ元のまま、では何を見ていたのか分からなくなる。
+          */}
+          <ChartSwitch value={chart} onChange={setChart}>
+            {chart === "stage" ? (
+              <GrowthTrack stage={result.stage.number} size="lg" />
+            ) : (
+              <RadarChart axes={result.axes} focus={result.weakest} size="lg" />
+            )}
+          </ChartSwitch>
 
           {/*
             軸ごとの内訳。**通常の画面から、ここへ移した。**
