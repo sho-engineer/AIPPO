@@ -281,6 +281,23 @@ export function IconFolder({ className }: IconProps) {
   );
 }
 
+/**
+ * 写真。画像をつくる・直す。
+ *
+ * 前はここに星（`IconSparkle`）を当てていた。あれは「AIが何か
+ * すごいことをする」の記号で、絵を作る話とは関係がない。診断の
+ * 選択肢に星が1つだけ光っていると、そこだけ別の意味を持って見える。
+ */
+export function IconImage({ className }: IconProps) {
+  return (
+    <Svg className={className}>
+      <rect x="3.5" y="5" width="17" height="14" rx="2.4" />
+      <path d="M3.9 16.2 8.8 11.6a1.6 1.6 0 0 1 2.2 0l4.2 4M14.6 13.6l1.6-1.5a1.6 1.6 0 0 1 2.2 0l1.7 1.6" />
+      <circle cx="9.1" cy="9.4" r="1.2" />
+    </Svg>
+  );
+}
+
 /** 電球。アイデアを考える。 */
 export function IconBulb({ className }: IconProps) {
   return (

@@ -54,10 +54,9 @@ export type PoScene =
     診断の結果。**祝う場面ではない。**
 
     何かを終えたのではなく、次の一歩を受け取る場面なので、
-    `celebrate` とは分ける。大きさも `lg`（120px）ではなく `md`
-    ——結果画面には現在地・できていること・次の技・おすすめが縦に
-    並ぶので、ここでポーが大きいと、いちばん低い持ち方でその全部が
-    画面の下へ押し出される（実測で 165px ぶん送れる状態になっていた）。
+    `celebrate` とは分ける。大きさは下の表のとおり `sm`
+    ——結果画面には道・横棒・次の一歩が縦に並ぶので、ここでポーが
+    大きいと、いちばん低い持ち方でその全部が画面の下へ押し出される。
   */
   | "result";
 
@@ -265,6 +264,24 @@ export function poAppearance(where: PoSituation): PoAppearance | null {
   if (where.diagnosis && where.stepType === "completion") {
     return { scene: "result", speaks: true, emotion: "hint" };
   }
+
+  /*
+    診断の問いには、ポーを出さない。**入りと結果だけ。**
+
+    診断は7画面あって、そのうち5画面が問い。全部にポーが立つと、
+    同じ顔と同じ調子の吹き出しが5回続く。居るのが当たり前になった
+    時点で、居ることが何も言わなくなる——「毎画面には出ない」という
+    この表の目的そのものが、診断の中だけ守られていなかった。
+
+    問いの画面でポーが言っていたのは「いまの正直なところで大丈夫です」
+    のような添え書きで、これは教材の説明文（`instruction`）が
+    受け持てる。ポーの分（吹き出しと背丈で 90px 前後）が空けば、
+    そのぶん選択肢が上へ来て、いちばん低い持ち方でも送らずに済む。
+
+    入り（何をするところか案内する）と結果（次の一歩を渡す）は残す。
+    どちらもポーが**役を持っている**画面なので。
+  */
+  if (where.diagnosis && where.stepType !== "intro") return null;
 
   const scene = BY_STEP[where.stepType];
   return scene ? { scene, speaks: true } : null;

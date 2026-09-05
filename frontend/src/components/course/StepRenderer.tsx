@@ -630,13 +630,16 @@ export function StepRenderer({
     case "completion":
       if (lesson.id === "diagnosis") {
         /*
-          結果は**4つだけ**（現在地・できていること2・次のAI技1・
-          おすすめ1）。前はここにおすすめが3本並んでいて、選べるように
-          見えて「次に何をするか」をもう一度選ばせているだけだった。
-          詳しい話は「理由を見る」の一枚の中（`DiagnosisResult.tsx`）。
+          上から **図・図・次にやること**（`DiagnosisResult.tsx`）。
+          読まなくても現在地が分かる形にしてある。長い話と、答えの
+          直しは「くわしく見る」の一枚の中。
         */
         return (
-          <DiagnosisResult values={values} lessons={course.lessons} />
+          <DiagnosisResult
+            values={values}
+            lessons={course.lessons}
+            onEditAnswer={api.goTo}
+          />
         );
       }
       return (

@@ -44,6 +44,17 @@ export interface LessonProgressProps {
   total: number;
   /** 区切り（ミッション）。無ければ帯を割らない。 */
   missions?: Mission[];
+  /**
+   * 区切りの名前の代わりに出す文字。
+   *
+   * 区切りを持たない流れ——診断のように「5つ聞いて終わり」というもの
+   * ——では、`missions` から取れる名前が場面と合わない。診断では
+   * 「試す」「自分で使う」と出ていて、聞かれているのは自分のことなのに
+   * 何かを試している最中に見えていた。
+   */
+  label?: string;
+  /** 右に出す数え方。`3 / 19` のような内部の歩数を出したくないときに使う。 */
+  count?: string;
   /** いま何番目の区切りか。1始まり。 */
   currentMission?: number;
 }
@@ -52,6 +63,8 @@ export function LessonProgress({
   current,
   total,
   missions = [],
+  label,
+  count,
   currentMission = 0,
 }: LessonProgressProps) {
   const safeTotal = Math.max(1, total);
@@ -111,6 +124,16 @@ export function LessonProgress({
           })}
       </div>
 
+      {/*
+        名前も数も無いときは、行そのものを作らない。
+
+        空の行でも 16px ＋ 上の余白 6px を取る。診断の結果の画面には
+        区切りの名前も何問目も無く、そこだけで 22px を空の行に使って
+        いた——1画面に収める柱では、その 22px が図から引かれる。
+      */}
+      {(label ?? here?.label ?? "") !== "" ||
+      (count ?? (missions.length > 1 ? `${currentMission} / ${missions.length}` : "")) !==
+        "" ? (
       <div className="mt-1.5 flex items-baseline justify-between gap-3">
         {/*
           いまどの区切りにいるか。名前だけを出す。
@@ -120,7 +143,7 @@ export function LessonProgress({
           className="min-w-0 truncate text-xs text-ink-muted"
           data-testid="lesson-mission"
         >
-          {here?.label ?? ""}
+          {label ?? here?.label ?? ""}
         </span>
         {/*
           区切りの番号だけを出す。**内部の歩数は出さない。**
@@ -133,15 +156,16 @@ export function LessonProgress({
           帯の幅が細かい進み具合を持っているので、数字は
           「4つのうち2つ目」だけでよい。
         */}
-        {missions.length > 1 && (
+        {(count ?? (missions.length > 1 ? undefined : "")) !== "" && (
           <span
             className="shrink-0 text-xs tabular-nums text-ink-muted"
             data-testid="lesson-mission-count"
           >
-            {currentMission} / {missions.length}
+            {count ?? `${currentMission} / ${missions.length}`}
           </span>
         )}
       </div>
+      ) : null}
     </div>
   );
 }

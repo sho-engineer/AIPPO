@@ -250,6 +250,16 @@ export function LessonRunner({
   ).length;
 
   /*
+    いま何問目か。**答えを持つ回だけ**を数える。
+
+    入りと結果は問いではないので、そこでは番号を出さない。
+    診断の帯（`LessonProgress`）に渡す。
+  */
+  const questions = lesson.steps.filter((each) => each.key);
+  const questionCount = questions.length;
+  const questionAt = questions.findIndex((each) => each.id === step.id);
+
+  /*
     この回に**入ってきたときの答え**。
 
     自動送りの引き金をここに変えた。前は `isAnswered`——つまり
@@ -763,6 +773,25 @@ export function LessonRunner({
           : { title: step.title, instruction: step.instruction })}
         progress={api.progress}
         missions={api.missions.missions}
+        /*
+          診断の帯だけ、言い方を変える。
+
+          区切りの名前は教材の骨格から来ていて、診断では「試す」
+          「自分で使う」と出ていた。聞かれているのは自分のことなのに、
+          何かを試している最中に見える。結果の画面に至っては
+          「自分で使う 2 / 2」で、何が 2 / 2 なのか読み取れない。
+
+          代わりに、いま何問目かを出す。5問だと最初に言ってあるので、
+          この数だけが「あとどれくらいか」を正しく答える。
+        */
+        label={lesson.id === "diagnosis" ? "" : undefined}
+        count={
+          lesson.id === "diagnosis"
+            ? questionAt >= 0
+              ? `質問 ${questionAt + 1} / ${questionCount}`
+              : ""
+            : undefined
+        }
         currentMission={api.missions.current}
         phase={step.phase}
         /*
@@ -806,14 +835,26 @@ export function LessonRunner({
             唯一の道になっている（一度これごと消して、直す道が
             消えた——`e2e/diagnosisEdit.spec.ts` が10件とも落ちた）。
           */
-          (lesson.id === "diagnosis" && step.type !== "completion")
-            ? []
-            : api.summary
+          /*
+            診断では、この行を**どの画面にも出さない。**
+
+            結果の画面にだけ残していたが、結果を見に来た人のいちばん上に
+            「ここまでに答えた内容（5件）」が畳まれて場所を取る形で、
+            自分の答えが結果より先に目に入っていた。答えの一覧と
+            「なおす」は「くわしく見る」の一枚の中へ移した
+            （`DiagnosisResult.tsx`）。
+          */
+          lesson.id === "diagnosis" ? [] : api.summary
         }
         onEditSummary={editSummary}
         primaryLabel={
           lesson.id === "diagnosis" && step.type === "completion"
-            ? "おすすめLessonから始める"
+            ? /*
+                「おすすめLessonから始める」をやめた。日本語の中に
+                Lesson が挟まって読みにくく、押す前に一度立ち止まる。
+                押した先は上のカードに書いてあるので、ここは短くてよい。
+              */
+              "ここから始める"
             : primaryLabel(step)
         }
         onPrimary={onPrimary}

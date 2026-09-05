@@ -37,6 +37,10 @@ export interface StepShellProps {
   /** レッスンの中の区切り。帯を割り、いまいる区切りの名前を出す。 */
   missions?: Mission[];
   currentMission?: number;
+  /** 区切りの名前の代わりに出す文字（`LessonProgress`）。 */
+  label?: string;
+  /** 帯の右に出す数え方（`LessonProgress`）。 */
+  count?: string;
   /**
    * いまどの区切りか。
    *
@@ -144,6 +148,8 @@ export function StepShell({
   progress,
   missions,
   currentMission,
+  label,
+  count,
   phase,
   po,
   summary,
@@ -218,6 +224,8 @@ export function StepShell({
           total={progress.total}
           missions={missions}
           currentMission={currentMission}
+          label={label}
+          count={count}
         />
       </div>
 

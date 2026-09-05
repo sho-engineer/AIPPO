@@ -176,10 +176,10 @@ export interface DiagnosisResult {
 
 /** 軸ごとに、そこができていると言える文。 */
 const STRENGTH_LINES: Record<Axis, string> = {
-  ask: "AIにしてほしいことを伝えられる",
-  condition: "誰向けか・どんな言い方かを足せる",
-  purpose: "目的に合った使い方を選べる",
-  workflow: "仕事の流れの中でAIを使える",
+  ask: "AIに頼める",
+  condition: "条件を足せる",
+  purpose: "目的に合わせられる",
+  workflow: "仕事の流れで使える",
 };
 
 /** 0〜1 を 1〜5 の段階へ。四捨五入ではなく、上へ届いた分だけ上げる。 */

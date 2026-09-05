@@ -188,35 +188,42 @@ test.describe("AI活用診断", () => {
     }
   });
 
-  test("結果は、次の1つを決めるだけの画面にする", async ({ page }) => {
+  test("結果は、読む前に図で分かる", async ({ page }) => {
     /*
-      前はここにおすすめが3本並んでいた。選べるように見えて、
-      「次に何をするか」をもう一度選ばせているだけだった。
+      前はここが文字だけだった。見出しと短い文が縦に並ぶ形で、
+      読むまで何も分からない——診断の結果としては遅い。
     */
     await openDiagnosis(page);
     for (let guard = 0; guard < 8; guard += 1) {
       if (!(await answerOne(page))) break;
     }
 
-    await expect(page.getByTestId("diagnosis-stage")).toBeVisible();
+    // どこにいるか（5つの点の道）と、何が埋まっているか（4本の横棒）
+    await expect(page.getByTestId("growth-track")).toBeVisible();
+    await expect(page.getByTestId("growth-node")).toHaveCount(5);
+    await expect(page.getByTestId("axis-bar")).toHaveCount(4);
+    // 光る点は1つだけ。2つあると現在地が決められない
+    await expect(page.locator("[data-testid='growth-node'][data-state='here']"))
+      .toHaveCount(1);
+
     await expect(
       page.getByTestId("diagnosis-strengths").getByRole("listitem"),
     ).toHaveCount(2);
-    await expect(page.getByTestId("diagnosis-next-skill")).toBeVisible();
-    // おすすめは1本だけ
-    await expect(page.getByTestId("diagnosis-lesson")).toHaveCount(1);
-    await expect(page.getByTestId("completion-view")).not.toContainText("おすすめ2");
 
-    // 押す先は2つ。おすすめから始める／Day1から確かめる
-    await expect(page.getByTestId("primary-action")).toHaveText(
-      /おすすめLessonから始める/,
-    );
+    // 大きく出すおすすめは1本、添えるのが2本
+    await expect(page.getByTestId("diagnosis-next-skill")).toBeVisible();
+    await expect(page.getByTestId("diagnosis-lesson")).toHaveCount(1);
+    await expect(
+      page.getByTestId("diagnosis-also").getByRole("listitem"),
+    ).toHaveCount(2);
+
+    await expect(page.getByTestId("primary-action")).toHaveText(/ここから始める/);
     await expect(
       page.getByRole("button", { name: "Day1から確認する" }),
     ).toBeVisible();
   });
 
-  test("長い話は「理由を見る」の中だけ", async ({ page }) => {
+  test("長い話は「くわしく見る」の中だけ", async ({ page }) => {
     /*
       通常の画面に長文を置くと、読む画面になって次の一歩が遠くなる。
       開いた一枚の中だけは送ってよい。
@@ -227,7 +234,7 @@ test.describe("AI活用診断", () => {
     }
 
     await expect(page.getByTestId("completion-view")).not.toContainText(
-      "いまの4つの力",
+      "答えた内容",
     );
 
     await page.getByTestId("diagnosis-reason-open").click();
@@ -235,8 +242,8 @@ test.describe("AI活用診断", () => {
     const sheet = page.getByTestId("diagnosis-reason-sheet");
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAttribute("data-placement", "center");
-    await expect(sheet).toContainText("いまの4つの力");
-    await expect(sheet).toContainText("どの回答から判断したか");
+    await expect(sheet).toContainText("答えた内容");
+    await expect(sheet).toContainText("次に伸ばすとよいところ");
 
     // Esc で閉じられる
     await page.keyboard.press("Escape");
@@ -260,7 +267,7 @@ test.describe("AI活用診断", () => {
         `overflow: hidden` で切って収めない。**中身を減らしてから**
         収める——切ると、見えなくなった要素に気づけない。
 
-        ここで見るのはページそのものの縦。開いた一枚（理由を見る）の
+        ここで見るのはページそのものの縦。開いた一枚（くわしく見る）の
         中だけは送ってよいので、そこは通らない。
       */
       await page.setViewportSize({ width, height });

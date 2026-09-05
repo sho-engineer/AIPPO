@@ -80,7 +80,15 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
     どちらにもなるため。教材を足すたびに分岐を書き足したくない。
   */
   const longest = Math.max(0, ...options.map((option) => option.label.length));
-  const tiles = longest > 8;
+  /*
+    ひとこと補足（`note`）を持つ選択肢は、短い言葉でもタイルにする。
+
+    「文章」「要約」だけを札で並べると、何をしてくれるのかが分から
+    ないまま選ぶことになる。補足を添えるなら2行ぶんの高さが要るので、
+    横に流す札ではなく高さのそろうタイルへ。
+  */
+  const noted = options.some((option) => option.note);
+  const tiles = longest > 8 || noted;
 
   /*
     2列にすると1枚が 375px の画面で 170px 前後になり、余白を引くと
@@ -193,17 +201,35 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
               >
                 <ChoiceButton
                   label={option.label}
+                  /*
+                    ひとことの補足。**選ぶ前に中身が分かるように。**
+
+                    「調べもの」「整理」だけでは、何をしてくれるのかが
+                    分からないまま選ぶことになる。教材データが
+                    `note` を持っているときだけ添える。
+                  */
+                  description={option.note}
                   selected={active}
                   onSelect={() => toggle(option)}
                   tall
+                  /*
+                    説明が付く札は、印を浮かせて余白を詰める。
+
+                    既定の作りは印のために 20px＋12px を**流れの中に**
+                    空ける。2列だと1枠 175px しかなく、そこから絵と
+                    余白を引くと文字に残るのは 75px——「情報や予定を
+                    まとめる」がどれも2行に折れて、札1つが 98px に
+                    なっていた（実測）。7つ並べて 71px はみ出す。
+                  */
+                  compact={Boolean(option.note)}
                   icon={
                     Glyph ? (
                       <span
                         aria-hidden="true"
-                        className={`flex h-9 w-9 items-center justify-center rounded-card
+                        className={`flex h-8 w-8 items-center justify-center rounded-badge
                                     ${active ? "bg-brand text-white" : "bg-brand-soft text-brand"}`}
                       >
-                        <Glyph className="h-5 w-5" />
+                        <Glyph className="h-4 w-4" />
                       </span>
                     ) : undefined
                   }

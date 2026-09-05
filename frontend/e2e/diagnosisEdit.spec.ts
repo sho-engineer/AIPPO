@@ -101,15 +101,22 @@ async function answerRemaining(page: Page): Promise<void> {
   throw new Error("診断から抜けられない");
 }
 
-/** まとめを開いて、行の文字を読む。 */
+/**
+ * 答えの一覧を開いて、行の文字を読む。
+ *
+ * 置き場が変わった。前は結果画面のいちばん上に折りたたみ
+ * （「ここまでに答えた内容（5件）」）で出ていたが、結果を見に来た人の
+ * 最初に自分の答えが目に入る形だったので、「くわしく見る」の一枚の
+ * 中へ移した（`DiagnosisResult.tsx`）。開けば「なおす」もそこにある。
+ */
 async function summaryLines(page: Page): Promise<string[]> {
-  const box = page.locator("details").first();
-  if ((await box.getAttribute("open")) === null) {
-    await box.locator("summary").click();
+  const sheet = page.getByTestId("diagnosis-reason-sheet");
+  if ((await sheet.count()) === 0) {
+    await page.getByTestId("diagnosis-reason-open").click();
+    await expect(sheet).toBeVisible();
   }
-  return (await box.locator("li").allInnerTexts()).map((line) =>
-    line.replace(/\s*なおす\s*$/, "").trim(),
-  );
+  const lines = await sheet.locator("li").allInnerTexts();
+  return lines.map((line) => line.replace(/\s*なおす\s*$/, "").trim());
 }
 
 test.describe("診断の「なおす」", () => {

@@ -172,6 +172,47 @@ function lessonExists(id: string): boolean {
 }
 
 /**
+ * おすすめを、順位を付けて3本返す。
+ *
+ * 1本に絞っていたころとの違い
+ * ---------------------------
+ * 一時期、結果画面のおすすめを1本にしていた。3本並ぶと「次に何をするか」を
+ * もう一度選ばせることになる、という理由だった。
+ *
+ * ただし1本だけだと、**その1本が刺さらなかった人の行き先が無くなる**。
+ * 画像をやりたくて来た人に「文章を分かりやすくする」だけを出して終わると、
+ * 自分のための道具ではないと読まれる。
+ *
+ * いまは1本目だけを大きく置き、2本目・3本目は小さく添える。決めるのは
+ * 1本目で、残りは**そこが違ったときの逃げ道**として置く——同じ大きさで
+ * 3枚並べるのとは意味が違う。
+ */
+export interface Recommendation {
+  /** いちばん先に出す1本。 */
+  first: string;
+  /** そのあとに小さく添える2本。 */
+  rest: string[];
+}
+
+export function recommendPlan(answers: Record<string, string>): Recommendation {
+  const first = recommendLesson(answers);
+  const rest = recommendLessons(answers)
+    .concat(DEFAULTS)
+    .concat(COURSE.lessons.filter((lesson) => lesson.usesAi).map((one) => one.id))
+    /*
+      実在するものだけ。**引き当ての表は教材より先に増える**ので、
+      まだ無い id が混じる。混じったまま渡すと、その1枚だけが
+      黙って消えて、2枚並ぶはずの列が1枚になる（実際そうなった）。
+    */
+    .filter(
+      (id, at, all) =>
+        id !== first && all.indexOf(id) === at && lessonExists(id),
+    )
+    .slice(0, 2);
+  return { first, rest };
+}
+
+/**
  * なぜこの1本なのかを、1行で。
  *
  * 結果画面に出すのはこれだけ。詳しい話は「理由を見る」の中へ回す

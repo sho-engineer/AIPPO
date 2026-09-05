@@ -101,6 +101,7 @@ const LESSON_0: Lesson = {
       type: "single_choice",
       primaryLabel: "次へ",
       title: "AIをどれくらい使っていますか？",
+      instruction: "いまの正直なところで大丈夫です。",
       /*
         「週に何回か」は聞かない。回数が同じでも、**仕事の流れに
         入っているかどうか**で next の一歩が変わる。
@@ -124,6 +125,7 @@ const LESSON_0: Lesson = {
       type: "single_choice",
       primaryLabel: "次へ",
       title: "AIにお願いするとき、どれに近い？",
+      instruction: "いちばん近いものをひとつ。",
       /*
         主観を聞かない。「自信がありますか」だと、同じ力の人でも
         性格で答えが割れる。**どうやって頼んでいるか**という行動を聞く。
@@ -247,23 +249,27 @@ const LESSON_0: Lesson = {
       /*
         職種・業界・使っているAIサービスは**初回では聞かない**。
         答えても次の一歩は変わらないのに、答える手間だけが増える。
+
+        ひとことの補足を添える（`note`）。「調べもの」「整理」だけでは、
+        何をしてくれるのかが分からないまま選ぶことになる。札7つが
+        画面の上のほうに小さく固まって、下が丸ごと空いてもいた。
       */
       options: [
-        { value: "writing", label: "文章" },
-        { value: "summarizing", label: "要約" },
-        { value: "researching", label: "調べもの" },
-        { value: "ideas", label: "アイデア" },
-        { value: "comparing", label: "比較" },
-        { value: "organizing", label: "整理" },
-        { value: "images", label: "画像" },
+        { value: "writing", label: "文章", note: "メールや企画書" },
+        { value: "summarizing", label: "要約", note: "長い文章を短く" },
+        { value: "researching", label: "調べもの", note: "集めて整理する" },
+        { value: "ideas", label: "アイデア", note: "発想のヒント" },
+        { value: "comparing", label: "比較", note: "見くらべる" },
+        { value: "organizing", label: "整理", note: "情報や予定" },
+        { value: "images", label: "画像", note: "つくる・直す" },
       ],
     },
 
     {
       id: "result",
       type: "completion",
-      title: "いまの現在地です",
-      poMessage: "ここから始めるのがおすすめ！",
+      title: "いまの場所が見えました",
+      poMessage: "5つの答えから、まとめました。",
       poEmotion: "hint",
       skill: "自分の現在地が分かる",
     },

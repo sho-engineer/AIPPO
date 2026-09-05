@@ -26,6 +26,7 @@
           "type": "single_choice",
           "primaryLabel": "次へ",
           "title": "AIをどれくらい使っていますか？",
+          "instruction": "いまの正直なところで大丈夫です。",
           "poMessage": "いまの正直なところで大丈夫です。",
           "poEmotion": "question",
           "key": "ai_usage",
@@ -58,6 +59,7 @@
           "type": "single_choice",
           "primaryLabel": "次へ",
           "title": "AIにお願いするとき、どれに近い？",
+          "instruction": "いちばん近いものをひとつ。",
           "poMessage": "いちばん近いものをひとつ。",
           "poEmotion": "question",
           "key": "ask_style",
@@ -240,39 +242,46 @@
           "options": [
             {
               "value": "writing",
-              "label": "文章"
+              "label": "文章",
+              "note": "メールや企画書"
             },
             {
               "value": "summarizing",
-              "label": "要約"
+              "label": "要約",
+              "note": "長い文章を短く"
             },
             {
               "value": "researching",
-              "label": "調べもの"
+              "label": "調べもの",
+              "note": "集めて整理する"
             },
             {
               "value": "ideas",
-              "label": "アイデア"
+              "label": "アイデア",
+              "note": "発想のヒント"
             },
             {
               "value": "comparing",
-              "label": "比較"
+              "label": "比較",
+              "note": "見くらべる"
             },
             {
               "value": "organizing",
-              "label": "整理"
+              "label": "整理",
+              "note": "情報や予定"
             },
             {
               "value": "images",
-              "label": "画像"
+              "label": "画像",
+              "note": "つくる・直す"
             }
           ]
         },
         {
           "id": "result",
           "type": "completion",
-          "title": "いまの現在地です",
-          "poMessage": "ここから始めるのがおすすめ！",
+          "title": "いまの場所が見えました",
+          "poMessage": "5つの答えから、まとめました。",
           "poEmotion": "hint",
           "skill": "自分の現在地が分かる"
         }

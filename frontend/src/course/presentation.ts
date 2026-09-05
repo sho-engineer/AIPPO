@@ -27,6 +27,7 @@ import {
   IconScale,
   IconScissors,
   IconSmile,
+  IconImage,
   IconSparkle,
   type Icon,
 } from "../components/Icons";
@@ -142,7 +143,7 @@ const DIAGNOSIS_ICONS: Record<string, Icon> = {
   ideas: IconBulb,
   comparing: IconScale,
   organizing: IconFolder,
-  images: IconSparkle,
+  images: IconImage,
 };
 
 export function diagnosisIcon(value: string): Icon | null {

@@ -362,22 +362,54 @@ describe("結果画面", () => {
     want_to_do: "writing",
   };
 
-  it("現在地・できていること2・次のAI技1・おすすめ1だけを出す", () => {
+  it("読まなくても分かる形——図を2つ、上に置く", () => {
     /*
-      前はここにおすすめが3本並んでいた。選べるように見えて、
-      「次に何をするか」をもう一度選ばせているだけだった。
+      前はここが文字だけだった。「いまの現在地」「できていること」
+      「次の一歩」と見出しが縦に並び、下に短い文がぶら下がる。読めば
+      分かるが、**読むまで何も分からない**。
     */
     render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
 
-    expect(screen.getByTestId("diagnosis-stage")).toBeInTheDocument();
+    // どこにいるか（5つの点の道）と、何が埋まっているか（4本の横棒）
+    expect(screen.getByTestId("growth-track")).toBeInTheDocument();
+    expect(screen.getAllByTestId("growth-node")).toHaveLength(5);
+    expect(screen.getAllByTestId("axis-bar")).toHaveLength(4);
+  });
+
+  it("いまいる点が1つだけ光り、次の点が分かる", () => {
+    // 光る点が2つあると、どちらが現在地なのか決められない
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    const nodes = screen.getAllByTestId("growth-node");
+    const here = nodes.filter((one) => one.dataset.state === "here");
+    const next = nodes.filter((one) => one.dataset.state === "next");
+    expect(here).toHaveLength(1);
+    expect(next.length).toBeLessThanOrEqual(1);
+  });
+
+  it("おすすめは、1本目を大きく・残り2本を小さく", () => {
+    /*
+      1本だけにしていた時期がある。3本並ぶと「次に何をするか」を
+      もう一度選ばせることになる、という理由だった。ただし1本だけだと
+      **その1本が刺さらなかった人の行き先が無くなる**ので、
+      大きさを変えて3本出す。
+    */
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+
+    expect(screen.getByTestId("diagnosis-next-skill")).toBeInTheDocument();
+    // 大きく出すのは1本だけ
+    expect(screen.getAllByTestId("diagnosis-lesson")).toHaveLength(1);
+    // 添えるのは2本まで
+    expect(
+      screen.getByTestId("diagnosis-also").querySelectorAll("li"),
+    ).toHaveLength(2);
+  });
+
+  it("できていることは、2つまで", () => {
+    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
     expect(
       screen.getByTestId("diagnosis-strengths").querySelectorAll("li"),
     ).toHaveLength(2);
-    expect(screen.getByTestId("diagnosis-next-skill")).toBeInTheDocument();
-    // おすすめは1つ。2つ目・3つ目の節は無い
-    expect(screen.getAllByTestId("diagnosis-lesson")).toHaveLength(1);
-    expect(screen.queryByText(/おすすめ ?2/)).toBeNull();
-    expect(screen.queryByText(/おすすめ ?3/)).toBeNull();
   });
 
   it("細かい点数を、通常の画面に出さない", () => {
@@ -389,23 +421,48 @@ describe("結果画面", () => {
     expect(shown).not.toMatch(/\d\s*\/\s*5/);
   });
 
-  it("長い話は「理由を見る」の中へ逃がす", async () => {
+  it("長い話は「くわしく見る」の中へ逃がす", async () => {
     const user = userEvent.setup();
     render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
 
-    // 通常の画面には、軸の名前も回答の一覧も出ていない
+    // 通常の画面には、答えの一覧も段階の説明も出ていない
     const shown = screen.getByTestId("completion-view").textContent ?? "";
-    expect(shown).not.toContain("いまの4つの力");
-    expect(shown).not.toContain("どの回答から判断したか");
+    expect(shown).not.toContain("答えた内容");
+    expect(shown).not.toContain("次に伸ばすとよいところ");
 
     await user.click(screen.getByTestId("diagnosis-reason-open"));
 
     const sheet = screen.getByTestId("diagnosis-reason-sheet");
-    expect(sheet).toHaveTextContent("いまの4つの力");
-    expect(sheet).toHaveTextContent("どの回答から判断したか");
+    expect(sheet).toHaveTextContent("答えた内容");
     expect(sheet).toHaveTextContent("次に伸ばすとよいところ");
+    expect(sheet).toHaveTextContent("いまの段階");
     // 中央に浮かべる一枚（送れるのはこの中だけ）
     expect(sheet).toHaveAttribute("data-placement", "center");
+  });
+
+  it("答えの直しは、その一枚の中から", async () => {
+    /*
+      結果を見てから「そこは違う」と気づく人がいる。気づいたのに
+      直せないと、出た結果を信じるしかなくなる。
+    */
+    const user = userEvent.setup();
+    const edited: string[] = [];
+    render(
+      <DiagnosisResult
+        values={values}
+        lessons={COURSE.lessons}
+        onEditAnswer={(id) => edited.push(id)}
+      />,
+    );
+
+    await user.click(screen.getByTestId("diagnosis-reason-open"));
+    const buttons = screen
+      .getByTestId("diagnosis-reason-sheet")
+      .querySelectorAll("button");
+    const fix = [...buttons].find((one) => one.textContent?.includes("なおす"));
+    expect(fix).toBeDefined();
+    await user.click(fix as HTMLElement);
+    expect(edited).toEqual(["ai_usage"]);
   });
 
   it("理由の中では、記号ではなく選んだ言葉で返す", async () => {
