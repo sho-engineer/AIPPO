@@ -165,6 +165,14 @@ interface Streak {
   lastDate: string;
   /** 自分の課題で試した回数。 */
   realTaskCount: number;
+  /**
+   * ひらいた日（新しい順）。**14日ぶんだけ持つ。**
+   *
+   * 「今週の学習」を出すのに要る。連続日数（`days`）は途切れると 1 に
+   * 戻るので、**今週なんども開いたこと**は残らない。かといって
+   * 全部の日付を持つ必要も無い——見せるのは直近7日ぶんだけ。
+   */
+  openDays?: string[];
 }
 
 function today(): string {
@@ -187,9 +195,12 @@ export function readStreak(): Streak {
       days: Number(parsed.days) || 0,
       lastDate: typeof parsed.lastDate === "string" ? parsed.lastDate : "",
       realTaskCount: Number(parsed.realTaskCount) || 0,
+      openDays: Array.isArray(parsed.openDays)
+        ? parsed.openDays.filter((one: unknown) => typeof one === "string")
+        : [],
     };
   } catch {
-    return { days: 0, lastDate: "", realTaskCount: 0 };
+    return { days: 0, lastDate: "", realTaskCount: 0, openDays: [] };
   }
 }
 
@@ -211,9 +222,29 @@ export function touchStreak(): Streak {
     ...current,
     lastDate: now,
     days: current.lastDate === yesterday() ? current.days + 1 : 1,
+    openDays: [now, ...(current.openDays ?? [])].slice(0, 14),
   };
   writeStreak(next);
   return next;
+}
+
+/**
+ * この7日でひらいた日数。
+ *
+ * ホームの「今週の学習」に出す。**数えているものだけを出す**ため、
+ * 滞在時間や回数ではなく「ひらいた日」を数える——測っていない数字を
+ * 見た目のために作らない。
+ *
+ * 「月曜から今日まで」にはしない。週の変わり目で 0 に戻ると、日曜に
+ * 続けた人ほど何も無い画面を見ることになる。
+ */
+export function daysThisWeek(): number {
+  const since = new Date();
+  since.setDate(since.getDate() - 6);
+  const from = since.toISOString().slice(0, 10);
+  return new Set(
+    (readStreak().openDays ?? []).filter((day) => day >= from),
+  ).size;
 }
 
 export function countRealTask(): void {

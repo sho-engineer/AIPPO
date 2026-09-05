@@ -62,7 +62,7 @@ test.describe("AI技図鑑", () => {
     await stubApi(page, { skillDex: DEX });
     await toHome(page);
 
-    await page.getByRole("button", { name: "AI技" }).click();
+    await page.getByRole("button", { name: "マイ学び" }).click();
 
     await expect(page.getByTestId("skill-count")).toHaveText("1 / 2");
   });
@@ -71,7 +71,7 @@ test.describe("AI技図鑑", () => {
     await stubApi(page, { skillDex: DEX });
     await toHome(page);
 
-    await page.getByRole("button", { name: "AI技" }).click();
+    await page.getByRole("button", { name: "マイ学び" }).click();
     await page.getByTestId("skill-toggle-comparison").click();
     await page.getByTestId("skill-lesson-comparison-compare_options").click();
 
@@ -86,7 +86,7 @@ test.describe("AI技図鑑", () => {
     await stubApi(page, { skillDex: DEX });
     await toHome(page);
 
-    await page.getByRole("button", { name: "AI技" }).click();
+    await page.getByRole("button", { name: "マイ学び" }).click();
     /*
       名前は丸ごと一致で探す。帯のロゴにも「ホームへ戻る」が付いたので、
       部分一致だと2つに当たる（ここで見たいのは下タブのほう）。
@@ -96,12 +96,19 @@ test.describe("AI技図鑑", () => {
     await expect(page.getByTestId("next-up")).toBeVisible();
   });
 
-  test("1つも覚えていない人は、ホームにこの節が出ない", async ({ page }) => {
-    // 「0こ」を置いても、できることが増えていないと言われるだけになる
+  test("1つも覚えていなくても、数え始めの 0 として出す", async ({ page }) => {
+    /*
+      前は隠していた。いまは「今週の学習」と横に並ぶので、片方だけ
+      消すと器が欠ける。0 は始まりの姿であって、できていないという
+      指摘ではない——だから「0こ 覚えました」とは書かない。
+    */
     await stubApi(page);
     await toHome(page);
 
-    await expect(page.getByTestId("skill-summary")).toHaveCount(0);
+    const card = page.getByTestId("skill-summary");
+    await expect(card).toBeVisible();
+    await expect(card).toContainText("身についたこと");
+    await expect(card).not.toContainText("AI技");
   });
 
   test("覚えた人には、ホームから直接ひらける", async ({ page }) => {

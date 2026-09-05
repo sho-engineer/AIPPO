@@ -1,75 +1,65 @@
 /**
  * ホーム。
  *
- * ここは「ダッシュボード」ではない。開いた瞬間に
- * **今日なにをすればいいか**が分かる画面にする。
+ * ここは「ダッシュボード」ではない。**今日のつづきをやりに戻ってくる
+ * 場所**にする。開いた瞬間に見えるのは、おかえりの一言と、今日の1本と、
+ * それを始めるボタン。それ以外は下へ流す。
  *
  * 順番は上から:
  *
- *   1. ポーのひとこと（小さく・横並び）
- *   2. 今日のレッスン ← **この画面の主役**
- *   3. これまで（続けた日数・終えた本数・覚えた技・道のり）
- *   4. 見返しどき・飛ばした解説
- *   5. おすすめコース
- *   6. カテゴリから探す
+ *   1. おかえりなさい ＋ ポーのひとこと
+ *   2. 今日のつづき ← **この画面の主役**
+ *   3. これまでの記録（進み具合の帯と丸）
+ *   4. 身についたこと ／ 今週の学習
+ *   5. ほかにも見る
  *
  * 「これから」を先に、「これまで」を後に
  * --------------------------------------
- * 前は 3 の中身が今日の1本より上にあった。どれも「ここまでの自分」の
- * 話で、**まだ今日を始めていない人に先に見せるもの**ではない。
- * 開いた人が最初に触るものを、最初に置く。
+ * 3 以降はどれも「ここまでの自分」の話で、**まだ今日を始めていない人に
+ * 先に見せるもの**ではない。開いた人が最初に触るものを、最初に置く。
  *
  * 面で囲うのは、今日の1本ひとつだけ
  * --------------------------------
- * 白い面が2つ3つと浮くと、どれが本題かが分からなくなる。
- * 道のりも、おすすめも、探すも、線と余白で区切る。
+ * 白い面が2つ3つと浮くと、どれが本題かが分からなくなる。記録も、探すも、
+ * 線と余白で区切る（「身についたこと／今週の学習」の2枚だけは、数字を
+ * 並べる器として例外）。
  *
- * 何をやめたか
- * ------------
- * - 大きなポー（`PoHero`）… 見出し2行＋大きな絵＋吹き出しで、開いた
- *   直後の1画面をほぼ使い切っていた。ポーは案内役であって扉の絵ではない
- * - 全レッスンの一覧（7日間の道のり）… ホームで一覧まで見せると、
- *   「次に何をするか」と「全体の順番」を同じ画面が二重に持つことになる。
- *   順番はコースの道のり（CourseDetailPage）が持ち、ここからは
- *   進み具合と入口だけを出す
- * - 「学習の進み具合」という独立した節 … 見出し・丸の列・節目の予告・
- *   2つの数字で、今日の1本より背が高かった。数字は上の1行へ、
- *   丸と予告は道のりのカードへ分けた
+ * ホームに置かないもの
+ * --------------------
+ * - **AI活用診断** … 受けるのは1回。毎日開く場所の主役にはしない
+ * - **おすすめコース** … 「次に何をするか」は今日の1本が答える。
+ *   もう1つ並べると、開くたびに選び直させることになる
+ * - **Credit の話** … 学びの画面で数える話ではない
  *
- * 役割を分ける
- * ------------
- * ホーム＝「次に何をするか」。道のりの画面＝「全体の順番と現在地」。
- * どちらか一方を見れば足りる状態にしない代わりに、同じものを
- * 両方には置かない。
- *
- * 出すのは**自分のこと**だけ。順位も、他人との比較も出さない
- * （比べさせると、遅い人ほど続かなくなる）。
+ * 「AI技」と書かない
+ * ------------------
+ * ホームでは「身についたこと」。同じものを図鑑の中では技として扱うが、
+ * 毎日開く場所に AI の語を並べると、学習アプリではなく AI の道具箱に
+ * 見える。
  *
  * 数字は測ったものだけ
  * --------------------
  * 支給デザインには「学習時間 2時間15分」がある。**出していない。**
  * このアプリは滞在時間を測っていないので、出すなら数え始めるところから
- * になる。空いた場所には、実際に数えている「続けて n 日」を置いた。
- * 見た目のために、測っていない数字を作らない。
+ * になる。「今週の学習」も同じで、**ひらいた日を数えて**出している
+ * （`lib/draft.ts` の `daysThisWeek`）。見た目のために、測っていない
+ * 数字を作らない。
  */
 
 import { useEffect, useState } from "react";
 
 import { AppHeader, IconMark } from "../components/AppShell";
-import { HomeStats } from "../components/aippo/HomeStats";
-import { SkillSummary } from "../components/aippo/SkillSummary";
-import { PoGreeting } from "../components/aippo/PoGreeting";
+import { PoFace } from "../po/PoAvatar";
 import { PrimaryButton } from "../components/aippo/PrimaryButton";
 import { ReviewPrompt } from "../components/ReviewPrompt";
 import { ReviewCards } from "../components/course/ReviewCards";
-import { PathProgress } from "../components/course/PathProgress";
 import {
-  IconArrow,
   IconBookmark,
+  IconCalendar,
+  IconCheck,
   IconChevronRight,
   IconClock,
-  IconSparkle,
-  IconStreak,
+  IconMedal,
 } from "../components/Icons";
 import { useCourse } from "../course/live";
 import { startableLessons } from "../course/availability";
@@ -78,7 +68,7 @@ import { LessonThumbnail } from "../components/lessons/LessonThumbnail";
 import { lessonThumbnail } from "../course/lessonThumbnail";
 import { recommendationsForHome } from "../course/recommend";
 import { useCompletedLessons, useXpSummary } from "../course/progress";
-import { readStreak, touchStreak } from "../lib/draft";
+import { daysThisWeek, touchStreak } from "../lib/draft";
 import { EVENTS, track } from "../lib/analytics";
 import type { Lesson } from "../course/types";
 
@@ -90,89 +80,97 @@ export interface HomePageProps {
   onOpenPath: (courseId: string) => void;
   /** 学習記録タブへ。 */
   onOpenRecord: () => void;
-  /** AI技図鑑へ。何ができるようになったかを見る場所 */
+  /** 身についたことの一覧へ。 */
   onOpenSkills: () => void;
   onOpenAccount: () => void;
 }
 
-// ------------------------------------------------------------ 節の見出し
+// ---------------------------------------------------------- おかえりなさい
 
 /**
- * 節の見出し。左に線だけの印、右に行き先。
+ * 迎える一言と、ポー。
  *
- * 印は器に入れない。淡色の四角に入れると、節が増えるほど同じ形の四角が
- * 縦に並び、見出しそのものより印のほうが目立つ。
+ * 見出しは**いつも「おかえりなさい」ではない**。初めての人に
+ * 「おかえり」と言うと、どこから帰ってきたのか分からない。
+ *
+ * ポーは右に小さく。吹き出しは1行で切れる長さにする——ここで2行に
+ * なると、今日の1本がそのぶん下がる。
  */
-function SectionHeading({
-  icon,
-  id,
-  children,
-  action,
-}: {
-  icon: Parameters<typeof IconMark>[0]["icon"];
-  id: string;
-  children: React.ReactNode;
-  action?: { label: string; onClick: () => void };
-}) {
+function Welcome({ done, bubble }: { done: number; bubble: string }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <h2 id={id} className="flex items-center gap-2 text-base font-bold">
-        <IconMark icon={icon} className="h-[1.125rem] w-[1.125rem]" />
-        {children}
-      </h2>
-      {action && (
-        <button
-          type="button"
-          onClick={action.onClick}
-          /* 当たり判定を広げる（py と -my を同じだけ。見た目は変わらない） */
-          className="-my-2 flex shrink-0 items-center gap-0.5 py-2 text-xs font-bold
-                     text-brand transition hover:text-brand-dark"
+    <section className="flex items-start gap-3" data-testid="home-greeting">
+      <div className="min-w-0 flex-1 pt-1">
+        {/*
+          22px。24px にすると「おかえりなさい」が 196px になり、
+          吹き出しとポーを足した幅が 390px に収まらず、見出しが
+          2行に割れる（下の但し書きに実測を残した）。
+        */}
+        <h1 className="text-[1.375rem] font-bold leading-8">
+          {done === 0 ? "はじめまして" : "おかえりなさい"}
+        </h1>
+        <p className="mt-1 text-sm leading-6 text-ink-muted">
+          今日も少しずつ、やってみましょう。
+        </p>
+      </div>
+
+      {/*
+        吹き出しとポー。**装飾ではなく、ひとこと言う役**。
+
+        ふきだしは絵の左に置く。右に置くと画面の端に寄って、
+        しっぽの向きと文字の流れが逆になる。
+
+        右の幅を詰める理由
+        ------------------
+        390px の実測で、この行に使えるのは 350px（左右 20px の余白）。
+        絵は `sm`（枠 78px）で、一覧まわりと同じ背丈——**ここだけ
+        小さくしない**（`po/sizes.ts`。大きさは役割で決める）。
+        だから詰められるのは吹き出しの側だけで、88px まで。
+        右は 86 ＋ すきま 4 ＋ 78 で 168px、左に 170px 残る。
+
+        見出し「おかえりなさい」は 22px で 154px。**24px にすると
+        196px になって収まらず、3行に割れる**（実際そうなっていた）。
+        吹き出しの一言も**6文字まで**。7文字で折り返し、折り返した
+        ぶんだけ今日の1本が下がる。
+      */}
+      <div className="flex shrink-0 items-center gap-1">
+        <p
+          data-testid="po-hero-message"
+          aria-live="polite"
+          className="max-w-[5.5rem] rounded-card bg-surface px-2.5 py-1.5
+                     text-[0.6875rem] leading-4 shadow-card"
         >
-          {action.label}
-          <IconChevronRight className="h-3.5 w-3.5" />
-        </button>
-      )}
-    </div>
+          {bubble}
+        </p>
+        <div data-testid="po-avatar" data-emotion="talking" className="pointer-events-none">
+          <PoFace emotion="talking" size="sm" />
+        </div>
+      </div>
+    </section>
   );
 }
 
 // ---------------------------------------------------------- 今日のつづき
 
 /**
- * 今日のレッスン。この画面の主役。
+ * 今日の1本。この画面の主役。
  *
- * 出すのは**レッスンの**名前とねらい。コース名ではない。
- * コース名（7日でAIの最初の一歩）はどの日も同じで、今日やることを
- * 何も言っていない。開いた人が知りたいのは「次に何をするか」で、
- * それはレッスンの題とねらいにしか書かれていない。
+ * 出すのは**レッスンの**名前とねらい。コース名ではない。コース名は
+ * どの日も同じで、今日やることを何も言っていない。
  *
- * 高さを抑える
- * ------------
- * 前は絵を横いっぱいに敷いていた。390px の画面で、このカード1枚が
- * ほぼ1画面ぶんの高さになり、下に何があるのか分からなくなっていた。
- * 絵は左に 38%、題とねらいは右。ボタンだけを下いっぱいに置く。
- *
- * 絵は**引き伸ばさない**（4:3 のまま。LessonThumbnail が保証する）。
- * ポーが歪んだり切れたりしてはいけない。
- *
- * 「今日はここから」は札にしない
- * ------------------------------
- * 小さな前置きの1行に留める。囲って色を付けると、肝心の題より
- * 前置きのほうが強くなる。
- *
- * 所要時間はボタンの隣に置く。「8分なら今できる」と決められるように、
- * 押す直前に見える場所へ置く。
- *
- * この画面で押す場所は基本ここ1つなので、面で囲う条件を満たしている。
- * 逆に言えば、囲ってよいのはここだけ。
+ * 絵は右、文字は左。**ボタンは幅いっぱい。** この画面でいちばん強く
+ * 押せる場所は、ここ1つと決める。
  */
 function TodayCard({
   lesson,
   started,
+  day,
+  total,
   onStart,
 }: {
   lesson: Lesson;
   started: boolean;
+  day: number;
+  total: number;
   onStart: () => void;
 }) {
   const thumbnail = lessonThumbnail(lesson);
@@ -188,45 +186,173 @@ function TodayCard({
         {started ? "今日のつづき" : "今日はここから"}
       </p>
 
-      <div className="mt-2 flex items-start gap-3">
-        {/*
-          今日やる1本の絵。絵の無いレッスンでは、この場所ごと出さない
-          （枠だけ残すと、読み込みに失敗しているように見える）。
-          文字の側は flex-1 なので、絵が無ければ横いっぱいに広がる。
-        */}
-        {thumbnail && <LessonThumbnail src={thumbnail} variant="side" />}
-
+      <div className="mt-1.5 flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <h2 id="next-heading" className="text-lg font-bold leading-7">
             {lesson.title}
           </h2>
-          {/*
-            ねらいは2行まで。3行入ると、絵より文字のほうが背が高くなり、
-            カードの高さが教材ごとにばらつく。
-          */}
-          <p className="mt-1 line-clamp-2 text-xs leading-6 text-ink-muted">
-            {lesson.goal}
+
+          {/* かかる時間と、7日のうちの何日目か。押す前に決める材料 */}
+          <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-muted">
+            {lesson.estimatedMinutes !== undefined && (
+              <span className="flex items-center gap-1">
+                <IconClock className="h-3.5 w-3.5" />約{lesson.estimatedMinutes}分
+              </span>
+            )}
+            <span className="flex items-center gap-1 tabular-nums">
+              <IconCalendar className="h-3.5 w-3.5" />
+              Day {day} / {total}
+            </span>
+          </p>
+
+          <p className="mt-2 line-clamp-2 text-[0.8125rem] leading-6 text-ink-muted">
+            {lesson.outcomeDescription ?? lesson.goal}
           </p>
         </div>
+
+        {/*
+          今日やる1本の絵。絵の無いレッスンでは、この場所ごと出さない
+          （枠だけ残すと、読み込みに失敗しているように見える）。
+        */}
+        {thumbnail && <LessonThumbnail src={thumbnail} variant="side" />}
       </div>
 
-      <div className="mt-3 flex items-center gap-3">
-        <PrimaryButton
-          testId="continue-lesson"
-          onClick={onStart}
-          trailing={<IconChevronRight className="h-5 w-5 shrink-0" />}
-          className="flex-1"
-        >
-          {started ? "つづきをはじめる" : "はじめる"}
-        </PrimaryButton>
-
-        {lesson.estimatedMinutes !== undefined && (
-          <span className="flex shrink-0 items-center gap-1 text-xs text-ink-muted">
-            <IconClock className="h-4 w-4" />約{lesson.estimatedMinutes}分
-          </span>
-        )}
-      </div>
+      <PrimaryButton
+        testId="continue-lesson"
+        onClick={onStart}
+        trailing={<IconChevronRight className="h-5 w-5 shrink-0" />}
+        className="mt-4 w-full"
+      >
+        {started ? "つづきをはじめる" : "はじめる"}
+      </PrimaryButton>
     </section>
+  );
+}
+
+// ------------------------------------------------------------ これまでの記録
+
+/**
+ * どこまで来たか。**帯と丸だけ。**
+ *
+ * 前はここに「あと3レッスンで 1 Credit」まで出していた。学びの画面で
+ * 数える話ではないうえ、進み具合の意味が「あと何回でもらえるか」に
+ * すり替わる。
+ */
+function Record({
+  done,
+  total,
+  onOpenRecord,
+}: {
+  done: number;
+  total: number;
+  onOpenRecord: () => void;
+}) {
+  const ratio = total > 0 ? Math.min(1, done / total) : 0;
+
+  return (
+    <section aria-labelledby="record-heading" data-testid="progress-summary">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="record-heading" className="text-base font-bold">
+          これまでの記録
+        </h2>
+        <button
+          type="button"
+          onClick={onOpenRecord}
+          data-testid="open-record"
+          className="-my-2 shrink-0 py-2 text-xs text-ink-muted tabular-nums
+                     transition hover:text-ink"
+        >
+          <span className="font-bold text-ink">
+            {done} / {total}
+          </span>{" "}
+          レッスン完了
+        </button>
+      </div>
+
+      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-line">
+        <div
+          className="h-full rounded-full bg-brand transition-[width] duration-500 ease-out"
+          style={{ width: `${ratio * 100}%` }}
+        />
+      </div>
+
+      {/*
+        丸は帯の言い換え。**数字を3つ目にしない**——帯・丸・分数で
+        同じことを3回言うと、どれを見ればよいのか決められなくなる。
+        分数は上の行が持っているので、ここは形だけ。
+      */}
+      <ul className="mt-3 flex gap-2" role="list" aria-hidden="true">
+        {Array.from({ length: total }, (_, at) => (
+          <li
+            key={at}
+            className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+              at < done
+                ? "border-brand bg-brand text-white"
+                : "border-brand-line bg-surface"
+            }`}
+          >
+            {at < done && <IconCheck className="h-4 w-4" />}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+// ------------------------------------------ 身についたこと ／ 今週の学習
+
+/** 数字を1つ持つ札。押すと、その中身の画面へ。 */
+function StatCard({
+  icon,
+  tone,
+  label,
+  value,
+  unit,
+  onClick,
+  testId,
+}: {
+  icon: Parameters<typeof IconMark>[0]["icon"];
+  tone: "teal" | "rose";
+  label: string;
+  value: number;
+  unit?: string;
+  onClick: () => void;
+  testId: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      data-testid={testId}
+      className="flex flex-1 items-center gap-2.5 rounded-card border border-line
+                 bg-surface px-3 py-3 text-left transition
+                 hover:border-brand-line active:scale-[0.98]"
+    >
+      <span
+        aria-hidden="true"
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+          tone === "teal" ? "bg-accent-teal-soft" : "bg-accent-rose-soft"
+        }`}
+      >
+        <IconMark icon={icon} tone={tone} className="h-4 w-4" />
+      </span>
+
+      {/*
+        名前は折り返させない。390px で2枚を並べると1枚あたり 171px
+        しか無く、「身についたこと」が2行に割れて数字が押し下げられて
+        いた。**「＞」も外した**——札ごと押せることは、押したときの
+        沈み込みで分かる。ここで 16px 取り返すほうが効く。
+      */}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-xs leading-4 text-ink-muted">
+          {label}
+        </span>
+        <span className="mt-0.5 block text-lg font-bold leading-7 tabular-nums">
+          {value}
+          {unit && <span className="ml-0.5 text-xs font-normal">{unit}</span>}
+        </span>
+      </span>
+    </button>
   );
 }
 
@@ -246,16 +372,16 @@ export function HomePage({
   */
   const course = useCourse();
   const completed = useCompletedLessons();
-  /* 学んだ量。届くまでは null で、この節ごと出さない */
+  /* 学んだ量。届くまでは null */
   const learned = useXpSummary();
   const [recommended, setRecommended] = useState<string[]>([]);
-  const [streak, setStreak] = useState({ days: 0, realTaskCount: 0 });
+  const [week, setWeek] = useState(0);
 
   useEffect(() => {
     setRecommended(recommendationsForHome());
     // 「今日ひらいた」ことをここで1回だけ数える
-    const touched = touchStreak();
-    setStreak({ days: touched.days, realTaskCount: readStreak().realTaskCount });
+    touchStreak();
+    setWeek(daysThisWeek());
     /*
       開いた回。**この画面の分母。**
 
@@ -267,65 +393,64 @@ export function HomePage({
   }, []);
 
   /*
-    進捗も「次」も、始められる教材だけで数える。
+    ホームで数えるのは、**AIを使う教材だけ**。
 
     近日公開を分母に混ぜると、始めようのないもので割ることになり、
-    どれだけやっても終わらない画面になる。
-    「次におすすめ」に混ざれば、押せないものを勧めることになる。
+    どれだけやっても終わらない画面になる。診断も外す——受けるのは
+    1回で、毎日開く場所の「あと何本」に混ぜるものではない
+    （`usesAi` が false なのは診断だけ）。
   */
-  const startable = startableLessons(course.lessons);
+  const learnable = startableLessons(course.lessons).filter(
+    (lesson) => lesson.usesAi,
+  );
 
   const nextLesson =
-    startable.find(
+    learnable.find(
       (lesson) => recommended.includes(lesson.id) && !completed.includes(lesson.id),
-    ) ?? startable.find((lesson) => !completed.includes(lesson.id));
+    ) ?? learnable.find((lesson) => !completed.includes(lesson.id));
 
-  /*
-    「次」以外の、始められる教材。ここに横スクロールは使わない。
-    右端で切れたカードは、そこに何かがあること自体を見落とさせる。
-  */
-  const others = startable.filter((lesson) => lesson.id !== nextLesson?.id).slice(0, 2);
+  const doneCount = learnable.filter((lesson) =>
+    completed.includes(lesson.id),
+  ).length;
 
   return (
     <>
       <AppHeader onOpenAccount={onOpenAccount} />
 
       <main className="page">
-        {/*
-          ポーは学習ガイドであって、チャットボットでも扉の絵でもない。
-          ひとことだけ、横に小さく。誰にでも当てはまる励ましは書かない。
-        */}
-        <PoGreeting
-          emotion="talking"
-          message={
-            completed.length === 0
-              ? "一緒に、少しずつ進めていきましょう！"
+        <Welcome
+          done={doneCount}
+          bubble={
+            doneCount === 0
+              ? "はじめよう！"
               : nextLesson
-                ? `おかえりなさい。次は「${nextLesson.title}」です。`
-                : "ここまでの教材はすべて終わりました。"
+                ? "つづきから！"
+                : "ぜんぶ完了！"
           }
         />
 
         {/*
           今日やること。あいさつの次はこれ。
 
-          前は、続けた日数・AI技の数・…と3つはさんでいた。どれも
+          前は、続けた日数・技の数・…と3つはさんでいた。どれも
           「ここまでの自分」の話で、**まだ今日を始めていない人に
           先に見せるもの**ではなかった。開いた人が最初に触るものを、
-          最初に置く。ここまでの記録は、この下の「これまで」に集めた。
+          最初に置く。
         */}
         {nextLesson && (
-          <div className="mt-4">
+          <div className="mt-5">
             <TodayCard
               lesson={nextLesson}
-              started={completed.length > 0}
+              started={doneCount > 0}
+              day={nextLesson.number}
+              total={learnable.length}
               onStart={() => {
                 /*
                   今日の1本を押した回。**この画面の分子。**
 
-                  ここだけを数える。下のおすすめやカテゴリから入った回は
-                  別の話（探して見つけた人）で、混ぜると「今日やること」
-                  が効いたのかどうかが分からなくなる。
+                  ここだけを数える。下から入った回は別の話
+                  （探して見つけた人）で、混ぜると「今日やること」が
+                  効いたのかどうかが分からなくなる。
                 */
                 track(EVENTS.continueLessonClicked, { lessonId: nextLesson.id });
                 onSelectLesson(nextLesson.id);
@@ -334,173 +459,120 @@ export function HomePage({
           </div>
         )}
 
-        {/*
-          ここまでの自分。数字・覚えた技・道のりを1つの節にまとめる。
+        <div className="mt-7">
+          <Record done={doneCount} total={learnable.length} onOpenRecord={onOpenRecord} />
+        </div>
 
-          面では囲わない。今日の1本と同じ強さで浮かせると、
-          「済んだこと」が「これからやること」と並んでしまう。
+        {/*
+          2つの数字。**「AI技」とは書かない。**
+
+          同じものを図鑑の中では技として扱うが、毎日開く場所に AI の語を
+          並べると、学習アプリではなく AI の道具箱に見える。
         */}
-        <section className="mt-7" aria-labelledby="record-heading">
-          <SectionHeading icon={IconStreak} id="record-heading">
-            これまで
-          </SectionHeading>
-
-          <div className="mt-3 space-y-3">
-            <HomeStats
-              days={streak.days}
-              done={completed.length}
-              total={startable.length}
-              tries={streak.realTaskCount}
-              onOpenRecord={onOpenRecord}
-            />
-
-            {/*
-              何ができるようになったか。終えた本数とは別のことを言う。
-              1つも覚えていないうちは出さない（SkillSummary が判断する）。
-            */}
-            {learned && (
-              <SkillSummary
-                xp={learned.xp}
-                skills={learned.skills}
-                onOpen={onOpenSkills}
-              />
-            )}
-
-            {/*
-              道のりの進み具合と、その入口。
-
-              一覧そのものはここに出さない。「全体の順番と現在地」は
-              道のりの画面が持ち、ホームは「次に何をするか」に徹する。
-            */}
-            <PathProgress
-              course={course}
-              done={completed.length}
-              total={startable.length}
-              showCourseTitle
-              framed={false}
-              onOpenPath={() => onOpenPath(course.id)}
-            />
-          </div>
-        </section>
+        <div className="mt-4 flex gap-3">
+          <StatCard
+            icon={IconMedal}
+            tone="teal"
+            label="身についたこと"
+            value={learned?.skills ?? 0}
+            onClick={onOpenSkills}
+            testId="skill-summary"
+          />
+          <StatCard
+            icon={IconCalendar}
+            tone="rose"
+            label="今週の学習"
+            value={week}
+            unit="日"
+            onClick={onOpenRecord}
+            testId="week-summary"
+          />
+        </div>
 
         {/*
-          そろそろ見返しどきのもの。無ければ何も出ない。
-          余白は ReviewPrompt 自身が持つ。ここで囲うと、
-          出すものが無い日にも空の余白だけが残る。
+          そろそろ見返しどきのもの・飛ばした解説。無ければ何も出ない。
+          余白はそれぞれが持つ。ここで囲うと、出すものが無い日にも
+          空の余白だけが残る。
         */}
         <ReviewPrompt onSelectLesson={onSelectLesson} />
-
-        {/*
-          飛ばした解説。無い日は何も出ない。
-
-          おすすめの前に置く。「次へ進む」より前に「戻れる場所」を出すのは、
-          穴が空いたまま先へ進んでほしくないため。ただし押し付けない——
-          出すのは節ひとつで、開かなければそのまま下へ流れる。
-        */}
         <ReviewCards course={course} />
 
-        {/* ── おすすめコース ── */}
-        {others.length > 0 && (
-          <section className="mt-7" aria-labelledby="others-heading">
-            <SectionHeading
-              icon={IconSparkle}
-              id="others-heading"
-              action={{ label: "すべて見る", onClick: onOpenCourse }}
+        {/* ── ほかにも見る ── */}
+        <section className="mt-7" aria-labelledby="explore-heading">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="explore-heading" className="text-base font-bold">
+              ほかにも見る
+            </h2>
+            <button
+              type="button"
+              onClick={onOpenCourse}
+              /* 当たり判定を広げる（py と -my を同じだけ。見た目は変わらない） */
+              className="-my-2 flex shrink-0 items-center gap-0.5 py-2 text-xs font-bold
+                         text-brand transition hover:text-brand-dark"
             >
-              おすすめコース
-            </SectionHeading>
-
-            {/*
-              1件ずつ浮いたカードにしない。線で区切った行にする。
-              今日の1本と同じ形で並ぶと、どれが今日のぶんなのかが
-              一目で分からなくなる（囲ってよいのは今日の1本だけ）。
-            */}
-            <ul className="mt-2" role="list">
-              {others.map((lesson) => {
-                const look = lookOf(lesson.id);
-                return (
-                  <li key={lesson.id} className="border-b border-line last:border-b-0">
-                    <button
-                      type="button"
-                      onClick={() => onSelectLesson(lesson.id)}
-                      data-testid={`recommend-${lesson.id}`}
-                      data-availability="available"
-                      className="row-tap flex w-full items-center gap-3 py-3.5
-                                 text-left transition hover:bg-brand-soft/40"
-                    >
-                      {/* 印は線だけ。淡色の器を並べると、行より器が目立つ */}
-                      <IconMark
-                        icon={look.icon}
-                        tone={look.tone === "plain" ? "brand" : look.tone}
-                        className="h-5 w-5"
-                      />
-
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-bold leading-6">
-                          {lesson.title}
-                        </span>
-                        {/*
-                          ねらいは書かない。題で分かるものを二度書くと、
-                          並べたときに行の高さだけが増える。
-                          時間は「いま押せるか」を決める材料なので残す。
-                        */}
-                        {lesson.estimatedMinutes !== undefined && (
-                          <span className="mt-0.5 flex items-center gap-1 text-xs text-ink-muted">
-                            <IconClock className="h-3.5 w-3.5" />約
-                            {lesson.estimatedMinutes}分
-                          </span>
-                        )}
-                      </span>
-
-                      <IconChevronRight className="h-5 w-5 shrink-0 text-ink-muted" />
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        )}
-
-        {/* ── カテゴリから探す ── */}
-        <section className="mt-7" aria-labelledby="category-heading">
-          <SectionHeading icon={IconArrow} id="category-heading">
-            カテゴリから探す
-          </SectionHeading>
+              すべて見る
+              <IconChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
 
           {/*
-            2列のカードをやめて、札（chip）を折り返して並べる。
+            2列で4つまで。**探すのはホームの主役ではない。**
 
-            6枚のカードが2列に並ぶと、面積では画面のいちばん下の節が
-            いちばん大きくなる。ここは「見つからなかったときの逃げ道」
-            なので、そこまで場所を取ってよい節ではない。
-            札なら字の長さのぶんだけ幅を取り、6つで2〜3行に収まる。
+            前は6つを札で折り返して並べていた。字の長さで幅が変わるので
+            列がそろわず、いちばん下の節がいちばん賑やかに見えていた。
+            4つに絞って形をそろえる——残りは「すべて見る」の先にある。
           */}
-          <ul className="mt-3 flex flex-wrap gap-2" role="list">
-            {CATEGORIES.map((category) => {
+          <ul className="mt-3 grid grid-cols-2 gap-2.5" role="list">
+            {CATEGORIES.slice(0, 4).map((category) => {
               const look = lookOf(category.lessonId);
               return (
                 <li key={category.label}>
                   <button
                     type="button"
                     onClick={() => onSelectLesson(category.lessonId)}
-                    /* 指で押せる高さ（44px）は、札でも下回らない */
-                    className="flex min-h-[2.75rem] items-center gap-2 rounded-badge
-                               border border-line bg-surface px-3.5 py-2 text-sm
-                               transition hover:border-brand-line hover:bg-brand-soft/40
-                               active:scale-[0.97]"
+                    data-testid={`explore-${category.lessonId}`}
+                    className="flex min-h-[3.25rem] w-full items-center gap-2.5
+                               rounded-card border border-line bg-surface px-3 py-2.5
+                               text-sm transition hover:border-brand-line
+                               active:scale-[0.98]"
                   >
                     <IconMark
                       icon={look.icon}
                       tone={look.tone === "plain" ? "brand" : look.tone}
-                      className="h-4 w-4"
+                      className="h-[1.125rem] w-[1.125rem]"
                     />
-                    {category.label}
+                    <span className="min-w-0 flex-1 text-left">{category.label}</span>
+                    <IconChevronRight className="h-4 w-4 shrink-0 text-ink-muted" />
                   </button>
                 </li>
               );
             })}
           </ul>
         </section>
+
+        {/*
+          道のりの入口。**節にはしない。**
+
+          全体の順番と現在地はコースの画面が持つ。ここに一覧まで出すと、
+          同じものを2画面が持つことになる。行1本だけ置いて、見たい人が
+          そこから入れるようにする。
+        */}
+        <button
+          type="button"
+          onClick={() => onOpenPath(course.id)}
+          data-testid="open-path"
+          className="mt-6 flex w-full items-center justify-center gap-1 py-2
+                     text-xs text-ink-muted transition hover:text-ink"
+        >
+          {/*
+            **コース名は入れない。**ホームで学んでいるコースは1本しか
+            無いので、名前を足しても増える情報が無い。むしろ
+            「AIスタートコースの道のりを見る」は、下の帯の「コース」と
+            名前がぶつかる（部分一致で拾う仕掛けが、こちらを先に掴む）。
+          */}
+          学習の道のりを見る
+          <IconChevronRight className="h-3.5 w-3.5" />
+        </button>
       </main>
     </>
   );

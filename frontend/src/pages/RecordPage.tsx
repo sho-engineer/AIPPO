@@ -4,7 +4,7 @@
  * 3つの画面で言っていることを分ける。
  *
  *     学習記録   … 何を学んだか  （この画面）
- *     AI技      … 何ができるか  （図鑑）
+ *     マイ学び   … 何ができるか  （図鑑）
  *     マイ成果物 … 何を作ったか  （作ったもの・取っておいたもの）
  *
  * 前はこの3つが1枚に混ざっていた。作ったものを取りに来た人が、
@@ -29,7 +29,7 @@ import {
   IconChevronRight,
   IconClock,
   IconDocument,
-  IconSparkle,
+  IconMedal,
 } from "../components/Icons";
 import { useHistory, when } from "../components/records/useHistory";
 import { lookupLesson } from "../course/live";
@@ -38,7 +38,7 @@ export interface RecordPageProps {
   onSelectLesson: (lessonId: string) => void;
   /** 何も無いときの行き先。 */
   onOpenCourse: () => void;
-  /** AI技図鑑へ。「何ができるか」。 */
+  /** マイ学び（AI技図鑑）へ。「何ができるか」。 */
   onOpenSkills: () => void;
   /** マイ成果物へ。「何を作ったか」。 */
   onOpenWorks: () => void;
@@ -56,7 +56,7 @@ function Doorway({
   onClick,
   testId,
 }: {
-  icon: typeof IconSparkle;
+  icon: typeof IconMedal;
   title: string;
   description: string;
   onClick: () => void;
@@ -115,8 +115,8 @@ export function RecordPage({
         */}
         <div className="mt-5 space-y-2">
           <Doorway
-            icon={IconSparkle}
-            title="AI技"
+            icon={IconMedal}
+            title="マイ学び"
             description="いま自分にできることの一覧"
             onClick={onOpenSkills}
             testId="record-open-skills"

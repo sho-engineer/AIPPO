@@ -87,7 +87,7 @@ describe("画面の行き来", () => {
     await start(user);
 
     expect(
-      await screen.findByRole("heading", { name: "学習の道のり" }),
+      await screen.findByRole("heading", { name: /おかえりなさい|はじめまして/ }),
     ).toBeInTheDocument();
   });
 
@@ -113,21 +113,36 @@ describe("画面の行き来", () => {
     expect(screen.getByText("Lesson 1")).toBeInTheDocument();
   });
 
-  it("次にやる1本を「ほかの教材」に重ねて出さない", async () => {
+  it("教材を薦める節をホームに並べない", async () => {
     const user = userEvent.setup();
     render(<App />);
 
     await start(user);
 
     /*
-      同じ教材が1画面に2回出ると、別のものだと思って両方を開く。
-      次の1本は「今日はここから」に置くので、下の一覧からは外す。
+      前はここに「おすすめコース」の列があった。外した——
+      **「次に何をするか」は今日の1本が答える**。もう1つ並べると、
+      開くたびに選び直させることになる。
     */
     await screen.findByTestId("continue-lesson");
-    expect(screen.queryByTestId("recommend-rewrite_text")).not.toBeInTheDocument();
+    const recommended = screen
+      .queryAllByRole("button")
+      .filter((el) => el.dataset.testid?.startsWith("recommend-"));
+    expect(recommended).toHaveLength(0);
+  });
 
-    // 始められる残り（いまは診断のみ）は、押せる入口として並ぶ
-    expect(await screen.findByTestId("recommend-diagnosis")).toBeEnabled();
+  it("AI活用診断をホームに出さない", async () => {
+    /*
+      受けるのは1回。毎日ひらく場所の主役にはしない。
+      入口はコースの道のりが持っている。
+    */
+    const user = userEvent.setup();
+    render(<App />);
+
+    await start(user);
+    await screen.findByTestId("continue-lesson");
+
+    expect(screen.queryByText("AI活用診断")).not.toBeInTheDocument();
   });
 
   it("下タブのコースへ移ると、コースが並ぶ（レッスンは出さない）", async () => {
@@ -225,7 +240,7 @@ describe("画面の行き来", () => {
     await user.click(await screen.findByTestId("lesson-exit"));
 
     expect(
-      await screen.findByRole("heading", { name: "学習の道のり" }),
+      await screen.findByRole("heading", { name: /おかえりなさい|はじめまして/ }),
     ).toBeInTheDocument();
   });
 
@@ -257,7 +272,7 @@ describe("画面の行き来", () => {
 
     await user.click(screen.getByRole("button", { name: "ホーム" }));
     expect(
-      await screen.findByRole("heading", { name: "学習の道のり" }),
+      await screen.findByRole("heading", { name: /おかえりなさい|はじめまして/ }),
     ).toBeInTheDocument();
   });
 
@@ -289,7 +304,7 @@ describe("画面の行き来", () => {
 
     await user.click(screen.getByRole("button", { name: "ホーム" }));
     expect(
-      await screen.findByRole("heading", { name: "学習の道のり" }),
+      await screen.findByRole("heading", { name: /おかえりなさい|はじめまして/ }),
     ).toBeInTheDocument();
   });
 });
@@ -371,7 +386,7 @@ describe("下タブの出し入れ", () => {
     await user.click(await screen.findByTestId("brand-home"));
 
     expect(
-      await screen.findByRole("heading", { name: "学習の道のり" }),
+      await screen.findByRole("heading", { name: /おかえりなさい|はじめまして/ }),
     ).toBeInTheDocument();
   });
 

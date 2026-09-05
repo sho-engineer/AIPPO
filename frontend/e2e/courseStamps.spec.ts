@@ -3,7 +3,7 @@
  *
  * ここで見るのは3つ。
  *
- *   1. ホームに、いまの進み具合が丸で出る
+ *   1. コースの道のりに、いまの進み具合が丸で出る
  *   2. 節目に届いた回に、Po が反応する
  *   3. コースを完走した回に、専用の締めくくりが出て、
  *      「次のコースを見る」で本当にコース一覧へ移る
@@ -95,14 +95,24 @@ async function runToCompletion(page: Page): Promise<void> {
   await openRecord(page);
 }
 
-test.describe("ホームのスタンプ", () => {
+test.describe("道のりのスタンプ", () => {
   test.beforeEach(async ({ page }) => {
     await stubApi(page);
   });
 
+  /*
+    置き場所はホームではなく、コースの道のり。
+
+    ホームは「今日のつづきをやりに戻ってくる場所」にした。スタンプと
+    「あと2レッスンで 1 Credit」は、**どちらも「ここまでの自分」の
+    話**で、まだ今日を始めていない人に先に見せるものではない。
+    ——それに Credit の話を学びの画面で数えると、進み具合の意味が
+    「あと何回でもらえるか」にすり替わる。
+  */
   test("いまの進み具合が丸で出る", async ({ page }) => {
     await seedCompleted(page, ["diagnosis"]);
     await page.getByRole("button", { name: "はじめる" }).first().click();
+    await page.getByTestId("open-path").click();
 
     /*
       本数は決め打ちにしない。ここは通信を差し替えて動かすので、
@@ -113,6 +123,15 @@ test.describe("ホームのスタンプ", () => {
       page.getByRole("img", { name: /\d+個中1個のスタンプが埋まっています/ }),
     ).toBeVisible();
     await expect(page.getByTestId("next-milestone-hint")).toContainText("あと2レッスンで");
+  });
+
+  test("ホームには持ち込まない", async ({ page }) => {
+    await seedCompleted(page, ["diagnosis"]);
+    await page.getByRole("button", { name: "はじめる" }).first().click();
+
+    await expect(page.getByTestId("next-up")).toBeVisible();
+    await expect(page.getByTestId("path-progress")).toHaveCount(0);
+    await expect(page.getByTestId("next-milestone-hint")).toHaveCount(0);
   });
 });
 

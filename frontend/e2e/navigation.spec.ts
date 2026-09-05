@@ -4,7 +4,7 @@
  * 役割の違う3つが「学習履歴」1枚に混ざっていたので分けた。
  *
  *     学習記録   … 何を学んだか
- *     AI技      … 何ができるか
+ *     マイ学び   … 何ができるか
  *     マイ成果物 … 何を作ったか
  *
  * 下タブに出すのは後ろの2つ。外した2つ（学習記録・あとで見る）は
@@ -38,14 +38,14 @@ test.describe("下タブ", () => {
 
     const tabs = page.getByTestId("tab-bar").getByRole("button");
     await expect(tabs).toHaveCount(5);
-    await expect(tabs).toHaveText(["ホーム", "コース", "AI技", "マイ成果物", "その他"]);
+    await expect(tabs).toHaveText(["ホーム", "コース", "マイ学び", "マイ成果物", "その他"]);
   });
 
-  test("AI技とマイ成果物へ、1回で行ける", async ({ page }) => {
+  test("マイ学びとマイ成果物へ、1回で行ける", async ({ page }) => {
     await toHome(page);
 
-    await page.getByRole("button", { name: "AI技" }).click();
-    await expect(page.getByRole("heading", { name: "AI技" })).toBeVisible();
+    await page.getByRole("button", { name: "マイ学び" }).click();
+    await expect(page.getByRole("heading", { name: "マイ学び" })).toBeVisible();
 
     await page.getByRole("button", { name: "マイ成果物" }).click();
     await expect(page.getByRole("heading", { name: "マイ成果物" })).toBeVisible();

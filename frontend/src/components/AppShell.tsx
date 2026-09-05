@@ -20,9 +20,9 @@ import {
   IconChevronLeft,
   IconDocument,
   IconHome,
+  IconMedal,
   IconMore,
   IconPerson,
-  IconSparkle,
   type Icon,
 } from "./Icons";
 
@@ -194,11 +194,18 @@ export type TabKey = "home" | "course" | "skills" | "works" | "more";
   役割の違う3つが「学習履歴」1枚に混ざっていた。
 
       学習記録   … 何を学んだか
-      AI技      … 何ができるか
+      マイ学び   … 何ができるか
       マイ成果物 … 何を作ったか
 
   下タブに出すのは後ろの2つ。**続ける理由になるのはこちら**で、
   「どの教材をどこまで」は、それを確かめたくなった人が見に行く。
+
+  「AI技」ではなく「マイ学び」
+  ---------------------------
+  中に並ぶ一つひとつは、いまも AI技 と呼ぶ。変えたのは**器の名前**
+  だけ。毎日見える帯に AI の語を置くと、学習アプリではなく AI の
+  道具箱に見える。印も ✨ をやめた——常時見えるところで光らせると、
+  技を取った瞬間の ✨ が効かなくなる。
 
   外した2つ（学習記録・あとで見る）は、その他の一覧とホームから開ける。
   タブから消すのと、行き先ごと消すのは別のこと。
@@ -211,7 +218,7 @@ export type TabKey = "home" | "course" | "skills" | "works" | "more";
 const TABS: { key: TabKey; label: string; icon: Icon; ready: boolean }[] = [
   { key: "home", label: "ホーム", icon: IconHome, ready: true },
   { key: "course", label: "コース", icon: IconBook, ready: true },
-  { key: "skills", label: "AI技", icon: IconSparkle, ready: true },
+  { key: "skills", label: "マイ学び", icon: IconMedal, ready: true },
   { key: "works", label: "マイ成果物", icon: IconDocument, ready: true },
   { key: "more", label: "その他", icon: IconMore, ready: true },
 ];

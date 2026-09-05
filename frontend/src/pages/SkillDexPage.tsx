@@ -207,7 +207,8 @@ export function SkillDexPage({ onSelectLesson, onOpenCourse }: SkillDexPageProps
       <AppHeader />
 
       <main className="page">
-        <h1 className="text-xl font-bold">AI技</h1>
+        {/* 下タブと同じ名前にする。中の一つひとつは、いまも AI技 と呼ぶ */}
+        <h1 className="text-xl font-bold">マイ学び</h1>
         <p className="mt-1.5 text-sm leading-7 text-ink-muted">
           いま自分にできることの一覧です。名前はどれも一般的な言葉なので、
           そのまま調べて続きを読めます。

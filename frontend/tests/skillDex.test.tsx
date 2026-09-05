@@ -13,8 +13,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { App } from "../src/App";
+import { resetCatalog } from "../src/course/live";
 import { SkillDexPage } from "../src/pages/SkillDexPage";
-import { SkillSummary } from "../src/components/aippo/SkillSummary";
 import type { SkillDex } from "../src/api/skills";
 
 const DEX: SkillDex = {
@@ -193,31 +194,37 @@ describe("AI技図鑑", () => {
   });
 });
 
-describe("ホームのAI技", () => {
-  const XP = { total: 30, level: "AI Starter", next_level: "AI Beginner", to_next: 70 };
-
-  it("覚えた数と、いまの呼び名を出す", () => {
-    render(<SkillSummary xp={XP} skills={3} onOpen={() => {}} />);
-
-    const card = screen.getByTestId("skill-summary");
-    expect(card).toHaveTextContent("AI技を3こ 覚えました");
-    expect(card).toHaveTextContent("AI Starter");
+describe("ホームの「身についたこと」", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    window.history.replaceState(null, "");
+    resetCatalog();
   });
 
-  it("1つも無いうちは出さない", () => {
-    /*
-      「0こ」を置いても、できることが増えていないと言われるだけになる。
-      図鑑そのものは学習記録から開けるので、行き止まりにはならない。
-    */
-    render(<SkillSummary xp={XP} skills={0} onOpen={() => {}} />);
+  const openHome = async (user: ReturnType<typeof userEvent.setup>) => {
+    render(<App />);
+    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
+    return screen.findByTestId("skill-summary");
+  };
 
-    expect(screen.queryByTestId("skill-summary")).not.toBeInTheDocument();
+  /*
+    ホームの2つの数字は、`tests/homeLayout.test.tsx` が並びごと見張って
+    いる。ここで見るのは**呼び名**——図鑑の中では技として扱うものを、
+    毎日ひらく場所では「身についたこと」と呼ぶ。
+
+    0 のときも出す。前は隠していたが、隣に「今週の学習」が並ぶ形に
+    なったので、片方だけ消すと器が欠ける。「0」は始まりの姿であって、
+    できていないという指摘ではない。
+  */
+  it("覚えた数を、AI技とは呼ばずに出す", async () => {
+    const card = await openHome(userEvent.setup());
+
+    expect(card).toHaveTextContent("身についたこと");
+    expect(card).not.toHaveTextContent("AI技");
   });
 
-  it("他人との比較を出さない", () => {
-    render(<SkillSummary xp={XP} skills={3} onOpen={() => {}} />);
-
-    const text = screen.getByTestId("skill-summary").textContent ?? "";
+  it("他人との比較を出さない", async () => {
+    const text = (await openHome(userEvent.setup())).textContent ?? "";
     expect(text).not.toContain("位");
     expect(text).not.toContain("平均");
   });
