@@ -173,6 +173,25 @@ const primary = p.getByTestId("primary-action").first();
 const seen = new Set();
 for (let i = 0; i < 30; i++) {
   /*
+    技のスタンプ台紙。**閉じないと、この先へ進めない。**
+
+    「覚えた」を押すと台紙が1枚重なる（`SkillStampCard`）。背景は
+    押下を受け取る面なので、閉じずに下のボタンを押そうとすると
+    そちらが受け取り、押し続けても何も起きないまま時間切れになる
+    ——実際そうなって、ここから先の画面が一度も検査されていなかった。
+
+    ついでに台紙そのものも調べる。押印の動きと薄い地色の枠があり、
+    ほかの画面と作りが違う。
+  */
+  const stamp = p.getByTestId("skill-stamp-sheet");
+  if (await stamp.count()) {
+    await scan("レッスン 技のスタンプ台紙");
+    await p.getByTestId("skill-stamp-continue").click();
+    await p.waitForTimeout(600);
+    continue;
+  }
+
+  /*
     完了画面に着いたか。**文字ではなく目印で見る。**
 
     ここは「スキルを身につけました」という文で探していた。その文は

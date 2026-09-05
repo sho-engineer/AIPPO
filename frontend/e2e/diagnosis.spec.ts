@@ -274,4 +274,203 @@ test.describe("AI活用診断", () => {
       await expectFits(page, "結果画面");
     });
   }
+
+  /* ─────────────────────────────────────────────────────────────
+     進むのは、押したときだけ。
+
+     前は「答えが入っているか」（`isAnswered`）で自動送りを決めて
+     いた。あれは**保存されている値の性質**であって、人が何かをした
+     証ではない。だから2つ壊れていた。
+
+       1. 札を押した瞬間に値が入る → 500ms で次の問いへ送られ、
+          何を選んだのか確かめられない
+       2. 前の問いへ戻ると、そこには前の答えが残っている → 入った
+          瞬間に「答えてある」と読まれ、また送られる。**戻れない**
+     ───────────────────────────────────────────────────────────── */
+
+  test("選んでも、その場に留まる（CTAが押せるようになるだけ）", async ({ page }) => {
+    await openDiagnosis(page);
+
+    const title = await page.locator("main h1").first().innerText();
+    const primary = page.getByTestId("primary-action");
+    await expect(primary).toHaveAttribute("aria-disabled", "true");
+
+    await page.locator("[aria-pressed]").first().click();
+    // 自動送りは 500ms だった。それより十分に長く待つ
+    await page.waitForTimeout(1500);
+
+    await expect(page.locator("main h1").first()).toHaveText(title);
+    await expect(primary).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  test("「次へ」を押すと、はじめて次の問いへ行く", async ({ page }) => {
+    await openDiagnosis(page);
+    const first = await page.locator("main h1").first().innerText();
+
+    await page.locator("[aria-pressed]").first().click();
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(600);
+
+    await expect(page.locator("main h1").first()).not.toHaveText(first);
+  });
+
+  test("戻ると、前の答えが選ばれたまま残る（勝手に進まない）", async ({ page }) => {
+    await openDiagnosis(page);
+    const q1 = await page.locator("main h1").first().innerText();
+
+    const picked = await page.locator("[aria-pressed]").nth(2).innerText();
+    await page.locator("[aria-pressed]").nth(2).click();
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(600);
+
+    await page.getByTestId("lesson-back").click();
+    // 送られてしまうなら、ここで次の問いへ移っている
+    await page.waitForTimeout(1500);
+
+    await expect(page.locator("main h1").first()).toHaveText(q1);
+    const on = page.locator("[aria-pressed='true']");
+    await expect(on).toHaveCount(1);
+    await expect(on).toHaveText(picked.trim());
+  });
+
+  test("戻った先で答えを変えても、その場に留まる", async ({ page }) => {
+    await openDiagnosis(page);
+    const q1 = await page.locator("main h1").first().innerText();
+
+    await page.locator("[aria-pressed]").nth(2).click();
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(600);
+    await page.getByTestId("lesson-back").click();
+    await page.waitForTimeout(600);
+
+    // 別の札へ変える
+    await page.locator("[aria-pressed='false']").first().click();
+    await page.waitForTimeout(1500);
+
+    await expect(page.locator("main h1").first()).toHaveText(q1);
+
+    // そこから「次へ」で進める
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(600);
+    await expect(page.locator("main h1").first()).not.toHaveText(q1);
+  });
+
+  test("何問進んでも、押した数だけ戻れる", async ({ page }) => {
+    await openDiagnosis(page);
+    const q1 = await page.locator("main h1").first().innerText();
+
+    // Q1 → Q2 → Q3
+    for (let step = 0; step < 2; step += 1) {
+      await page.locator("[aria-pressed]").first().click();
+      await page.getByTestId("primary-action").click();
+      await page.waitForTimeout(600);
+    }
+    const q3 = await page.locator("main h1").first().innerText();
+    expect(q3).not.toBe(q1);
+
+    await page.getByTestId("lesson-back").click();
+    await page.waitForTimeout(800);
+    await page.getByTestId("lesson-back").click();
+    await page.waitForTimeout(800);
+
+    await expect(page.locator("main h1").first()).toHaveText(q1);
+  });
+
+  test("ミニ問題も、埋め終わっただけでは進まない", async ({ page }) => {
+    await openDiagnosis(page);
+    await answerOne(page);
+    await answerOne(page);
+
+    const title = await page.locator("main h1").first().innerText();
+    const parts = page.getByTestId("assemble-part");
+    for (let index = 0; index < 3; index += 1) {
+      await parts.nth(index).getByTestId("assemble-choice").first().click();
+    }
+    await page.waitForTimeout(1500);
+
+    await expect(page.locator("main h1").first()).toHaveText(title);
+    await expect(page.getByTestId("primary-action")).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  test("診断の途中で「×」を押すと、一度たしかめる", async ({ page }) => {
+    /*
+      前はここが「スキップ」という文字で、押すと**その場で消えて
+      いた**。3問答えたところで指が触れると、そこまでの手が黙って消える。
+    */
+    await openDiagnosis(page);
+    await answerOne(page);
+
+    await page.getByTestId("lesson-exit").click();
+
+    const sheet = page.getByTestId("diagnosis-leave-sheet");
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toContainText("ここまでの回答は保存されています");
+
+    // 「診断を続ける」で、いた場所に戻る
+    await page.getByTestId("diagnosis-leave-cancel").click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.getByTestId("lesson-header")).toBeVisible();
+  });
+
+  test("結果まで着いても、←と×は消えない", async ({ page }) => {
+    /*
+      帯は診断のあいだじゅう出しておく。**結果の画面でも。**
+
+      結果を読んで「さっきの問いは何と答えたっけ」と思う人はいるし、
+      おすすめを取らずに戻りたい人もいる。ここで帯を消すと、
+      画面の中のボタン2つ以外に行き先が無くなる。
+
+      そして結果の「×」では確かめない。「診断を終了しますか？」は
+      **途中でやめる人**への一言で、答え終わった人には当てはまらない。
+    */
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+    await expect(page.getByTestId("completion-view")).toBeVisible();
+
+    await expect(page.getByTestId("lesson-back")).toBeVisible();
+    await expect(page.getByTestId("lesson-exit")).toBeVisible();
+
+    // ←は最後の問いへ戻す。行き止まりにしない
+    await page.getByTestId("lesson-back").click();
+    await expect(page.getByTestId("completion-view")).toHaveCount(0);
+    await expect(page.locator("[aria-pressed='true']").first()).toBeVisible();
+
+    // 戻って結果へ着き直し、そこから×で出る（たしかめは挟まない）
+    await page.getByTestId("primary-action").click();
+    await expect(page.getByTestId("completion-view")).toBeVisible();
+    await page.getByTestId("lesson-exit").click();
+    await expect(page.getByTestId("diagnosis-leave-sheet")).toHaveCount(0);
+    await expect(page.getByTestId("tab-bar")).toBeVisible();
+  });
+
+  test("開始画面も、送らずに全部見える", async ({ page }) => {
+    /*
+      絵を幅いっぱい・高さは比なりで置いていたころ、いちばん低い
+      持ち方（402×660）では絵だけで 241px あり、入れ物（195px）から
+      46px はみ出していた。ページは伸びないので外からは分からず、
+      実機の Safari で「開始画面がスクロールする」と見えていた。
+    */
+    await page.setViewportSize({ width: 402, height: 660 });
+    await stubApi(page);
+    await page.goto("/");
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await page.getByRole("button", { name: "はじめる" }).first().click();
+    await page.getByRole("button", { name: "コース" }).first().click();
+    await page.getByTestId("current-course-open").click();
+    await page.getByTestId("lesson-diagnosis").first().click();
+    await dismissLessonIntro(page);
+    await page.waitForTimeout(600);
+
+    await expectFits(page, "診断の開始画面");
+    // 降りる道も、進む道のすぐ下にある
+    await expect(
+      page.getByRole("button", { name: "診断せずに始める" }),
+    ).toBeVisible();
+  });
 });

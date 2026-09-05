@@ -38,6 +38,21 @@ const COSTS_MONEY = "ai_generate";
  * 教材を1本足すたびにここを直すことになる。
  */
 export function canAutoAdvance(lesson: Lesson, step: LessonStep): boolean {
+  /*
+    AI活用診断では**一度も自動で送らない。**
+
+    ほかの回と性格が違う。レッスンの選択肢は「次に何をするか」を
+    その場で決めるもので、選び直せば戻ってやり直せる。診断は
+    **自分の答えを積み上げていく**場で、5問ぶんの答えがそのまま
+    結果になる。選んだ札を見て「これでよい」と確かめる時間が要る。
+
+    自動で送っていたころは、押した瞬間に次の問いへ移り、何を選んだのか
+    確かめられなかった。戻ろうとしても、前の答えが残っているせいで
+    また送られて**前へ戻れなかった**（下の `changedHere` も参照）。
+  */
+
+  if (lesson.id === "diagnosis") return false;
+
   if (!CHOICE_ONLY.has(step.type)) return false;
 
   // 「その他（自分で書く）」を持つ回は、書いている途中で送らない

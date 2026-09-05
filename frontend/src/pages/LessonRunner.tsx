@@ -17,6 +17,8 @@ import { PrivacyDialog } from "../components/course/PrivacyDialog";
 import { DayCompletePage } from "../components/course/DayCompletePage";
 import { LessonHeader } from "../components/course/LessonHeader";
 import { LessonPaused } from "../components/course/LessonPaused";
+import { MoreSheet } from "../components/course/MoreSheet";
+import { PrimaryButton } from "../components/aippo/PrimaryButton";
 import {
   SectionTransition,
   type SectionImage,
@@ -154,6 +156,14 @@ export function LessonRunner({
   const [stamping, setStamping] = useState<number | null>(null);
 
   /*
+    診断を途中でやめようとしているか。
+
+    「×」を押しただけでは消さない。ここまでの答えは端末に残るので、
+    **消えるのは画面だけ**——それを言ってから決めてもらう。
+  */
+  const [leaving, setLeaving] = useState(false);
+
+  /*
     そのレッスンで覚える技を、出てくる順に。
 
     **教材データから数える。** サーバーには聞かない——通信が失敗
@@ -215,41 +225,65 @@ export function LessonRunner({
   }, [step.id, step.type, api.isSubmitting, api.error, api.findings.length]);
 
   /*
-    「なおす」で戻ってきた回。
+    サマリーの「なおす」。その回へ移すだけ。
 
-    サマリーの「なおす」は、その質問へ戻すだけだった。戻った先には
-    前の答えがそのまま残っているので、下の自動送りが「もう答えてある」と
-    判断して 500ms で次へ送ってしまう。**押しても何も起きない**ように
-    見えて、答えを直せない。実際に3問とも素通りしていた。
+    前はここで「戻ってきた回と、そのときの答え」を覚えていた
+    （`editing` / `holdingForEdit`）。戻った瞬間に自動送りが走るのを
+    止めるための細工で、**「なおす」から戻ったときにしか効かなかった**
+    ——帯の「←」で戻った人は、そのまま送られていた。
 
-    そこで「戻ってきた回で、答えがまだ変わっていない間」だけ自動送りを
-    止める。止めるのはそこだけで、別の札を押した瞬間からは
-    ふだんどおり自動で進む——直したあとにもう一度「次へ」を
-    押させるのでは、直す前より手間が増える。
-
-    答えを先に消す方法は採らない。いま何を選んでいるかを見ながら
-    選び直せるほうが、選び直しやすい。
+    いまは下の `arrivedWith` が、どの道で戻ってきても同じように働く。
+    細工はもう要らない。
   */
-  const [editing, setEditing] = useState<{ stepId: string; value: string } | null>(
-    null,
-  );
-
-  const editSummary = (stepId: string) => {
-    const target = lesson.steps.find((entry) => entry.id === stepId);
-    const current = target?.key ? (values[target.key] ?? "") : "";
-    setEditing({ stepId, value: current });
-    api.goTo(stepId);
-  };
-
-  // その回から離れたら、覚えていた印は捨てる。
-  // 残すと、あとで同じ回に来たときに理由もなく自動送りが止まる
-  useEffect(() => {
-    if (editing && editing.stepId !== step.id) setEditing(null);
-  }, [editing, step.id]);
+  const editSummary = (stepId: string) => api.goTo(stepId);
 
   const answerNow = step.key ? (values[step.key] ?? "") : "";
-  const holdingForEdit =
-    editing !== null && editing.stepId === step.id && editing.value === answerNow;
+
+  /*
+    ここまでに答えた数。**「×」を確かめるかどうか**だけに使う。
+
+    1問も答えていない人に「ここまでの回答は保存されています」と
+    出しても、保存されているものが無い。
+  */
+  const answeredSoFar = lesson.steps.filter(
+    (each) => each.key && (values[each.key] ?? "").trim(),
+  ).length;
+
+  /*
+    この回に**入ってきたときの答え**。
+
+    自動送りの引き金をここに変えた。前は `isAnswered`——つまり
+    「答えが入っているか」だけを見ていた。あれは**保存されている値の
+    性質**であって、人が何かをした証ではない。だから2つ壊れていた。
+
+      1. 札を押した瞬間に値が入る → 500ms で次へ送られ、
+         何を選んだのか確かめられない
+      2. **前の回へ戻ると、そこには前の答えが残っている** → 入った
+         瞬間に「答えてある」と読まれ、また送られる。押しても押しても
+         戻れない（診断で実際にそうなった）
+
+    いま見るのは「**この回にいるあいだに答えが変わったか**」。
+    戻ってきただけでは変わらないので送らない。別の札を押せば変わるので、
+    そこからはこれまでどおり自動で進む。
+
+    答えの復元と、人が選んだことは別のできごと——それを型の上で
+    分けたのがここ。
+  */
+  const [arrivedWith, setArrivedWith] = useState<{ stepId: string; value: string }>({
+    stepId: step.id,
+    value: answerNow,
+  });
+  useEffect(() => {
+    setArrivedWith({
+      stepId: step.id,
+      value: step.key ? (values[step.key] ?? "") : "",
+    });
+    // 回が変わったときだけ取り直す。答えが変わったからではない
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step.id]);
+
+  const changedHere =
+    arrivedWith.stepId === step.id && answerNow !== arrivedWith.value;
 
   /*
     選ぶだけの回は、選んだら自動で次へ送る（Learning UX §3）。
@@ -262,7 +296,7 @@ export function LessonRunner({
     この回そのものが消えるので時計も止まり、二重に進まない。
   */
   const autoAdvancing =
-    canAutoAdvance(lesson, step) && isAnswered(step, values) && !holdingForEdit;
+    canAutoAdvance(lesson, step) && isAnswered(step, values) && changedHere;
 
   /*
     受け取ったことを返す文。
@@ -566,12 +600,33 @@ export function LessonRunner({
               ? api.goBack
               : undefined
         }
-        onExit={onExit}
         /*
-          診断は受けなくても先へ進める。出ることが「スキップ」と同じ
-          意味になるので、そこだけ言葉で出す。
+          診断の途中は、押した先を確かめてから出す。
+
+          前はここが「スキップ」という文字で、押すと**その場で消えて
+          いた**。5問のうち3問答えたところで指が触れると、そこまでの
+          手が黙って消える。行き先も「飛ばす」なのか「閉じる」なのか
+          読めない。
+
+          いまはレッスンと同じ「×」にして、答え始めていたら一度だけ
+          確かめる（`leaving`）。何も答えていなければ、そのまま出す
+          ——確かめる中身が無い。
         */
-        exitLabel={lesson.id === "diagnosis" ? "スキップ" : undefined}
+        onExit={() => {
+          /*
+            結果まで着いた人には確かめない。**途中で出るときだけ。**
+
+            「診断を終了しますか？」は「ここでやめると中途半端になる」を
+            伝えるための一言で、答え終わった人にはもう当てはまらない。
+            読み終えて閉じるだけの操作に、毎回1枚挟むことになる。
+          */
+          const midway =
+            lesson.id === "diagnosis" &&
+            step.type !== "completion" &&
+            answeredSoFar > 0;
+          if (midway) setLeaving(true);
+          else onExit();
+        }}
       />
 
       {/*
@@ -883,6 +938,43 @@ export function LessonRunner({
             step.type === "real_task" ? api.continueAnyway() : void confirmAndSend()
           }
         />
+      )}
+
+      {/*
+        診断をやめる前の、ひと呼吸。
+
+        押した先を言ってから決めてもらう。**ここまでの答えは消えない**
+        ——端末に残るので、開き直せば続きから答えられる。それを
+        書いておかないと、「×」は答えを捨てるボタンに見える。
+      */}
+      {leaving && (
+        <MoreSheet
+          placement="center"
+          testId="diagnosis-leave-sheet"
+          title="診断を終了しますか？"
+          onClose={() => setLeaving(false)}
+        >
+          <p className="text-sm leading-6">ここまでの回答は保存されています。</p>
+          <div className="mt-5 space-y-2">
+            <PrimaryButton
+              testId="diagnosis-leave-confirm"
+              onClick={() => {
+                setLeaving(false);
+                onExit();
+              }}
+            >
+              メインへ戻る
+            </PrimaryButton>
+            <button
+              type="button"
+              onClick={() => setLeaving(false)}
+              data-testid="diagnosis-leave-cancel"
+              className="w-full rounded-cta py-2 text-sm font-bold text-brand-dark"
+            >
+              診断を続ける
+            </button>
+          </div>
+        </MoreSheet>
       )}
 
       {/*

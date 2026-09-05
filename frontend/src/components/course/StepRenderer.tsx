@@ -150,7 +150,19 @@ export function StepRenderer({
 
     case "intro":
       return (
-        <div className="space-y-4">
+        /*
+          絵は**残りの高さに収める。**
+
+          幅いっぱい・高さは比なり、で置いていたころ、いちばん低い
+          持ち方（402×660）では絵だけで 241px あり、入れ物（195px）から
+          46px はみ出していた。ページは伸びないので外からは分からず、
+          入れ物の中で静かに送れる状態——実機の Safari で「開始画面が
+          スクロールする」と見えていたのがこれ。
+
+          絵の全部を大きく見せることより、**送らずに始められること**を
+          優先する（`fit`）。
+        */
+        <div className="flex min-h-0 flex-1 flex-col">
           {/*
             絵があるときは、絵を先に置く。
 
@@ -164,6 +176,7 @@ export function StepRenderer({
               alt={picture.alt}
               width={picture.width}
               height={picture.height}
+              fit
             />
           )}
           {/*

@@ -164,8 +164,21 @@ test.describe("ポーの絵", () => {
     for (let i = 0; i < 40; i++) {
       let scene: string | null = null;
       let thinking = false;
+      /*
+        スタンプ台紙が出ているあいだも数えない。
+
+        あれは技を受け取る回の**上に重なる**1枚で、後ろの画面は
+        さっき数えたばかり。重なっている間にもう一度回ってくると、
+        同じ画面をポー入りで2回数える。送信中を外しているのと
+        同じ理由——押していないのに、取った瞬間で数が変わる。
+
+        ここが抜けていたせいで、通しのたびに 20画面/9 と 20画面/10 の
+        あいだを行き来し、「半分より少ない」の境目でときどき落ちていた。
+      */
+      let stamping = false;
       for (let shot = 0; shot < 3; shot++) {
         if (await page.locator('[data-po-scene="thinking"]').count()) thinking = true;
+        if (await page.getByTestId("skill-stamp-sheet").count()) stamping = true;
         /*
           先に数える。`getAttribute` は**要素が現れるまで待つ**ので、
           ポーが居ない画面でそのまま呼ぶと、居ないことを確かめるために
@@ -181,7 +194,7 @@ test.describe("ポーの絵", () => {
       }
 
       // 送っている最中は数えない。押していないのに出入りする
-      if (!thinking) {
+      if (!thinking && !stamping) {
         screens += 1;
         if (scene) {
           withPo += 1;

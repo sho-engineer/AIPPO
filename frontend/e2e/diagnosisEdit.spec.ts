@@ -8,6 +8,11 @@
  * ある」と判断して 500ms で次へ送ってしまう。押した人から見ると
  * **何も起きない**。3問とも素通りして、結果画面へ戻されていた。
  *
+ * いまの診断は、**一度も自動で進めない**（`course/autoAdvance.ts`）。
+ * 選ぶのと送るのは別の操作で、選んだ札を見て「これでよい」と
+ * 確かめてから「次へ」を押す。だからこのファイルで見るのは
+ * 「戻ったあとも、その決まりが変わらないこと」になる。
+ *
  * なぜ E2E なのか
  * ---------------
  * 起きていたのは「押してから500ms後」の出来事で、時計と画面の
@@ -17,9 +22,9 @@
  * 見るのは5つ。
  *
  *   1. 戻れる
- *   2. **戻っただけでは進まない**（ここが直したところ）
+ *   2. **戻っただけでは進まない**
  *   3. いまの答えが選ばれた状態で見える
- *   4. 別の答えを選べば、そこからはふだんどおり自動で進む
+ *   4. **別の答えを選んでも、その場に留まる**（押したときだけ進む）
  *   5. まとめとおすすめが、新しい答えで作り直される
  */
 
@@ -83,8 +88,7 @@ async function answerRemaining(page: Page): Promise<void> {
 
     const cards = page.locator("[aria-pressed]");
     if (await cards.count()) await cards.first().click();
-    // ひとつ選ぶ回は自動で進む。いくつでも選ぶ回は自分で押す
-    await page.waitForTimeout(900);
+    // 診断は、どの回も選んだだけでは進まない。必ず自分で押す
     const primary = page.getByTestId("primary-action");
     if (
       (await primary.count()) &&
@@ -140,10 +144,14 @@ test.describe("診断の「なおす」", () => {
     await expect(page.locator("[aria-pressed='true']")).toHaveCount(1);
   });
 
-  test("別の答えを選べば、そこからは自動で進む", async ({ page }) => {
+  test("別の答えを選んでも、その場に留まる", async ({ page }) => {
     /*
-      直したあとにもう一度「次へ」を押させるのでは、
-      直す前より手間が増える。止めるのは戻った直後だけ。
+      直したその瞬間に画面が変わると、**直した結果を見られない。**
+
+      前はここだけ自動で送っていた。「戻った直後は止める、選び直したら
+      進む」という細かい使い分けで、押した人からは同じ操作なのに
+      あるときは動きあるときは動かない、に見えていた。診断は
+      どの回も同じ——選ぶ、確かめる、押す。
     */
     await answerAll(page);
     await summaryLines(page);
@@ -152,9 +160,15 @@ test.describe("診断の「なおす」", () => {
 
     const question = await page.locator("h1").first().innerText();
     await page.locator("[aria-pressed='false']").first().click();
-    await page.waitForTimeout(1200);
+    // 自動送りは 500ms だった。それより十分に長く待つ
+    await page.waitForTimeout(1500);
 
-    await expect(page.locator("h1").first()).not.toHaveText(question);
+    await expect(page.locator("h1").first()).toHaveText(question);
+    // 選んだことは効いている。押せる状態になっているはず
+    await expect(page.getByTestId("primary-action")).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
   });
 
   test("直した答えが、まとめに出る", async ({ page }) => {
@@ -169,8 +183,9 @@ test.describe("診断の「なおす」", () => {
       .innerText();
 
     await page.locator("[aria-pressed='false']").first().click();
-    // 残りの質問を通って結果へ戻る
-    await page.waitForTimeout(900);
+    // 直したら、自分で「次へ」。ここから残りを通って結果へ戻る
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(700);
     await answerRemaining(page);
 
     const after = await summaryLines(page);

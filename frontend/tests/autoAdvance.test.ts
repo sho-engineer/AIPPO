@@ -113,6 +113,27 @@ describe("自動で進めてはいけない回", () => {
 
     expect(canAutoAdvance(course, course.steps[0])).toBe(false);
   });
+
+  it("AI活用診断では、どの回も進めない", () => {
+    /*
+      診断はほかの回と性格が違う。レッスンの選択肢は「次に何をするか」を
+      その場で決めるもので、選び直せば戻ってやり直せる。診断は
+      **5問ぶんの答えがそのまま結果になる**ので、選んだ札を見て
+      「これでよい」と確かめる時間が要る。
+
+      形の上では進めてよい回（選ぶだけ・自由入力なし・次はAIでない）
+      でも、診断なら止める。
+    */
+    const course = {
+      ...lesson([
+        step({ id: "a", type: "single_choice", key: "ai_usage" }),
+        step({ id: "b", type: "single_choice", key: "ask_style" }),
+      ]),
+      id: "diagnosis",
+    };
+
+    expect(canAutoAdvance(course, course.steps[0])).toBe(false);
+  });
 });
 
 describe("送ってよい状態か", () => {
@@ -128,5 +149,26 @@ describe("送ってよい状態か", () => {
 
   it("保存先の無い回は送らない", () => {
     expect(isAnswered(step({ key: undefined }), { audience: "上司" })).toBe(false);
+  });
+
+  it("枠を埋める回は、全部埋まって初めて答えたことにする", () => {
+    /*
+      1つでも空のまま送れると、採点する側は「選ばなかった」のか
+      「まだ途中」なのかを区別できない。診断のミニ問題は、埋まって
+      いない枠があると軸の点が出せない。
+    */
+    const built = step({
+      type: "assemble",
+      key: "build_prompt",
+      parts: [
+        { key: "task", label: "何をしてほしい", options: [] },
+        { key: "audience", label: "誰向け", options: [] },
+        { key: "tone", label: "言い方", options: [] },
+      ],
+    });
+
+    expect(isAnswered(built, { build_prompt: "要約して|新人向け|やさしく" })).toBe(true);
+    expect(isAnswered(built, { build_prompt: "要約して|新人向け" })).toBe(false);
+    expect(isAnswered(built, { build_prompt: "要約して||やさしく" })).toBe(false);
   });
 });

@@ -102,6 +102,128 @@ describe("自分の課題のステップ", () => {
 });
 
 /**
+ * 戻ったのに、また送られてしまう不具合の番人。
+ *
+ * 何が起きていたか
+ * ----------------
+ * 自動送りの条件が `isAnswered(step, values)` ——**保存してある答えが
+ * 入っているか**だった。これは操作ではなく状態なので、
+ *
+ *     札を押した     → 答えが入る → 500ms 後に送られる（意図どおり）
+ *     ←で戻ってきた  → 答えが**まだ入っている** → また送られる
+ *
+ * の2つが区別できない。戻るたびに前へ送り返されるので、
+ * **一度答えた回には二度と戻れなかった。**
+ *
+ * いまは「この回に入ってきたときの答え」を覚えておき、
+ * **その回にいる間に答えが変わったとき**だけ送る（`changedHere`）。
+ * 戻ってきた直後は変わっていないので、送られない。
+ *
+ * 診断は別途、丸ごと自動送りを止めてある（`course/autoAdvance.ts`）。
+ * ここで見るのは**診断以外のレッスン**——止め方が2段になっている
+ * ので、片方だけで通ってしまわないように分けて見張る。
+ */
+describe("答えた回へ戻ったとき", () => {
+  /** 自動で送ってよい形の回を2つ並べただけの、最小の教材。 */
+  const twoChoices: Lesson = {
+    id: "back_nav_probe",
+    number: 1,
+    title: "テスト",
+    goal: "",
+    outcomes: [],
+    tags: [],
+    usesAi: false,
+    steps: [
+      {
+        id: "q1",
+        type: "single_choice",
+        title: "だれが読みますか",
+        poMessage: "",
+        poEmotion: "question",
+        key: "audience",
+        required: true,
+        options: [
+          { value: "boss", label: "上司" },
+          { value: "client", label: "お客様" },
+        ],
+      },
+      {
+        id: "q2",
+        type: "single_choice",
+        title: "どんな口調にしますか",
+        poMessage: "",
+        poEmotion: "question",
+        key: "tone",
+        required: true,
+        options: [
+          { value: "soft", label: "やさしく" },
+          { value: "firm", label: "きっぱりと" },
+        ],
+      },
+      {
+        id: "end",
+        type: "completion",
+        title: "おつかれさまでした",
+        poMessage: "",
+        poEmotion: "celebrate",
+      },
+    ],
+  };
+
+  const heading = (name: string) => screen.findAllByRole("heading", { name });
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it("選んだら、そのまま次へ送る", async () => {
+    // 直したせいで自動送りごと止まっていないこと
+    const user = userEvent.setup();
+    render(<LessonRunner lesson={twoChoices} onExit={() => {}} onOpenCourse={() => {}} />);
+
+    await user.click(await screen.findByRole("button", { name: "上司" }));
+
+    expect(await heading("どんな口調にしますか")).not.toHaveLength(0);
+  });
+
+  it("←で戻ったら、そこに留まる", async () => {
+    const user = userEvent.setup();
+    render(<LessonRunner lesson={twoChoices} onExit={() => {}} onOpenCourse={() => {}} />);
+
+    await user.click(await screen.findByRole("button", { name: "上司" }));
+    await heading("どんな口調にしますか");
+
+    await user.click(screen.getByTestId("lesson-back"));
+    expect(await heading("だれが読みますか")).not.toHaveLength(0);
+
+    // 前の答えは選ばれたまま。ただし、それだけでは送らない
+    expect(screen.getByRole("button", { name: "上司" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    // 自動送りは 500ms。それより十分に長く置いても動かない
+    await new Promise((done) => setTimeout(done, 1200));
+    expect(await heading("だれが読みますか")).not.toHaveLength(0);
+  });
+
+  it("戻った先で選び直せば、そこからは進む", async () => {
+    // 戻れることと引き換えに、選び直したあと詰まるのでは意味がない
+    const user = userEvent.setup();
+    render(<LessonRunner lesson={twoChoices} onExit={() => {}} onOpenCourse={() => {}} />);
+
+    await user.click(await screen.findByRole("button", { name: "上司" }));
+    await heading("どんな口調にしますか");
+    await user.click(screen.getByTestId("lesson-back"));
+    await heading("だれが読みますか");
+
+    await user.click(screen.getByRole("button", { name: "お客様" }));
+
+    expect(await heading("どんな口調にしますか")).not.toHaveLength(0);
+  });
+});
+
+/**
  * 自分の文章を書くステップで、秘密が混ざっていたら**その場で**知らせる。
  *
  * 送るのはこの先の generate_real で、そこでも必ず見ている。
