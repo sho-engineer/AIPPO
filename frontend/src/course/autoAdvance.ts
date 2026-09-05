@@ -25,8 +25,20 @@
 import { findStep, nextStepId } from "./engine";
 import { assembleParts, type Lesson, type LessonStep, type StepValues } from "./types";
 
-/** 選ぶだけで答えが決まる回。 */
-const CHOICE_ONLY = new Set(["single_choice", "observation"]);
+/**
+ * 選ぶだけで答えが決まる回。
+ *
+ * **`observation` は入れない。**
+ *
+ * ここは AI の結果を読んで「分かりやすくなった？」に答える回で、
+ * この画面の上に**読むもの**がある。上の方針書きの2つ目
+ * （「AIの結果を見る回 … 読む時間は人によって違う」）が言っている
+ * のはまさにこの回のことなのに、集合のほうには入れたままだった。
+ *
+ * 入っていたころは、札に触れた瞬間に次の画面へ送られていた。結果を
+ * 読み終える前に答えを押した人は、押した札も結果も確かめられない。
+ */
+const CHOICE_ONLY = new Set(["single_choice"]);
 
 /** ここへ入る手前では、自動で進めない。 */
 const COSTS_MONEY = "ai_generate";

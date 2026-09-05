@@ -17,12 +17,12 @@
 
 import { IconCaution } from "../Icons";
 import { SafetyNote } from "../SafetyNote";
-import { FullText } from "./MoreSheet";
 import { AssembleStep } from "./steps/Assemble";
 import { DiagnosisResult } from "./DiagnosisResult";
 import { SkillGet } from "./SkillGet";
 import { StepDone } from "./StepDone";
 import {
+  AskPreview,
   ChoiceStep,
   ChoiceTiles,
   CompletionView,
@@ -80,6 +80,27 @@ export interface StepRendererProps {
   onPickLesson?: (lessonId: string) => void;
 }
 
+/**
+ * 送っている最中に、カードの中へ出す1行。
+ *
+ * 「AIが考えています…」とは書かない。**AIが何をしているか**ではなく、
+ * **こちらの文章がどうなっている最中か**を言う。前者は待たされている
+ * 感じだけが残り、しかも中で何が起きているかは本当のところ分からない。
+ *
+ * 何を頼んだかで言い方を変える。教材が増えたらここに1行足す——
+ * 教材データに持たせないのは、これが**待ち時間の見せ方**であって
+ * 教材の中身ではないから（`course/teachingImages.ts` と同じ置き方）。
+ */
+const WAITING: Record<string, string> = {
+  rewrite: "読みやすく整えています…",
+  improve: "言われたところを直しています…",
+  summarize: "要点を取り出しています…",
+};
+
+function waitingLine(step: { aiAction?: { action: string } }): string {
+  return (step.aiAction && WAITING[step.aiAction.action]) || "整えています…";
+}
+
 export function StepRenderer({
   lesson,
   api,
@@ -117,6 +138,14 @@ export function StepRenderer({
     /** 「まだ微妙」を選んだ人にだけ聞く、任意の理由（course/shared.ts）。 */
     reasons?: StepOption[];
   };
+
+  /*
+    いま頼んでいること。送っている最中の画面に小さく出す。
+
+    値そのもの（`instruction`）を使う。教材データが持っている札の言葉が
+    そのまま出るので、画面と教材がずれない。
+  */
+  const askedFor = values.instruction ?? "";
 
   /** 最初の1回で使う例文。空欄から始めさせないために事前に入れておく。 */
   const sampleText = (() => {
@@ -283,36 +312,30 @@ export function StepRenderer({
             onChange={(value) => api.setValue(step.key ?? "", value)}
           />
           {/*
-            何を送るのかは、この画面でも見えるようにしておく（要件 §12）。
-            ただし確認のためだけの1画面は挟まない。
-            最初の結果までが遠くなると、そこで離れる。
-          */}
-          {sampleText && (
-            <div className="mt-5">
-              {/* 名札と本文の面だけ。囲いを二重にしない（条件の画面と同じ） */}
-              <p className="text-xs font-bold text-ink-muted">AIにはこう伝えます</p>
-              {/*
-                3行で切って、押せば全文。
+            送る前に、**送る文面そのもの**を見せる（要件 §12）。
 
-                例文の長さは教材ごとに違う。Day1 の題材を専門的な解説文へ
-                変えたとき、ここが丸ごと出ていたせいで**この画面だけ
-                100px はみ出した**（e2e/stepFits.spec.ts が捕まえた）。
-                例文を短く書き直すのは本末転倒——読めない文章から始めるのが
-                この回のねらいなので、**出し方のほう**を畳む。
-              */}
-              <div className="mt-2">
-                <FullText
-                  lines={2}
-                  label="AIに送る文章"
-                  text={sampleText}
-                  testId="quick-sample"
-                />
-              </div>
+            前はここに元の文章（`sampleText`）を置いて、名札だけが
+            「AIにはこう伝えます」だった。名札と中身が食い違っていて、
+            「この専門文をそのまま送るのか？」と読める。
+
+            いま出すのは、選んだ札から組み立てた1文。**選ぶたびに
+            変わる**ので、札を押すことがそのまま「お願いを書くこと」
+            だと分かる——Day1 で最初に受け取る技（プロンプト）は
+            これのこと（`catalog.ts` の `concept_1`）。
+
+            元の文章は「今日やること」の一枚が持っている。確認のためだけの
+            画面をここに挟まない——最初の結果までが遠くなると、そこで離れる。
+          */}
+          {step.key && (
+            <div className="mt-3 [@media(min-height:700px)]:mt-5">
+              <AskPreview
+                instruction={values[step.key] ?? ""}
+                placeholder="上から1つ選ぶと、ここに出ます。"
+              />
             </div>
           )}
         </div>
       );
-
     case "observation":
       return (
         /*
@@ -342,6 +365,11 @@ export function StepRenderer({
                 元の文章は「変わったところ」の一枚の中にある。
               */
               onlyResult
+              /*
+                押した札を、結果の真上に並べる。Section 1 では
+                「専門用語を減らす」1枚だけで、条件を足すたびに増える。
+              */
+              conditions={promptCards(values).map((card) => card.value)}
               factCheck={meta.factCheck}
               /*
                 広げない。広げると縮んだ枠が抜粋を切り、「全文を見る」も
@@ -526,10 +554,22 @@ export function StepRenderer({
           failed={Boolean(api.error)}
           message={
             api.isSubmitting
-              ? (step.instruction ?? "AIが考えています…")
+              ? waitingLine(step)
               : api.error
                 ? "止まっています"
                 : "送っています。"
+          }
+          /*
+            いま頼んでいる中身。**自分が選んだ言葉をそのまま返す。**
+
+            待っている数秒のあいだに見えるのはここだけで、押した札を
+            思い出せないと、返ってきたものが何のせいで変わったのかが
+            分からなくなる。
+          */
+          note={
+            api.isSubmitting && askedFor
+              ? `${askedFor}ように、伝わりやすくしています。`
+              : undefined
           }
         />
       );

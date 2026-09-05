@@ -10,6 +10,7 @@ import { useState, type ReactNode } from "react";
 import { FullText, MoreButton, MoreSheet } from "../MoreSheet";
 import { IconArrowDown, IconCaution } from "../../Icons";
 import { diffSentences, isMostlyUnchanged } from "../../../lib/diff";
+import type { TermSwap } from "../../../course/lessonPlan";
 import type { RunRecord } from "../../../course/useCourseLesson";
 
 // --------------------------------------------------------------- 結果
@@ -63,7 +64,7 @@ interface ResultProps {
    * 「変わったところ」の一枚で、いちばん上に出す。全文を突き合わせ
    * なくても「簡単になった」が分かるのは、この対応のほう。
    */
-  swaps?: { from: string; to: string }[];
+  swaps?: TermSwap[];
   /**
    * AIの結果だけを出すか（タブを置かない）。
    *
@@ -74,6 +75,13 @@ interface ResultProps {
    * 言いかえの対応と一緒に見るほうが早い。
    */
   onlyResult?: boolean;
+  /**
+   * 今回どんな条件で頼んだか。結果の真上に札で並べる。
+   *
+   * 渡すのは**実際に送った値だけ**。まだ選んでいない条件を
+   * 「指定なし」と並べると、選んだ札との区別が付かなくなる。
+   */
+  conditions?: string[];
 }
 
 /**
@@ -93,6 +101,7 @@ export function ResultCompare({
   showPoints = true,
   swaps,
   onlyResult = false,
+  conditions,
 }: ResultProps) {
   const [tab, setTab] = useState<"before" | "after">("after");
   const [more, setMore] = useState(false);
@@ -104,6 +113,8 @@ export function ResultCompare({
     突き合わせて確かめるのはそのあとの話。
   */
   const [fullCompare, setFullCompare] = useState(false);
+  /* 差分の印。全文の一枚の中で、さらにもう一手押した人にだけ出す */
+  const [marked, setMarked] = useState(false);
   const parts = diffSentences(before, after);
   const showDiff = before.trim().length > 0 && !isMostlyUnchanged(parts);
 
@@ -194,6 +205,41 @@ export function ResultCompare({
         fill ? "min-h-0 flex-1 overflow-y-auto" : "shrink-0"
       }`}
     >
+      {/*
+        今回どんな条件で頼んだか。**結果の真上に置く。**
+
+        結果だけを見せると、それがどのお願いに対する答えなのかが
+        画面から消える。押した札をここに並べておけば、Section 2 で
+        条件を足したときに「増えた札のぶんだけ結果が変わった」と
+        目で追える。
+
+        出すのは**実際に送ったものだけ**。まだ選んでいない条件
+        （Section 1 では読む相手・表現）を「指定なし」と並べない。
+      */}
+      {conditions && conditions.length > 0 && (
+        /*
+          低い持ち方では出さない。**答える札のほうが先**で、条件は
+          「いま送ったお願いを見る」からいつでも読める。402×660 では
+          この1行（39px）が入ると、2択が画面の外へ出ていた。
+        */
+        <ul
+          className="mb-2.5 hidden shrink-0 flex-wrap gap-1.5
+                     [@media(min-height:700px)]:flex"
+          role="list"
+          data-testid="result-conditions"
+        >
+          {conditions.map((condition) => (
+            <li
+              key={condition}
+              className="rounded-badge bg-brand-soft px-2.5 py-1 text-xs
+                         font-bold text-brand-dark"
+            >
+              {condition}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* 狭い画面：タブ */}
       {/*
         読める下限は、**縮む鎖のいちばん外側**に置く。
@@ -283,31 +329,52 @@ export function ResultCompare({
           onClose={() => {
             setMore(false);
             setFullCompare(false);
+            setMarked(false);
           }}
         >
+          {/*
+            この一枚が何の話なのかを1行で言う。
+
+            **元の文章の解説ではない。**前はここに用語の対応だけが
+            並んでいて、読んだ人が持ち帰るのは Transformer の知識に
+            なっていた。ここで持ち帰ってほしいのは「自分が頼んだこと
+            が、結果のどこに出たか」のほう。
+          */}
+          <p className="text-xs leading-6 text-ink-muted">
+            お願いした内容が、文章にどう反映されたか見てみましょう。
+          </p>
+
           {swaps && swaps.length > 0 && (
             /*
-              まずは言いかえの対応。**全文を読み比べさせない**ための
-              ものなので、いちばん上に置く。
+              変わったところを、**したことの側から**並べる。
+
+              「自己注意機構 → 言葉同士の関係を見る仕組み」だけだと
+              用語の対応表になる。上に「専門用語を減らした」と置くと、
+              同じ組が**自分の操作の結果**として読める——次に自分で
+              頼むときに使えるのはこちら。
             */
-            <ul className="space-y-2" role="list" data-testid="changes-swaps">
-              {swaps.slice(0, 3).map((swap) => (
+            <ol className="mt-3 space-y-2.5" role="list" data-testid="changes-swaps">
+              {swaps.slice(0, 3).map((swap, at) => (
                 <li key={swap.from} className="rounded-card bg-canvas px-3.5 py-3">
-                  <p className="text-xs leading-5 text-ink-muted">{swap.from}</p>
-                  <p className="mt-1 flex items-start gap-1.5 text-sm font-bold leading-6">
+                  <p className="flex items-baseline gap-1.5 text-sm font-bold leading-6">
+                    <span className="shrink-0 tabular-nums text-brand">{at + 1}</span>
+                    <span className="min-w-0">{swap.headline}</span>
+                  </p>
+                  <p className="mt-1.5 text-xs leading-5 text-ink-muted">{swap.from}</p>
+                  <p className="mt-0.5 flex items-start gap-1.5 text-sm leading-6">
                     <IconArrowDown
                       className="mt-1 h-3.5 w-3.5 shrink-0 text-brand"
                       aria-hidden="true"
                     />
-                    <span className="min-w-0">{swap.to}</span>
+                    <span className="min-w-0 font-bold">{swap.to}</span>
                   </p>
                 </li>
               ))}
-            </ul>
+            </ol>
           )}
 
           {reviewPoints.length > 0 && (
-            <section className={swaps && swaps.length > 0 ? "mt-4" : ""}>
+            <section className={swaps && swaps.length > 0 ? "mt-4" : "mt-3"}>
               <h3 className="text-xs font-bold text-ink-muted">ここを見て</h3>
               <ul className="mt-2 space-y-1 text-sm leading-6" role="list">
                 {reviewPoints.map((point) => (
@@ -317,36 +384,76 @@ export function ResultCompare({
             </section>
           )}
 
-          {!fullCompare ? (
-            <div className="mt-4">
-              <MoreButton
-                testId="full-compare-open"
-                onClick={() => setFullCompare(true)}
-              >
-                全文を比べる
-              </MoreButton>
-            </div>
-          ) : (
-            <div className="mt-4 border-t border-line pt-4" data-testid="full-compare">
-              {showDiff && diff}
+          {/*
+            全文の比べは、**この一枚の中では開かない。**
+
+            前はここで展開していて、開いた瞬間に赤青の差分と長い2文が
+            この一枚の中に生えた。上の3つを読んでいる途中で下が伸びる
+            ので、どこまで読んだのか分からなくなる。もう一枚にする。
+          */}
+          <div className="mt-4">
+            <MoreButton testId="full-compare-open" onClick={() => setFullCompare(true)}>
+              全文を比べる
+            </MoreButton>
+          </div>
+
+          {fullCompare && (
+            <MoreSheet
+              elevated
+              placement="center"
+              testId="full-compare"
+              title="全文を比べる"
+              onClose={() => setFullCompare(false)}
+            >
               {/*
-                文章そのものを押せるようにする。長い日はここで切れるので、
-                続きを読むために一枚を送らせない（`FullText`）。
+                縦に並べる。横に並べると 390px ではどちらも読めない幅に
+                なる（`ResultCompare` の広い画面と同じ理由）。
               */}
-              <section className={showDiff ? "mt-5" : ""}>
+              <section>
                 <h3 className="text-xs font-bold text-ink-muted">元の文章</h3>
                 <div className="mt-2">
                   <FullText label="元の文章" text={before} testId="full-before" />
                 </div>
               </section>
-              <section className="mt-4">
-                <h3 className="text-xs font-bold text-ink-muted">AIの結果</h3>
+
+              <div className="flex justify-center py-1.5" aria-hidden="true">
+                <IconArrowDown className="h-4 w-4 text-brand" />
+              </div>
+
+              <section>
+                <h3 className="text-xs font-bold text-brand-dark">AIの結果</h3>
                 <div className="mt-2">
                   <FullText label="AIの結果" text={after} testId="full-after" />
                 </div>
               </section>
+
+              {/*
+                差分の印は**押した人にだけ**。
+
+                開いた瞬間に赤青だらけの文が出ると、読む前に「難しそう」
+                で閉じられる。ここまで来た人は突き合わせたい人なので、
+                もう一手だけ預ける。
+              */}
+              {showDiff && (
+                <div className="mt-4 border-t border-line pt-3">
+                  {!marked ? (
+                    <button
+                      type="button"
+                      onClick={() => setMarked(true)}
+                      data-testid="full-compare-mark"
+                      className="text-xs font-bold text-brand-dark underline
+                                 underline-offset-4"
+                    >
+                      変わった部分に印を付ける
+                    </button>
+                  ) : (
+                    diff
+                  )}
+                </div>
+              )}
+
               {extra && <div className="mt-5 border-t border-line pt-4">{extra}</div>}
-            </div>
+            </MoreSheet>
           )}
         </MoreSheet>
       )}

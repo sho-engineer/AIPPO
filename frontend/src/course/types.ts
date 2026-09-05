@@ -123,6 +123,8 @@ export type OptionIconName =
   | "calendar"
   | "scale"
   | "question"
+  | "document"
+  | "chat"
   // 条件を足すときの選択肢
   | "scissors"
   | "heart"

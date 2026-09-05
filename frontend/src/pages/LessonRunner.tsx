@@ -19,6 +19,7 @@ import { LessonHeader } from "../components/course/LessonHeader";
 import { LessonPaused } from "../components/course/LessonPaused";
 import { BackStackProvider, useBackStack } from "../components/course/BackStack";
 import { MoreSheet } from "../components/course/MoreSheet";
+import { promptCards } from "../course/promptSummary";
 import { PrimaryButton } from "../components/aippo/PrimaryButton";
 import {
   SectionTransition,
@@ -171,6 +172,14 @@ export function LessonRunner({
     **消えるのは画面だけ**——それを言ってから決めてもらう。
   */
   const [leaving, setLeaving] = useState(false);
+  /*
+    「いま送ったお願いを見る」。結果の画面から開く一枚。
+
+    前はここが**下の帯の主ボタン**だった。結果を読み終えた人が
+    いちばん押したいのは「次へ」で、送った文面はそのついでに
+    見たくなるもの。主と副が入れ替わっていた。
+  */
+  const [askOpen, setAskOpen] = useState(false);
 
   /*
     そのレッスンで覚える技を、出てくる順に。
@@ -921,7 +930,13 @@ export function LessonRunner({
             まとめの画面へ飛ぶ。**どちらも本当に終われる**
             ——押した先が無いほうを置くと、任意にした意味が消える。
           */
-          step.id === "real_task_intro"
+          step.type === "observation"
+            ? /*
+                送った文面は、**押した人にだけ**出す。結果を読むのが
+                先で、「何を送ったんだっけ」は読んだあとに来る。
+              */
+              { label: "いま送ったお願いを見る", onClick: () => setAskOpen(true) }
+            : step.id === "real_task_intro"
             ? { label: "次のレッスンへ", onClick: api.finishEarly }
             : step.type === "real_task"
             ? { label: "今回はスキップする", onClick: api.skipRealTask }
@@ -1026,6 +1041,41 @@ export function LessonRunner({
         ——端末に残るので、開き直せば続きから答えられる。それを
         書いておかないと、「×」は答えを捨てるボタンに見える。
       */}
+      {askOpen && (
+        <MoreSheet
+          placement="center"
+          testId="ask-sheet"
+          title="いま送ったお願い"
+          onClose={() => setAskOpen(false)}
+        >
+          {/*
+            送ったものを、そのまま並べる。**言い換えない。**
+
+            ここで文言を整えると、画面で見た文と実際に送った文が
+            食い違う。次の画面（プロンプトの解説）で「さっき送った
+            お願いが、そのままプロンプトです」と言うので、
+            指す先が違っていると話が合わなくなる。
+          */}
+          <ul className="space-y-2" role="list" data-testid="ask-sheet-cards">
+            {promptCards(api.values).map((card) => (
+              <li
+                key={card.label}
+                className="rounded-card bg-canvas px-3.5 py-2.5"
+              >
+                <span className="block text-xs font-bold text-ink-muted">
+                  {card.label}
+                </span>
+                <span className="mt-0.5 block text-sm leading-6">{card.value}</span>
+              </li>
+            ))}
+          </ul>
+
+          <p className="mt-3 text-xs leading-6 text-ink-muted">
+            この文が「プロンプト」です。次の画面でもう一度出てきます。
+          </p>
+        </MoreSheet>
+      )}
+
       {leaving && (
         <MoreSheet
           placement="center"

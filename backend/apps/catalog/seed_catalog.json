@@ -344,6 +344,7 @@
           "type": "quick_try",
           "phase": "try",
           "title": "どこから分かりやすくする？",
+          "instruction": "目的に合わせて、書き直しの方向を選びましょう。",
           "poMessage": "選んでみよう！",
           "poEmotion": "question",
           "key": "instruction",
@@ -351,15 +352,21 @@
           "options": [
             {
               "value": "専門用語を減らす",
-              "label": "専門用語を減らす"
+              "label": "専門用語を減らす",
+              "note": "むずかしい言葉を、やさしい言葉に言いかえる",
+              "icon": "document"
             },
             {
               "value": "かみくだいて説明する",
-              "label": "かみくだいて説明する"
+              "label": "かみくだいて説明する",
+              "note": "ひとつずつ、かんたんな言い方に直す",
+              "icon": "chat"
             },
             {
               "value": "要点から先に伝える",
-              "label": "要点から先に伝える"
+              "label": "要点から先に伝える",
+              "note": "大事なポイントを最初に伝える",
+              "icon": "list-bullet"
             }
           ],
           "aiAction": {
@@ -400,7 +407,7 @@
           "type": "observation",
           "phase": "try",
           "title": "分かりやすくなった？",
-          "primaryLabel": "いま送ったお願いを見る",
+          "primaryLabel": "次へ",
           "poMessage": "どうだった？",
           "poEmotion": "question",
           "key": "observation",

@@ -27,10 +27,19 @@ const DOTS = [0, 1, 2];
 
 export function GeneratingCard({
   message,
+  note,
   busy,
   failed = false,
 }: {
   message: string;
+  /**
+   * いま何を頼んでいるか。**カードの外**に、ごく小さく1行。
+   *
+   * 待っているあいだに読めるのはここだけなので、自分が何を選んだのかを
+   * 思い出せるようにしておく。カードの中に入れると、点と2行の文で
+   * 器が縦に伸びる（いちばん低い持ち方で下のボタンを押し出す）。
+   */
+  note?: string;
   busy: boolean;
   /** 失敗して止まっているか。理由の文はここには出さない（下のボタンのそば） */
   failed?: boolean;
@@ -77,6 +86,15 @@ export function GeneratingCard({
       */}
       {message && (
         <p className="text-center text-sm leading-6 text-ink-muted">{message}</p>
+      )}
+
+      {note && (
+        <p
+          data-testid="generating-note"
+          className="text-center text-xs leading-5 text-ink-muted"
+        >
+          {note}
+        </p>
       )}
     </div>
   );

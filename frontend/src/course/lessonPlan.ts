@@ -34,6 +34,17 @@ export interface PlanAddition {
 
 /** むずかしい言葉と、その言いかえ。 */
 export interface TermSwap {
+  /**
+   * この1組で**何をしたのか**。
+   *
+   * 「自己注意機構 → 言葉同士の関係を見る仕組み」だけを並べると、
+   * 用語の対応表になる。読んだ人が持ち帰るのは Transformer の知識で、
+   * **自分のお願いが効いたこと**ではない。
+   *
+   * 見出しを1行付けると、同じ組が「専門用語を減らした」という
+   * 操作の結果として読める。次に自分で頼むときに使えるのはこちら。
+   */
+  headline: string;
   /** 元の文に出てくる言葉。 */
   from: string;
   /** できあがりでの言い方。 */
@@ -117,9 +128,26 @@ export const LESSON_PLANS: Record<string, LessonPlan> = {
       言いかえられていないということ。
     */
     swaps: [
-      { from: "自己注意機構", to: "言葉同士の関係を見る仕組み" },
-      { from: "Attention Weight", to: "どの言葉に注目するか" },
-      { from: "Multi-Head Attention", to: "いくつかの見方を同時に使う" },
+      {
+        headline: "専門用語を減らした",
+        from: "自己注意機構",
+        to: "言葉同士の関係を見る仕組み",
+      },
+      {
+        headline: "むずかしい表現を言いかえた",
+        from: "Attention Weight",
+        to: "どの言葉に注目するか",
+      },
+      {
+        /*
+          「短くした」とは書かない。**Day1 は「難しい → 分かる」で、
+          「長い → 短い」は Day2 の要約が持つ**。ここで短さの話を
+          始めると、Day2 に来た人が「昨日やった」と思って飛ばす。
+        */
+        headline: "こみいった仕組みを、ひとことで言い直した",
+        from: "Multi-Head Attention",
+        to: "いくつかの見方を同時に使う",
+      },
     ],
   },
 };

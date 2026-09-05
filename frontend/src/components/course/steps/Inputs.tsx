@@ -23,6 +23,7 @@ import {
   type Icon,
 } from "../../Icons";
 import { ChoiceButton } from "../../aippo/ChoiceButton";
+import { CopyButton } from "./Completion";
 import { isFreeValue } from "../../../course/engine";
 import { diagnosisIcon, optionIcon } from "../../../course/presentation";
 import type { LessonStep, StepOption } from "../../../course/types";
@@ -114,7 +115,15 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
     行にするのは絵が無いときだけ。絵を横に置く札（Day1 の条件タイル）は
     絵が意味を持っているので、そのまま残す。
   */
-  const rows = tiles && !withIcons;
+  /*
+    絵があっても、**ひとこと補足を持つ選択肢は1列**にする。
+
+    2列だと1枚が 390px の画面で 170px 前後。そこへ「むずかしい言葉を、
+    やさしい言葉に言いかえる」を入れると5行に折り返し、札の高さが
+    札ごとに変わって列がガタガタになる（Day1 の1問目で実際にそうなった）。
+    補足は読ませるために置いているので、読める幅を先に取る。
+  */
+  const rows = tiles && (!withIcons || noted);
 
   return (
     <div>
@@ -172,12 +181,43 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
                   >
                     {active && <IconCheck className="h-2.5 w-2.5" />}
                   </span>
-                  <span
-                    className={`min-w-0 text-sm leading-6 ${
-                      active ? "font-bold text-brand-dark" : ""
-                    }`}
-                  >
-                    {option.label}
+
+                  {/*
+                    絵は丸のあと、文字の前。**丸と入れ替えない**——
+                    丸は「選べる／選んだ」を、絵は「どれのことか」を
+                    言っていて、役が違う。
+                  */}
+                  {Glyph && (
+                    <span
+                      aria-hidden="true"
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center
+                                  rounded-card transition ${
+                                    active
+                                      ? "bg-brand text-white"
+                                      : "bg-brand-soft text-brand"
+                                  }`}
+                    >
+                      <Glyph className="h-[1.125rem] w-[1.125rem]" />
+                    </span>
+                  )}
+
+                  <span className="min-w-0 flex-1">
+                    <span
+                      className={`block text-sm leading-6 ${
+                        active ? "font-bold text-brand-dark" : ""
+                      }`}
+                    >
+                      {option.label}
+                    </span>
+                    {/*
+                      ひとこと補足。名前だけでは「かみくだいて説明する」と
+                      「要点から先に伝える」の違いが読み取れない。
+                    */}
+                    {option.note && (
+                      <span className="mt-0.5 block text-xs leading-5 text-ink-muted">
+                        {option.note}
+                      </span>
+                    )}
                   </span>
                 </button>
               </li>
@@ -490,6 +530,80 @@ export function QuizStep({ step, value, onChange, revealed }: QuizProps) {
           <p className="mt-1">{meta.explanation}</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// ------------------------------------------------- AIにはこう伝えます
+
+/**
+ * 選んだ札から組み立てた、AIへのお願い1文。
+ *
+ * なぜ画面に出すか
+ * ----------------
+ * Day1 で最初に受け取る技は「プロンプト」で、その中身は
+ * **さっき自分が送ったお願いそのもの**（`catalog.ts` の `concept_1`）。
+ * 送ったあとに「あれがプロンプトです」と言われても、何を指しているのか
+ * 思い出せない。送る前にその文が画面にあって、**札を押すたびに書き換わる**
+ * ところを見ていれば、あとで名前を聞いたときにつながる。
+ *
+ * 文の作り方
+ * ----------
+ * 札の言葉に「ように書き直してください。」を足すだけにする。教材ごとに
+ * 別の言い回しの表を持たない——表を持つと、札を1つ足すたびに表も直す
+ * ことになり、直し忘れた札だけ英字の値が画面に出る。
+ *
+ * 「〜ように」で受けられる形の札にしておくのは教材側の責任
+ * （「専門用語を減らす」「要点から先に伝える」——どれも動詞で終わる）。
+ */
+export function AskPreview({
+  instruction,
+  placeholder,
+}: {
+  instruction: string;
+  placeholder: string;
+}) {
+  const text = instruction ? `${instruction}ように書き直してください。` : "";
+
+  return (
+    <div data-testid="ask-preview">
+      {/* 名札と中身の面だけ。囲いを二重にしない（条件の画面と同じ） */}
+      <p className="text-xs font-bold text-ink-muted">AIにはこう伝えます</p>
+
+      {/*
+        低い持ち方（402×660）では、上下を一段詰める。**コピーの行が
+        増えるぶん**、選んだ瞬間に 19px はみ出していた。減らす先は
+        余白にする——札と下のボタンは、この画面の用そのもの。
+      */}
+      <div
+        className="mt-2 rounded-card border border-dashed border-brand-line px-3.5 py-2
+                   [@media(min-height:700px)]:py-3"
+      >
+        {text ? (
+          <p
+            data-testid="ask-preview-text"
+            className="text-sm leading-6"
+            /* 書き換わったことを読み上げへ届ける */
+            aria-live="polite"
+          >
+            「{text}」
+          </p>
+        ) : (
+          /*
+            まだ選んでいないときも、枠は出しておく。
+
+            選んだ瞬間に枠ごと生えてくると、下のボタンが動いて押し
+            そこねる。中身だけを差し替えて、高さは変えない。
+          */
+          <p className="text-sm leading-6 text-ink-muted">{placeholder}</p>
+        )}
+
+        {text && (
+          <div className="mt-1 flex justify-end [@media(min-height:700px)]:mt-1.5">
+            <CopyButton text={text} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

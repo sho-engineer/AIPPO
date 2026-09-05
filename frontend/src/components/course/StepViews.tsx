@@ -28,7 +28,7 @@
  * （空欄から始めさせない、色だけで状態を表さない、など）。
  */
 
-export { ChoiceStep, TextStep, QuizStep } from "./steps/Inputs";
+export { AskPreview, ChoiceStep, TextStep, QuizStep } from "./steps/Inputs";
 export { PromptPreview } from "./steps/PromptPreview";
 export { GeneratingCard } from "./steps/Generating";
 export { ResultCompare, RunHistory } from "./steps/Results";

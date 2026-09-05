@@ -40,7 +40,22 @@ export function labelFor(key: string): string {
 }
 
 /**
- * 条件の一覧。本文（original_text）は入れない。
+ * 本文が入っている鍵。**条件として並べない。**
+ *
+ * 2つあるのは、渡す前と渡したあとで名前が変わるため。
+ *
+ *     source_text    … 画面が持っている値（`values`）
+ *     original_text  … AI へ渡す形に組み替えたあと（`engine.ts` の
+ *                      `buildAiInput` が `aiAction.inputs` で読み替える）
+ *
+ * 前は後ろだけを外していた。画面の値をそのまま渡すと
+ * `source_text` が残り、**202字の専門文が条件の札として並んだ**
+ * （結果の画面で 221px を占めて、答える札が画面の外へ出た）。
+ */
+const SOURCE_KEYS = new Set(["original_text", "source_text"]);
+
+/**
+ * 条件の一覧。本文は入れない。
  *
  * 本文は「対象」であって条件ではない。混ぜると、条件を見比べたいときに
  * 長い文章が1枚挟まって読めなくなる。
@@ -50,7 +65,7 @@ export function promptCards(input: Record<string, string>): {
   value: string;
 }[] {
   return Object.entries(input)
-    .filter(([key, value]) => value && key !== "original_text")
+    .filter(([key, value]) => value && !SOURCE_KEYS.has(key))
     .map(([key, value]) => ({ label: labelFor(key), value }));
 }
 
