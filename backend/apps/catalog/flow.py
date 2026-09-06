@@ -219,7 +219,9 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "type": "outcome_preview",
             "phase": "try",
             "title": "今日つくるもの",
-            "poMessage": "まず、できあがりを見てみましょう。",
+            # 話しかける言い方にする。「見てみましょう」は案内文の言い回しで、
+            # 隣に立って一緒に始める役のポーの言葉ではない
+            "poMessage": "まず、できあがりを見てみよう！",
             "poEmotion": "neutral",
         },
         {
@@ -368,8 +370,10 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "phase": "own",
             # 次に何が来るかで言うことが変わる。あとに何も挟まなければ
             # 次は送る内容の確認なので、そう書ける。挟むときは
-            # `expand.py` の `_assemble` がここを外す
-            "primaryLabel": "AIに送る内容を見る",
+            # `expand.py` の `_assemble` がここを外す。
+            # 「AIに送る内容を見る」だと、押す前に AI へ送ってしまうように
+            # 読める。実際に次に来るのは送る前の確認画面なので、そう言う
+            "primaryLabel": "内容を確認する",
             "title": "自分の文章",
             "instruction": options.get("realTaskLabel", ""),
             "poMessage": "自分の仕事でも試してみる？",
@@ -391,8 +395,12 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             "id": "prompt_preview",
             "type": "prompt_preview",
             "phase": "own",
-            "title": "AIにはこう伝えます",
-            "instruction": "送る前に、どう伝わるかを確かめましょう。",
+            # 見出しは短く、この画面ですることだけを言う。「AIにはこう
+            # 伝えます」は宣言で、確かめる画面だと分からない。
+            # 「どう伝わるか」も相手の受け取り方の話に読めるので、
+            # 実際に見せているもの——組み上がったお願いの文——を言う
+            "title": "伝え方を確認",
+            "instruction": "送る前に、どんなお願いになっているか見てみましょう。",
             "poMessage": "これでお願いするね！",
             "poEmotion": "talking",
             "aiAction": ai_action,

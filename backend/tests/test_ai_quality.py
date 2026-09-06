@@ -116,6 +116,25 @@ class TestWhatWeCatch:
         assert not verdict.ok
         assert verdict.reason == "preamble"
 
+    def test_declaring_the_work_instead_of_starting_it(self):
+        """1文目が、これからやることの宣言になっている。
+
+        実機で出た壊れ方。「上司への報告用に、専門用語を減らして丁寧に
+        書き直します。」で始まり、書き直した文章はその次から始まっていた。
+        行末が「：」ではないので `no_preamble` はすり抜ける。
+        学習者が受け取りたいのは成果物で、作業の報告ではない。
+        """
+        verdict = quality.inspect(
+            "rewrite",
+            _values(),
+            "上司への報告用に、専門用語を減らして丁寧に書き直します。\n"
+            "明日の打ち合わせの資料について、確認していただきたい点がございます。\n"
+            "本日中にご覧いただけますと助かります。",
+        )
+
+        assert not verdict.ok
+        assert verdict.reason == "work_declaration"
+
     def test_the_json_leaking_into_the_body(self):
         verdict = quality.inspect("rewrite", _values(), '{"result": "ご確認ください"}')
 
@@ -163,6 +182,81 @@ class TestWhatWeMustNotCatch:
         )
 
         assert verdict.ok
+
+    @pytest.mark.parametrize(
+        "answer",
+        [
+            # 作業を名指す動詞で終わるが、話しているのは**本文の予定**。
+            # 依頼のほうを指す言葉が1つも無い
+            "明日までに企画書を書き直します。\n"
+            "できあがりましたら、あらためてご連絡いたします。",
+            # 「使用に」の「用に」を「〜用に」と読むと、ここで落ちる。
+            # 実際の書き直しにふつうに出てくる言い回し
+            "サービスの使用に関する注意点を説明します。\n"
+            "ご不明な点がありましたら、お気軽にお問い合わせください。",
+            # 「承知しました。」で始まる本文。丁寧に書き直すと正しくこうなる
+            "承知しました。のちほど確認いたします。",
+            # 依頼のほうを指す言葉（「元の文章」）は入っているが、
+            # 作業を名指す動詞で終わっていない
+            "元の文章にあった注意点は、そのまま残してあります。\n"
+            "本日中にご確認いただけますと助かります。",
+        ],
+    )
+    def test_a_rewrite_that_only_looks_like_a_declaration(self, answer):
+        """**書き直した本文のほうを弾かない。**
+
+        「〜します。」で終わる1文目は、本文としてふつうにある。
+        作業を名指す動詞と、依頼のほうを指す言葉が**同じ文にそろった**
+        ときだけ落とす作りにしてあるのは、このため。片方だけで弾くと、
+        まともな結果を毎回作り直させることになる。
+        """
+        assert quality.inspect("rewrite", _values(), answer).ok
+
+    def test_a_single_sentence_answer_is_not_a_declaration(self):
+        """1文しか無い返りは、宣言と見なさない。
+
+        宣言なら、そのあとに本文が続く。続いていないなら、それは
+        書き直した文章そのもの——元の文章が依頼文だったときに起きる。
+        """
+        verdict = quality.inspect(
+            "rewrite",
+            _values(original_text="この資料、明日までに直しておいて。"),
+            "この資料は、明日までにこちらで書き直します。",
+        )
+
+        assert verdict.ok
+
+    def test_a_long_first_sentence_is_not_a_declaration(self):
+        """長い1文目は見ない。
+
+        宣言は短い（「〜向けに書き直します。」）。長い1文が同じ形で
+        終わったときは、たまたま似ただけの本文である見込みのほうが高い。
+        """
+        verdict = quality.inspect(
+            "rewrite",
+            _values(),
+            "明日の打ち合わせでお配りする資料について、"
+            "ご指摘いただいた点をふまえ、本日中に体裁と言葉づかいを"
+            "整えたうえで、こちらであらためて書き直します。\n"
+            "できあがり次第、あらためて共有いたします。",
+        )
+
+        assert verdict.ok
+
+    def test_only_rewrite_is_checked_for_declarations(self):
+        """宣言の検査は rewrite にだけ掛ける。
+
+        目印にしている言葉（「〜向けに」「専門用語」）は書き直しの
+        依頼を指すもので、要約や説明では本文にふつうに出る。
+        共通に上げると、そちらで誤検知が増える。
+        """
+        declaring = (
+            "新入社員向けに専門用語をかみくだいて説明します。\n"
+            "まず、資料の全体像から確認していきましょう。"
+        )
+
+        assert quality.inspect("summarize", _values(), declaring).ok
+        assert not quality.inspect("rewrite", _values(), declaring).ok
 
     def test_a_short_source_getting_a_short_answer(self):
         # 1行の文章を1行に直すのは正しい。短さだけでは弾かない
@@ -247,6 +341,31 @@ class TestTheErrorItself:
         assert AIQualityError("copy").reason == "copy"
         assert AIQualityError("copy").kind == "quality"
 
+    def test_no_check_can_fail_for_a_reason_we_cannot_fix(self):
+        """検査を足したら、直し方も足すこと。**書き忘れをここで捕まえる。**
+
+        下の一覧は手で書いてある。手で書いた一覧は、検査を足した日に
+        更新し忘れる——実際 `work_declaration` を足したとき、
+        検査のほうだけが増えていた。書き忘れても
+        `retry_hint` は既定の一言を返すので、画面は何ごとも無く動き、
+        **作り直しの指示だけが役に立たないものに変わる**。
+        だから一覧は突き合わせる側にも1つ持ち、`quality.py` が
+        実際に落とせる名前を数え直す。
+        """
+        import inspect as inspect_module
+        import re as re_module
+
+        emitted = set(
+            re_module.findall(
+                r'Verdict\.failed\(\s*"([^"]+)"', inspect_module.getsource(quality)
+            )
+        )
+
+        assert emitted, "落ちる名前が1つも見つからない。書き方を変えたなら、ここも直す"
+        assert emitted <= set(quality.RETRY_HINT), (
+            f"直し方の無い名前がある: {sorted(emitted - set(quality.RETRY_HINT))}"
+        )
+
     def test_every_reason_has_a_way_to_fix_it(self):
         """落ちた検査には、必ず直し方の言葉があること。
 
@@ -260,6 +379,7 @@ class TestTheErrorItself:
             "too_many_lines",
             "format_ignored",
             "preamble",
+            "work_declaration",
             "commentary",
             "json_leak",
         ]
