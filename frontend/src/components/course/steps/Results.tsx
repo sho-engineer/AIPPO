@@ -275,7 +275,7 @@ export function ResultCompare({
                   tab === name ? "chip-on" : "chip-off"
                 }`}
               >
-                {name === "before" ? "元の文章" : "AIの結果"}
+                {name === "before" ? "元の文章" : "書き直した文章"}
               </button>
             ))}
           </div>
@@ -283,7 +283,7 @@ export function ResultCompare({
         <div className={onlyResult ? "" : "mt-3"}>
           {!onlyResult && tab === "before"
             ? preview("元の文章", before, "result-before-mobile")
-            : preview("AIの結果", after, "result-after-mobile")}
+            : preview("書き直した文章", after, "result-after-mobile")}
         </div>
       </div>
 
@@ -300,8 +300,8 @@ export function ResultCompare({
           {preview("元の文章", before, "result-before")}
         </div>
         <div>
-          <h3 className="mb-1.5 text-xs font-bold text-ink-muted">AIの結果</h3>
-          {preview("AIの結果", after, "result-after")}
+          <h3 className="mb-1.5 text-xs font-bold text-ink-muted">書き直した文章</h3>
+          {preview("書き直した文章", after, "result-after")}
         </div>
       </div>
 
@@ -421,9 +421,9 @@ export function ResultCompare({
               </div>
 
               <section>
-                <h3 className="text-xs font-bold text-brand-dark">AIの結果</h3>
+                <h3 className="text-xs font-bold text-brand-dark">書き直した文章</h3>
                 <div className="mt-2">
-                  <FullText label="AIの結果" text={after} testId="full-after" />
+                  <FullText label="書き直した文章" text={after} testId="full-after" />
                 </div>
               </section>
 

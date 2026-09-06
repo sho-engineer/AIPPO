@@ -610,6 +610,7 @@
           "poEmotion": "question",
           "key": "audience",
           "required": true,
+          "placeholder": "例）取引先の担当者",
           "options": [
             {
               "value": "その分野を知らない人",
@@ -629,7 +630,7 @@
             },
             {
               "value": "",
-              "label": "そのほか",
+              "label": "自分で指定する",
               "free": true
             }
           ]
@@ -673,26 +674,31 @@
           "poEmotion": "question",
           "key": "tone",
           "required": true,
+          "placeholder": "例）現場の人にも伝わる言い方で",
           "options": [
             {
               "value": "やさしい口調で",
-              "label": "やさしい口調で"
+              "label": "やさしい口調で",
+              "note": "むずかしい言葉を避けて、やわらかく説明します。"
             },
             {
               "value": "ていねいに",
-              "label": "ていねいに"
+              "label": "ていねいに",
+              "note": "落ち着いた丁寧な言い方で説明します。"
             },
             {
               "value": "きっぱりと",
-              "label": "きっぱりと"
+              "label": "きっぱりと",
+              "note": "結論をはっきり伝える言い方にします。"
             },
             {
               "value": "たとえを使って",
-              "label": "たとえを使って"
+              "label": "たとえを使って",
+              "note": "身近なものにたとえて説明します。"
             },
             {
               "value": "",
-              "label": "そのほか",
+              "label": "自分で指定する",
               "free": true
             }
           ]
@@ -738,17 +744,17 @@
           "id": "real_task",
           "type": "real_task",
           "phase": "own",
-          "primaryLabel": "AIに送る内容を見る",
+          "primaryLabel": "内容を確認する",
           "title": "自分の文章",
           "instruction": "いま実際に分かりやすくしたい文章を、ひとつ入れてみましょう。",
           "poMessage": "自分の仕事でも試してみる？",
           "poEmotion": "hint",
           "key": "real_task_text",
-          "placeholder": "例）社内で回ってきた、専門用語の多い資料の一文",
+          "placeholder": "分かりやすくしたい文章を入れてください",
           "hints": [
             "誰に読んでもらう文章か、AIに伝えてみると変わるかも！",
             "「たとえを使って」のように、説明のしかたをひとつだけ足してみましょう。",
-            "うまくいかないときは、元の文章を少し長めに入れてみてください。"
+            "2〜3文くらいあると、変わったところが分かりやすいよ！"
           ],
           "required": true,
           "validationRules": {
@@ -760,8 +766,8 @@
           "id": "prompt_preview",
           "type": "prompt_preview",
           "phase": "own",
-          "title": "AIにはこう伝えます",
-          "instruction": "送る前に、どう伝わるかを確かめましょう。",
+          "title": "伝え方を確認",
+          "instruction": "送る前に、どんなお願いになっているか見てみましょう。",
           "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
@@ -1152,7 +1158,7 @@
             },
             {
               "value": "",
-              "label": "そのほか",
+              "label": "自分で指定する",
               "free": true
             }
           ]
@@ -1207,7 +1213,7 @@
             },
             {
               "value": "",
-              "label": "そのほか",
+              "label": "自分で指定する",
               "free": true
             }
           ]
@@ -1216,8 +1222,8 @@
           "id": "prompt_preview",
           "type": "prompt_preview",
           "phase": "own",
-          "title": "AIにはこう伝えます",
-          "instruction": "送る前に、どう伝わるかを確かめましょう。",
+          "title": "伝え方を確認",
+          "instruction": "送る前に、どんなお願いになっているか見てみましょう。",
           "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
@@ -1574,7 +1580,7 @@
             },
             {
               "value": "",
-              "label": "そのほか",
+              "label": "自分で指定する",
               "free": true
             }
           ]
@@ -1629,7 +1635,7 @@
             },
             {
               "value": "",
-              "label": "そのほか",
+              "label": "自分で指定する",
               "free": true
             }
           ]
@@ -1691,8 +1697,8 @@
           "id": "prompt_preview",
           "type": "prompt_preview",
           "phase": "own",
-          "title": "AIにはこう伝えます",
-          "instruction": "送る前に、どう伝わるかを確かめましょう。",
+          "title": "伝え方を確認",
+          "instruction": "送る前に、どんなお願いになっているか見てみましょう。",
           "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
@@ -2132,8 +2138,8 @@
           "id": "prompt_preview",
           "type": "prompt_preview",
           "phase": "own",
-          "title": "AIにはこう伝えます",
-          "instruction": "送る前に、どう伝わるかを確かめましょう。",
+          "title": "伝え方を確認",
+          "instruction": "送る前に、どんなお願いになっているか見てみましょう。",
           "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
@@ -2511,7 +2517,7 @@
             },
             {
               "value": "",
-              "label": "そのほか",
+              "label": "自分で指定する",
               "free": true
             }
           ]
@@ -2539,7 +2545,7 @@
             },
             {
               "value": "",
-              "label": "そのほか",
+              "label": "自分で指定する",
               "free": true
             }
           ]
@@ -2548,8 +2554,8 @@
           "id": "prompt_preview",
           "type": "prompt_preview",
           "phase": "own",
-          "title": "AIにはこう伝えます",
-          "instruction": "送る前に、どう伝わるかを確かめましょう。",
+          "title": "伝え方を確認",
+          "instruction": "送る前に、どんなお願いになっているか見てみましょう。",
           "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
@@ -2938,7 +2944,7 @@
             },
             {
               "value": "",
-              "label": "そのほか",
+              "label": "自分で指定する",
               "free": true
             }
           ]
@@ -2947,8 +2953,8 @@
           "id": "prompt_preview",
           "type": "prompt_preview",
           "phase": "own",
-          "title": "AIにはこう伝えます",
-          "instruction": "送る前に、どう伝わるかを確かめましょう。",
+          "title": "伝え方を確認",
+          "instruction": "送る前に、どんなお願いになっているか見てみましょう。",
           "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {
@@ -3555,14 +3561,14 @@
             "suggestLength": 20,
             "maxLength": 5000
           },
-          "primaryLabel": "AIに送る内容を見る"
+          "primaryLabel": "内容を確認する"
         },
         {
           "id": "prompt_preview",
           "type": "prompt_preview",
           "phase": "own",
-          "title": "AIにはこう伝えます",
-          "instruction": "送る前に、どう伝わるかを確かめましょう。",
+          "title": "伝え方を確認",
+          "instruction": "送る前に、どんなお願いになっているか見てみましょう。",
           "poMessage": "これでお願いするね！",
           "poEmotion": "talking",
           "aiAction": {

@@ -229,17 +229,25 @@ export function CompletionView({
       {/* 覚えたAI技。1行ずつ、囲いは付けない（面を積み重ねない） */}
       {skills.length > 0 && (
         <p
-          className="mt-2 flex shrink-0 items-center gap-2 text-sm"
+          className="mt-2 flex shrink-0 flex-wrap items-baseline gap-x-2 text-sm"
           data-testid="completion-skills"
         >
-          <IconStar className="h-4 w-4 shrink-0 text-brand" />
-          <span className="text-xs text-ink-muted">覚えたAI技</span>
+          <span className="flex items-center gap-2 text-xs text-ink-muted">
+            <IconStar className="h-4 w-4 shrink-0 text-brand" />
+            覚えたAI技
+          </span>
           {/*
-            1行で切る。技が2つある回は折り返して2行になり、そのぶん
-            下の成果物が縮む——**この画面でいちばん大事なのは成果物**。
-            全部は「このレッスンの記録」の一枚に並んでいる。
+            **切らない。**
+
+            前は1行で切っていた（`truncate`）。技が3つある Day1 では
+            実機で「プロンプト ／ ターゲット指定 ／ ト…」となり、
+            3つ目の名前が読めなかった。この画面は**今日おぼえた名前を
+            受け取る場所**なので、そこを削ると来た意味が減る。
+
+            折り返すぶん1行増えるが、成果物は下で自分の高さを持って
+            いるので、押し出されるのは余白のほう。
           */}
-          <span className="min-w-0 truncate font-bold text-brand-dark">
+          <span className="min-w-0 font-bold text-brand-dark">
             {skills.join(" ／ ")}
           </span>
         </p>
@@ -264,7 +272,18 @@ export function CompletionView({
           出ている高さ）ではこの下限そのものが画面を押し出していた。
           下限を下げるだけでは足りず、周りの余白も詰めてある。
         */
-        <div className="mt-2 flex min-h-[6.5rem] flex-1 flex-col">
+        /*
+          いちばん低い持ち方（402×660）では、下限をもう一段下げる。
+
+          技の名前を折り返せるようにしたぶん（3つある Day1 で1行増える）、
+          そこでは 21px はみ出していた。**名前を切るより、成果物の面を
+          1行ぶん詰める**——面の中は送れるので読めなくならないが、
+          切った名前は読みようがない。
+        */
+        <div
+          className="mt-2 flex min-h-[5rem] flex-1 flex-col
+                     [@media(min-height:700px)]:min-h-[6.5rem]"
+        >
           <p className="shrink-0 text-xs font-bold text-ink-muted">{outcomeLabel}</p>
           <p className="mt-1.5 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-card border border-line bg-surface p-3 text-sm leading-6">
             {outcomeText}

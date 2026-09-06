@@ -96,7 +96,7 @@ export const LENGTH_OPTIONS: StepOption[] = [
   { value: "3行くらい", label: "3行くらい" },
   { value: "半分の長さ", label: "半分の長さ" },
   { value: "今のままの長さ", label: "今のままの長さ" },
-  { value: "", label: "そのほか", free: true },
+  { value: "", label: "自分で指定する", free: true },
 ];
 
 /**
@@ -590,7 +590,7 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       */
       primaryLabel:
         (options.realTaskSteps ?? []).length === 0
-          ? "AIに送る内容を見る"
+          ? "内容を確認する"
           : undefined,
       title: "自分の文章",
       instruction: options.realTaskLabel,
@@ -616,8 +616,8 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       id: "prompt_preview",
       type: "prompt_preview",
       phase: "own",
-      title: "AIにはこう伝えます",
-      instruction: "送る前に、どう伝わるかを確かめましょう。",
+      title: "伝え方を確認",
+      instruction: "送る前に、どんなお願いになっているか見てみましょう。",
       poMessage: "これでお願いするね！",
       poEmotion: "talking",
       aiAction: options.aiAction,

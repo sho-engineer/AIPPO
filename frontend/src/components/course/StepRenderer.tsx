@@ -590,12 +590,14 @@ export function StepRenderer({
               ここでは音と読み上げだけにする（`subtle`）。理由は
               `StepDone.tsx` の `subtle` に書いた。
             */}
-            <StepDone label="AIが書き直しました" trigger={runs.length} subtle />
+            <StepDone label="書き直しました" trigger={runs.length} subtle />
             <ThreeWayCompare
               original={runs[0].inputText}
               first={runs[0].outputText}
               improved={runs[runs.length - 1].outputText}
               condition={values.condition ?? ""}
+            /* 代表例を1組。用語の対応表にしない（Compare.tsx） */
+            swaps={lessonPlan(lesson.id)?.swaps}
               picture={picture}
             />
             {/*
@@ -629,7 +631,7 @@ export function StepRenderer({
         <div className="flex min-h-0 flex-1 flex-col">
           {/* 届いた合図。音と読み上げだけ（理由は `StepDone` の `subtle`） */}
           {lastRun && (
-            <StepDone label="AIが書き直しました" trigger={runs.length} subtle />
+            <StepDone label="書き直しました" trigger={runs.length} subtle />
           )}
           {lastRun && (
             <ResultCompare
@@ -703,7 +705,7 @@ export function StepRenderer({
           outcomes={lesson.learnedSkills ? lesson.outcomes : undefined}
           outcomeText={lastRun?.outputText}
           outcomeLabel={
-            api.realTaskSkipped ? "AIが書いた文章（練習）" : "AIが書いた文章"
+            api.realTaskSkipped ? "書き直した文章（練習）" : "書き直した文章"
           }
           lessonId={lesson.id}
           lessonNumber={lesson.number}

@@ -21,6 +21,7 @@ import { FullText, MoreButton, MoreSheet } from "../MoreSheet";
 import { TeachingImage } from "../../lessons/TeachingImage";
 import type { TeachingImageEntry } from "../../../course/teachingImages";
 import { diffSentences } from "../../../lib/diff";
+import type { TermSwap } from "../../../course/lessonPlan";
 import { fitsSideBySide } from "../../../course/compareLayout";
 
 // --------------------------------------------------------- 3段階の比較
@@ -36,12 +37,19 @@ export function ThreeWayCompare({
   first,
   improved,
   condition,
+  swaps,
   picture = null,
 }: {
   original: string;
   first: string;
   improved: string;
   condition: string;
+  /**
+   * むずかしい言葉の言いかえ（`course/lessonPlan.ts`）。
+   *
+   * 「変わったところ」で**1組だけ**、代表例として出す。
+   */
+  swaps?: TermSwap[];
   /**
    * 同じことを図で1枚。**開いた一枚の中に置く。**
    *
@@ -113,6 +121,10 @@ export function ThreeWayCompare({
   */
   const [tab, setTab] = useState<"first" | "improved">("improved");
   const [more, setMore] = useState(false);
+  /* 全文の比べ・図・差分の印。どれも「変わったところ」の奥に置く */
+  const [fullCompare, setFullCompare] = useState(false);
+  const [figure, setFigure] = useState(false);
+  const [diffShown, setDiffShown] = useState(false);
 
   /*
     面の中の見出しは、**タブで切り替えているときは出さない**。
@@ -127,7 +139,7 @@ export function ThreeWayCompare({
         data-testid="result-first-heading"
       >
         <IconSparkle className="h-4 w-4 shrink-0" />
-        最初のAI結果
+        最初の結果
       </h3>
       )}
       {/*
@@ -281,24 +293,43 @@ export function ThreeWayCompare({
         2行に分けず矢印でつなぐ。原因と結果が同じ行に並ぶと、
         読まなくても対だと分かる——しかも 49px 返ってくる。
       */}
-      <p
-        className="mt-2.5 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1
-                   border-t border-line pt-2.5 text-sm"
+      {/*
+        今回の指示で**何が良くなったか**を、2〜3行の印つきで。
+
+        前はここが「AI初心者向けに → 275% 長くなりました」の1行だった。
+        長さの%は改善そのものではない——かみくだけば言葉は増えるので、
+        Day1（意味を変えずに分かりやすく）では**むしろ悪くなったように
+        読める**。実機で 275% と出て、それがこの画面の唯一の答えだった。
+
+        いま出すのは、測って言い切れることだけ（`changePointsOf`）。
+        測れなかった日は黙らず、そう書く。
+      */}
+      <div
+        className="mt-2.5 shrink-0 border-t border-line pt-2.5"
         data-testid="compare-summary"
       >
-        <span
-          className="rounded-badge bg-brand-soft px-2.5 py-0.5 font-bold text-brand-dark"
-          data-testid="compare-summary-condition"
-        >
-          {condition || "条件なし"}
-        </span>
-        <span aria-hidden="true" className="text-ink-muted">
-          →
-        </span>
-        <span className="min-w-0 leading-6" data-testid="compare-summary-change">
-          {changePointsOf(first, improved)[0] ?? NO_MEASURABLE_CHANGE}
-        </span>
-      </p>
+        <ul className="space-y-1" role="list" data-testid="compare-summary-change">
+          {(() => {
+            const points = changePointsOf(first, improved, condition);
+            if (points.length === 0) {
+              return (
+                <li className="text-sm leading-6 text-ink-muted">
+                  {NO_MEASURABLE_CHANGE}
+                </li>
+              );
+            }
+            return points.map((point) => (
+              <li
+                key={point}
+                className="flex items-start gap-2 text-sm leading-6"
+              >
+                <IconCheckCircle className="mt-1 h-4 w-4 shrink-0 text-accent-teal" />
+                <span className="min-w-0">{point}</span>
+              </li>
+            ));
+          })()}
+        </ul>
+      </div>
 
       <div className="mt-3 shrink-0">
         <MoreButton testId="compare-more" onClick={() => setMore(true)}>
@@ -307,9 +338,30 @@ export function ThreeWayCompare({
       </div>
 
       {more && (
-        <MoreSheet title="変わったところ" onClose={() => setMore(false)}>
+        /*
+          全画面で開く。**小さいシートに押し込まない。**
+
+          ここは3節ぶんの読み物で、下から出る小さめのシートに入れると
+          開いた瞬間から送ることになり、しかも背面のページと二重に
+          送れる。`placement="full"` は中だけが送れる（`MoreSheet`）。
+        */
+        <MoreSheet
+          placement="full"
+          testId="changes-sheet"
+          title="変わったところ"
+          onClose={() => {
+            setMore(false);
+            setFullCompare(false);
+            setFigure(false);
+          }}
+        >
+          <p className="text-xs leading-6 text-ink-muted">
+            お願いした内容が、文章にどう反映されたか見てみましょう。
+          </p>
+
+          {/* ① 何を変えた？ */}
           <section
-            className="flex items-center gap-3"
+            className="mt-3 flex items-center gap-3"
             data-testid="compare-why"
           >
             <h3 className="shrink-0 text-xs font-bold text-ink-muted">何を変えた？</h3>
@@ -322,95 +374,168 @@ export function ThreeWayCompare({
             </p>
           </section>
 
+          {/* ② どう変わった？ */}
           <section className="mt-5 border-t border-line pt-4">
             <h3 className="text-xs font-bold text-ink-muted">どう変わった？</h3>
             <div className="mt-2">
-              <ChangePoints before={first} after={improved} />
+              <ChangePoints before={first} after={improved} condition={condition} />
             </div>
           </section>
 
-          {/*
-            消えたところは、ここにしか出ない。上の改善後の面は
-            **足された文**を目立たせるが、消えた文は出しようがない
-            （そこにもう無いので）。足されたものと消えたものを並べる。
-          */}
-          <section className="mt-5 border-t border-line pt-4">
-            <h3 className="text-xs font-bold text-ink-muted">1文ずつ見る</h3>
-            <p className="mt-2 text-sm leading-7">
-              {diffSentences(first, improved).map((part, index) =>
-                part.kind === "same" ? (
-                  <span key={index}>{part.text}</span>
-                ) : (
-                  <span
-                    key={index}
-                    className={
-                      part.kind === "added"
-                        ? "rounded bg-brand-soft px-1 font-bold text-brand-dark"
-                        : "rounded bg-caution-soft px-1 text-caution line-through"
-                    }
-                  >
-                    {part.kind === "added" ? "＋" : "−"}
-                    {part.text}
-                  </span>
-                ),
-              )}
-            </p>
-          </section>
-
-          {picture && (
+          {/* ③ 代表例 */}
+          {swaps && swaps.length > 0 && (
+            /*
+              言いかえを**1組だけ**出す。3組並べると対応表になって、
+              読む人が持ち帰るのは用語の知識になる。ここで見せたいのは
+              「頼んだら、こういうふうに変わる」の1例。
+            */
             <section className="mt-5 border-t border-line pt-4">
-              <h3 className="text-xs font-bold text-ink-muted">図で見る</h3>
-              <div className="mt-2">
-                <TeachingImage
-                  src={picture.src}
-                  alt={picture.alt}
-                  width={picture.width}
-                  height={picture.height}
-                />
+              <h3 className="text-xs font-bold text-ink-muted">たとえば</h3>
+              <div
+                className="mt-2 rounded-card bg-canvas px-3.5 py-3"
+                data-testid="compare-example"
+              >
+                <p className="text-xs leading-5 text-ink-muted">{swaps[0].from}</p>
+                <p className="mt-0.5 flex items-start gap-1.5 text-sm leading-6">
+                  <IconArrowDown
+                    className="mt-1 h-3.5 w-3.5 shrink-0 text-brand"
+                    aria-hidden="true"
+                  />
+                  <span className="min-w-0 font-bold">{swaps[0].to}</span>
+                </p>
               </div>
             </section>
           )}
 
           {/*
-            元の文章から、ここまでの道のり。
+            ここから先は**押した人にだけ**。
 
-            2つ並べただけだと「AIが何かした」で終わる。自分が書いた文から
-            2手かかっていることは、3つ並べて初めて分かる。
+            前はこの一枚に「1文ずつ見る（全文の赤青）」「図で見る」
+            「ここまでの道のり（3本の全文）」まで積んでいた。開いた瞬間に
+            赤青が画面を埋めて、上の3節まで目が戻らない。
           */}
-          <section className="mt-5 border-t border-line pt-4">
-            <h3 className="text-xs font-bold text-ink-muted">ここまでの道のり</h3>
-            <ol className="mt-2 space-y-2" role="list">
-              {[
-                { id: "original" as const, label: "元の文章", body: original, icon: IconDocument },
-                { id: "first" as const, label: "1回目", body: first, icon: IconSparkle },
-                { id: "improved" as const, label: "改善後", body: improved, icon: IconCheckCircle },
-              ].map((panel) => (
-                <li
-                  key={panel.id}
-                  data-testid={`compare-${panel.id}`}
-                  className={
-                    panel.id === "improved" ? "rounded-card bg-brand-soft/50 p-2" : "p-2"
-                  }
-                >
-                  <p
-                    className={`flex items-center gap-1.5 text-xs font-bold ${
-                      panel.id === "improved" ? "text-brand-dark" : "text-ink-muted"
-                    }`}
+          <div className="mt-5 space-y-2 border-t border-line pt-4">
+            {picture && (
+              <MoreButton testId="compare-figure-open" onClick={() => setFigure(true)}>
+                図でも見る
+              </MoreButton>
+            )}
+            <MoreButton
+              testId="full-compare-open"
+              onClick={() => setFullCompare(true)}
+            >
+              全文を比べる
+            </MoreButton>
+          </div>
+
+          {figure && picture && (
+            <MoreSheet
+              elevated
+              placement="center"
+              testId="compare-figure"
+              title="図で見る"
+              onClose={() => setFigure(false)}
+            >
+              <TeachingImage
+                src={picture.src}
+                alt={picture.alt}
+                width={picture.width}
+                height={picture.height}
+              />
+            </MoreSheet>
+          )}
+
+          {fullCompare && (
+            <MoreSheet
+              elevated
+              placement="full"
+              testId="full-compare"
+              title="全文を比べる"
+              onClose={() => {
+                setFullCompare(false);
+                setDiffShown(false);
+              }}
+            >
+              {/*
+                元の文章から、ここまでの道のり。
+
+                2つ並べただけだと「AIが何かした」で終わる。自分が書いた文から
+                2手かかっていることは、3つ並べて初めて分かる。
+              */}
+              <ol className="space-y-2" role="list">
+                {[
+                  { id: "original" as const, label: "元の文章", body: original, icon: IconDocument },
+                  { id: "first" as const, label: "1回目", body: first, icon: IconSparkle },
+                  { id: "improved" as const, label: "改善後", body: improved, icon: IconCheckCircle },
+                ].map((panel) => (
+                  <li
+                    key={panel.id}
+                    data-testid={`compare-${panel.id}`}
+                    className={
+                      panel.id === "improved" ? "rounded-card bg-brand-soft/50 p-2" : "p-2"
+                    }
                   >
-                    <panel.icon className="h-3.5 w-3.5 shrink-0" />
-                    {panel.label}
+                    <p
+                      className={`flex items-center gap-1.5 text-xs font-bold ${
+                        panel.id === "improved" ? "text-brand-dark" : "text-ink-muted"
+                      }`}
+                    >
+                      <panel.icon className="h-3.5 w-3.5 shrink-0" />
+                      {panel.label}
+                    </p>
+                    <div className="mt-1.5">
+                      <FullText
+                        label={panel.label}
+                        text={panel.body}
+                        testId={`full-${panel.id}`}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ol>
+
+              {/*
+                消えたところが出るのは、ここだけ。上の3本は**いまある文**
+                なので、消えた文は出しようがない（そこにもう無いので）。
+
+                ただし既定では出さない。開いた瞬間に赤青が画面を埋めると、
+                読む前に「難しそう」で閉じられる。
+              */}
+              <div className="mt-4 border-t border-line pt-3">
+                {!diffShown ? (
+                  <button
+                    type="button"
+                    onClick={() => setDiffShown(true)}
+                    data-testid="full-compare-mark"
+                    className="text-xs font-bold text-brand-dark underline
+                               underline-offset-4"
+                  >
+                    変わった部分に印を付ける
+                  </button>
+                ) : (
+                  <p className="text-sm leading-7" data-testid="compare-diff">
+                    {diffSentences(first, improved).map((part, index) =>
+                      part.kind === "same" ? (
+                        <span key={index}>{part.text}</span>
+                      ) : (
+                        <span
+                          key={index}
+                          className={
+                            part.kind === "added"
+                              ? "rounded bg-brand-soft px-1 font-bold text-brand-dark"
+                              : "rounded bg-caution-soft px-1 text-caution line-through"
+                          }
+                        >
+                          {part.kind === "added" ? "＋" : "−"}
+                          {part.text}
+                        </span>
+                      ),
+                    )}
                   </p>
-                  <div className="mt-1.5">
-                    <FullText
-                      label={panel.label}
-                      text={panel.body}
-                      testId={`full-${panel.id}`}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
+                )}
+              </div>
+            </MoreSheet>
+          )}
         </MoreSheet>
       )}
     </div>
@@ -443,18 +568,62 @@ export function ThreeWayCompare({
  * 全部は「変わったところを見る」の中で並べる。2か所で別々に数えると、
  * 画面と一枚で違うことを言う日が来る。
  */
-export function changePointsOf(before: string, after: string): string[] {
+export function changePointsOf(
+  before: string,
+  after: string,
+  condition?: string,
+): string[] {
   const points: string[] = [];
 
-  const diff = after.length - before.length;
-  const rate = before.length === 0 ? 0 : Math.abs(diff) / before.length;
-  // 1割に満たない差は「変わった」と言わない。誤差の範囲
-  if (rate >= 0.1) {
-    points.push(
-      diff < 0
-        ? `${Math.round(rate * 100)}% 短くなりました`
-        : `${Math.round(rate * 100)}% 長くなりました`,
-    );
+  /*
+    条件を足したなら、それが**いちばん確かな「変わったところ」**。
+    測るまでもなく、本人がそう頼んだから変わっている。
+  */
+  if (condition) points.push(`${condition}言葉を選んだ`);
+
+  /*
+    むずかしい言葉が減ったか。
+
+    数えるのは**英字とカタカナの連なり**。専門用語かどうかは辞書が
+    無いと決められないが、日本語の文章の中でこの2つが続けて出るところは、
+    ほぼ用語（Query、Attention Weight、Multi-Head、トークン、
+    ソフトマックス…）。1割以上減っていたら「減った」と言う。
+  */
+  const jargon = (text: string) =>
+    (text.match(/[A-Za-z][A-Za-z-]{2,}|[ァ-ヴー]{4,}/g) ?? []).length;
+  const wasJargon = jargon(before);
+  if (wasJargon > 0 && jargon(after) <= wasJargon * 0.8) {
+    points.push("むずかしい言葉を減らした");
+  }
+
+  /*
+    一文が短くなったか。**全体の長さではなく、1文の長さ**を見る。
+
+    前はここで「65% 長くなりました」と全体の文字数だけを出していた。
+    ところが Day1 のねらいは「意味を変えずに分かりやすく」で、
+    **長くなること自体は悪くない**——かみくだけば言葉は増える。
+    数字だけを置くと、良くなったのか悪くなったのか読む側が判断できず、
+    しかも 275% のような値は「壊れた」ようにも見える。
+
+    分かりやすさに効くのは、1文がどれだけ短いか。ここを見る。
+  */
+  const perSentence = (text: string) => {
+    const sentences = text.split(/[。！？\n]/).filter((one) => one.trim());
+    return sentences.length === 0 ? 0 : text.length / sentences.length;
+  };
+  const wasLong = perSentence(before);
+  if (wasLong > 0 && perSentence(after) <= wasLong * 0.85) {
+    points.push("一文を短くした");
+  }
+
+  /*
+    説明が増えたか。**「長くなった」を数字ではなく、意味で言う。**
+
+    かみくだくと言葉は増える。増えたぶんは削られたのではなく
+    **足された説明**なので、そう書く。
+  */
+  if (before.length > 0 && after.length >= before.length * 1.2) {
+    points.push("説明を足してやさしくした");
   }
 
   const lines = (text: string) => text.split("\n").filter((line) => line.trim()).length;
@@ -464,21 +633,28 @@ export function changePointsOf(before: string, after: string): string[] {
   if (!isBulleted(before) && isBulleted(after)) points.push("箇条書きになりました");
   else if (lines(after) > lines(before)) points.push("行が分かれました");
 
-  return points;
+  /*
+    出すのは3つまで。4つ5つ並べると、**どれが今回の手柄なのか**が
+    ぼやける。上から確かな順に積んであるので、頭から取る。
+  */
+  return points.slice(0, 3);
 }
 
 /** 測れなかったときの1行。**空欄にしない**（下のコメント参照）。 */
 export const NO_MEASURABLE_CHANGE =
-  "長さや形は大きく変わっていません。言葉の選び方を見比べてみてください。";
+  "形の上では大きく変わっていません。言葉の選び方を見比べてみてください。";
 
 export function ChangePoints({
   before,
   after,
+  condition,
 }: {
   before: string;
   after: string;
+  /** 今回足した条件。あれば1つ目の「変わったところ」になる。 */
+  condition?: string;
 }) {
-  const points = changePointsOf(before, after);
+  const points = changePointsOf(before, after, condition);
 
   /*
     測って分かる差が無いときも、黙って消えない。

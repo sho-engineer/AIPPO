@@ -82,14 +82,19 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
   */
   const longest = Math.max(0, ...options.map((option) => option.label.length));
   /*
-    ひとこと補足（`note`）を持つ選択肢は、短い言葉でもタイルにする。
+    並べ方は**言葉の長さだけ**で決める。
 
-    「文章」「要約」だけを札で並べると、何をしてくれるのかが分から
-    ないまま選ぶことになる。補足を添えるなら2行ぶんの高さが要るので、
-    横に流す札ではなく高さのそろうタイルへ。
+    前は「ひとこと補足（`note`）を持つなら短い言葉でもタイル」にして
+    いた。ところが口調の5つ（「やさしい口調で」など、いずれも7字以内）に
+    補足を足したとたん、**5つとも2行のタイル**になって画面を埋めた。
+    しかも補足が札の中に入るので、押す前に5つぶんの説明を読むことに
+    なる——選ぶ前に読ませない、という元の狙いと逆。
+
+    短い札は札のまま横に流し、補足は**選んだものだけ**を下に1枚出す
+    （下の `selectedNote`）。押した手応えにもなる。
   */
   const noted = options.some((option) => option.note);
-  const tiles = longest > 8 || noted;
+  const tiles = longest > 8;
 
   /*
     2列にすると1枚が 375px の画面で 170px 前後になり、余白を引くと
@@ -124,6 +129,11 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
     補足は読ませるために置いているので、読める幅を先に取る。
   */
   const rows = tiles && (!withIcons || noted);
+
+  /* いま選ばれている札の補足。chips のとき、札の下に1枚だけ出す */
+  const selectedNote = options.find(
+    (option) => !option.free && selected.includes(option.value) && option.note,
+  )?.note;
 
   return (
     <div>
@@ -291,20 +301,49 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
                 {/*
                   選ばれていることを色だけで示さない。印を差し替える。
 
-                  **大きさは選ぶ前後で同じにする。** 以前はチェックが
-                  14px、用途の絵が 16px で、選ぶたびに 2px ぶん
-                  文字が左へ動いていた（実測 59 → 57）。P0-6 の
-                  「印が現れて文字が動く」と同じ種類で、こちらは
-                  現れるのではなく**差し替わる**ぶん気づきにくい。
+                  **場所は選ぶ前から空けておく。**
+
+                  前は「選んだときだけチェックを出す」形だった。絵を持つ
+                  札では絵と差し替わるので幅は動かないが、**絵の無い札
+                  （口調の5つ）では 24px ぶん札が伸びる**。押した瞬間に
+                  隣の札が次の行へ送られ、実機で並びが組み替わっていた
+                  ——押し間違いを誘う。
+
+                  いつも同じ大きさの枠を置いて、中身だけ入れ替える。
                 */}
-                {active && <IconCheck className="h-4 w-4 shrink-0" />}
-                {Glyph && !active && <Glyph className="h-4 w-4 shrink-0 text-brand" />}
+                <span aria-hidden="true" className="flex h-4 w-4 shrink-0 items-center">
+                  {active ? (
+                    <IconCheck className="h-4 w-4" />
+                  ) : Glyph ? (
+                    <Glyph className="h-4 w-4 text-brand" />
+                  ) : null}
+                </span>
                 {option.label}
               </button>
             </li>
           );
         })}
       </ul>
+
+      {/*
+        選んだ札の補足を、下に1枚。**chips のときだけ。**
+
+        札に添えると横幅を食って折り返しが崩れるので、選ばれたものを
+        1つだけ下に出す。選ぶ前は何も出さない——5つぶんの説明を先に
+        並べると、読んでから選ぶ画面になる。
+
+        行やタイルで並ぶ回（補足を持つ選択肢）は、札の中に出ている
+        ので、ここでは出さない。
+      */}
+      {!tiles && selectedNote && (
+        <p
+          data-testid="choice-note"
+          className="mt-3 rounded-card bg-brand-soft/50 px-3.5 py-2.5 text-sm leading-6"
+          aria-live="polite"
+        >
+          {selectedNote}
+        </p>
+      )}
 
       {free && showFree && (
         <div className="mt-4">
@@ -316,7 +355,12 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
             type="text"
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            placeholder={step.placeholder ?? "例）取引先の担当者"}
+            /*
+              例文は教材が持つ。既定を「例）取引先の担当者」にしていた
+              ころ、**口調を書く欄に相手の例**が出ていた（実機で確認）。
+              持っていない教材では、何も置かないほうがまし。
+            */
+            placeholder={step.placeholder ?? ""}
             className="mt-2 w-full rounded-card border border-line px-4 py-3 text-base"
           />
         </div>
@@ -417,7 +461,13 @@ export function TextStep({
       >
         <InputMode
           icon={IconPencil}
-          label="自分で入力する"
+          /*
+            短くする。「自分で入力する」は帯の3分の1を1つで使い、
+            390px では3つ並べると横に送ることになっていた。
+            見出し（「自分の文章」）が誰の文章かを言っているので、
+            ここは動作だけでよい。
+          */
+          label="入力する"
           active={value.length > 0 && value !== sampleText}
           onClick={() => textarea.current?.focus()}
         />
@@ -440,7 +490,13 @@ export function TextStep({
         )}
       </div>
 
-      <label htmlFor={inputId} className="mt-3 block shrink-0 text-sm font-bold">
+      {/*
+        見出しは**画面の題が持っている**（`StepShell` の `step.title`）。
+        同じ「自分の文章」を入力欄の上にもう一度置くと、上下に2つ並んで
+        30px を二度使う。実機ではそのぶん文字数表示とヒントが下の帯へ
+        隠れていた。読み上げのために名前だけ残す。
+      */}
+      <label htmlFor={inputId} className="sr-only">
         {step.title}
       </label>
       {/*

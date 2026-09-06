@@ -6,8 +6,7 @@
  * 独立させてある。
  */
 
-import { Card, CardHeading } from "../../AppShell";
-import { IconSparkle } from "../../Icons";
+import { Card } from "../../AppShell";
 
 // ------------------------------------------------------- 依頼内容の確認
 
@@ -38,19 +37,24 @@ export function PromptPreview({ cards, detail, onOpenDetail }: PreviewProps) {
       条件が増えても、下の「くわしく見る」と「次へ」は動かない。
     */
     <div className="flex min-h-0 flex-1 flex-col">
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <div className="shrink-0">
-          <CardHeading icon={IconSparkle} tone="plain">
-            AIにはこう伝えます
-          </CardHeading>
-        </div>
+      {/*
+        面の中に見出しを置かない。
 
+        前はここに「✨ AIにはこう伝えます」を置いていた。画面の見出し
+        （`StepShell` が出す `step.title`）と**同じ言葉が上下に2つ**並び、
+        しかも面の中の1行ぶん（38px）を取っていた。実機ではそのぶん
+        4項目目（読む相手）が枠から切れていた。
+
+        印のキラキラも外す。ここは「送る前に確かめる」場面で、
+        魔法の記号が要る場面ではない。
+      */}
+      <Card className="flex min-h-0 flex-1 flex-col">
         {/*
           項目名と中身を左右に並べる。
           カードを縦に積むより、何を何に決めたのかが一覧で追える。
         */}
         <dl
-          className="mt-4 min-h-0 flex-1 divide-y divide-line overflow-y-auto
+          className="min-h-0 flex-1 divide-y divide-line overflow-y-auto
                      rounded-card bg-canvas px-4"
           data-testid="prompt-cards"
         >
@@ -98,7 +102,7 @@ export function PromptPreview({ cards, detail, onOpenDetail }: PreviewProps) {
         }}
       >
         <summary className="cursor-pointer text-xs font-bold text-ink-muted">
-          くわしく見る（実際に送る文章）
+          くわしく見る（実際に送る内容）
         </summary>
         <pre
           data-testid="prompt-detail"

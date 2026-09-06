@@ -69,10 +69,16 @@ export const LABEL_BY_TYPE: Record<StepType, string> = {
   assemble: "これでいく",
   text_input: "書けた",
   template_builder: "できた",
-  prompt_preview: "この内容でAIに送る",
-  ai_generate: "AIに送る",
+  prompt_preview: "この内容で整える",
+  ai_generate: "送る",
   result_review: "次へ進む",
-  result_compare: "何が変わった？",
+  /*
+    下の帯は**進むボタン**。「変わったところを見る」にすると、画面の
+    中にある同じ名前のボタン（一枚を開く）と2つ並び、押した先が違う
+    ものが同じ言葉で並ぶ。前の「何が変わった？」も同じ問題で、
+    押すと一枚が開くのではなく次の画面へ移っていた。
+  */
+  result_compare: "次へ",
   improvement_choice: "もう一度AIに送る",
   safety_check: "この中から選ぶ",
   /*

@@ -676,7 +676,7 @@ const LESSON_1: Lesson = {
       "むずかしい言葉が残っていないか",
     ],
     realTaskLabel: "いま実際に分かりやすくしたい文章を、ひとつ入れてみましょう。",
-    realTaskPlaceholder: "例）社内で回ってきた、専門用語の多い資料の一文",
+    realTaskPlaceholder: "分かりやすくしたい文章を入れてください",
     /*
       詰まった人へのヒント。
 
@@ -689,7 +689,7 @@ const LESSON_1: Lesson = {
     realTaskHints: [
       "誰に読んでもらう文章か、AIに伝えてみると変わるかも！",
       "「たとえを使って」のように、説明のしかたをひとつだけ足してみましょう。",
-      "うまくいかないときは、元の文章を少し長めに入れてみてください。",
+      "2〜3文くらいあると、変わったところが分かりやすいよ！",
     ],
     /*
       Section 3「トーンを変えよう」の中身。**自分の文章を書く前**に置く。
@@ -725,12 +725,13 @@ const LESSON_1: Lesson = {
           この回で分けたいのは役職ではなく**どれだけ知っているか**で、
           そこが変わると説明の深さが変わる。
         */
+        placeholder: "例）取引先の担当者",
         options: [
           { value: "その分野を知らない人", label: "その分野を知らない人" },
           { value: "新入社員", label: "新入社員" },
           { value: "お客様", label: "お客様" },
           { value: "くわしい人", label: "くわしい人" },
-          { value: "", label: "そのほか", free: true },
+          { value: "", label: "自分で指定する", free: true },
         ],
       },
       {
@@ -775,12 +776,36 @@ const LESSON_1: Lesson = {
         key: "tone",
         required: true,
         // 先頭は「やさしい口調で」。この回でいちばん効きめが見える口調
+        placeholder: "例）現場の人にも伝わる言い方で",
+        /*
+          選ぶと、下に短い例が1行出る（`ChoiceStep` の `choice-note`）。
+
+          5つとも「言い方」なので、名前だけでは何が変わるのか読み取れない。
+          かといって札の中に説明を入れると横幅を食って折り返しが崩れるので、
+          **選んだものだけ**を下に出す。押した手応えにもなる。
+        */
         options: [
-          { value: "やさしい口調で", label: "やさしい口調で" },
-          { value: "ていねいに", label: "ていねいに" },
-          { value: "きっぱりと", label: "きっぱりと" },
-          { value: "たとえを使って", label: "たとえを使って" },
-          { value: "", label: "そのほか", free: true },
+          {
+            value: "やさしい口調で",
+            label: "やさしい口調で",
+            note: "むずかしい言葉を避けて、やわらかく説明します。",
+          },
+          {
+            value: "ていねいに",
+            label: "ていねいに",
+            note: "落ち着いた丁寧な言い方で説明します。",
+          },
+          {
+            value: "きっぱりと",
+            label: "きっぱりと",
+            note: "結論をはっきり伝える言い方にします。",
+          },
+          {
+            value: "たとえを使って",
+            label: "たとえを使って",
+            note: "身近なものにたとえて説明します。",
+          },
+          { value: "", label: "自分で指定する", free: true },
         ],
       },
       /*
@@ -928,7 +953,7 @@ const LESSON_2: Lesson = {
           { value: "重要な点を3つ", label: "重要な点を3つ" },
           { value: "次にやることを抽出", label: "次にやることを抽出" },
           { value: "初心者向けに説明", label: "初心者向けに説明" },
-          { value: "", label: "そのほか", free: true },
+          { value: "", label: "自分で指定する", free: true },
         ],
       },
       {
@@ -962,7 +987,7 @@ const LESSON_2: Lesson = {
           { value: "内容をつかむため", label: "内容をつかむため" },
           { value: "人に共有するため", label: "人に共有するため" },
           { value: "自分がやることを知るため", label: "自分の作業のため" },
-          { value: "", label: "そのほか", free: true },
+          { value: "", label: "自分で指定する", free: true },
         ],
       },
     ],
@@ -1084,7 +1109,7 @@ const LESSON_3: Lesson = {
           { value: "初心者向け", label: "初心者向け" },
           { value: "小学生向け", label: "小学生向け" },
           { value: "その分野の人向け", label: "その分野の人向け" },
-          { value: "", label: "そのほか", free: true },
+          { value: "", label: "自分で指定する", free: true },
         ],
       },
       {
@@ -1128,7 +1153,7 @@ const LESSON_3: Lesson = {
           { value: "先生として、順を追って教えるように", label: "先生として" },
           { value: "IT担当者として、実務に寄せて", label: "IT担当者として" },
           { value: "詳しい友だちとして、くだけた言葉で", label: "詳しい友だちとして" },
-          { value: "", label: "そのほか", free: true },
+          { value: "", label: "自分で指定する", free: true },
         ],
       },
       {
@@ -1457,7 +1482,7 @@ const LESSON_5: Lesson = {
           { value: "今週中", label: "今週中" },
           { value: "1か月", label: "1か月" },
           { value: "3か月", label: "3か月" },
-          { value: "", label: "そのほか", free: true },
+          { value: "", label: "自分で指定する", free: true },
         ],
       },
       {
@@ -1472,7 +1497,7 @@ const LESSON_5: Lesson = {
           { value: "1日15分", label: "1日15分" },
           { value: "1日30分", label: "1日30分" },
           { value: "週に2時間", label: "週に2時間" },
-          { value: "", label: "そのほか", free: true },
+          { value: "", label: "自分で指定する", free: true },
         ],
       },
     ],
@@ -1571,7 +1596,7 @@ const LESSON_6: Lesson = {
           { value: "別案を出す", label: "別案を出す" },
           { value: "足りない情報を質問する", label: "追加質問する" },
           { value: "厳しい視点でレビューする", label: "厳しく評価する" },
-          { value: "", label: "そのほか", free: true },
+          { value: "", label: "自分で指定する", free: true },
         ],
       },
     ],
