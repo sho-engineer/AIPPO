@@ -23,7 +23,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OutcomePreview } from "../src/components/course/steps/Outcome";
-import { lessonPlan } from "../src/course/lessonPlan";
+import { lessonPlan, type LessonPlan } from "../src/course/lessonPlan";
 
 const PLAN = lessonPlan("rewrite_text")!;
 
@@ -47,7 +47,12 @@ const DETAIL = {
 
 function renderOutcome(
   onStart?: () => void,
-  extra?: { introSeen?: boolean; onIntroSeen?: () => void },
+  extra?: {
+    introSeen?: boolean;
+    onIntroSeen?: () => void;
+    /** 図の材料。`null` を渡すと図の無い教材になる。 */
+    plan?: LessonPlan | null;
+  },
 ) {
   return render(
     <OutcomePreview
@@ -123,15 +128,38 @@ describe("レッスンの入口", () => {
     }
   });
 
-  it("ゴールは1行だけ", () => {
+  it("図があるときは、ゴールの1行を重ねない", () => {
     /*
-      教材は3つ持っているが、始める前に3つ並べると「覚えることが
-      3つある」に見える。残り2つは「詳しく見る」の中で会う。
+      図の3つの箱が「何を渡して、何が返ってくるか」をもう言っている。
+      同じことを文章でもう一度書くと、読む量を減らすためにこの一枚を
+      作った意味が消える。だから図が出せる教材では、ゴールの1行は
+      置かない（`lesson-intro-goal` そのものが無い）。
+
+      並べないのは、そもそも教材が3つ持っているから。始める前に3つ
+      並べると「覚えることが3つある」に見える。残りは「詳しく見る」の中。
     */
     renderOutcome();
 
-    const goal = screen.getByTestId("lesson-intro-goal");
-    expect(goal).toBeInTheDocument();
+    expect(screen.queryByTestId("lesson-intro-goal")).toBeNull();
+    expect(screen.getByTestId("today-plan")).toBeInTheDocument();
+    expect(screen.getByTestId("lesson-intro")).not.toHaveTextContent(
+      DETAIL.outcomes[2],
+    );
+  });
+
+  it("図が無い教材では、ゴールは1行だけ出す", () => {
+    /*
+      図の材料をまだ持っていない教材では、一枚がポーの一言だけに
+      なってしまう。そこにはゴールを出す——ただし**1行だけ**。
+      教材は3つ持っているが、始める前に3つ並べると「覚えることが
+      3つある」に見える。残り2つは「詳しく見る」の中で会う。
+    */
+    renderOutcome(undefined, { plan: null });
+
+    expect(screen.queryByTestId("today-plan")).toBeNull();
+    expect(screen.getByTestId("lesson-intro-goal")).toHaveTextContent(
+      "読む相手と言い方を伝えて、意味を変えずに分かりやすくします。",
+    );
     expect(screen.getByTestId("lesson-intro")).not.toHaveTextContent(
       DETAIL.outcomes[2],
     );

@@ -54,7 +54,7 @@ describe("自分の課題のステップ", () => {
     */
     // 見出しは画面の上と本文の中に2つ出る。ここでは移ったことだけ見る
     expect(
-      await screen.findAllByRole("heading", { name: "AIにはこう伝えます" }),
+      await screen.findAllByRole("heading", { name: "伝え方を確認" }),
     ).not.toHaveLength(0);
 
     // ここでは AI を呼ばない。送るのは prompt_preview のあと

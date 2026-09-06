@@ -45,17 +45,28 @@ describe("自動で進めてよい回", () => {
     expect(canAutoAdvance(course, course.steps[0])).toBe(true);
   });
 
-  it("どこが変わったかを選ぶ回も進める", () => {
+});
+
+describe("自動で進めてはいけない回", () => {
+  it("どこが変わったかを選ぶ回は、選ぶだけに見えても進めない", () => {
+    /*
+      形の上では「札を1つ選ぶだけ」だが、この回の画面の上には
+      **書き直した文章そのものが載っている**。分かりやすくなったか、
+      まだ難しいかを答えるには、まずそれを読む時間が要る。
+
+      進めていたころは、札に触れた瞬間に次の画面へ送られていた。
+      読み終える前に答えを押した人は、押した札も結果も確かめられない。
+      「AIの結果を見る回は、進めない」と同じ理由がここにも要るので、
+      `CHOICE_ONLY` からは `observation` を外してある。
+    */
     const course = lesson([
       step({ id: "a", type: "observation", key: "noticed" }),
       step({ id: "b", type: "concept_card" }),
     ]);
 
-    expect(canAutoAdvance(course, course.steps[0])).toBe(true);
+    expect(canAutoAdvance(course, course.steps[0])).toBe(false);
   });
-});
 
-describe("自動で進めてはいけない回", () => {
   it("次がAIを呼ぶ回なら、進めない", () => {
     /*
       いちばん大事な1本。ここが通ると、札を触るたびに課金が起きる。

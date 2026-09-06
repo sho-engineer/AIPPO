@@ -72,8 +72,17 @@ async function toQuickTry(user: ReturnType<typeof userEvent.setup>) {
   const intro = screen.queryByTestId("lesson-intro-close");
   if (intro) await user.click(intro);
   await user.click(screen.getByTestId("primary-action")); // 完成イメージ
+  /*
+    札の名前は、言葉だけで探さない。
+
+    3つの選択肢はどれも `note`（「むずかしい言葉を、やさしい言葉に
+    言いかえる」）を持っていて、しかも10字あるので**行で並ぶ**——
+    補足は札の中に入るので、読み上げの名前は「専門用語を減らす
+    むずかしい言葉を、…」になる。行かタイルか札かは言葉の長さで
+    決まるものなので、ここで並べ方まで縛らない。
+  */
   await user.click(
-    await screen.findByRole("button", { name: /^✓? ?専門用語を減らす$/ }),
+    await screen.findByRole("button", { name: /専門用語を減らす/ }),
   );
 }
 
@@ -146,7 +155,15 @@ describe("成果物ファースト", () => {
     */
     // Before / After を1組見せる。抽象的な目標だけにしない
     await waitFor(() => expect(screen.getByTestId("outcome-before")).toBeVisible());
-    expect(screen.getByTestId("outcome-after")).toBeVisible();
+    /*
+      After は1行ずつ別の段落で出す。元の文が2文に分かれているとき、
+      1つの段落へ流し込むと改行が消えて1つの塊になり、**分かりやすく
+      なった側**が読みにくくなる。だから数は1つに決めつけない。
+    */
+    expect(screen.getAllByTestId("outcome-after").length).toBeGreaterThan(0);
+    for (const line of screen.getAllByTestId("outcome-after")) {
+      expect(line).toBeVisible();
+    }
   });
 
   it("コースの一覧から移した詳しい話が、ここに揃っている", async () => {
@@ -326,11 +343,14 @@ describe("条件を一つ足す", () => {
     );
 
     /*
-      元・1回目・改善後の3つは「変わったところを見る」の一枚の中。
-      画面に縦積みすると、比べる面がその分だけ潰れる
-      （`components/course/steps/Compare.tsx`）。
+      元・1回目・改善後の3つは「変わったところを見る」から、さらに
+      「全文を比べる」を開いた中。画面に縦積みすると、比べる面がその分
+      だけ潰れる（`components/course/steps/Compare.tsx`）。一枚を開いた
+      直後にも3本の全文は出さない——開いた瞬間に画面が全文で埋まると、
+      上にある「何を変えた？／どう変わった？」まで目が戻らない。
     */
     await user.click(screen.getByTestId("compare-more"));
+    await user.click(screen.getByTestId("full-compare-open"));
     expect(screen.getByTestId("compare-original")).toBeInTheDocument();
     expect(screen.getByTestId("compare-first")).toHaveTextContent("1回目の結果です。");
     expect(screen.getByTestId("compare-improved")).toHaveTextContent(

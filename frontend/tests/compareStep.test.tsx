@@ -10,10 +10,14 @@
  *
  * 置き場所が変わった
  * ------------------
- * 1 と 3 と「元からの道のり」は、画面ではなく**「変わったところを見る」で
- * 開く一枚**の中にある。レッスンは1画面＝1アクションに収めると決めたので、
- * 縦に積むと肝心の「2つを見比べる」が押し出される（実測で、比べる面が
- * 32px まで潰れていた）。**中身は減っていない**ので、開いてから見る。
+ * 1 と 3 は、画面ではなく**「変わったところを見る」で開く一枚**の中に
+ * ある。レッスンは1画面＝1アクションに収めると決めたので、縦に積むと
+ * 肝心の「2つを見比べる」が押し出される（実測で、比べる面が 32px まで
+ * 潰れていた）。**中身は減っていない**ので、開いてから見る。
+ *
+ * 「元からの道のり」（3本の全文）は、そこからもう一段奥の
+ * 「全文を比べる」の中。開いた瞬間に全文が画面を埋めると、上にある
+ * 「何を変えた？／どう変わった？」まで目が戻らないため。
  */
 
 import { render, screen } from "@testing-library/react";
@@ -55,7 +59,7 @@ describe("何を変えたから、どう変わったのか", () => {
       「何を変えた？」と「どう変わった？」は、開いた一枚の中で隣に並ぶ。
       離して置くと、片方だけ読んで終わる。
     */
-    const sheet = screen.getByTestId("more-sheet");
+    const sheet = screen.getByTestId("changes-sheet");
     expect(screen.getByTestId("compare-why")).toHaveTextContent("何を変えた？");
     expect(screen.getByTestId("added-condition")).toHaveTextContent("もっと短く");
     expect(sheet).toHaveTextContent("どう変わった？");
@@ -65,13 +69,18 @@ describe("何を変えたから、どう変わったのか", () => {
     /*
       隣が空欄だと、測れなかったのか変わらなかったのかが分からない。
       分からないことは分からないと書く。
+
+      条件は足していない回で見る。足した条件そのものが「変わった
+      ところ」の1本目になるようにしたので（本人がそう頼んだのだから、
+      測るまでもなく変わっている）、条件があるかぎりここは空にならない。
+      測れないのはこの形——条件が無く、文の長さも行の数も動いていない回。
     */
     render(
       <ThreeWayCompare
         original="もと"
         first="おはようございます。よろしくお願いします。"
         improved="おはようございます。よろしくおねがいします。"
-        condition="やわらかく"
+        condition=""
       />,
     );
 
@@ -131,12 +140,17 @@ describe("狭い画面で見比べる", () => {
     expect(screen.queryByTestId("compare-tabs")).not.toBeInTheDocument();
   });
 
-  it("元からの道のりは、一枚の中で縦に並べる", async () => {
+  it("元からの道のりは、「全文を比べる」の中で縦に並べる", async () => {
     /*
       前は画面の中で横へ流していた（390px で3列に割ると1列は約110px
       にしかならないため）。いまは開いた一枚の中にあり、幅が使えるので
       縦に並べる——横流しは「そこにもある」ことに気づきにくい。
+
+      さらに一段奥へ移した。「変わったところ」を開いた瞬間に3本の全文が
+      画面を埋めると、その上にある「何を変えた？／どう変わった？」まで
+      目が戻らない。3本を読みたい人だけが「全文を比べる」を押す。
     */
+    const user = userEvent.setup();
     render(
       <ThreeWayCompare
         original="もと"
@@ -147,6 +161,7 @@ describe("狭い画面で見比べる", () => {
     );
 
     await openDetails();
+    await user.click(screen.getByTestId("full-compare-open"));
 
     expect(screen.getByTestId("compare-original")).toHaveTextContent("もと");
     expect(screen.getByTestId("compare-improved")).toHaveTextContent(

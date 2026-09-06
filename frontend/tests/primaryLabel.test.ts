@@ -29,9 +29,15 @@ const DAY1 = COURSE.lessons.find((one) => one.id === "rewrite_text")!;
  */
 const PROMISES: { word: string; nextType: string[] }[] = [
   { word: "解説", nextType: ["concept_card"] },
-  // 「送る内容を**見る**」は、送る前に中身を出す画面のこと
-  { word: "AIに送る内容を見る", nextType: ["prompt_preview"] },
-  { word: "この内容でAIに送る", nextType: ["ai_generate"] },
+  // 「内容を**確認する**」は、送る前に中身を出す画面のこと
+  { word: "内容を確認する", nextType: ["prompt_preview"] },
+  /*
+    「この内容で整える」は「この内容でAIに送る」だった。文言から
+    「AI」を落としたが、**押した先はいまも送信の回**なので、行き先の
+    約束としてはそのまま見張る。ここを外すと、送る手前の確認画面から
+    送信以外の場所へ繋いでも誰も気づかない。
+  */
+  { word: "この内容で整える", nextType: ["ai_generate"] },
   { word: "この条件で試す", nextType: ["ai_generate"] },
   { word: "条件を足", nextType: ["condition_choice"] },
 ];
@@ -72,14 +78,32 @@ describe("押した先に、書いてあるものが来る", () => {
   });
 });
 
+/**
+ * 「次へ」を名乗ってよい回。
+ *
+ * どちらも**結果を読む回**で、画面の中に「変わったところを見る」
+ * という別の押し先を自分で持っている。下の帯にも行き先を名指しした
+ * 文言を置くと、違うものが開く2つのボタンが同じ言葉で並ぶ。
+ *
+ * `observation` は、既定の「条件を足してみる」のままだと Day1 では
+ * 嘘になる（次に来るのは「プロンプト」の解説で、条件を足す画面ではない）。
+ * 行き先を言えないなら、**言わないほうを選ぶ**。
+ */
+const MAY_SAY_NEXT = new Set(["observation", "result_compare"]);
+
 describe("「次へ」を続けない", () => {
-  it("Day1 に、行き先を言わないボタンが無い", () => {
+  it("Day1 で「次へ」と言ってよいのは、結果を読み終える回だけ", () => {
     /*
       「次へ」は何も言っていない。押す前に何が起きるか分からないまま
       押させると、進んでいるのか読み流しているのかが自分でも分からなくなる。
+
+      だから既定では置かない。ただし上の `MAY_SAY_NEXT` の2種類だけは、
+      名指しするほうが害になる——同じ言葉のボタンが画面の中に既にあり、
+      押した先が違う。この2つ以外に「次へ」が増えたらここで止める。
     */
     const vague = steps(DAY1)
       .filter(({ label }) => label === "次へ" || label === "つぎへ")
+      .filter(({ step }) => !MAY_SAY_NEXT.has(step.type))
       .map(({ step }) => step.id);
 
     expect(vague, `行き先を言っていないボタン: ${vague.join(", ")}`).toEqual([]);
@@ -127,7 +151,24 @@ describe("決め方", () => {
     // 抜けていると「次へ」へ落ちる。落ちたことに気づけない
     for (const type of STEP_TYPES) {
       expect(LABEL_BY_TYPE[type], `${type} の既定`).toBeTruthy();
-      expect(LABEL_BY_TYPE[type]).not.toBe("次へ");
     }
+  });
+
+  it("「次へ」を既定に持つのは、結果を読み終える回だけ", () => {
+    /*
+      既定が空だと `primaryLabel` は最後の控えの「次へ」を返すので、
+      **書き忘れと、選んで置いた「次へ」が見分けられない**。上の
+      「既定がある」だけでは、書き忘れた種類が「次へ」に化けたことに
+      気づけない——だから、どの種類が「次へ」を名乗ってよいかを
+      ここに書き出しておく。
+
+      いま名乗ってよいのは `result_compare` だけ。下の帯は進むボタンで、
+      画面の中にある「変わったところを見る」と押した先が違う
+      （`MAY_SAY_NEXT` と同じ理由）。`observation` の「次へ」は種類の
+      既定ではなく、教材（Day1）が自分で持っている。
+    */
+    const saysNext = STEP_TYPES.filter((type) => LABEL_BY_TYPE[type] === "次へ");
+
+    expect(saysNext).toEqual(["result_compare"]);
   });
 });

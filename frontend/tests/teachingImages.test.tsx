@@ -118,10 +118,14 @@ describe("時間を二度言わない", () => {
     数字が2つ並んでいた（Day1 は値までずれていて、絵が「約3分」、
     アプリが「8分」だった）。
 
-    絵の中の数字は動かせない。下げるのはアプリ側。
-    値がずれていないことは `tests/teachingImageFacts.test.ts` が見る。
+    いまは絵ごとの出し分けそのものが無い。開始画面の入口を2つに
+    絞ったとき、`所要時間` の札も `初級` の札も画面から外したので、
+    **数字を言う場所は「今日やること」の一枚のポーの一言だけ**になった。
+    絵の中の数字と教材データが食い違っていないことは
+    `tests/teachingImageFacts.test.ts` が、いまも `showsMinutes` を
+    手がかりに見張っている。
   */
-  it("絵が時間を言っているなら、アプリは出さない", () => {
+  it("絵が時間を言っていても、アプリ側に数字の札は出ない", () => {
     render(
       <OutcomePreview
         minutes={8}
@@ -133,12 +137,23 @@ describe("時間を二度言わない", () => {
 
     expect(screen.queryByText("所要時間")).not.toBeInTheDocument();
     expect(screen.queryByText("8分")).not.toBeInTheDocument();
-    // むずかしさは絵に無いので、こちらは残す
-    expect(screen.getByText("初級")).toBeInTheDocument();
+    /*
+      むずかしさの札も一緒に外した。押せる先が4つあると、どれが本題か
+      決められない——残したのは「さっそく試す」と「今日やることを見る」
+      の2つだけで、札はどちらでもない。
+    */
+    expect(screen.queryByText("初級")).not.toBeInTheDocument();
   });
 
-  it("絵が言っていないなら、これまでどおり出す", () => {
-    // 下げすぎると、時間がどこにも出なくなる
+  it("札を外しても、時間はポーの一言が一度だけ言う", () => {
+    /*
+      下げすぎると、時間がどこにも出なくなる。行き先はポーの吹き出し
+      （「今日やること」の一枚）で、絵が時間を言っているかどうかで
+      出し分けはしない——札が無くなった以上、二度言う道がそもそも無い。
+
+      数字を独立した札に戻さないこと。「約8分で終わる」は仕様ではなく、
+      背中を押す一言なので、ポーの言葉に混ぜたままにする。
+    */
     render(
       <OutcomePreview
         minutes={8}
@@ -152,8 +167,10 @@ describe("時間を二度言わない", () => {
       />,
     );
 
-    expect(screen.getByText("所要時間")).toBeInTheDocument();
-    expect(screen.getByText("8分")).toBeInTheDocument();
+    expect(screen.queryByText("所要時間")).not.toBeInTheDocument();
+    expect(screen.getByTestId("po-hero-message")).toHaveTextContent(
+      "約8分で終わるよ！",
+    );
   });
 
   it("Day1〜8 の全体図は、8枚とも時間を持っていると書いてある", () => {
