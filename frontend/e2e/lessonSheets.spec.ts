@@ -88,15 +88,34 @@ test.describe("変わったところの一枚", () => {
 
     await page.getByTestId("compare-more").click();
 
-    const sheet = page.getByTestId("more-sheet");
+    /*
+      一枚を開いて最初に読めるのは3節だけ——何を変えた？ / どう変わった？ /
+      たとえば。前はここに1文ずつの差分と3本の全文まで積んでいて、
+      開いた瞬間に赤青が画面を埋め、上の3節まで目が戻らなかった。
+
+      **無くしたのではなく、もう一手の奥へ下げた**（`steps/Compare.tsx`）。
+      だからこの検査も、押して辿れることを見る形に変える。
+    */
+    const sheet = page.getByTestId("changes-sheet");
     await expect(sheet).toContainText("何を変えた？");
     await expect(sheet).toContainText("どう変わった？");
-    await expect(sheet).toContainText("1文ずつ見る");
-    await expect(sheet).toContainText("ここまでの道のり");
-    // 元・1回目・改善後の3つ
+    // 足した条件と、測って分かった変わりようが、その場に出ている
+    await expect(page.getByTestId("added-condition")).toBeVisible();
+    await expect(page.getByTestId("change-points")).toBeVisible();
+
+    // 図は、この一枚の中でもう一手押した人にだけ
+    await page.getByTestId("compare-figure-open").click();
+    await expect(page.getByTestId("compare-figure")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("compare-figure")).toHaveCount(0);
+
+    // 道のり（元・1回目・改善後の3つ）と、1文ずつの差分も同じ奥にある
+    await page.getByTestId("full-compare-open").click();
     await expect(page.getByTestId("full-original")).toBeVisible();
     await expect(page.getByTestId("full-first")).toBeVisible();
     await expect(page.getByTestId("full-improved")).toBeVisible();
+    await page.getByTestId("full-compare-mark").click();
+    await expect(page.getByTestId("compare-diff")).toBeVisible();
   });
 
   test("文章を押すと、全文がもう一枚出る", async ({ page }) => {
@@ -107,6 +126,8 @@ test.describe("変わったところの一枚", () => {
     await start(page);
     await runUntil(page, "compare-more");
     await page.getByTestId("compare-more").click();
+    // 3本の全文は、一枚の中でもう一手押した先（「全文を比べる」）
+    await page.getByTestId("full-compare-open").click();
 
     await page.getByTestId("full-original").click();
 
@@ -114,10 +135,11 @@ test.describe("変わったところの一枚", () => {
     await expect(full).toBeVisible();
     await expect(full).toContainText("元の文章");
 
-    // 閉じても、下の一枚は開いたまま
+    // 閉じても、下の2枚は開いたまま。Esc はいちばん上の一枚だけを閉じる
     await page.keyboard.press("Escape");
     await expect(full).toHaveCount(0);
-    await expect(page.getByTestId("more-sheet")).toBeVisible();
+    await expect(page.getByTestId("full-compare")).toBeVisible();
+    await expect(page.getByTestId("changes-sheet")).toBeVisible();
   });
 
   test("一枚は画面の上に出る（下の画面の中に閉じ込められない）", async ({ page }) => {
@@ -134,7 +156,7 @@ test.describe("変わったところの一枚", () => {
     await runUntil(page, "compare-more");
     await page.getByTestId("compare-more").click();
 
-    const scrim = page.getByTestId("more-sheet-scrim");
+    const scrim = page.getByTestId("changes-scrim");
     const box = await scrim.boundingBox();
     const view = page.viewportSize();
     expect(box, "背景が無い").not.toBeNull();

@@ -198,11 +198,19 @@ test.describe("続きから始める", () => {
     */
     const readFirst = async () => {
       await page.getByTestId("compare-more").click();
+      /*
+        「ここまでの道のり」は、一枚の中でもう一手押した先へ移った
+        （「全文を比べる」）。開いた瞬間に長い3本が並ぶと、上の3節
+        まで目が戻らないため（`components/course/steps/Compare.tsx`）。
+      */
+      await page.getByTestId("full-compare-open").click();
       const text = flat(await page.getByTestId("compare-first").innerText());
-      // 開いた一枚は下から滑って出るので、×は動いている間クリックできない。
-      // Esc なら位置に関係なく閉じられる
+      // 開いた一枚は滑って出るので、×は動いている間クリックできない。
+      // Esc なら位置に関係なく閉じられる。閉じるのは上に重ねた1枚ずつ
       await page.keyboard.press("Escape");
-      await page.getByTestId("more-sheet").waitFor({ state: "detached" });
+      await page.getByTestId("full-compare").waitFor({ state: "detached" });
+      await page.keyboard.press("Escape");
+      await page.getByTestId("changes-sheet").waitFor({ state: "detached" });
       return text;
     };
 

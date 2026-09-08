@@ -161,6 +161,18 @@ if (await p.getByTestId("result-more").count()) {
   await p.waitForTimeout(400);
   await scan("レッスン 変わったところ 全文");
 
+  /*
+    閉じるのは**上に重ねた一枚から**。
+
+    全文の比べは、変わったところの上にもう一枚重なる（`MoreSheet` の
+    `elevated`）。上の一枚は画面いっぱいの背景を敷いているので、
+    下の一枚の×を押そうとすると**その背景が受け取る**——押し続けても
+    何も起きないまま時間切れになり、ここから先の画面が一度も検査
+    されなくなる（実際そうなった）。
+  */
+  await p.getByTestId("full-compare-close").click();
+  await p.waitForTimeout(400);
+
   await p.getByTestId("changes-close").click();
   await p.waitForTimeout(400);
 }
