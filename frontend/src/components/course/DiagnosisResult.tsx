@@ -34,6 +34,7 @@
 import { useState } from "react";
 
 import { IconCheck, IconChevronRight } from "../Icons";
+import { PrimaryButton } from "../aippo/PrimaryButton";
 import { MoreSheet } from "./MoreSheet";
 import { AxisBars } from "./diagnosis/AxisBars";
 import { ChartSwitch, type ChartKind } from "./diagnosis/ChartSwitch";
@@ -435,28 +436,46 @@ export function DiagnosisResult({
             まさにこの中身で、そこだけ扉が1つ多かった。長い説明は
             付けない——横棒4本と、一行の但し書きだけ。
           */}
-          <section className="mt-4">
+          <section className="mt-3">
             <h3 className="text-xs font-bold text-ink-muted">4つの力の内訳</h3>
             <div className="mt-2">
               <AxisBars axes={result.axes} focus={result.weakest} />
             </div>
+            {/* 1行に収める。2行に折れると、そのぶん下のボタンが押し出される */}
             <p className="mt-2 text-[0.6875rem] leading-4 text-ink-muted">
-              ※ 5段階で表示しています。くわしい説明は、レッスンの中で。
+              ※ 5段階で表示しています。
             </p>
           </section>
 
-          {/* 3行だけ。名前と中身を1行に収めて、段落にしない */}
-          <dl className="mt-4 space-y-2 text-sm leading-5">
+          {/*
+            3行のまとめ。**表として揃える。**
+
+            前は名前の欄を `w-24`（96px）にしていて、「次にやると良いこと」
+            が2行に折れていた。折れた行の頭と値の頭が段違いになり、
+            3行が表に見えない（実機で撮って分かった）。
+
+            名前は折り返させず、値は右へ寄せる。行のあいだに髪の毛ほどの
+            線を引き、淡い地に載せる——ここは「読んで確かめる」場所で、
+            3行が1つのまとまりだと形で分かるほうがよい。
+          */}
+          <dl className="mt-3 rounded-card bg-brand-soft/60 px-3.5">
             {[
               ["いまの現在地", result.stage.name],
               ["できていること", result.strengths.join("・")],
               ["次にやると良いこと", skill.name],
-            ].map(([label, value]) => (
-              <div key={label} className="flex gap-2">
-                <dt className="w-24 shrink-0 text-xs leading-5 text-ink-muted">
+            ].map(([label, value], at) => (
+              <div
+                key={label}
+                className={`flex items-baseline gap-3 py-2 ${
+                  at === 0 ? "" : "border-t border-brand-line/60"
+                }`}
+              >
+                <dt className="shrink-0 whitespace-nowrap text-xs leading-5 text-ink-muted">
                   {label}
                 </dt>
-                <dd className="min-w-0 flex-1 font-bold text-brand-dark">{value}</dd>
+                <dd className="min-w-0 flex-1 text-right text-sm font-bold leading-5 text-brand-dark">
+                  {value}
+                </dd>
               </div>
             ))}
           </dl>
@@ -468,23 +487,55 @@ export function DiagnosisResult({
             読めなかった。3行のすぐ下なら、その続きとして読める。
           */}
           <p
-            className="mt-3 text-sm leading-6 text-ink-muted"
+            className="mt-3 text-center text-sm leading-6 text-ink-muted"
             data-testid="diagnosis-reason-line"
           >
             {recommendReason(values)}
           </p>
 
-          <button
-            type="button"
-            onClick={() => setDeep(true)}
-            data-testid="diagnosis-detail-open"
-            className="mt-4 flex w-full items-center justify-center gap-1 rounded-cta
-                       border border-line py-2 text-sm font-bold text-brand-dark
-                       transition hover:bg-brand-soft"
-          >
-            答えと理由を見る
-            <IconChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          </button>
+          {/*
+            読み終えた人の出口を、**主のボタンとして置く。**
+
+            前はここに「答えと理由を見る」しか無かった。押す先が
+            もう一段奥しかない一枚は、読み終えても閉じ方が×だけになる
+            ——開いた人の多くは「見に来て、納得して、戻る」ので、
+            その道がいちばん大きい必要がある。
+
+            奥へ行く道は消していない。主のボタンの上に、字だけの行として
+            残す（押す先が2つあることは分かるが、重さが違う）。
+          */}
+          {/*
+            出口を2つ、**同じ行に置く。**
+
+            縦に積むと 100px 取り、一枚が 64px 送れるようになった
+            （実測）。送れる一枚では、いちばん大事なボタンが最初の
+            画面から消える。横に並べれば 56px で足りる。
+
+            重さは字と地で分ける。奥へ行く道は字だけ、出口は青い面。
+            押し間違いが起きる並びではない——行き先が「もっと読む」と
+            「戻る」で、逆を押しても失うものが無い。
+          */}
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDeep(true)}
+              data-testid="diagnosis-detail-open"
+              className="flex shrink-0 items-center gap-0.5 rounded-badge px-2 py-3
+                         text-[0.8125rem] font-bold text-brand-dark
+                         transition hover:bg-brand-soft"
+            >
+              答えと理由
+              <IconChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            </button>
+
+            <PrimaryButton
+              testId="diagnosis-understood"
+              onClick={() => setOpen(false)}
+              className="min-w-0 flex-1"
+            >
+              わかりました
+            </PrimaryButton>
+          </div>
         </MoreSheet>
       )}
 
