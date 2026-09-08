@@ -222,22 +222,61 @@ describe("ホームの並び", () => {
     expect(floating).toEqual(["po-hero-message", "next-up"]);
   });
 
-  it("「ほかにも見る」は、2列で4つまで", async () => {
+  it("「ほかにも見る」は、2列で4つまで。3つ目からは高さのある持ち方だけ", async () => {
     /*
       前は6つを札で折り返して並べていた。字の長さで幅が変わるので列が
       そろわず、いちばん下の節がいちばん賑やかに見えていた。
       **探すのはホームの主役ではない。**残りは「すべて見る」の先。
+
+      2行目は高さで畳む
+      ------------------
+      ホームは送らずに全部見えるようにしてある（`e2e/homeFits.spec.ts`）。
+      2行目（52px ＋ すきま 10px）は、390×844 でちょうど収まらないぶんに
+      当たる。**列は 2列のまま**なので、出ていても出ていなくても形は
+      崩れない。節ごと畳むのは 800px 未満のときだけ。
+
+      畳むのは見え方だけで、DOM からは消さない——ここで数えているのは
+      「4つまで」という決まりのほう。
     */
     const user = userEvent.setup();
     await openHome(user);
 
-    const list = screen
+    const section = screen
       .getByRole("heading", { name: "ほかにも見る" })
-      .closest("section")!
-      .querySelector("ul")!;
+      .closest("section")!;
+    const list = section.querySelector("ul")!;
+    const items = list.querySelectorAll("li");
 
     expect(list.className).toContain("grid-cols-2");
-    expect(list.querySelectorAll("li")).toHaveLength(4);
+    expect(items).toHaveLength(4);
+
+    // 節そのものは 800px 未満で畳む
+    expect(section.className).toContain("[@media(min-height:800px)]:block");
+
+    // 1つ目・2つ目はいつも出る。3つ目からは 900px 以上のときだけ
+    expect(items[0].className).not.toContain("hidden");
+    expect(items[1].className).not.toContain("hidden");
+    for (const at of [2, 3]) {
+      expect(items[at].className).toContain("hidden");
+      expect(items[at].className).toContain("[@media(min-height:900px)]:block");
+    }
+  });
+
+  it("同じ数を3回言わない（帯と分数だけにする）", async () => {
+    /*
+      前は「帯」「◯/◯ レッスン完了」「丸の列」で同じ数を3回言っていた。
+      3回言っても分かることは増えず、44px を使う（丸 32 ＋ 上の余白 12）。
+      ホームを1画面に収めるとき、いちばん先に落ちるのはここ。
+
+      スタンプとして数えたい人には、コースの道のりに丸が並んでいる
+      （ホームには持ち込まないと決めてある——`e2e/courseStamps.spec.ts`）。
+    */
+    const user = userEvent.setup();
+    await openHome(user);
+
+    const record = screen.getByTestId("progress-summary");
+    expect(record).toHaveTextContent("レッスン完了");
+    expect(record.querySelectorAll("ul")).toHaveLength(0);
   });
 
   it("記録への入口は残す", async () => {

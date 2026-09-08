@@ -9,7 +9,7 @@
  *
  *   1. おかえりなさい ＋ ポーのひとこと
  *   2. 今日のつづき ← **この画面の主役**
- *   3. これまでの記録（進み具合の帯と丸）
+ *   3. これまでの記録（進み具合の帯）
  *   4. 身についたこと ／ 今週の学習
  *   5. ほかにも見る
  *
@@ -37,6 +37,17 @@
  * 毎日開く場所に AI の語を並べると、学習アプリではなく AI の道具箱に
  * 見える。
  *
+ * 1画面に収める
+ * --------------
+ * 上から下まで、**送らずに全部見える**ことを保つ（`e2e/homeFits.spec.ts`）。
+ * 主役の下に積んであるのはどれも「ここまでの自分」の話なので、送らないと
+ * 見えないなら、置いていないのとほとんど変わらない。
+ *
+ * 低い持ち方（iPhone の Safari で上下の帯が出ている状態＝ 402×660）では、
+ * 高さで2つ畳む——今日の1本のねらい書きと、「ほかにも見る」。どちらも
+ * 行き止まりにはならない（前者はレッスンの最初の一枚、後者は下の帯の
+ * 「コース」と、いちばん下の「学習の道のりを見る」）。
+ *
  * 数字は測ったものだけ
  * --------------------
  * 支給デザインには「学習時間 2時間15分」がある。**出していない。**
@@ -56,7 +67,6 @@ import { ReviewCards } from "../components/course/ReviewCards";
 import {
   IconBookmark,
   IconCalendar,
-  IconCheck,
   IconChevronRight,
   IconClock,
   IconMedal,
@@ -108,9 +118,15 @@ function Welcome({ done, bubble }: { done: number; bubble: string }) {
         <h1 className="text-[1.375rem] font-bold leading-8">
           {done === 0 ? "はじめまして" : "おかえりなさい"}
         </h1>
-        <p className="mt-1 text-sm leading-6 text-ink-muted">
-          今日も少しずつ、やってみましょう。
-        </p>
+        {/*
+          1行に収まる長さにする。
+
+          「今日も少しずつ、やってみましょう。」は 390px で**2行に
+          折り返していた**（実測 48px）。左の柱がポー（78px）より
+          高くなり、あいさつの節がそのぶん伸びる。言っていることは
+          変えずに、点で切る。
+        */}
+        <p className="mt-1 text-sm leading-6 text-ink-muted">今日も少しずつ。</p>
       </div>
 
       {/*
@@ -177,7 +193,7 @@ function TodayCard({
 
   return (
     <section
-      className="rounded-panel border border-line bg-surface p-4 shadow-card"
+      className="rounded-panel border border-line bg-surface p-3.5 shadow-card"
       aria-labelledby="next-heading"
       data-testid="next-up"
     >
@@ -205,9 +221,30 @@ function TodayCard({
             </span>
           </p>
 
-          <p className="mt-2 line-clamp-2 text-[0.8125rem] leading-6 text-ink-muted">
-            {lesson.outcomeDescription ?? lesson.goal}
-          </p>
+          {/*
+            低い持ち方では出さない。
+
+            Safari の上下の帯が出ていると、見える高さは 660px ほどしか
+            残らない。この2行（48px）が入ると左の柱が 140px になり、
+            絵（90px）より高くなって**カードごと 50px 伸びる**。
+            そのぶんが下の節から引かれ、ホーム全体が1画面に収まらなくなる。
+
+            消えても行き止まりにはならない。ねらいはレッスンを開いた
+            最初の一枚（`LessonIntroModal`）が、もっと詳しく持っている。
+          */}
+          {/*
+            畳むのは**外側の箱**。`line-clamp-2` と同じ札に `hidden` /
+            `block` を置いてはいけない——`line-clamp` は
+            `display:-webkit-box` を敷いて効くもので、`block` が
+            後から同じ `display` を上書きする。実際そうなっていて、
+            2行のはずのねらいが3行そのまま出ていた（左の柱が
+            140px → 164px）。`FullText` で一度踏んだのと同じ穴。
+          */}
+          <div className="hidden [@media(min-height:700px)]:block">
+            <p className="mt-2 line-clamp-2 text-[0.8125rem] leading-6 text-ink-muted">
+              {lesson.outcomeDescription ?? lesson.goal}
+            </p>
+          </div>
         </div>
 
         {/*
@@ -221,7 +258,7 @@ function TodayCard({
         testId="continue-lesson"
         onClick={onStart}
         trailing={<IconChevronRight className="h-5 w-5 shrink-0" />}
-        className="mt-4 w-full"
+        className="mt-3 w-full"
       >
         {started ? "つづきをはじめる" : "はじめる"}
       </PrimaryButton>
@@ -277,24 +314,17 @@ function Record({
       </div>
 
       {/*
-        丸は帯の言い換え。**数字を3つ目にしない**——帯・丸・分数で
-        同じことを3回言うと、どれを見ればよいのか決められなくなる。
-        分数は上の行が持っているので、ここは形だけ。
+        丸は置かない。
+
+        「帯」「◯/◯ レッスン完了」「丸の列」で、**同じ数を3回**
+        言っていた。3回言っても分かることは増えず、44px を使う
+        （丸 32 ＋ 上の余白 12）。ホームを1画面に収めるとき、
+        いちばん先に落ちるのはここ。
+
+        スタンプとして数えたい人には、コースの道のりに丸が並んで
+        いる（`PathProgress`。ホームには持ち込まないと決めてある
+        ——`e2e/courseStamps.spec.ts`）。
       */}
-      <ul className="mt-3 flex gap-2" role="list" aria-hidden="true">
-        {Array.from({ length: total }, (_, at) => (
-          <li
-            key={at}
-            className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-              at < done
-                ? "border-brand bg-brand text-white"
-                : "border-brand-line bg-surface"
-            }`}
-          >
-            {at < done && <IconCheck className="h-4 w-4" />}
-          </li>
-        ))}
-      </ul>
     </section>
   );
 }
@@ -325,7 +355,7 @@ function StatCard({
       onClick={onClick}
       data-testid={testId}
       className="flex flex-1 items-center gap-2.5 rounded-card border border-line
-                 bg-surface px-3 py-3 text-left transition
+                 bg-surface px-3 py-2.5 text-left transition
                  hover:border-brand-line active:scale-[0.98]"
     >
       <span
@@ -417,7 +447,20 @@ export function HomePage({
     <>
       <AppHeader onOpenAccount={onOpenAccount} />
 
-      <main className="page">
+      {/*
+        下の余白は、**下タブと同じだけ**取る。固定の数にしない。
+
+        共通の `.page` は `pb-28`（112px）。下タブは実測 69px だが、
+        中身は `pb-[max(0.5rem,env(safe-area-inset-bottom))]` を持って
+        いるので、**ホームバーのある端末では 95px まで伸びる**
+        （`AppShell.tsx`）。固定の 96px にすると余りが 1px しか無く、
+        端末によっては下の行が帯の下へ潜る。
+
+        72px ＋ 安全域 にすると、Chromium（安全域 0）で 3px、実機で
+        11px の余り。**共通の 112px より 40px 少ない**ぶんが、
+        そのままホームを1画面に収める側へ回る。
+      */}
+      <main className="page !pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
         <Welcome
           done={doneCount}
           bubble={
@@ -438,7 +481,7 @@ export function HomePage({
           最初に置く。
         */}
         {nextLesson && (
-          <div className="mt-5">
+          <div className="mt-4">
             <TodayCard
               lesson={nextLesson}
               started={doneCount > 0}
@@ -459,7 +502,7 @@ export function HomePage({
           </div>
         )}
 
-        <div className="mt-7">
+        <div className="mt-4">
           <Record done={doneCount} total={learnable.length} onOpenRecord={onOpenRecord} />
         </div>
 
@@ -469,7 +512,7 @@ export function HomePage({
           同じものを図鑑の中では技として扱うが、毎日開く場所に AI の語を
           並べると、学習アプリではなく AI の道具箱に見える。
         */}
-        <div className="mt-4 flex gap-3">
+        <div className="mt-3 flex gap-3">
           <StatCard
             icon={IconMedal}
             tone="teal"
@@ -498,7 +541,10 @@ export function HomePage({
         <ReviewCards course={course} />
 
         {/* ── ほかにも見る ── */}
-        <section className="mt-7" aria-labelledby="explore-heading">
+        <section
+          className="mt-5 hidden [@media(min-height:800px)]:block"
+          aria-labelledby="explore-heading"
+        >
           <div className="flex items-center justify-between gap-3">
             <h2 id="explore-heading" className="text-base font-bold">
               ほかにも見る
@@ -523,10 +569,20 @@ export function HomePage({
             4つに絞って形をそろえる——残りは「すべて見る」の先にある。
           */}
           <ul className="mt-3 grid grid-cols-2 gap-2.5" role="list">
-            {CATEGORIES.slice(0, 4).map((category) => {
+            {CATEGORIES.slice(0, 4).map((category, at) => {
               const look = lookOf(category.lessonId);
               return (
-                <li key={category.label}>
+                /*
+                  3つ目からは、高さのある持ち方だけ。
+
+                  2行目（52px ＋ すきま 10px）は、390×844 でちょうど
+                  収まらないぶんに当たる。**列は 2列のまま**なので、
+                  出ていても出ていなくても形は崩れない。
+                */
+                <li
+                  key={category.label}
+                  className={at < 2 ? undefined : "hidden [@media(min-height:900px)]:block"}
+                >
                   <button
                     type="button"
                     onClick={() => onSelectLesson(category.lessonId)}
@@ -561,7 +617,7 @@ export function HomePage({
           type="button"
           onClick={() => onOpenPath(course.id)}
           data-testid="open-path"
-          className="mt-6 flex w-full items-center justify-center gap-1 py-2
+          className="mt-3 flex w-full items-center justify-center gap-1 py-2
                      text-xs text-ink-muted transition hover:text-ink"
         >
           {/*
