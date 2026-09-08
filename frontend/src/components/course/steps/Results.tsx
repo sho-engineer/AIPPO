@@ -76,12 +76,15 @@ interface ResultProps {
    */
   onlyResult?: boolean;
   /**
-   * 今回どんな条件で頼んだか。結果の真上に札で並べる。
+   * 今回どんな条件で頼んだか。
+   *
+   * 出す場所は2つ。**高さのある持ち方では結果の真上に札で**、
+   * どの持ち方でも「変わったところ」の一枚の中に名前つきで。
    *
    * 渡すのは**実際に送った値だけ**。まだ選んでいない条件を
    * 「指定なし」と並べると、選んだ札との区別が付かなくなる。
    */
-  conditions?: string[];
+  conditions?: { label: string; value: string }[];
 }
 
 /**
@@ -218,9 +221,9 @@ export function ResultCompare({
       */}
       {conditions && conditions.length > 0 && (
         /*
-          低い持ち方では出さない。**答える札のほうが先**で、条件は
-          「いま送ったお願いを見る」からいつでも読める。402×660 では
-          この1行（39px）が入ると、2択が画面の外へ出ていた。
+          低い持ち方では出さない。**答える札のほうが先**で、送った
+          お願いは「変わったところ」の一枚の中に名前つきで入っている。
+          402×660 ではこの1行（39px）が入ると、2択が画面の外へ出ていた。
         */
         <ul
           className="mb-2.5 hidden shrink-0 flex-wrap gap-1.5
@@ -230,11 +233,11 @@ export function ResultCompare({
         >
           {conditions.map((condition) => (
             <li
-              key={condition}
+              key={condition.label}
               className="rounded-badge bg-brand-soft px-2.5 py-1 text-xs
                          font-bold text-brand-dark"
             >
-              {condition}
+              {condition.value}
             </li>
           ))}
         </ul>
@@ -343,6 +346,49 @@ export function ResultCompare({
           <p className="text-xs leading-6 text-ink-muted">
             お願いした内容が、文章にどう反映されたか見てみましょう。
           </p>
+
+          {conditions && conditions.length > 0 && (
+            /*
+              送ったお願いを、**そのまま並べる。言い換えない。**
+
+              前はこれだけのために、下の帯へ「いま送ったお願いを見る」を
+              置いていた。副の行は 46px あり、それがそのまま
+              「AIの結果を読む場所」から引かれる——実測で 402×660 と
+              1280×720 の2つで、答える札が枠の外へ出ていた
+              （e2e/stepFits.spec.ts）。
+
+              置き場所はここが正しい。この一枚の1行目が
+              「お願いした内容が、文章にどう反映されたか」で、
+              **その「お願いした内容」がどこにも無かった**。
+              送ったものと変わったところが、続けて1枚で読める。
+            */
+            <section className="mt-3" data-testid="asked-conditions">
+              <h3 className="text-xs font-bold text-ink-muted">送ったお願い</h3>
+              <ul className="mt-2 space-y-2" role="list">
+                {conditions.map((condition) => (
+                  <li
+                    key={condition.label}
+                    className="rounded-card bg-canvas px-3.5 py-2.5"
+                  >
+                    <span className="block text-xs font-bold text-ink-muted">
+                      {condition.label}
+                    </span>
+                    <span className="mt-0.5 block text-sm leading-6">
+                      {condition.value}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {/*
+                次の画面（プロンプトの解説）へ繋ぐ1行。ここで見た文が
+                そのまま「プロンプト」として出てくるので、指す先が
+                合っているうちに名前を予告しておく。
+              */}
+              <p className="mt-2 text-xs leading-6 text-ink-muted">
+                この内容が「プロンプト」です。次の画面でもう一度出てきます。
+              </p>
+            </section>
+          )}
 
           {swaps && swaps.length > 0 && (
             /*

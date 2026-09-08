@@ -368,8 +368,9 @@ export function StepRenderer({
               /*
                 押した札を、結果の真上に並べる。Section 1 では
                 「専門用語を減らす」1枚だけで、条件を足すたびに増える。
+                名前つきの一覧は「変わったところ」の一枚の中。
               */
-              conditions={promptCards(values).map((card) => card.value)}
+              conditions={promptCards(values)}
               factCheck={meta.factCheck}
               /*
                 広げない。広げると縮んだ枠が抜粋を切り、「全文を見る」も

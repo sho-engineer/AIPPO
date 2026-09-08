@@ -284,19 +284,36 @@ export function CompletionView({
           className="mt-2 flex min-h-[5rem] flex-1 flex-col
                      [@media(min-height:700px)]:min-h-[6.5rem]"
         >
-          <p className="shrink-0 text-xs font-bold text-ink-muted">{outcomeLabel}</p>
-          <p className="mt-1.5 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-card border border-line bg-surface p-3 text-sm leading-6">
-            {outcomeText}
-          </p>
           {/*
+            名札と、持ち出す2つは**同じ行に置く。**
+
+            前は名札（22px）・本文・ボタンの行（44px）を縦に3つ積んで
+            いた。名札とボタンの行と余白だけで 80px あり、これは
+            402×660 で渡せる下限そのもの——**本文に残る高さが 0** に
+            なる。本文の面は余白と枠だけで 26px あるので下限まで縮まず、
+            そのぶんが枠の外へ描かれて**ボタンに重なっていた**（実機の
+            見え方と e2e/stepFits.spec.ts の box、どちらにも出ていた）。
+
+            横に並べれば同じ 44px の中に名札も入り、30px が本文へ戻る。
+            名札は左、持ち出す2つは右。読む順（これは何か → 何ができるか）
+            とも合う。
+
             いま貼るのと、あとで出すのは別のこと。両方を並べて置く。
             取っておくには登録が要るが、ボタンは出しておき、押したときに
             理由を返す（先に消すと、そういう場所があること自体が伝わらない）。
           */}
-          <div className="mt-2 flex shrink-0 items-start justify-end gap-2">
-            <KeepArtifactButton lessonId={lessonId} output={outcomeText} />
-            <CopyButton text={outcomeText} />
+          <div className="flex shrink-0 items-center justify-between gap-2">
+            <p className="min-w-0 truncate text-xs font-bold text-ink-muted">
+              {outcomeLabel}
+            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              <KeepArtifactButton lessonId={lessonId} output={outcomeText} />
+              <CopyButton text={outcomeText} />
+            </div>
           </div>
+          <p className="mt-1.5 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-card border border-line bg-surface p-3 text-sm leading-6">
+            {outcomeText}
+          </p>
         </div>
       )}
 
