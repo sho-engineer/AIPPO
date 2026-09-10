@@ -141,12 +141,15 @@ describe("送る中身", () => {
     ).rejects.toMatchObject({ kind: "out_of_credits" });
   });
 
-  it("code が無い 429 は、これまでどおり「上限」", async () => {
+  it("印のある 429 は「上限」", async () => {
     // サービス全体が今日の上限に達した側。登録しても増えない
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: false,
       status: 429,
-      json: async () => ({ errors: { detail: ["混み合っています"] } }),
+      json: async () => ({
+        code: "AI_RATE_LIMITED",
+        errors: { detail: ["混み合っています"] },
+      }),
     } as unknown as Response);
 
     await expect(
@@ -184,12 +187,15 @@ describe("送る中身", () => {
     ).rejects.toMatchObject({ kind: "failed" });
   });
 
-  it("印の無い 503 は、これまでどおり「上限」", async () => {
+  it("印のある 503 は「上限」", async () => {
     // 全体が混み合っている側。時間をおけば直る
     vi.spyOn(globalThis, "fetch").mockResolvedValue({
       ok: false,
       status: 503,
-      json: async () => ({ errors: { detail: ["混み合っています"] } }),
+      json: async () => ({
+        code: "AI_RATE_LIMITED",
+        errors: { detail: ["混み合っています"] },
+      }),
     } as unknown as Response);
 
     await expect(
@@ -200,6 +206,34 @@ describe("送る中身", () => {
         input: {},
       }),
     ).rejects.toMatchObject({ kind: "limit" });
+  });
+
+  it.each([429, 503])("印の無い %i は、上限ではない", async (status) => {
+    /*
+      **番号は経路の途中にいる誰でも返せる。**
+
+      前は「印なし＝混み合っている」と読んでいた。ところがプロキシ、
+      コールドスタート、配信の入れ替え中——どれも同じ 503 を返す。
+      押し直せば直るのに、祝う絵とともに行き止まりへ送っていた
+      （`components/course/LessonPaused.tsx` には押し直す道が無い）。
+
+      こちらが出した上限には印を付けた（`apps/ai/views.py` の
+      `AI_RATE_LIMITED`）。印のあるものだけを上限として扱う。
+    */
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      ok: false,
+      status,
+      json: async () => ({ errors: { detail: ["届きませんでした"] } }),
+    } as unknown as Response);
+
+    await expect(
+      generate({
+        lessonId: "rewrite_text",
+        stepId: "generate",
+        action: "rewrite",
+        input: {},
+      }),
+    ).rejects.toMatchObject({ kind: "failed" });
   });
 
   it("kind は4種類のどれか", () => {

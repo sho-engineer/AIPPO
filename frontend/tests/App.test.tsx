@@ -28,10 +28,38 @@ function catalogReply(courses: unknown[]): Response {
  * レッスンの中身は course のテストが受け持つ。
  */
 describe("画面の行き来", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
+    /*
+      積んだ履歴を、いちばん最初まで巻き戻す。
+
+      jsdom の履歴は**回をまたいで1本**で、`replaceState` は状態を
+      置き換えるだけで積んだ数は減らない。前の回がレッスンの中で
+      終わっていると、その積みが残ったまま次の回が始まり、
+      `App` の深さの数え方（`depth`）と食い違う。1件ずつ見れば通るのに
+      並べると落ちる、という形で出た。
+    */
+    const back = window.history.length - 1;
+    if (back > 0) {
+      window.history.go(-back);
+      await new Promise((done) => setTimeout(done, 0));
+    }
     window.history.replaceState(null, "");
     resetCatalog();
+    /*
+      積み場が返す「戻る」も、ここで片づける。
+
+      jsdom の履歴は**回をまたいで1本**で、`replaceState` は状態を
+      置き換えるだけで積んだ数は減らない。レッスンの中に居るあいだ、
+      積み場（`components/course/BackStack.tsx`）は履歴を1つ持っていて、
+      画面が外れるときにそれを返す（`history.back()`）。この戻しは
+      **あとから届く**ので、次の回が描き終わったところへ落ちてきて、
+      その回だけ知らない画面から始まる。
+
+      1 tick 待って、落ちてくるものを先に受け取ってしまう。実ブラウザ
+      では回が分かれていないので、これは検査の側の後始末。
+    */
+    await new Promise((done) => setTimeout(done, 0));
   });
 
   afterEach(() => {
@@ -310,10 +338,38 @@ describe("画面の行き来", () => {
 });
 
 describe("下タブの出し入れ", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
+    /*
+      積んだ履歴を、いちばん最初まで巻き戻す。
+
+      jsdom の履歴は**回をまたいで1本**で、`replaceState` は状態を
+      置き換えるだけで積んだ数は減らない。前の回がレッスンの中で
+      終わっていると、その積みが残ったまま次の回が始まり、
+      `App` の深さの数え方（`depth`）と食い違う。1件ずつ見れば通るのに
+      並べると落ちる、という形で出た。
+    */
+    const back = window.history.length - 1;
+    if (back > 0) {
+      window.history.go(-back);
+      await new Promise((done) => setTimeout(done, 0));
+    }
     window.history.replaceState(null, "");
     resetCatalog();
+    /*
+      積み場が返す「戻る」も、ここで片づける。
+
+      jsdom の履歴は**回をまたいで1本**で、`replaceState` は状態を
+      置き換えるだけで積んだ数は減らない。レッスンの中に居るあいだ、
+      積み場（`components/course/BackStack.tsx`）は履歴を1つ持っていて、
+      画面が外れるときにそれを返す（`history.back()`）。この戻しは
+      **あとから届く**ので、次の回が描き終わったところへ落ちてきて、
+      その回だけ知らない画面から始まる。
+
+      1 tick 待って、落ちてくるものを先に受け取ってしまう。実ブラウザ
+      では回が分かれていないので、これは検査の側の後始末。
+    */
+    await new Promise((done) => setTimeout(done, 0));
   });
 
   afterEach(() => {

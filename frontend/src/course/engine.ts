@@ -9,6 +9,7 @@
  * 知らない id を渡されたときは、いまの場所に留まる。
  */
 
+import { assembleParts } from "./types";
 import type { Lesson, LessonStep, StepValues } from "./types";
 
 export function stepIndex(lesson: Lesson, stepId: string): number {
@@ -178,8 +179,16 @@ export function checkStep(step: LessonStep, values: StepValues): StepIssue | nul
     */
     return {
       reason: step.parts?.length
-        ? // 枠を埋める回。**どれか1つ**ではなく、全部が要る
-          "ぜんぶ選んでください。"
+        ? /*
+             枠を埋める回。**どれか1つ**ではなく、全部が要る。
+
+             残りの数を言う。前は埋まり具合に関わらず「ぜんぶ選んで
+             ください。」の一言だけで、2つ埋めた人にも1つも埋めて
+             いない人にも同じ文が出ていた——**押しても進まない理由が、
+             押すたびに同じ**。どれが足りないかは枠の名前の印が示し、
+             ここはあと何回かを言う。
+           */
+          `あと${step.parts.length - assembleParts(value).filter((one) => one.trim()).length}つ選んでください。`
         : step.options?.length
           ? /*
               いくつでも選べる回で「ひとつ選んでください。」と言わない。

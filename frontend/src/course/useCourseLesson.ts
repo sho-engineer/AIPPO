@@ -642,7 +642,15 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
           持ち分を使い切った（`out_of_credits`）のも、その日の上限に
           当たった（`limit`）のも、次にすることは同じ——今日はここまで。
         */
-        const done = failure.kind === "limit" || failure.kind === "out_of_credits";
+        /*
+          祝うのは、**その人の持ち分を使い切ったときだけ。**
+
+          前は混み合い（`limit`）も同じ扱いにしていた。混み合いは
+          時間をおけば直るし、当たった人はまだ1回も通せていない
+          ことがある——そこへ祝う絵を出すと、何を祝われたのか
+          分からないまま行き止まりに見える。
+        */
+        const done = failure.kind === "out_of_credits";
         setPo({
           message: failure.detail,
           /*

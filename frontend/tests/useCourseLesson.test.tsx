@@ -510,6 +510,14 @@ describe("今日の上限に達したとき", () => {
     上限は押し直しても直らない。押せる送信ボタンを残さず、
     専用の画面（`components/course/LessonPaused.tsx`）へ切り替わる
     ことを確かめる。
+
+    ここへ来るのは `out_of_credits` だけ
+    ------------------------------------
+    前は「全体が混み合っている」（`limit`）も同じ画面へ送っていた。
+    けれどこの画面には押し直す道が無く、出口は「ホームへ戻る」1本。
+    混み合いは時間をおけば直るものなので、**直るはずの止まり方を
+    行き止まりにしていた**。あちらは押し直せる画面へ移してある
+    （下の「混み合っているときは…」）。
   */
   it("送信中の画面ではなく、専用の『今日はここまで』画面が出る", async () => {
     const user = userEvent.setup();
@@ -519,7 +527,7 @@ describe("今日の上限に達したとき", () => {
       .mockRejectedValue(
         new AiRequestError(
           "今日はたくさん練習しましたね。続きは、また明日ここから試してみてください。",
-          "limit",
+          "out_of_credits",
         ),
       );
 
@@ -541,12 +549,14 @@ describe("今日の上限に達したとき", () => {
     ).toBe(1);
   });
 
-  it("『ホームへ戻る』で、渡された行き先が呼ばれる", async () => {
+  it("出口を押すと、渡された行き先が呼ばれる", async () => {
     const user = userEvent.setup();
     const { AiRequestError } = await import("../src/api/ai");
     generate = vi
       .fn()
-      .mockRejectedValue(new AiRequestError("今日はここまでです。", "limit"));
+      .mockRejectedValue(
+        new AiRequestError("今日はここまでです。", "out_of_credits"),
+      );
     const onExit = vi.fn();
     const lesson = getLesson("rewrite_text")!;
 
@@ -555,9 +565,41 @@ describe("今日の上限に達したとき", () => {
     await user.click(screen.getByTestId("primary-action"));
     await screen.findByTestId("lesson-paused");
 
-    await user.click(screen.getByTestId("lesson-paused-exit"));
+    /*
+      押すのは「明日また続ける」。
+
+      持ち分を使い切るのは**登録前の人だけ**なので（文章の場合。
+      `apps/ai/views.py` の `_counts_against_credits`）、この画面は
+      いつも「いま登録する／明日また続ける」の2択で出る。出口の
+      名前は違っても、行き先は同じ `onExit`。
+    */
+    await user.click(screen.getByTestId("lesson-paused-tomorrow"));
 
     expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  it("混み合っているときは、押し直せる画面を出す", async () => {
+    /*
+      `limit` は「全体が混み合っている。時間をおけば直る」（`api/ai.ts`）。
+      直るはずの止まり方なのに、**祝う絵と「ホームへ戻る」だけ**の画面へ
+      送っていた。押した人はまだ1回も通せていないことがある。
+
+      見るのは3つ——祝う画面へ行かないこと、起きたことをそのまま
+      言うこと、押し直す道があること。
+    */
+    const user = userEvent.setup();
+    const { AiRequestError } = await import("../src/api/ai");
+    generate = vi
+      .fn()
+      .mockRejectedValue(new AiRequestError("混み合っています。", "limit"));
+
+    renderLesson();
+    await toQuickTry(user);
+    await user.click(screen.getByTestId("primary-action"));
+
+    expect(await screen.findByText("いま混み合っています")).toBeInTheDocument();
+    expect(screen.queryByTestId("lesson-paused")).not.toBeInTheDocument();
+    expect(screen.getByTestId("rescue-retry")).toBeInTheDocument();
   });
 
   it("押し直せば直る失敗を、『今日はここまで』と取り違えない", async () => {

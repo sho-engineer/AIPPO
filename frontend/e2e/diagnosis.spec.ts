@@ -575,10 +575,43 @@ test.describe("AI活用診断", () => {
     await page.getByTestId("diagnosis-reason-close").click();
     await expect(page.getByTestId("diagnosis-reason-sheet")).toHaveCount(0);
 
-    // ここでの「戻る」は、診断そのものから出る（空振りしない）
+    /*
+      ここでの「戻る」は**空振りしない**。行き先は最後の問い。
+
+      前はここで診断そのものから出ていた。レッスンの中の回を履歴に
+      積んでいなかったので、結果でブラウザバックを押すと**5問すべてを
+      飛ばしてコースの画面まで出る**（実測で履歴6段、1回でコースへ）。
+      答えを見直したい人が、いちばん押しそうな操作で、いちばん遠くへ
+      運ばれていた。
+
+      いまは帯の「←」と同じ意味にしてある（`pages/LessonRunner.tsx`）。
+      見るのは2つ——**押しても外へ出ないこと**と、**1回ぶんだけ戻る
+      こと**。空振り（何も起きない）はどちらでもないので、これで捕まる。
+    */
     await page.evaluate(() => window.history.back());
     await page.waitForTimeout(400);
     await expect(page.getByTestId("completion-view")).toHaveCount(0);
+    await expect(page.getByTestId("lesson-mission-count")).toContainText("5 / 5");
+  });
+
+  test("「戻る」は、1回ぶんだけ戻る", async ({ page }) => {
+    /*
+      押しっぱなしで外まで出ないこと。**回をまたいで積み直せているか**を
+      見る。積み直しを忘れると、2回目の「戻る」が素通りしてレッスンの
+      外へ出る（`BackStack` は押されたぶんを消すので、こちらが持ち直す
+      必要がある）。
+    */
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+    await expect(page.getByTestId("completion-view")).toBeVisible();
+
+    const back = () => page.evaluate(() => window.history.back());
+    for (const expected of ["5 / 5", "4 / 5", "3 / 5"]) {
+      await back();
+      await expect(page.getByTestId("lesson-mission-count")).toContainText(expected);
+    }
   });
 
   test("添えたレッスンを押すと、その回が始まる", async ({ page }) => {

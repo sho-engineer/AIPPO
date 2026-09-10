@@ -63,6 +63,21 @@ function markOf(state: unknown): number | null {
   return typeof value === "number" ? value : null;
 }
 
+/**
+ * その履歴が、積み場の持ちものか。
+ *
+ * **画面から出る側が要る。** `App` がレッスンや一枚から出るときは
+ * `history.back()` を1つ戻すが、そこに積み場の1つが載っていると
+ * **出るはずの「戻る」が、そちらに食べられる**（×を押しても
+ * レッスンの中で1回ぶん戻るだけになる）。
+ *
+ * 積んだ数はいつも 0 か 1（この仕組みは1つしか持たない）ので、
+ * 出る側は「載っているなら 2つ戻す」だけで足りる。
+ */
+export function isOverlayHistory(state: unknown): boolean {
+  return markOf(state) !== null;
+}
+
 let seq = 0;
 
 /**

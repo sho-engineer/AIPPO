@@ -203,6 +203,37 @@ export function LessonRunner({
   };
 
   /*
+    端末の「戻る」を、**帯の「←」と同じ意味にする。**
+
+    このアプリが履歴に積んでいるのは画面（TOP / HOME / LESSON …）だけで、
+    レッスンの中の回は積んでいない。だから診断の結果でブラウザバックを
+    押すと、**5問すべてを飛ばしてコースの画面まで出ていた**（実測で
+    履歴6段、1回でコースへ）。答えを見直したい人が、いちばん押しそうな
+    操作で、いちばん遠くへ運ばれる。
+
+    直し方は、一枚（`MoreSheet`）で既に使っている仕組みをそのまま使う
+    ——戻れる回に居るあいだ、履歴を1つ持っておく。押された「戻る」は
+    その1つを消し、こちらは1回ぶん戻るだけで済む（`BackStack.tsx`）。
+
+    積み場は一枚と共用で、閉じる順は**後に積んだものから**。だから
+    一枚が開いていれば先にそちらが閉じ、閉じ切ってからこの層に届く。
+    順番はもともとその形になっている。
+
+    最初の回では積まない。そこでの「戻る」はレッスンから出る合図で、
+    行き先を持たない層を置くと、出口が消える。
+  */
+  const stepId = step.id;
+  useEffect(() => {
+    if (!api.canBack || celebrating) return;
+    return backStack.push(() => api.goBack());
+    /*
+      回が変わるたびに積み直す。押されたぶんは `BackStack` の側で
+      消えるので、積み直さないと2回目の「戻る」が素通りする。
+    */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backStack, api.canBack, stepId, celebrating]);
+
+  /*
     送信のステップに入ったら、そのまま送る。
 
     ここで待たせて「AIに送る」をもう一度押させると、
@@ -539,9 +570,19 @@ export function LessonRunner({
     増えない。取り違えると「登録したのに進めない」になるので、
     どちらなのかを画面へ渡す。
   */
+  /*
+    ここへ来るのは**その人の持ち分を使い切ったときだけ**にした。
+
+    前は「全体が混み合っている」（`limit`）も同じ画面へ送っていた。
+    けれどこの画面には押し直す道が無く、出口は「ホームへ戻る」1本。
+    混み合いは時間をおけば直るものなので、**直るはずの止まり方を
+    行き止まりにしていた**（`course/rescue.ts` へ移した）。
+
+    祝う言葉と「続けて n 日」も、ここに残す。使い切るまで練習した人に
+    だけ言う言葉で、混み合いに当たっただけの人へ言うと嘘になる。
+  */
   const pausedForToday =
-    step.type === "ai_generate" &&
-    (api.errorKind === "limit" || api.errorKind === "out_of_credits");
+    step.type === "ai_generate" && api.errorKind === "out_of_credits";
 
   /*
     詰まった。**行き止まりにしない。**
@@ -553,7 +594,10 @@ export function LessonRunner({
   const stuck =
     step.type === "ai_generate" &&
     !pausedForToday &&
-    (api.errorKind === "failed" || api.errorKind === "unusable");
+    (api.errorKind === "failed" ||
+      api.errorKind === "unusable" ||
+      // 混み合いも、押し直せる道のある側で受ける
+      api.errorKind === "limit");
 
   /*
     どこへ戻れば直せるか。

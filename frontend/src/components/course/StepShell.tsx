@@ -280,7 +280,7 @@ export function StepShell({
         ポーが居ない画面では、見出しだけがここに残る。居ないぶんの
         余白は返すので、本文がその高さぶん上がる。
       */}
-      <div className="mt-4 shrink-0">
+      <div className="mt-2 shrink-0 [@media(min-height:700px)]:mt-4">
         <PoHero
           eyebrow={
             eyebrow && (
@@ -339,7 +339,16 @@ export function StepShell({
       */}
       <div
         data-testid="step-stage"
-        className="mt-5 flex min-h-0 flex-1 flex-col overflow-y-auto pb-2"
+        /*
+          低い持ち方では、上の余白を詰める。
+
+          402×660（iPhone の Safari で上下の帯が出ている状態）では、
+          見出しと中身のあいだの 20px が**そのまま中身の高さから
+          引かれる**。高さのある持ち方では 20px のままにする——
+          そこでは余りのほうが多く、詰めても読みやすくならない。
+        */
+        className="mt-2 flex min-h-0 flex-1 flex-col overflow-y-auto pb-2
+                   [@media(min-height:700px)]:mt-5"
       >
         <StepTransition stepKey={title}>{children}</StepTransition>
       </div>

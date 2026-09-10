@@ -91,9 +91,30 @@ export function rescuePaths(where: RescueSituation): RescuePath[] {
  * どちらも、起きたことだけを言う。誰が悪いかは言わない。
  */
 export function rescueTitle(kind: AiRequestError["kind"]): string {
-  return kind === "unusable"
-    ? "うまく変わりませんでした"
-    : "うまく届きませんでした";
+  if (kind === "unusable") return "うまく変わりませんでした";
+  /*
+    混み合っているのは、**その人のせいでも、失敗でもない。**
+
+    ここは前まで「今日の練習はここまで！🎉」の画面へ送っていた。
+    けれど混み合いは時間をおけば直るもので、祝って行き止まりに
+    するものではない（`api/ai.ts` の `limit`）。起きたことをそのまま
+    言って、押し直せる道を出す。
+  */
+  if (kind === "limit") return "いま混み合っています";
+  return "うまく届きませんでした";
+}
+
+/**
+ * 見出しの下の1行。
+ *
+ * 混み合っているときだけ言い方を変える。ほかの失敗は「別の方法」が
+ * 効くが、混み合いに効くのは**待つこと**なので、別の方法を勧めると
+ * 効かない道を勧めることになる。
+ */
+export function rescueLead(kind: AiRequestError["kind"]): string {
+  return kind === "limit"
+    ? "少し待ってから、もう一度おくってみましょう。"
+    : RESCUE_LEAD;
 }
 
 export const RESCUE_LEAD = "大丈夫です。別の方法で試してみましょう。";

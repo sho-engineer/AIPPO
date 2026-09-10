@@ -27,7 +27,7 @@
 import { IconChevronRight } from "../Icons";
 import { PrimaryButton } from "../aippo/PrimaryButton";
 import { PoAvatar } from "../../po/PoAvatar";
-import { RESCUE_LEAD, rescueTitle, type RescuePath } from "../../course/rescue";
+import { rescueLead, rescueTitle, type RescuePath } from "../../course/rescue";
 import type { AiRequestError } from "../../api/ai";
 import type { PoMessage } from "../../course/types";
 
@@ -51,7 +51,7 @@ export function FailureRescue({ kind, paths, onChoose, po }: FailureRescueProps)
       <h2 id="failure-rescue-heading" className="text-lg font-bold leading-7">
         {rescueTitle(kind)}
       </h2>
-      <p className="mt-2 text-sm leading-6 text-ink-muted">{RESCUE_LEAD}</p>
+      <p className="mt-2 text-sm leading-6 text-ink-muted">{rescueLead(kind)}</p>
 
       <div className="mt-4 flex justify-center">
         <PoAvatar po={po} />

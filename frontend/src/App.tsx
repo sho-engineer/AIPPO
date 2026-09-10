@@ -25,6 +25,7 @@ import { CourseDetailPage } from "./pages/CourseDetailPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { HomePage } from "./pages/HomePage";
 import { LessonRunner } from "./pages/LessonRunner";
+import { isOverlayHistory } from "./components/course/BackStack";
 import { TopPage } from "./pages/TopPage";
 import { lookupLesson, useCourse, useCourses } from "./course/live";
 import { isStartable } from "./course/availability";
@@ -193,7 +194,18 @@ export function App() {
     (fallback: Screen) => {
       const state = window.history.state;
       if (isAippoHistoryState(state) && state.depth > 0) {
-        window.history.back();
+        /*
+          積み場が持っている1つも、一緒に戻す。
+
+          一枚（`MoreSheet`）とレッスンの中の回は、開いているあいだ
+          履歴を1つ持つ（`components/course/BackStack.tsx`）。それが
+          載ったまま1つだけ戻すと、**画面から出るための「戻る」が
+          そちらに食べられる**——レッスンの「×」を押しても、外へ
+          出ずに1回ぶん前の回へ戻るだけになる（実測で出た）。
+
+          積み場が持つ数はいつも 0 か 1 なので、載っていれば2つ戻す。
+        */
+        window.history.go(isOverlayHistory(state) ? -2 : -1);
         return;
       }
       navigate(fallback);

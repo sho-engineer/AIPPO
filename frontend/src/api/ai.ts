@@ -125,7 +125,7 @@ export async function generate(
       const payload = await response.json().catch(() => null);
       if (response.status === 429 || response.status === 503) {
         /*
-          この2つの番号には、次にすることが違う3つが乗っている。
+          この2つの番号には、次にすることが違う4つが乗っている。
           見分けはサーバーの `code` でする。文言で分けると、
           文言を直した日に画面の出し分けが黙って壊れる。
 
@@ -133,21 +133,32 @@ export async function generate(
               押し直しても直らないので、「また明日」と「いま登録する」
             AI_SERVICE_NOT_CONFIGURED … AI 側が止まっている。
               **これは上限ではない。** 直ればまた使えるので「もう一度」
-            印なし … 全体が混み合っている。時間をおけば直る
+            AI_RATE_LIMITED … 全体が混み合っている。時間をおけば直る
+            印なし … **こちらが出したものではない。** 押し直す
 
           真ん中を見落としていた。503 をまとめて「上限」にしていたので、
           鍵が入っていない日や AI が落ちた日に、**何もしていない人へ
           「今日の練習はここまで！」と出していた**——その人はまだ
           1回も使えていない。実際に E2E の画面写しで見つかった。
+
+          印なしの扱いも直した
+          --------------------
+          前は「印なし＝混み合っている」と読んでいた。ところが 503 は
+          **経路の途中にいる誰でも返せる**——プロキシ、コールドスタート、
+          配信の入れ替え中。どれも押し直せば直るのに、祝う絵とともに
+          行き止まりへ送っていた（実測で見つけた最後の1件）。
+
+          こちらが出した上限には印を付けた（`apps/ai/views.py` の
+          `AI_RATE_LIMITED`）。**印のあるものだけを上限として扱う。**
         */
         const code = (payload as { code?: string } | null)?.code;
         if (code === "FREE_CREDITS_EXHAUSTED") {
           throw new AiRequestError(detailOf(payload), "out_of_credits");
         }
-        if (code === "AI_SERVICE_NOT_CONFIGURED") {
-          throw new AiRequestError(detailOf(payload), "failed");
+        if (code === "AI_RATE_LIMITED") {
+          throw new AiRequestError(detailOf(payload), "limit");
         }
-        throw new AiRequestError(detailOf(payload), "limit");
+        throw new AiRequestError(detailOf(payload), "failed");
       }
       if (response.status === 409) {
         throw new AiRequestError(detailOf(payload), "duplicate");

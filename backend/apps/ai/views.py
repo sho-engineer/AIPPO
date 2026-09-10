@@ -172,8 +172,22 @@ class GenerateView(APIView):
             consume_ai_run(request)
         except QuotaExceeded as exc:
             message = limit_message(exc)
+            # 印を付ける。**番号だけでは足りない。**
+            #
+            # ここは `code` を持たずに 503／429 を返していた。画面側は
+            # 「印なし＝混み合っている」と読む決まりだったので、
+            # **プロキシやコールドスタートが返す 503 まで「今日はここまで」
+            # になっていた**——押した人はまだ1回も使えていないのに、祝う絵
+            # とともに行き止まりへ送られる（`frontend/src/api/ai.ts`）。
+            #
+            # 番号は経路の途中にいる誰でも返せる。こちらの都合で出したもの
+            # だけに印を付けて、印のあるものだけを上限として扱わせる。
             return Response(
-                {"errors": {"detail": [message]}, "tutor": limit_tutor(message)},
+                {
+                    "code": "AI_RATE_LIMITED",
+                    "errors": {"detail": [message]},
+                    "tutor": limit_tutor(message),
+                },
                 status=(
                     status.HTTP_503_SERVICE_UNAVAILABLE
                     if exc.is_global

@@ -78,19 +78,60 @@ export function AssembleStep({ step, value, onChange }: AssembleStepProps) {
       静かに送れる状態になっていた（`e2e/diagnosis.spec.ts` の
       `expectFits` が入れ物の中まで見るようにして見つけた）。
 
-      指で押す最小（44px）は、`py` ではなく**押せる面の高さ**で
-      満たしている——38px の札に上下 3px ずつの当たりを付けると
-      44px になる（`-my-[3px]` の透明な縁）。字を小さくしすぎない
-      ために、縮めるのは余白のほうから。
+      透明な当たりに頼るのをやめた
+      ----------------------------
+      指で押す最小（44px）を、38px の札＋上下 3px の透明な縁
+      （`before:-inset-y-[3px]`）で満たしていた。**実測すると効いて
+      いたのは上だけで、実効 41px だった**——札は `gap-1`（4px）で
+      折り返して並ぶので、下へ伸ばした 3px は次の行の札の縁と
+      2px 重なり、後に描かれるほうが当たりを取る。
+
+      当たりの点（札の外 2.5px）を 11個すべてで調べて分かった。
+      見た目には出ないので、絵を見ても気づけない種類のずれ。
+
+      いまは札そのものを 44px にしてある。上の実測で、この画面には
+      160px の余りがあった（枠3つで 6行 ＝ 36px 増）。**当たりと
+      見た目を一致させる**ほうが、あとから壊れない。
     */
-    <div className="flex min-h-0 flex-1 flex-col gap-2" data-testid="assemble">
+    <div
+      /*
+        枠どうしの間も、低い持ち方では詰める。札を 44px にしたぶん
+        （6行で 36px 増）を、読めなくならないところから返す。
+      */
+      className="flex min-h-0 flex-1 flex-col gap-1 [@media(min-height:700px)]:gap-2"
+      data-testid="assemble"
+    >
       {parts.map((part, index) => (
         <fieldset key={part.key} data-testid="assemble-part" data-part={part.key}>
           {/*
             枠の名前。**問いそのものは見出しが言っている**ので、
             ここは短く、札より小さくする。
           */}
-          <legend className="mb-0.5 text-[0.8125rem] font-bold leading-5">
+          {/*
+            枠の名前。**問いそのものは見出しが言っている**ので、
+            ここは短く、札より小さくする。
+
+            埋まった枠には印を付ける。3つの枠を1つずつ埋める回だと
+            分かるのは下の一言だけで、**どれがまだかは自分で数えて
+            いた**（枠は3つとも同じ見た目で並ぶ）。印があれば、
+            残りが目で分かる。
+          */}
+          <legend
+            className={`mb-0 flex items-center gap-1 text-[0.8125rem] font-bold
+                        [@media(min-height:700px)]:mb-0.5
+                        leading-5 ${picked[index] ? "text-brand-dark" : ""}`}
+          >
+            <span
+              aria-hidden="true"
+              className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center
+                          rounded-full text-[0.625rem] ${
+                            picked[index]
+                              ? "bg-brand text-white"
+                              : "border border-line"
+                          }`}
+            >
+              {picked[index] ? "✓" : ""}
+            </span>
             {part.label}
           </legend>
 
@@ -107,14 +148,9 @@ export function AssembleStep({ step, value, onChange }: AssembleStepProps) {
                   /*
                     印は色だけに頼らない（要件 §6.12）。選んだ札は
                     地の色と枠と太さの3つで変わる。
-
-                    `before:` は押せる面を上下へ広げるだけの当たり。
-                    見た目は 38px のまま、指には 44px で当たる。
                   */
-                  className={`relative min-h-[2.375rem] rounded-badge border px-3 py-1.5
+                  className={`min-h-[2.75rem] rounded-badge border px-3 py-1.5
                               text-[0.875rem] leading-6 transition
-                              before:absolute before:-inset-y-[3px] before:inset-x-0
-                              before:content-['']
                               ${
                                 on
                                   ? "border-brand bg-brand-soft font-bold text-brand-dark"
