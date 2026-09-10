@@ -141,16 +141,50 @@ test.describe("使い切ったとき", () => {
     }
   });
 
-  test("混み合っているだけのときは、登録を勧めない", async ({ page }) => {
+  test("混み合っているだけのときは、押し直せる画面を出す", async ({ page }) => {
     /*
-      サービス全体が今日の上限に達した側。登録しても増えないので、
-      ここで勧めると嘘になる。
-    */
-    await stubApi(page, { failStatus: 429 });
-    await untilPaused(page);
+      サービス全体が今日の上限に達した側（`AI_RATE_LIMITED`）。
+      **祝う画面へ送らない。**
 
+      前はここも「今日の練習はここまで！🎉」の画面へ送っていた。
+      けれど混み合いは「時間をおけば直る」もので、送り先には押し直す
+      道が無く、出口は「ホームへ戻る」1本だった——**直るはずの
+      止まり方を行き止まりにしていた。**そのうえ当たった人は、
+      まだ1回も通せていないことがある。
+
+      いまは押し直せる側（`course/rescue.ts`）で受ける。登録を勧めない
+      のは前と同じ——登録しても混み合いは解けない。
+    */
+    await stubApi(page, { failStatus: 429, failCode: "AI_RATE_LIMITED" });
+    await openRewrite(page);
+    for (let i = 0; i < 12; i += 1) {
+      if (await page.getByTestId("rescue-retry").count()) break;
+      if (!(await advance(page))) break;
+      await page.waitForTimeout(150);
+    }
+
+    await expect(page.getByText("いま混み合っています")).toBeVisible();
+    await expect(page.getByTestId("rescue-retry")).toBeVisible();
+    await expect(page.getByTestId("lesson-paused")).toHaveCount(0);
     await expect(page.getByTestId("lesson-paused-register")).toHaveCount(0);
-    await expect(page.getByTestId("lesson-paused-exit")).toBeVisible();
+  });
+
+  test("印の無い 503 は、上限として扱わない", async ({ page }) => {
+    /*
+      **番号は経路の途中にいる誰でも返せる。** プロキシ、コールド
+      スタート、配信の入れ替え中——どれも同じ 503 を返す。押し直せば
+      直るのに、祝う絵とともに行き止まりへ送っていた（`api/ai.ts`）。
+    */
+    await stubApi(page, { failStatus: 503 });
+    await openRewrite(page);
+    for (let i = 0; i < 12; i += 1) {
+      if (await page.getByTestId("rescue-retry").count()) break;
+      if (!(await advance(page))) break;
+      await page.waitForTimeout(150);
+    }
+
+    await expect(page.getByTestId("rescue-retry")).toBeVisible();
+    await expect(page.getByTestId("lesson-paused")).toHaveCount(0);
   });
 });
 
