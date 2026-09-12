@@ -458,7 +458,25 @@ export function DiagnosisResult({
             線を引き、淡い地に載せる——ここは「読んで確かめる」場所で、
             3行が1つのまとまりだと形で分かるほうがよい。
           */}
-          <dl className="mt-3 rounded-card bg-brand-soft/60 px-3.5">
+          {/*
+            低い持ち方では、この3行を畳む。
+
+            実機（iPhone の Safari で上下の帯が出ている状態）で測ると、
+            この一枚は **147px 送れる**——「わかりました」が最初の画面に
+            出てこない。押す先が見えない一枚は、読み終えても閉じ方が
+            ×だけになる。
+
+            畳むのをここに決めた理由は、**後ろの画面と同じことを言って
+            いる**から。現在地は上の図の札が、できていることと次の一歩は
+            結果の画面がそのまま出している。図と内訳は、この一枚にしか
+            無い。
+
+            境目は 760px。700px では 390×700 で 115px 残る。
+          */}
+          <dl
+            className="mt-3 hidden rounded-card bg-brand-soft/60 px-3.5
+                       [@media(min-height:760px)]:block"
+          >
             {[
               ["いまの現在地", result.stage.name],
               ["できていること", result.strengths.join("・")],
@@ -487,7 +505,8 @@ export function DiagnosisResult({
             読めなかった。3行のすぐ下なら、その続きとして読める。
           */}
           <p
-            className="mt-3 text-center text-sm leading-6 text-ink-muted"
+            className="mt-2 text-center text-sm leading-6 text-ink-muted
+                       [@media(min-height:760px)]:mt-3"
             data-testid="diagnosis-reason-line"
           >
             {recommendReason(values)}
@@ -515,7 +534,7 @@ export function DiagnosisResult({
             押し間違いが起きる並びではない——行き先が「もっと読む」と
             「戻る」で、逆を押しても失うものが無い。
           */}
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-3 flex items-center gap-2 [@media(min-height:760px)]:mt-4">
             <button
               type="button"
               onClick={() => setDeep(true)}
