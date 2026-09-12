@@ -399,11 +399,28 @@ const CLAMP = {
   4: "line-clamp-4",
 } as const;
 
+/**
+ * 低い持ち方（700px 未満）でだけ、1行減らすための組。
+ *
+ * iPhone の Safari で上下の帯が出ていると、見える高さは 660px ほど。
+ * そこでは1行（28px）が下のボタンの位置を決めるので、**読める下限を
+ * 保ったまま**1行だけ譲る。高さのある持ち方では元の行数に戻る。
+ *
+ * ここも表にしてある。組み立てた名前は CSS に出てこない（上と同じ理由）。
+ */
+const CLAMP_SHORT = {
+  2: "line-clamp-2",
+  3: "line-clamp-2 [@media(min-height:700px)]:line-clamp-3",
+  4: "line-clamp-3 [@media(min-height:700px)]:line-clamp-4",
+} as const;
+
 export function FullText({
   label,
   text,
   testId,
   lines = 3,
+  tight = false,
+  peek = true,
 }: {
   /** 何の文章か。「元の文章」「AIの結果」など。 */
   label: string;
@@ -425,6 +442,21 @@ export function FullText({
    * **CSS が出てこない**（切れずに全文が出る）。
    */
   lines?: 2 | 3 | 4;
+  /**
+   * 低い持ち方で1行減らすか。
+   *
+   * レッスンの画面に**直接置く**ときだけ true にする。開いた一枚の
+   * 中は送れるので、減らす理由が無い。
+   */
+  tight?: boolean;
+  /**
+   * 抜粋そのものを出すか。
+   *
+   * `false` にすると、名札と「全文を見る」だけの1行になる。抜粋を
+   * 置く高さが無い画面のため（`StepRenderer` の条件を選ぶ回）。
+   * 押した先は同じ一枚なので、**届く先は変わらない**。
+   */
+  peek?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const body = text || "（入力なし）";
@@ -454,15 +486,27 @@ export function FullText({
           e2e/stepFits.spec.ts が捕まえた）。`<span>` は `line-clamp` が
           敷く `-webkit-box` で塊として並ぶので、`block` は要らない。
         */}
-        <span
-          className={`${CLAMP[lines]}
-                      whitespace-pre-wrap break-words text-sm leading-7`}
-        >
-          {body}
-        </span>
-        <span className="mt-2 block text-right text-xs font-bold text-brand-dark">
-          全文を見る
-        </span>
+        {peek ? (
+          <>
+            <span
+              className={`${(tight ? CLAMP_SHORT : CLAMP)[lines]}
+                          whitespace-pre-wrap break-words text-sm leading-7`}
+            >
+              {body}
+            </span>
+            <span className="mt-2 block text-right text-xs font-bold text-brand-dark">
+              全文を見る
+            </span>
+          </>
+        ) : (
+          /* 抜粋を置かないときは、名札と行き先を1行に並べる */
+          <span className="flex items-center justify-between gap-3">
+            <span className="min-w-0 truncate text-sm leading-6">{label}</span>
+            <span className="shrink-0 text-xs font-bold text-brand-dark">
+              全文を見る
+            </span>
+          </span>
+        )}
       </button>
 
       {open && (

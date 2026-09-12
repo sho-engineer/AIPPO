@@ -53,9 +53,16 @@ export function PromptPreview({ cards, detail, onOpenDetail }: PreviewProps) {
           項目名と中身を左右に並べる。
           カードを縦に積むより、何を何に決めたのかが一覧で追える。
         */}
+        {/*
+          面の中で送らせない。
+
+          項目は教材が決めた数（多くて4つ）で、送るほどの量にならない。
+          送れる箱にしておくと、**入り切らない日にだけ**最後の項目が
+          半分だけ見える形になり、しかも送れることが見た目に出ない。
+          数が増えて入らなくなったら、それは項目を減らす合図。
+        */}
         <dl
-          className="min-h-0 flex-1 divide-y divide-line overflow-y-auto
-                     rounded-card bg-canvas px-4"
+          className="shrink-0 divide-y divide-line rounded-card bg-canvas px-4"
           data-testid="prompt-cards"
         >
           {cards.map((card) => (

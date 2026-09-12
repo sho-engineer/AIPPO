@@ -17,6 +17,7 @@
 
 import { IconCaution } from "../Icons";
 import { SafetyNote } from "../SafetyNote";
+import { FullText } from "./MoreSheet";
 import { AssembleStep } from "./steps/Assemble";
 import { DiagnosisResult } from "./DiagnosisResult";
 import { SkillGet } from "./SkillGet";
@@ -412,7 +413,7 @@ export function StepRenderer({
             思い出しながら選ばせることになっていた。
           */}
           {lastRun && (
-            <div className="mb-3 flex min-h-0 flex-1 flex-col">
+            <div className="mb-3 shrink-0">
               {/*
                 カードの中にカードを入れない。
 
@@ -429,16 +430,57 @@ export function StepRenderer({
                 さっき出てきた文
               </p>
               {/*
-                残りの高さに収める。長い回答が来た日でも、下の条件の札と
-                「次へ」が画面から出ていかない。
+                **面の中で送らせない。決まった行数で切って、全文は一枚へ。**
+
+                前はここが「残りの高さに合わせて縮み、入りきらない分は
+                面の中で送れる」箱だった（`min-h-0 flex-1 overflow-y-auto`）。
+                理屈は通るが、実機で2つ壊れていた。
+
+                1つめ。**行の途中で切れる。**高さが残りしだいなので、
+                文字の高さの倍数にならない。半分だけ見えている行が
+                いちばん下に残り、読めるのか切れているのか分からない。
+
+                2つめ。**押した瞬間に、古い文字が残る。**「自分で条件を
+                追加」を押すと下の選択肢が伸びて、この箱はそのぶん縮む。
+                iPhone の Safari は、縮んだ送れる箱の描き直しをときどき
+                取りこぼし、**古い位置の文字がそのまま画面に残る**
+                ——実機の写しでは、残った文字が下の札の上に乗っていた。
+                手元の Chromium では箱の位置は正しく（実測で重なり無し）、
+                絵でしか見つからない種類のずれ。
+
+                3行で切れば、どちらも形の上で起きない。高さが決まるので
+                下の札も動かない。読みたい人は「全文を見る」で一枚を開く。
               */}
-              <p
-                className="mt-1.5 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap
-                           break-words rounded-card border border-line bg-surface p-2.5
-                           text-sm leading-6"
-              >
-                {lastRun.outputText}
-              </p>
+              {/*
+                低い持ち方では、抜粋も置けない。
+
+                この画面には**3つの札と自由入力の入口**が下に載る。
+                402×660 で測ると、2行の抜粋（枠と「全文を見る」を入れて
+                108px）を置いた時点で 62px 足りない。行数を削っても届か
+                ないので、そこでは**開く行1本**にする——中身は同じ一枚。
+
+                境目は 800px。**700px では足りなかった**——Pixel 5
+                （393×727）で 43px 溢れる。抜粋が入るのは、それより
+                高い持ち方だけ。どちらでも「押せば全文」は同じところに着く。
+              */}
+              <div className="mt-1.5 hidden shrink-0 [@media(min-height:800px)]:block">
+                <FullText
+                  lines={3}
+                  tight
+                  label="さっき出てきた文"
+                  text={lastRun.outputText}
+                  testId="condition-source"
+                />
+              </div>
+              <div className="mt-1.5 shrink-0 [@media(min-height:800px)]:hidden">
+                <FullText
+                  lines={2}
+                  label="さっき出てきた文"
+                  text={lastRun.outputText}
+                  testId="condition-source-short"
+                  peek={false}
+                />
+              </div>
             </div>
           )}
           <div className="shrink-0">
