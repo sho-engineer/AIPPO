@@ -142,6 +142,8 @@ export interface PoAppearance {
 
 export interface PoSituation {
   stepType: StepType;
+  /** どの教材か。Day1 だけ出し方が違う画面がある。 */
+  lessonId?: string;
   /** AIへ送っている最中か。 */
   busy?: boolean;
   /** 失敗しているか。 */
@@ -304,6 +306,30 @@ export function poAppearance(where: PoSituation): PoAppearance | null {
     どちらもポーが**役を持っている**画面なので。
   */
   if (where.diagnosis && where.stepType !== "intro") return null;
+
+  /*
+    Day1 の結果と問いの画面には、ポーを出さない。
+
+    出すのは3つの場面だけと決めた——状況を説明する、次の行動を短く
+    伝える、終わりを祝う。結果の画面でポーが言っていたのは
+    「どこが変わったか、見てみよう！」で、**見出しと同じこと**を
+    言い換えているだけだった。
+
+    場所の問題でもある。ポーと吹き出しで 200px。402×660 の結果画面に
+    渡せるのは 300px ほどで、そこへ代表的な変化2組と問いの3択を置くと
+    **変化のほうが消える**（実測で、対が1組も出ずに問いと「全文を
+    見る」が重なった）。読ませたいのは変化のほうなので、そちらへ渡す。
+
+    章扉・開始画面・技を渡す画面・完了画面には、これまでどおり出る。
+  */
+  if (
+    where.lessonId === "rewrite_text" &&
+    (where.stepType === "observation" ||
+      where.stepType === "result_compare" ||
+      where.stepType === "single_choice")
+  ) {
+    return null;
+  }
 
   const scene = BY_STEP[where.stepType];
   return scene ? { scene, speaks: true } : null;

@@ -647,6 +647,7 @@ export function LessonRunner({
   */
   const po = poAppearance({
     stepType: step.type,
+    lessonId: lesson.id,
     busy: api.isSubmitting,
     failed: Boolean(api.error),
     hinting: api.po.action === "show_hint",

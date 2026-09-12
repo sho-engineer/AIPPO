@@ -39,11 +39,22 @@ export interface InstructionProps {
 export function Instruction({ purpose, lines }: InstructionProps) {
   return (
     <section
-      className="rounded-card border border-brand-line bg-brand-soft/50 px-3.5 py-3"
+      className="rounded-card border border-brand-line bg-brand-soft/50 px-3.5 py-2
+                 [@media(min-height:700px)]:py-3"
       data-testid="current-instruction"
     >
-      <h2 className="text-xs font-bold leading-5 text-ink-muted">現在の指示</h2>
-      <ul className="mt-2 space-y-1.5" role="list">
+      {/*
+        低い持ち方では、見出しを畳む。**中身のほうを残す。**
+
+        402×660 でこの画面に渡せる高さに、5つの選択肢とこの札の
+        両方は入らない（実測で 25px 足りない）。「現在の指示」という
+        見出しは、下に並ぶ3行を見れば要らない——目的・読む人・
+        伝え方が、そのまま指示の形で並んでいる。
+      */}
+      <h2 className="hidden text-xs font-bold leading-5 text-ink-muted [@media(min-height:700px)]:block">
+        現在の指示
+      </h2>
+      <ul className="space-y-1 [@media(min-height:700px)]:mt-2 [@media(min-height:700px)]:space-y-1.5" role="list">
         {/*
           1行目は目的。**選ばせない**ので、最初から入っている印を付ける。
         */}

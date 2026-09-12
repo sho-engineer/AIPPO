@@ -27,10 +27,18 @@ import { changePairs } from "../../../course/changePairs";
 import { changePointsOf, NO_MEASURABLE_CHANGE } from "../steps/Compare";
 
 export interface ChangesProps {
-  /** 直前の文章（1回目なら元の文章、2回目以降なら前の結果）。 */
-  before: string;
-  /** いま返ってきた文章。 */
-  after: string;
+  /**
+   * 直前の文章（1回目なら元の文章、2回目以降なら前の結果）。
+   *
+   * 無いことがある。サーバーが `result` を持たない返事をしたときで、
+   * そのとき記録に残るのは `undefined`。**そこで画面ごと落とさない**
+   * ——実際に落ちた（AIの返事を横取りする検査の書き間違いで、空の
+   * JSON が返った）。落ちると白い画面になり、レッスンの続きへも
+   * 戻る道へも行けなくなる。
+   */
+  before?: string;
+  /** いま返ってきた文章。無いことがある（上と同じ理由）。 */
+  after?: string;
   /** 今回足した条件。「何を変えた？」に出す。 */
   changed?: { label: string; value: string };
   /** そのとき起きたことの言葉。教材が持つ1行。 */
@@ -47,8 +55,11 @@ export function Changes({
   conditions,
 }: ChangesProps) {
   const [full, setFull] = useState(false);
-  const pairs = changePairs(before, after);
-  const points = changePointsOf(before, after, changed?.value);
+  /* 文字が無くても落とさない。無いものは空として扱う */
+  const from = before ?? "";
+  const to = after ?? "";
+  const pairs = changePairs(from, to);
+  const points = changePointsOf(from, to, changed?.value);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="day1-changes">
@@ -108,10 +119,20 @@ export function Changes({
       <div className="mt-2.5 min-h-0 flex-1 overflow-hidden">
         {pairs.length > 0 ? (
           <ul className="space-y-2" role="list" data-testid="change-pairs">
-            {pairs.map((pair) => (
+            {pairs.map((pair, at) => (
               <li
                 key={pair.after}
-                className="rounded-card border border-line bg-surface px-3 py-2.5"
+                /*
+                  低い持ち方では、2組目を畳む。
+
+                  402×660 でこの画面に渡せる高さに、2組と下の気づき・
+                  全文を見る・問いの3択は載らない。**1組でも「言葉が
+                  置きかわった」は伝わる**ので、組の数より、下の問いが
+                  画面に残っているほうを取る。
+                */
+                className={`rounded-card border border-line bg-surface px-3 py-2.5 ${
+                  at >= 1 ? "hidden [@media(min-height:760px)]:block" : ""
+                }`}
                 data-testid="change-pair"
               >
                 <p className="line-clamp-2 text-[0.8125rem] leading-5 text-ink-muted">
@@ -185,13 +206,13 @@ export function Changes({
           <section>
             <h3 className="text-xs font-bold text-ink-muted">書き直したあと</h3>
             <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-7">
-              {after}
+              {to}
             </p>
           </section>
           <section className="mt-5 border-t border-line pt-4">
             <h3 className="text-xs font-bold text-ink-muted">その前</h3>
             <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-7 text-ink-muted">
-              {before}
+              {from}
             </p>
           </section>
         </MoreSheet>

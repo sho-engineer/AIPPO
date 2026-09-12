@@ -277,8 +277,21 @@ export function CompletionView({
       */}
       {reusablePrompt && (
         <section
-          className="mt-2 shrink-0 rounded-card border border-brand-line
-                     bg-brand-soft/60 px-3.5 py-2.5"
+          /*
+            いちばん低い持ち方（402×660）では、この札ごと畳む。
+
+            そこに渡せる高さには、できるようになったこと・覚えた技・
+            この札・成果物のぜんぶは載らない（実測で 44px 足りない）。
+            **消してはいない**——「このレッスンの記録」の一枚が同じ
+            3行を持っていて、そちらではコピーもできる。
+
+            画面に残すほうを選ぶなら成果物のほう。あれは**その日つくった
+            現物**で、ここで見ないと持ち帰れない。型のほうは記録に
+            いつでもある。
+          */
+          className="mt-2 hidden shrink-0 rounded-card border border-brand-line
+                     bg-brand-soft/60 px-3.5 py-2.5
+                     [@media(min-height:700px)]:block"
           data-testid="reusable-prompt"
         >
           <div className="flex items-center justify-between gap-2">
@@ -287,7 +300,21 @@ export function CompletionView({
             </h3>
             <CopyButton text={reusablePrompt} />
           </div>
-          <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-brand-dark">
+          {/*
+            低い持ち方では、3行を畳む。**コピーは残す。**
+
+            402×660 でこの画面に渡せる高さに、できるようになったこと・
+            覚えた技・この3行・成果物のぜんぶは載らない（実測で 120px
+            足りない）。畳むのはここ——**読まなくてもコピーできる**
+            のはこの札だけで、ほかの3つは読まないと意味が無い。
+
+            見出しとコピーの行は残すので、持ち帰れるものがあることは
+            分かる。中身は「このレッスンの記録」の一枚にもある。
+          */}
+          <p
+            className="mt-1 hidden whitespace-pre-wrap break-words text-sm leading-6
+                       text-brand-dark [@media(min-height:760px)]:block"
+          >
             {reusablePrompt}
           </p>
         </section>
@@ -392,6 +419,30 @@ export function CompletionView({
             なるので、せめていちばん上に置く。**回答率は数字で見張ること。**
           */}
           <SurveyCard lessonId={lessonId} />
+
+          {/*
+            仕事で使う形。**画面から畳まれる端末のために、ここにも置く。**
+
+            低い持ち方では上の札を出していない（そこでは成果物のほうを
+            残す）。同じものがここにあるので、持ち帰る道は消えない。
+          */}
+          {reusablePrompt && (
+            <section
+              className="mt-5 rounded-card border border-brand-line bg-brand-soft/60
+                         px-3.5 py-2.5"
+              data-testid="reusable-prompt-record"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-xs font-bold leading-5 text-ink-muted">
+                  仕事で使う形
+                </h3>
+                <CopyButton text={reusablePrompt} />
+              </div>
+              <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-brand-dark">
+                {reusablePrompt}
+              </p>
+            </section>
+          )}
 
           {/*
             登録の誘いは、ここ以外に置かない。
