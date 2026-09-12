@@ -337,10 +337,18 @@ describe("条件を一つ足す", () => {
     expect(generate.mock.calls[1][0].input.original_text).toBe("1回目の結果です。");
     expect(generate.mock.calls[1][0].input.improvement).toBe("AI初心者向けに");
 
-    // 1回目と改善後が、タブで見比べられる
-    expect(await screen.findByTestId("result-improved")).toHaveTextContent(
+    /*
+      1回目と改善後が、タブで見比べられる。
+
+      本文は**札の中に直接は出ない**。面の中で送れる箱をやめ、
+      「全文を見る」で一枚を開く形にした（`steps/Compare.tsx`）。
+      押した先に本文があることを見る。
+    */
+    await user.click(await screen.findByTestId("result-improved"));
+    expect(await screen.findByTestId("full-text-sheet")).toHaveTextContent(
       "短くした結果です。",
     );
+    await user.keyboard("{Escape}");
 
     /*
       元・1回目・改善後の3つは「変わったところを見る」から、さらに

@@ -19,7 +19,7 @@ import { playSuccessSound } from "../../../course/sound";
 import { KeepArtifactButton } from "../KeepArtifactButton";
 import { SurveyCard } from "../SurveyCard";
 import { LessonCelebration } from "../LessonCelebration";
-import { MoreButton, MoreSheet } from "../MoreSheet";
+import { FullText, MoreButton, MoreSheet } from "../MoreSheet";
 import { AppliedTips } from "../AppliedTips";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 import { lessonThumbnailById } from "../../../course/lessonThumbnail";
@@ -229,7 +229,8 @@ export function CompletionView({
       {/* 覚えたAI技。1行ずつ、囲いは付けない（面を積み重ねない） */}
       {skills.length > 0 && (
         <p
-          className="mt-2 flex shrink-0 flex-wrap items-baseline gap-x-2 text-sm"
+          className="mt-1 flex shrink-0 flex-wrap items-baseline gap-x-2 text-sm
+                     [@media(min-height:700px)]:mt-2"
           data-testid="completion-skills"
         >
           <span className="flex items-center gap-2 text-xs text-ink-muted">
@@ -281,8 +282,12 @@ export function CompletionView({
           切った名前は読みようがない。
         */
         <div
-          className="mt-2 flex min-h-[5rem] flex-1 flex-col
-                     [@media(min-height:700px)]:min-h-[6.5rem]"
+          /*
+            伸び縮みをやめた。本文が決まった行数で切れるので、この面が
+            残りの高さを吸う理由が無い。吸わせたままだと、727px の持ち方で
+            **枠が潰れて中身が 52px 外へ出る**（下のボタンに乗っていた）。
+          */
+          className="mt-1 flex shrink-0 flex-col [@media(min-height:700px)]:mt-2"
         >
           {/*
             名札と、持ち出す2つは**同じ行に置く。**
@@ -311,13 +316,24 @@ export function CompletionView({
               <CopyButton text={outcomeText} />
             </div>
           </div>
-          <p className="mt-1.5 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-card border border-line bg-surface p-3 text-sm leading-6">
-            {outcomeText}
-          </p>
+          {/*
+            面の中で送らせない。持ち帰る文章が**行の途中で割れて**いると、
+            全部あるのかどうかが読めない（`steps/Compare.tsx` と同じ直し）。
+
+            低い持ち方では、この面に渡せるのが 95px しかない。名札と
+            持ち出す2つの行（44px）を引くと本文に残るのは 45px で、
+            3行（100px）は入らない。そこでは**開く行1本**にする。
+          */}
+          <div className="mt-1.5 hidden shrink-0 [@media(min-height:800px)]:block">
+            <FullText lines={3} tight label={outcomeLabel} text={outcomeText} testId="completion-output" />
+          </div>
+          <div className="mt-1.5 shrink-0 [@media(min-height:800px)]:hidden">
+            <FullText lines={2} peek={false} label={outcomeLabel} text={outcomeText} testId="completion-output-short" />
+          </div>
         </div>
       )}
 
-      <div className="mt-2 shrink-0">
+      <div className="mt-1 shrink-0 [@media(min-height:700px)]:mt-2">
         <MoreButton testId="completion-more" onClick={() => setRecordOpen(true)}>
           このレッスンの記録を見る
         </MoreButton>

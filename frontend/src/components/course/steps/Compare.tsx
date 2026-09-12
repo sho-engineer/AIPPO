@@ -132,7 +132,7 @@ export function ThreeWayCompare({
     使って二度言うぶん、肝心の本文が縮む。
   */
   const firstPanel = (heading = true) => (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-w-0 shrink-0 flex-col">
       {heading && (
       <h3
         className="flex shrink-0 items-center gap-1.5 text-sm font-bold text-brand"
@@ -143,41 +143,66 @@ export function ThreeWayCompare({
       </h3>
       )}
       {/*
-        AIが返す長さは決まらない。**枠のほうで止める。**
-        止めないと、長い回答が来た日だけ画面が伸びて、下のボタンが
-        押せなくなる。長くてもこの面の中で送れる（画面は動かない）。
+        面の中で送らせない。**決まった行数で切って、全文は一枚へ。**
+
+        前は「残りの高さに合わせて縮み、入りきらない分は面の中で送れる」
+        箱だった。画面は動かないが、2つ困ることがある。高さが残りしだい
+        なので**行の途中で切れる**のと、縮むときに iPhone の Safari が
+        描き直しを取りこぼして**古い文字が残る**こと（実機の写しで
+        どちらも出た。`components/course/StepRenderer.tsx` に経緯）。
+
+        低い持ち方では、抜粋も置けない。402×660 でこの面に渡せるのは
+        203px で、そこに✓の行（91px）と「変わったところを見る」（40px）が
+        載る。**抜粋をやめて開く行1本**にすると収まる——そしてそのほうが、
+        この画面の主役（何が変わったか）が先に目に入る。
       */}
-      <p
-        data-testid="result-first"
-        className="mt-2 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap
-                   break-words rounded-card border border-line bg-surface p-3.5
-                   text-sm leading-7"
-      >
-        {first || "（まだありません）"}
-      </p>
+      <div className="mt-2 shrink-0">
+        <FullText
+          lines={2}
+          peek={false}
+          label="最初の結果"
+          text={first || "（まだありません）"}
+          testId="result-first"
+        />
+      </div>
     </div>
   );
 
   const improvedPanel = (heading = true) => (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="flex min-w-0 shrink-0 flex-col">
       {heading && (
       <h3 className="flex shrink-0 items-center gap-1.5 text-sm font-bold text-brand-dark">
         <IconCheckCircle className="h-4 w-4 shrink-0 text-brand" />
         {condition ? `改善後（${condition}）` : "改善後"}
       </h3>
       )}
-      <p
-        data-testid="result-improved"
-        className="mt-2 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap
-                   break-words rounded-card border border-brand-line
-                   bg-brand-soft/40 p-3.5 text-sm leading-7"
-      >
-        {!improved
-          ? "（まだありません）"
-          : markWorthwhile
-            ? marked(improvedParts)
-            : improved}
-      </p>
+      {/*
+        改善後も同じ。**印を付けるときだけ、その場で出す**——`FullText` は
+        文字しか受け取らないので差分の印を渡せない。印を出すのは
+        「変わったところ」の一枚の中だけで、ふだんはこちらを通らない。
+      */}
+      {markWorthwhile && improved ? (
+        <p
+          data-testid="result-improved"
+          className="mt-2 line-clamp-3 shrink-0 whitespace-pre-wrap break-words
+                     rounded-card border border-brand-line bg-brand-soft/40 p-3.5
+                     text-sm leading-7"
+        >
+          {marked(improvedParts)}
+        </p>
+      ) : (
+        <>
+          <div className="mt-2 shrink-0">
+            <FullText
+              lines={2}
+              peek={false}
+              label="改善後"
+              text={improved || "（まだありません）"}
+              testId="result-improved"
+            />
+          </div>
+        </>
+      )}
     </div>
   );
 
@@ -200,10 +225,7 @@ export function ThreeWayCompare({
 
   return (
     /* 入りきらないときは、この面の中だけが送れる（理由は Results.tsx） */
-    <div
-      data-testid="result-compare"
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
-    >
+    <div data-testid="result-compare" className="flex min-h-0 flex-1 flex-col">
       {/*
         外枠を外した。
 
@@ -214,23 +236,37 @@ export function ThreeWayCompare({
         それを束ねる枠ではない（束ねているのは画面そのもの）。
       */}
       {/*
-        下限は**この節にも**置く。
+        縮む鎖をやめた。
 
-        中のタブ（`compare-tabs`）に `min-h-[7rem]` を置いてあるが、
-        それを包むこの節が `min-h-0` のままだと、**節のほうが先に
-        潰れて**中身が枠の外へ描かれる。縮む鎖のいちばん外側に置く、
-        というのがこの作りの決まり（Results.tsx に経緯がある）。
+        前は「下限（`min-h-[7rem]`）を縮む鎖のいちばん外側に置く」形
+        だった。中の本文が**残りの高さに合わせて縮む箱**だったので、
+        潰れすぎないように下限が要った。
 
-        iPhone の Safari（402×660）で、この節が 54px まで潰れ、
-        112px の中身が 58px はみ出していた。
+        いまは本文が決まった行数で切れるので、**この節が伸び縮みする
+        理由が無い**。自分の高さのまま置く。余った高さは、下の✓の行と
+        安全の一言の側に残る。
+
+        鎖のままにしておくと、下限（112px）より中身（179px）が高い日に
+        **67px が枠の外へ描かれる**（実測）。
+      */}
+      {/*
+        低い持ち方では、この節ごと畳む。
+
+        402×660 でこの画面に渡せるのは 203px。そこに✓の行（91px）と
+        「変わったところを見る」（40px）と安全の一言が載る。本文の札
+        （タブ44＋開く行44）まで置くと 46px 足りない。
+
+        **畳んでも届く先は同じ。**「変わったところを見る」の一枚の中に
+        全文の比べがある。そしてこの画面の主役は、そもそも本文ではなく
+        **何が変わったか**のほう。低い持ち方では、それが先に目に入る。
       */}
       <section
-        className="flex min-h-[7rem] flex-1 flex-col"
+        className="hidden shrink-0 flex-col [@media(min-height:800px)]:flex"
         data-layout={bothShort ? "side-or-stack" : "tabs-or-side"}
       >
         {bothShort ? (
           // 両方短い。狭い画面でも横に並べたほうが速い
-          <div className="flex min-h-[7rem] flex-1 flex-row items-stretch gap-3">
+          <div className="flex shrink-0 flex-row items-stretch gap-3">
             {firstPanel()}
             {arrow}
             {improvedPanel()}
@@ -240,7 +276,7 @@ export function ThreeWayCompare({
             {/* 狭い画面：タブで入れ替える */}
             {/* 読める下限は縮む鎖の外側に置く（理由は Results.tsx） */}
             <div
-              className="flex min-h-[7rem] flex-1 flex-col sm:hidden"
+              className="flex shrink-0 flex-col sm:hidden"
               data-testid="compare-tabs"
             >
               <div role="tablist" className="flex shrink-0 gap-2">
@@ -259,7 +295,7 @@ export function ThreeWayCompare({
                   </button>
                 ))}
               </div>
-              <div className="mt-3 flex min-h-0 flex-1 flex-col">
+              <div className="mt-3 shrink-0">
                 {tab === "first" ? firstPanel(false) : improvedPanel(false)}
               </div>
             </div>
