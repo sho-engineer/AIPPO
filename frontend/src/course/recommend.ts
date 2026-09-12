@@ -15,7 +15,12 @@
  */
 
 import { COURSE } from "./catalog";
-import { scoreDiagnosis, type Axis } from "./diagnosisScore";
+import {
+  AXIS_LABELS,
+  NEXT_LEARNING,
+  scoreDiagnosis,
+  type Axis,
+} from "./diagnosisScore";
 
 /**
  * 「やりたいこと」（Q5）→ そこへ向かうレッスン。
@@ -251,4 +256,31 @@ export function recommendReason(answers: Record<string, string>): string {
     workflow: "土台はそろっています。次は仕事の流れの中へ。",
   };
   return LINES[weakest];
+}
+
+/**
+ * なぜこの1本なのかを、**診断の結果の言葉で**2文。
+ *
+ * `recommendReason` との違い
+ * -------------------------
+ * あちらは1行の但し書きで、**診断の中身を指していない**——「次は
+ * 場面に合う使い方を」と言うだけで、何が身についていたのかを
+ * 言わない。おすすめの画面でしてほしいのは
+ * 「自分の結果と、この1本がつながっている」と分かることなので、
+ * ここでは**測った結果そのもの**を引いて書く。
+ *
+ * 全部が低い人に「身についていました」と書かない
+ * ----------------------------------------------
+ * `strongest` は数字のいちばん高い軸なので、**全部1でも必ず返る**。
+ * そのまま文にすると、1つも届いていない人に「身についていました」と
+ * 言うことになる。3に届いていなければ、そこは言わずに始める。
+ */
+export function recommendLead(answers: Record<string, string>): string {
+  const { axes, weakest, strongest } = scoreDiagnosis(answers);
+  const next = `次は、${NEXT_LEARNING[weakest]}練習をします。`;
+
+  if (axes[strongest] < 3) {
+    return `診断では、まずAIに頼むところからがよさそうでした。${next}`;
+  }
+  return `診断では、「${AXIS_LABELS[strongest]}」力が身についていました。${next}`;
 }

@@ -25,6 +25,7 @@ import {
 import { ChoiceButton } from "../../aippo/ChoiceButton";
 import { CopyButton } from "./Completion";
 import { isFreeValue } from "../../../course/engine";
+import { playSound } from "../../../course/sound";
 import { diagnosisIcon, optionIcon } from "../../../course/presentation";
 import type { LessonStep, StepOption } from "../../../course/types";
 
@@ -50,6 +51,17 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
   const isFree = !multiple && isFreeValue(step, value);
   const [showFree, setShowFree] = useState(isFree);
   const freeInputId = useId();
+  /*
+    いま押されたばかりの札。**跳ねる動きを、押した1枚にだけ返す。**
+
+    「選ばれている札」（value）ではなく「押した札」を覚える。画面に
+    戻ってきたときや下書きから復元したときに、選択済みの札がひとりでに
+    跳ねると、触ってもいないのに何かが起きたように見える
+    （`steps/Tiles.tsx` と同じ作り）。
+
+    跳ねるのは 0.24 秒。箱の大きさは変わらないので、下の行は動かない。
+  */
+  const [popped, setPopped] = useState<string | null>(null);
 
   useEffect(() => setShowFree(isFree), [isFree]);
 
@@ -60,6 +72,9 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
       return;
     }
     setShowFree(false);
+    setPopped(option.value);
+    /* 「触った」と「選ばれた」は別の出来事。押した音とは分ける */
+    playSound("choice");
     if (!multiple) {
       onChange(option.value);
       return;
@@ -169,6 +184,7 @@ export function ChoiceStep({ step, value, onChange, multiple = false }: ChoicePr
                   */
                   className={`flex min-h-[2.75rem] w-full items-center gap-2.5
                               rounded-badge border px-3 py-2 text-left transition
+                              ${popped === option.value ? "animate-choice-pop" : ""}
                               ${
                                 active
                                   ? "border-brand bg-brand-soft"

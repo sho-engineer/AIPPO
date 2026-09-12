@@ -172,6 +172,16 @@ export interface DiagnosisResult {
    * いるので、下から見て最初に届いていないところを返す。
    */
   weakest: Axis;
+  /**
+   * いちばん高い軸。「強み」としてそのまま出す。
+   *
+   * **`weakest` と対にならないことがある。** あちらは積み上げの順で
+   * 決まるので、数字の大小とは別の物差し。全部が低い人は、ここも
+   * 低い軸を指す——そのときに「身についていました」と書かないよう、
+   * 使う側は `axes[strongest]` を見ること
+   * （`course/recommend.ts` の `recommendLead`）。
+   */
+  strongest: Axis;
 }
 
 /** 軸ごとに、そこができていると言える文。 */
@@ -298,8 +308,63 @@ export function scoreDiagnosis(values: Record<string, string>): DiagnosisResult 
     stage: STAGES[stageNumber - 1],
     strengths,
     weakest: next,
+    strongest: ranked[0],
   };
 }
+
+/**
+ * 回答から見えた特徴。**3つまで。**
+ *
+ * なぜ「できていること」と別に要るか
+ * ----------------------------------
+ * `strengths` は札に載せる短い言葉（「条件を足せる」）で、**できて
+ * いることしか言わない**。診断の画面でいちばん効くのは、できている
+ * ことと**まだのこと**が同じ並びに出て、境目が見えること。
+ * 全部が「できている」だと、読んだ人は次に何をするのか分からない。
+ *
+ * 最後の1つは必ず「これから」にする
+ * ----------------------------------
+ * 上2つはできている軸から、最後は `weakest` から引く。順番を
+ * 入れ替えない——できていることのあとに次が来る形そのものが、
+ * 次の画面（4つの力）へのつながりになっている。
+ */
+const TRAIT_DONE: Record<Axis, string> = {
+  ask: "AIにお願いすることには慣れている",
+  condition: "条件を加えて結果を調整できる",
+  purpose: "目的に応じて使い方を選べる",
+  workflow: "仕事の流れの中でAIを使える",
+};
+
+const TRAIT_NEXT: Record<Axis, string> = {
+  ask: "AIへの頼み方はこれから",
+  condition: "条件を加えるのはこれから",
+  purpose: "目的に応じた使い分けはこれから",
+  workflow: "仕事の流れへの組み込みはこれから",
+};
+
+export function traitsOf(result: DiagnosisResult): string[] {
+  const done = AXES.filter(
+    (axis) => axis !== result.weakest && result.axes[axis] >= 3,
+  )
+    .slice(0, 2)
+    .map((axis) => TRAIT_DONE[axis]);
+
+  return [...done, TRAIT_NEXT[result.weakest]];
+}
+
+/**
+ * 次に覚えること。**技の名前ではなく、やることで書く。**
+ *
+ * `NEXT_SKILL` の名前（「ターゲット指定」）はこのアプリの中の呼び名で、
+ * 初めて見る人には何をするのか分からない。ここは
+ * **そのレッスンで実際に手を動かすこと**を1行で言う。
+ */
+export const NEXT_LEARNING: Record<Axis, string> = {
+  ask: "何をしてほしいかを言葉にして、AIに渡す",
+  condition: "誰向けか・どんな言い方かを足して、返ってくる文章を変える",
+  purpose: "相手と目的を指定して、返ってくる文章を使い分ける",
+  workflow: "返ってくる形を指定して、仕事の流れにそのまま載せる",
+};
 
 /**
  * 次に覚えるAI技。**1つだけ。**

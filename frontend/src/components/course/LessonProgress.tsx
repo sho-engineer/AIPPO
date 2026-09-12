@@ -55,6 +55,26 @@ export interface LessonProgressProps {
   label?: string;
   /** 右に出す数え方。`3 / 19` のような内部の歩数を出したくないときに使う。 */
   count?: string;
+  /**
+   * 帯を、決まった数の段に割って出す。
+   *
+   * 何のためか
+   * ----------
+   * 診断の5問で、**いま何問目かが帯から読めなかった**。1本の帯が
+   * 少しずつ伸びるだけなので、「4割くらい」は分かっても「2問目」は
+   * 分からない。右の「質問 2 / 5」を読まないと位置が決まらず、
+   * つまり帯が仕事をしていない。
+   *
+   * 段に割ると、**埋まった数がそのまま問い数**になる。数えられる
+   * ものは、数えられる形で出す。
+   *
+   * 区切り（`missions`）との違い
+   * ----------------------------
+   * あちらは1本の帯の上に**継ぎ目を描く**もので、帯そのものは
+   * 通しで伸びる。長いレッスン（19歩）では、そのほうが細かい
+   * 進み具合まで出る。こちらは数える用。両方は渡さない。
+   */
+  segments?: { total: number; done: number };
   /** いま何番目の区切りか。1始まり。 */
   currentMission?: number;
 }
@@ -65,6 +85,7 @@ export function LessonProgress({
   missions = [],
   label,
   count,
+  segments,
   currentMission = 0,
 }: LessonProgressProps) {
   const safeTotal = Math.max(1, total);
@@ -87,12 +108,39 @@ export function LessonProgress({
         読み上げだけに出すことになる。
       */
       aria-valuetext={
-        here
-          ? `${missions.length}つのうち${currentMission}つ目。いまは「${here.label}」`
-          : `${Math.round(ratio * 100)}パーセント`
+        segments
+          ? `${segments.total}問のうち${segments.done}問目`
+          : here
+            ? `${missions.length}つのうち${currentMission}つ目。いまは「${here.label}」`
+            : `${Math.round(ratio * 100)}パーセント`
       }
       data-testid="lesson-progress"
     >
+      {/*
+        段に割った帯。**埋まった数がそのまま問い数。**
+
+        1本の帯が伸びるだけだと「4割くらい」は分かっても「2問目」は
+        分からない。数えられるものは、数えられる形で出す。
+
+        高さは通しの帯（3px）より少し太い 4px。段のあいだに隙間が
+        入るぶん、同じ太さだと細切れに見えて読みにくい。
+      */}
+      {segments ? (
+        <ul className="flex gap-1" role="list" data-testid="progress-segments">
+          {Array.from({ length: segments.total }, (_, at) => (
+            <li
+              key={at}
+              aria-hidden="true"
+              data-done={at < segments.done ? "true" : "false"}
+              className={`h-1 flex-1 rounded-full ${
+                at < segments.done ? "bg-brand" : "bg-brand-line"
+              }`}
+              style={{ transition: `background-color ${MOTION.normal}ms ${EASING}` }}
+            />
+          ))}
+        </ul>
+      ) : (
+      <>
       {/*
         帯そのもの。高さは 3px。太くすると、それだけで画面の主役になる。
 
@@ -123,6 +171,8 @@ export function LessonProgress({
             );
           })}
       </div>
+      </>
+      )}
 
       {/*
         名前も数も無いときは、行そのものを作らない。

@@ -1,29 +1,38 @@
 /**
  * AI活用診断の結果。
  *
- * 出すのは、まず概要だけ
- * ----------------------
- * 一度に全部見せない。開いた直後に見えるのは
+ * 1画面を、4つに割った
+ * --------------------
+ * 前はここが1画面だった。図・できていること・次の一歩・おすすめが
+ * 同時に並び、下のボタンは「ここから始める」。**読む前に次へ行く道が
+ * 目に入る**ので、結果は読まれずに押される形になっていた。
+ * 「あっさりしていて、診断してもらった感じが弱い」と言われたのがそこ。
  *
- *     図（切り替え） … いまどこにいるか／どこが薄いか
- *     現在地と、できていること
- *     次の一歩 ＋ おすすめ
- *     くわしく見る
+ *     分析中  … 4つの観点が順に点く（`diagnosis/Analyzing.tsx`）
+ *     現在地  … 5段階のどこか。Lesson の話はまだしない
+ *     4つの力 … 強み／次に伸ばす力／次に覚えること
+ *     おすすめ … 上の3つを受けた1本。ここで初めて Lesson が出る
  *
- * の4つ。判断の理由・回答の反映・軸ごとの内訳・答えの直しは、
- * ぜんぶ「くわしく見る」の一枚の中へ回す。
+ * 順番と文言は `course/diagnosisFlow.ts` が持つ。見出しと下のボタンは
+ * `LessonRunner` が出すので、**2つのファイルにまたがる**——片方だけ
+ * 直すと画面の上と下で言うことがずれる。
  *
- * なぜ逃がすのか
- * --------------
- * 結果の画面でしてほしいのは「次の1本を決めること」で、読むことでは
- * ない。同じ場所に理由まで並べると、読む画面になって次の一歩が遠くなる
- * ——そのうえ、いちばん低い持ち方（402×660）では下のボタンまで届かない。
+ * 「いまの様子」の一枚をやめた
+ * ----------------------------
+ * 押すと開く一枚に、現在地・できていること・次にやること・4つの力の
+ * 内訳が入っていた。いまはそれが**画面そのもの**になったので、同じ
+ * ことを2か所で言っている。廃止した。
  *
- * 図は2通りから選べる
+ * 図の切り替え（道／ひし形）も同じ理由でやめた。道は現在地の画面、
+ * ひし形は4つの力の画面と、**置き場所が役を持った**ので、選ばせる
+ * 必要が無くなった。
+ *
+ * 残した一枚は1つだけ
  * -------------------
- * 道（`GrowthTrack`）と、ひし形（`RadarChart`）。同じ4つの答えでも
- * 知りたいことは人によって違う。両方を同時に出すと縦に伸びるうえ、
- * どちらを読めばよいのか決められなくなるので、片方ずつ出す。
+ * 「この結果になった理由」（`diagnosis-detail-sheet`）。結果の写しでは
+ * なく、**答えた内容と、そこからどう判断したか**を持つ。答えを直す
+ * 「なおす」もここにしか無い——結果を見てから「そこは違う」と気づいた
+ * 人が、直せずに終わらないように。
  *
  * 点数を出さない
  * --------------
@@ -34,19 +43,21 @@
 import { useState } from "react";
 
 import { IconCheck, IconChevronRight } from "../Icons";
-import { PrimaryButton } from "../aippo/PrimaryButton";
 import { MoreSheet } from "./MoreSheet";
 import { AxisBars } from "./diagnosis/AxisBars";
-import { ChartSwitch, type ChartKind } from "./diagnosis/ChartSwitch";
+import { Analyzing } from "./diagnosis/Analyzing";
 import { GrowthTrack } from "./diagnosis/GrowthTrack";
 import { RadarChart } from "./diagnosis/RadarChart";
 import {
   AXIS_LABELS,
+  NEXT_LEARNING,
   NEXT_SKILL,
   scoreDiagnosis,
+  traitsOf,
 } from "../../course/diagnosisScore";
+import type { DiagnosisPhase } from "../../course/diagnosisFlow";
 import { lookOf } from "../../course/presentation";
-import { recommendPlan, recommendReason } from "../../course/recommend";
+import { recommendLead, recommendPlan } from "../../course/recommend";
 import type { Lesson } from "../../course/types";
 
 export interface DiagnosisResultProps {
@@ -54,23 +65,23 @@ export interface DiagnosisResultProps {
   values: Record<string, string>;
   /** おすすめの1本を引くための一覧。 */
   lessons: Lesson[];
-  /** 「くわしく見る」を開いたとき。分析へ送る。 */
-  onOpenReason?: () => void;
+  /** いま出している画面。決めているのは `LessonRunner`（下の帯と揃える）。 */
+  phase: DiagnosisPhase;
+  /** 分析が終わったので、結果へ移る。 */
+  onAnalyzed: () => void;
   /**
    * 答えを直しに戻る。
    *
-   * 前はこれを画面の上の折りたたみ（「ここまでに答えた内容（5件）」）で
-   * 出していた。結果を見に来た画面のいちばん上に、答えの一覧が畳まれて
-   * 場所を取っている状態で、**結果より先に自分の答えが目に入る**。
-   * いまは「くわしく見る」の中へ移した。
+   * 入口は「この結果になった理由」の一枚の中だけ。結果を見に来た画面の
+   * いちばん上に答えの一覧を置いていたころは、**結果より先に自分の
+   * 答えが目に入って**いた。
    */
   onEditAnswer?: (stepId: string) => void;
   /**
    * 添えたレッスンを、その場から始める。
    *
-   * 2本目・3本目は「1本目が違ったとき」の行き先。押せる形にしてあるのに
-   * 押せないと、見えているだけで届かない道になる。渡されなければ
-   * 押せない見た目にする（`button` を出さない）。
+   * 渡されなければ押せない見た目にする（`button` を出さない）。
+   * 押せる形にしてあるのに押せないと、見えているだけで届かない道になる。
    */
   onPickLesson?: (lessonId: string) => void;
 }
@@ -78,22 +89,13 @@ export interface DiagnosisResultProps {
 export function DiagnosisResult({
   values,
   lessons,
-  onOpenReason,
+  phase,
+  onAnalyzed,
   onEditAnswer,
   onPickLesson,
 }: DiagnosisResultProps) {
-  const [open, setOpen] = useState(false);
-  /* もう一段奥（答えと理由）。上の一枚を閉じずに重ねる */
-  const [deep, setDeep] = useState(false);
-  /* ほかの候補。通常の画面では名前も出さない */
-  const [also, setAlso] = useState(false);
-  /*
-    どちらの図を出しているか。**画面の中に持つ。**
-
-    端末に覚えさせない。診断は基本1回で、次に開くのはずっと先。
-    そのとき前回どちらを見たかは、本人ももう覚えていない。
-  */
-  const [chart, setChart] = useState<ChartKind>("stage");
+  /* 「この結果になった理由」。3画面のどこからでも開ける */
+  const [why, setWhy] = useState(false);
 
   const result = scoreDiagnosis(values);
   const plan = recommendPlan(values);
@@ -101,480 +103,61 @@ export function DiagnosisResult({
   const find = (id: string) => lessons.find((one) => one.id === id);
   const first = find(plan.first);
 
+  if (phase === "analyzing") return <Analyzing onDone={onAnalyzed} />;
+
   return (
     /*
       余りは、**全部の切れ目へ等しく配る**（`justify-between`）。
 
       1か所にまとめて置くと、そこだけぽっかり空く。伸びる仕切りを
       1つ置いて上限を付けたときは、縦の長い端末で下に 380px の
-      空白が残った——「上半分に詰まって下半分が空く」と言われた形が、
-      場所を変えて出ただけだった。
-
-      余りが無いとき（402×660）は上詰めと同じ振る舞いになる。
-      足りないときに上が切れることも無いので、送れる入れ物の中でも
-      安全に使える。
+      空白が残った。余りが無いとき（402×660）は上詰めと同じ振る舞い。
     */
     <div
       className="flex min-h-0 flex-1 flex-col justify-between"
       data-testid="completion-view"
+      data-phase={phase}
     >
-      {/*
-        図。押すと、同じものが一枚の中で大きく開く。
-
-        ここに置ける大きさは、いちばん低い持ち方（402×660）で送らずに
-        収まる上限まで——ひし形は 92px 角しかなく、**読むには小さい**。
-        収める都合と読める大きさは両立しないので、読みたい人には
-        開いた一枚のほうで応える。
-      */}
-      <ChartSwitch
-        value={chart}
-        onChange={setChart}
-        grow
-        onExpand={() => {
-          setOpen(true);
-          onOpenReason?.();
-        }}
-        /*
-          「くわしく見る」は**図の札の中**に置く。
-
-          独立した1行にしていたころは、何の詳細なのかが置き場から
-          読めなかった——現在地の話なのか、おすすめの話なのか。
-          図と同じ札の中にあれば、図の続きだと分かる。
-        */
-        footer={
-          <button
-            type="button"
-            onClick={() => {
-              setOpen(true);
-              onOpenReason?.();
-            }}
-            data-testid="diagnosis-reason-open"
-            className="flex items-center gap-0.5 rounded-badge px-1 py-0.5
-                       text-[0.6875rem] font-bold text-brand-dark
-                       transition hover:bg-brand-soft"
-          >
-            くわしく見る
-            <IconChevronRight className="h-3 w-3 shrink-0" aria-hidden="true" />
-          </button>
-        }
-      >
-        {chart === "stage" ? (
-          /*
-            道のときは、段階の説明も添える。
-
-            道は横に伸びる図なので、札を伸ばしても中の余白が増える
-            だけ——空の白い箱の真ん中に細い線が1本、という姿に
-            なっていた（390×844 で実測）。空くところは、**読んで
-            意味のあるもの**で埋める。低い持ち方では2行で切る。
-          */
-          <GrowthTrack stage={result.stage.number} summary />
-        ) : (
-          <RadarChart axes={result.axes} focus={result.weakest} />
-        )}
-      </ChartSwitch>
-
-      {/*
-        できていること。**図の外に置く。**
-
-        中に入れていたころは、「スキルバランス」へ切り替えると
-        消えていた。切り替えるのは図の見せ方であって、できている
-        ことは切り替えの対象ではない。
-
-        言葉は2つまで、札にする。「✓ ＋ 1行」を2つ縦に積むと
-        見出しを入れて3行ぶんの高さを取るが、札なら1行に収まる。
-      */}
-      <p className="mt-3 shrink-0 text-[0.6875rem] font-bold leading-4 text-ink-muted">
-        できていること
-      </p>
-      <ul
-        className="mt-1.5 shrink-0 flex flex-wrap gap-1.5"
-        role="list"
-        data-testid="diagnosis-strengths"
-      >
-        {result.strengths.map((line) => (
-          <li
-            key={line}
-            className="flex items-center gap-1 rounded-badge bg-brand-soft px-2 py-0.5
-                       text-[0.6875rem] font-bold leading-4 text-brand-dark"
-          >
-            <IconCheck className="h-3 w-3 shrink-0" aria-hidden="true" />
-            {line}
-          </li>
-        ))}
-      </ul>
-
-      {/*
-        次の一歩。**技とレッスンを1つの札にまとめる。**
-
-        技（プロンプト）とレッスン（Day1）を別の節にすると、見出しが
-        2つ増えるぶん縦に 40px 伸びる。そもそもこの2つは同じことの
-        言いかえ——その技を渡すのがそのレッスンなので、離す理由が無い。
-
-        どちらも同じ軸（`weakest`）から引いてある。前はここだけ
-        しきい値がずれていて、「次の一歩 プロンプト ／ Day 5・選択肢を
-        比較する」のように**技と行き先が食い違う**ことがあった。
-      */}
-      {/*
-        ここが切れ目。**上は「いまの話」、下は「次の話」。**
-        ほかの切れ目より一段広く取って、読む向きを切り替えてもらう。
-      */}
-      {(() => {
-        /*
-          技の名前を、この画面でいちばん大きく出す。
-
-          前は「次の一歩 トーン指定」と1行に並べていて、見出しと
-          同じ大きさに埋もれていた。診断のあとにすることは**この技を
-          覚えること**なので、そこだけ字を上げる。行数は増やさない。
-
-          絵と「＞」を添えて、**押せる札**にする。下のボタンと同じ
-          行き先だが、目が止まるのはこの札のほうなので、そこから
-          直接入れないと「押したのに何も起きない」に見える。
-        */
-        const look = first ? lookOf(first.id) : null;
-        const inside = (
-          <>
-            {look && (
-              <span
-                aria-hidden="true"
-                className="flex h-9 w-9 shrink-0 items-center justify-center
-                           rounded-card bg-surface text-brand"
-              >
-                <look.icon className="h-5 w-5" />
-              </span>
-            )}
-            <span className="min-w-0 flex-1">
-              <span className="block text-[0.625rem] font-bold leading-4 text-ink-muted">
-                次の一歩
-              </span>
-              <span className="block text-lg font-bold leading-7 text-brand-dark">
-                {skill.name}
-              </span>
-              {first && (
-                <span
-                  className="block text-[0.8125rem] leading-5 text-ink-muted"
-                  data-testid="diagnosis-lesson"
-                >
-                  Day {first.number}・{first.title}
-                </span>
-              )}
-            </span>
-            <IconChevronRight
-              className="h-4 w-4 shrink-0 self-center text-brand"
-              aria-hidden="true"
-            />
-          </>
-        );
-        const shape = `mt-5 flex shrink-0 items-start gap-3 rounded-card
-                       border border-brand-line bg-brand-soft px-3 py-2.5 text-left`;
-        return onPickLesson && first ? (
-          <button
-            type="button"
-            onClick={() => onPickLesson(first.id)}
-            data-testid="diagnosis-next-skill"
-            className={`${shape} w-full transition hover:border-brand`}
-          >
-            {inside}
-          </button>
-        ) : (
-          <div className={shape} data-testid="diagnosis-next-skill">
-            {inside}
-          </div>
-        );
-      })()}
-
-      {/*
-        ほかのおすすめ。**上の1本より弱く見せる。**
-
-        同じ大きさで3枚並べると、どれを選ぶかをもう一度考えることに
-        なる。決めるのは上の1本で、ここは「そこが違ったとき」の
-        行き先。地の色を持たず、字も小さくして、一段下げる。
-
-        **画面の高さで出し分ける。** いちばん低い持ち方（402×660）には
-        この2枚を置く余りが無いので、そこでは名前を伏せて行1本にし、
-        押した人にだけ一枚の中で見せる。どちらの道でも同じ2本に届く。
-      */}
-      {plan.rest.length > 0 && (
-        <>
-          <div className="mt-3 hidden shrink-0 [@media(min-height:700px)]:block">
-            <p className="text-[0.6875rem] font-bold leading-4 text-ink-muted">
-              ほかのおすすめも見る
-            </p>
-            <ul className="mt-1.5 flex gap-2" role="list" data-testid="diagnosis-also">
-              {plan.rest.map((id) => {
-                const one = find(id);
-                if (!one) return null;
-                const look = lookOf(id);
-                const inside = (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className="flex h-7 w-7 shrink-0 items-center justify-center
-                                 rounded-badge bg-brand-soft text-brand"
-                    >
-                      <look.icon className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[0.625rem] font-bold leading-4 text-ink-muted">
-                        Day {one.number}
-                      </span>
-                      <span className="mt-0.5 block text-[0.6875rem] leading-4 line-clamp-2">
-                        {one.title}
-                      </span>
-                    </span>
-                  </>
-                );
-                const shape = `flex w-full min-w-0 items-center gap-2 rounded-card
-                               border border-line bg-surface px-2 py-1.5 text-left`;
-                return (
-                  <li key={id} className="min-w-0 flex-1">
-                    {onPickLesson ? (
-                      <button
-                        type="button"
-                        onClick={() => onPickLesson(id)}
-                        data-testid="diagnosis-also-pick"
-                        className={`${shape} transition hover:border-brand-line`}
-                      >
-                        {inside}
-                      </button>
-                    ) : (
-                      <span className={shape}>{inside}</span>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setAlso(true)}
-            data-testid="diagnosis-also-open"
-            className="mt-2 shrink-0 self-start rounded-badge px-1 py-0.5
-                       text-[0.6875rem] text-ink-muted underline transition
-                       hover:text-ink [@media(min-height:700px)]:hidden"
-          >
-            ほかのおすすめも見る
-          </button>
-        </>
+      {phase === "stage" && <StageView result={result} />}
+      {phase === "axes" && <AxesView result={result} />}
+      {phase === "lesson" && (
+        <LessonView
+          lesson={first}
+          lead={recommendLead(values)}
+          others={plan.rest.map(find).filter((one): one is Lesson => Boolean(one))}
+          onPick={onPickLesson}
+        />
       )}
 
-      {also && (
-        <MoreSheet
-          placement="center"
-          testId="diagnosis-also-sheet"
-          title="ほかの候補"
-          onClose={() => setAlso(false)}
+      {/*
+        なぜこうなったのか。**3画面のどこからでも、同じ1つへ。**
+
+        入口を画面ごとに変えない。読みたくなる場所は人によって違う
+        （現在地に納得できない人／おすすめに納得できない人）が、
+        見たいものは同じ「答えた内容と、そこからの判断」1つ。
+      */}
+      <div className="mt-3 shrink-0">
+        <button
+          type="button"
+          onClick={() => setWhy(true)}
+          data-testid="diagnosis-reason-open"
+          className="-mx-1 flex items-center gap-0.5 rounded-badge px-1 py-1.5
+                     text-xs font-bold text-brand-dark transition hover:bg-brand-soft"
         >
-          <p className="text-sm leading-6 text-ink-muted">
-            上の1本が合わないときは、こちらから。
-          </p>
-          <ul className="mt-3 space-y-2" role="list" data-testid="diagnosis-also">
-            {plan.rest.map((id) => {
-              const one = find(id);
-              if (!one) return null;
-              const inside = (
-                <>
-                  <span className="block text-xs font-bold leading-4 text-ink-muted">
-                    Day {one.number}
-                  </span>
-                  <span className="mt-0.5 block text-sm leading-5">{one.title}</span>
-                </>
-              );
-              const shape = `block w-full rounded-card border border-line
-                             bg-surface px-3 py-2.5 text-left`;
-              return (
-                <li key={id}>
-                  {onPickLesson ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAlso(false);
-                        onPickLesson(id);
-                      }}
-                      data-testid="diagnosis-also-pick"
-                      className={`${shape} transition hover:border-brand-line`}
-                    >
-                      {inside}
-                    </button>
-                  ) : (
-                    <span className={shape}>{inside}</span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </MoreSheet>
-      )}
+          この結果になった理由
+          <IconChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        </button>
+      </div>
 
-      {open && (
+      {why && (
         <MoreSheet
-          placement="center"
-          testId="diagnosis-reason-sheet"
-          title="いまの様子"
-          onClose={() => setOpen(false)}
-        >
-          {/*
-            一枚の中は、**上から 切り替え → 図 → 3行**だけ。
-
-            前はここに軸の内訳・長い説明・答えの一覧まで入れていて、
-            開いた瞬間に送らないと読み終わらない量があった。補足を
-            見る場所が「別のページ」に見えていた、と言われたのが
-            そこ。読み物は下の「答えと理由」へもう一段落とす。
-          */}
-          <ChartSwitch value={chart} onChange={setChart}>
-            {chart === "stage" ? (
-              <GrowthTrack stage={result.stage.number} size="lg" />
-            ) : (
-              <RadarChart axes={result.axes} focus={result.weakest} size="lg" />
-            )}
-          </ChartSwitch>
-
-          {/*
-            軸ごとの内訳。**図と同じ一枚の中に置く。**
-
-            もう一段奥へ置いていたが、図を見に来た人が知りたいのは
-            まさにこの中身で、そこだけ扉が1つ多かった。長い説明は
-            付けない——横棒4本と、一行の但し書きだけ。
-          */}
-          <section className="mt-3">
-            <h3 className="text-xs font-bold text-ink-muted">4つの力の内訳</h3>
-            <div className="mt-2">
-              <AxisBars axes={result.axes} focus={result.weakest} />
-            </div>
-            {/* 1行に収める。2行に折れると、そのぶん下のボタンが押し出される */}
-            <p className="mt-2 text-[0.6875rem] leading-4 text-ink-muted">
-              ※ 5段階で表示しています。
-            </p>
-          </section>
-
-          {/*
-            3行のまとめ。**表として揃える。**
-
-            前は名前の欄を `w-24`（96px）にしていて、「次にやると良いこと」
-            が2行に折れていた。折れた行の頭と値の頭が段違いになり、
-            3行が表に見えない（実機で撮って分かった）。
-
-            名前は折り返させず、値は右へ寄せる。行のあいだに髪の毛ほどの
-            線を引き、淡い地に載せる——ここは「読んで確かめる」場所で、
-            3行が1つのまとまりだと形で分かるほうがよい。
-          */}
-          {/*
-            低い持ち方では、この3行を畳む。
-
-            実機（iPhone の Safari で上下の帯が出ている状態）で測ると、
-            この一枚は **147px 送れる**——「わかりました」が最初の画面に
-            出てこない。押す先が見えない一枚は、読み終えても閉じ方が
-            ×だけになる。
-
-            畳むのをここに決めた理由は、**後ろの画面と同じことを言って
-            いる**から。現在地は上の図の札が、できていることと次の一歩は
-            結果の画面がそのまま出している。図と内訳は、この一枚にしか
-            無い。
-
-            境目は 760px。700px では 390×700 で 115px 残る。
-          */}
-          <dl
-            className="mt-3 hidden rounded-card bg-brand-soft/60 px-3.5
-                       [@media(min-height:760px)]:block"
-          >
-            {[
-              ["いまの現在地", result.stage.name],
-              ["できていること", result.strengths.join("・")],
-              ["次にやると良いこと", skill.name],
-            ].map(([label, value], at) => (
-              <div
-                key={label}
-                className={`flex items-baseline gap-3 py-2 ${
-                  at === 0 ? "" : "border-t border-brand-line/60"
-                }`}
-              >
-                <dt className="shrink-0 whitespace-nowrap text-xs leading-5 text-ink-muted">
-                  {label}
-                </dt>
-                <dd className="min-w-0 flex-1 text-right text-sm font-bold leading-5 text-brand-dark">
-                  {value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-
-          {/*
-            なぜこの1本か。**通常の画面から、ここへ移した。**
-
-            画面では独立した1行になっていて、何の話なのかが置き場から
-            読めなかった。3行のすぐ下なら、その続きとして読める。
-          */}
-          <p
-            className="mt-2 text-center text-sm leading-6 text-ink-muted
-                       [@media(min-height:760px)]:mt-3"
-            data-testid="diagnosis-reason-line"
-          >
-            {recommendReason(values)}
-          </p>
-
-          {/*
-            読み終えた人の出口を、**主のボタンとして置く。**
-
-            前はここに「答えと理由を見る」しか無かった。押す先が
-            もう一段奥しかない一枚は、読み終えても閉じ方が×だけになる
-            ——開いた人の多くは「見に来て、納得して、戻る」ので、
-            その道がいちばん大きい必要がある。
-
-            奥へ行く道は消していない。主のボタンの上に、字だけの行として
-            残す（押す先が2つあることは分かるが、重さが違う）。
-          */}
-          {/*
-            出口を2つ、**同じ行に置く。**
-
-            縦に積むと 100px 取り、一枚が 64px 送れるようになった
-            （実測）。送れる一枚では、いちばん大事なボタンが最初の
-            画面から消える。横に並べれば 56px で足りる。
-
-            重さは字と地で分ける。奥へ行く道は字だけ、出口は青い面。
-            押し間違いが起きる並びではない——行き先が「もっと読む」と
-            「戻る」で、逆を押しても失うものが無い。
-          */}
-          <div className="mt-3 flex items-center gap-2 [@media(min-height:760px)]:mt-4">
-            <button
-              type="button"
-              onClick={() => setDeep(true)}
-              data-testid="diagnosis-detail-open"
-              className="flex shrink-0 items-center gap-0.5 rounded-badge px-2 py-3
-                         text-[0.8125rem] font-bold text-brand-dark
-                         transition hover:bg-brand-soft"
-            >
-              答えと理由
-              <IconChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            </button>
-
-            <PrimaryButton
-              testId="diagnosis-understood"
-              onClick={() => setOpen(false)}
-              className="min-w-0 flex-1"
-            >
-              わかりました
-            </PrimaryButton>
-          </div>
-        </MoreSheet>
-      )}
-
-      {/*
-        もう一段奥。**読みたい人だけが来る場所。**
-
-        ここだけは文章が長くてよい。「←」は奥から順に閉じるので
-        （`components/course/BackStack.tsx`）、ここから戻れば上の一枚が
-        そのまま残る。
-      */}
-      {deep && (
-        <MoreSheet
-          elevated
           placement="center"
           testId="diagnosis-detail-sheet"
-          title="答えと理由"
-          onClose={() => setDeep(false)}
+          title="この結果になった理由"
+          onClose={() => setWhy(false)}
         >
           <section>
-            <h3 className="text-xs font-bold text-ink-muted">次にやると良いこと</h3>
+            <h3 className="text-xs font-bold text-ink-muted">次に伸ばす力</h3>
             <p className="mt-1 text-sm leading-6">
               {AXIS_LABELS[result.weakest]}。{skill.name}（{skill.summary}）を
               覚えると、ここが動きます。
@@ -584,6 +167,22 @@ export function DiagnosisResult({
                 「{first.title}」をすすめているのは、{first.goal}回だからです。
               </p>
             )}
+          </section>
+
+          {/*
+            4つの力の内訳。**結果の言い直しではなく、元の数。**
+
+            画面に出ているのはひし形で、形は読めても1つずつの段は
+            読み取りにくい。数で確かめたい人はここに来る。
+          */}
+          <section className="mt-5 border-t border-line pt-4">
+            <h3 className="text-xs font-bold text-ink-muted">4つの力の内訳</h3>
+            <div className="mt-2">
+              <AxisBars axes={result.axes} focus={result.weakest} />
+            </div>
+            <p className="mt-2 text-[0.6875rem] leading-4 text-ink-muted">
+              ※ 5段階で表示しています。
+            </p>
           </section>
 
           {/*
@@ -613,8 +212,7 @@ export function DiagnosisResult({
                         1回空振りする。
                       */
                       onClick={() => {
-                        setDeep(false);
-                        setOpen(false);
+                        setWhy(false);
                         onEditAnswer(entry.stepId);
                       }}
                       className="shrink-0 rounded-badge border border-line px-3 py-1
@@ -629,7 +227,282 @@ export function DiagnosisResult({
           </section>
         </MoreSheet>
       )}
+    </div>
+  );
+}
 
+// ------------------------------------------------------------ ①現在地
+
+/**
+ * いまどこにいるか。**ここでは Lesson の話をしない。**
+ *
+ * 前は同じ画面に「次の一歩 ＋ おすすめ Day1」が並んでいて、現在地を
+ * 読み終える前に目がそちらへ行っていた。次の話は2画面あと。
+ */
+function StageView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
+  return (
+    <div className="shrink-0">
+      <div className="rounded-card border border-line bg-surface px-4 pb-4 pt-3.5">
+        <GrowthTrack stage={result.stage.number} summary />
+      </div>
+
+      {/*
+        回答から見えた特徴。**最大3つ。**
+
+        できていること2つと、これから1つ（`traitsOf`）。できている
+        ことだけを並べると、読んだ人は次に何をするのか分からない。
+        境目がこの並びの中にあることが、次の画面への橋になる。
+      */}
+      <p className="mt-4 text-xs font-bold leading-5 text-ink-muted">
+        回答から見えた特徴
+      </p>
+      <ul className="mt-2 space-y-1.5" role="list" data-testid="diagnosis-traits">
+        {traitsOf(result).map((line) => (
+          <li key={line} className="flex items-start gap-2 text-sm leading-6">
+            <span
+              aria-hidden="true"
+              className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center
+                         rounded-full bg-brand text-white"
+            >
+              <IconCheck className="h-2.5 w-2.5" />
+            </span>
+            <span className="min-w-0">{line}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// --------------------------------------------------------- ②4つの力
+
+/**
+ * 4つの力。**図だけで終わらせない。**
+ *
+ * ひし形は「どこが薄いか」を一目にするが、そこから何をすればよいかは
+ * 出てこない。図の下に3行——強み／次に伸ばす力／次に覚えること——を
+ * 置いて、次の画面（おすすめ）へつなぐ。
+ *
+ * 3行目だけ、技の名前ではなく**やること**で書く（`NEXT_LEARNING`）。
+ * 「ターゲット指定」はこのアプリの中の呼び名で、初めて見る人には
+ * 何をするのか分からない。
+ */
+function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
+  const rows = [
+    { label: "強み", value: `${AXIS_LABELS[result.strongest]}力`, strong: false },
+    { label: "次に伸ばす力", value: `${AXIS_LABELS[result.weakest]}力`, strong: true },
+    { label: "次に覚えること", value: NEXT_LEARNING[result.weakest], strong: false },
+  ];
+
+  return (
+    <div className="shrink-0">
+      {/*
+        図は、**置ける高さで選ぶ。**
+
+        ひし形は正方形なので、幅を使えるだけ高さも要る。いちばん低い
+        持ち方（402×660）でこの画面に渡せるのは 200px ほどで、そこへ
+        ひし形と下の3行の両方は載らない。
+
+        縮めて載せない。小さいひし形は、4つの頂点が寄って**どこが
+        薄いのかが読めない図**になる——載っているだけで読めない図は、
+        場所を取るぶん無いほうがまし。代わりに横棒（`AxisBars`）を
+        出す。同じ4つの段を、高さ 110px で、しかも数として読める形で
+        言う。
+      */}
+      <div className="hidden h-[12rem] shrink-0 justify-center [@media(min-height:760px)]:flex">
+        <RadarChart axes={result.axes} focus={result.weakest} />
+      </div>
+      <div className="shrink-0 [@media(min-height:760px)]:hidden">
+        <AxisBars axes={result.axes} focus={result.weakest} />
+      </div>
+
+      {/*
+        3行は、**名前の欄を折り返させない。**
+
+        前に同じ形の表を作ったとき、名前の欄を 96px にしていて
+        「次にやると良いこと」が2行に折れた。折れた行の頭と値の頭が
+        段違いになり、3行が表に見えなくなる（実機で撮って分かった）。
+      */}
+      <dl
+        className="mt-4 rounded-card bg-brand-soft/60 px-3.5"
+        data-testid="diagnosis-axes-summary"
+      >
+        {rows.map((row, at) => (
+          <div
+            key={row.label}
+            className={`flex items-baseline gap-3 py-2.5 ${
+              at === 0 ? "" : "border-t border-brand-line/60"
+            }`}
+          >
+            <dt className="shrink-0 whitespace-nowrap text-xs leading-5 text-ink-muted">
+              {row.label}
+            </dt>
+            <dd
+              className={`min-w-0 flex-1 text-right text-sm leading-5 ${
+                row.strong ? "font-bold text-brand-dark" : "font-bold text-ink"
+              }`}
+            >
+              {row.value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+// ------------------------------------------------------- ③おすすめ
+
+/**
+ * おすすめの1本。**結果を読み終えてから出す。**
+ *
+ * 説明は診断の結果から作る（`recommendLead`）。「あなたにおすすめ」
+ * とだけ書いてあると、何を見て選んだのか分からない——診断の結果と
+ * つながっていない推薦は、広告と区別が付かない。
+ */
+function LessonView({
+  lesson,
+  lead,
+  others,
+  onPick,
+}: {
+  lesson: Lesson | undefined;
+  lead: string;
+  /**
+   * その1本が刺さらなかった人の行き先。**名前は伏せて、押した人にだけ。**
+   *
+   * 画面に3枚並べると「次に何をするか」をもう一度選ばせることになる。
+   * かといって消すと、画像をやりたくて来た人に「文章を分かりやすく
+   * する」だけを出して終わる形になり、自分のための道具ではないと
+   * 読まれる。決めるのは上の1本、ここはその逃げ道。
+   */
+  others: Lesson[];
+  onPick?: (lessonId: string) => void;
+}) {
+  const [also, setAlso] = useState(false);
+  if (!lesson) return <div className="shrink-0" />;
+  const look = lookOf(lesson.id);
+
+  const inside = (
+    <>
+      <span className="flex items-start gap-3">
+        <span
+          aria-hidden="true"
+          className="flex h-10 w-10 shrink-0 items-center justify-center
+                     rounded-card bg-surface text-brand"
+        >
+          <look.icon className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[0.6875rem] font-bold leading-4 text-ink-muted">
+            Day {lesson.number}
+          </span>
+          <span
+            className="block text-lg font-bold leading-7 text-brand-dark"
+            data-testid="diagnosis-lesson"
+          >
+            {lesson.title}
+          </span>
+        </span>
+        <IconChevronRight
+          className="h-4 w-4 shrink-0 self-center text-brand"
+          aria-hidden="true"
+        />
+      </span>
+      {/*
+        なぜこの1本か。**カードの中に置く。**
+
+        外に出すと、カードと理由が別のことを言っているように読める。
+        推薦と根拠は1つのまとまり。
+      */}
+      <span
+        className="mt-3 block border-t border-brand-line/70 pt-3 text-[0.8125rem]
+                   leading-6 text-ink"
+        data-testid="diagnosis-reason-line"
+      >
+        {lead}
+      </span>
+    </>
+  );
+
+  const shape = `block w-full rounded-card border border-brand-line
+                 bg-brand-soft px-3.5 py-3 text-left`;
+
+  return (
+    <div className="shrink-0">
+      {onPick ? (
+        <button
+          type="button"
+          onClick={() => onPick(lesson.id)}
+          data-testid="diagnosis-next-skill"
+          className={`${shape} transition hover:border-brand`}
+        >
+          {inside}
+        </button>
+      ) : (
+        <div className={shape} data-testid="diagnosis-next-skill">
+          {inside}
+        </div>
+      )}
+
+      {others.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setAlso(true)}
+          data-testid="diagnosis-also-open"
+          /* 当たり判定を広げる（py と -my を同じだけ。見た目は変わらない） */
+          className="-my-1 mt-3 py-1 text-xs text-ink-muted underline
+                     transition hover:text-ink"
+        >
+          ほかの候補も見る
+        </button>
+      )}
+
+      {also && (
+        <MoreSheet
+          placement="center"
+          testId="diagnosis-also-sheet"
+          title="ほかの候補"
+          onClose={() => setAlso(false)}
+        >
+          <p className="text-sm leading-6 text-ink-muted">
+            上の1本が合わないときは、こちらから。
+          </p>
+          <ul className="mt-3 space-y-2" role="list" data-testid="diagnosis-also">
+            {others.map((one) => {
+              const body = (
+                <>
+                  <span className="block text-xs font-bold leading-4 text-ink-muted">
+                    Day {one.number}
+                  </span>
+                  <span className="mt-0.5 block text-sm leading-5">{one.title}</span>
+                </>
+              );
+              const row = `block w-full rounded-card border border-line
+                           bg-surface px-3 py-2.5 text-left`;
+              return (
+                <li key={one.id}>
+                  {onPick ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAlso(false);
+                        onPick(one.id);
+                      }}
+                      data-testid="diagnosis-also-pick"
+                      className={`${row} transition hover:border-brand-line`}
+                    >
+                      {body}
+                    </button>
+                  ) : (
+                    <span className={row}>{body}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </MoreSheet>
+      )}
     </div>
   );
 }

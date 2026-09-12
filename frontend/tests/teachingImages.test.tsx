@@ -489,13 +489,11 @@ describe("表に載せた絵が、実際にあること", () => {
     for (const entry of ALL_TEACHING_IMAGES) {
       const expected = entry.stepId === "outcome_preview"
         ? "lesson_overview"
-        : entry.stepId === "intro"
-          ? "diagnosis_overview"
-          : entry.stepId.startsWith("section_")
-            ? "section"
-            : entry.stepId.startsWith("compare_")
-              ? "compare"
-              : "skill_concept";
+        : entry.stepId.startsWith("section_")
+          ? "section"
+          : entry.stepId.startsWith("compare_")
+            ? "compare"
+            : "skill_concept";
 
       expect(entry.visualType, `${entry.lessonId}/${entry.stepId}`).toBe(expected);
     }
@@ -547,12 +545,25 @@ describe("表に載せた絵が、実際にあること", () => {
     expect(wrong, `実寸が合っていない絵:\n${wrong.join("\n")}`).toEqual([]);
   });
 
-  it("コース全体の絵と、現在地チェックの絵がある", () => {
-    // 今回いちばん足したかった2枚。表から消えたらここで気づく
+  it("コース全体の絵がある", () => {
+    // 表から消えたらここで気づく
     expect(courseImage("first_step_7days")?.visualType).toBe("course_overview");
-    expect(teachingImage("diagnosis", "intro")?.visualType).toBe(
-      "diagnosis_overview",
-    );
+  });
+
+  it("診断の開始画面に、絵を置かない", () => {
+    /*
+      ここには全体図が1枚あった。外したのは2つの理由で、
+      **どちらも絵を差し替えても直らない**。
+
+        ・絵の中に「AI活用診断」が大きく焼き込まれていて、上の帯と
+          同じ言葉が1画面に2回出ていた
+        ・診断でわかること・こんなときに・診断後にわかること まで
+          詰まった1枚で、広告のバナーに見えた
+
+      いまは UI で組んである（`diagnosis/DiagnosisIntro.tsx`）。
+      絵を置き直すと**また同じ画面に戻る**ので、ここで止める。
+    */
+    expect(teachingImage("diagnosis", "intro")).toBeNull();
   });
 
   it("何の図かを、読み上げにも渡している", () => {

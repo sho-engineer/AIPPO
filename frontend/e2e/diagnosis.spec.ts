@@ -65,6 +65,12 @@ async function expectFits(page: Page, where: string): Promise<void> {
 /** いま出ている画面で答えて、次へ。答え終わっていれば false。 */
 async function answerOne(page: Page): Promise<boolean> {
   if (await page.getByTestId("completion-view").count()) return false;
+  /*
+    5問目のあとは分析中が挟まる（`diagnosis/Analyzing.tsx`）。ここも
+    「答え終わった」——押せるものが無いので、止めないと空振りを
+    繰り返す。
+  */
+  if (await page.getByTestId("diagnosis-analyzing").count()) return false;
 
   const parts = page.getByTestId("assemble-part");
   const count = await parts.count();
@@ -94,6 +100,31 @@ async function answerOne(page: Page): Promise<boolean> {
   return true;
 }
 
+/**
+ * 5問に答えて、**結果の1画面目（現在地）**まで行く。
+ *
+ * 分析中を待ち切ること。待たずに次を触ると、まだボタンが押せない
+ * 1.8 秒のあいだに空振りする。
+ */
+async function toResult(page: Page): Promise<void> {
+  await openDiagnosis(page);
+  for (let guard = 0; guard < 8; guard += 1) {
+    if (!(await answerOne(page))) break;
+  }
+  await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 6000 });
+  await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
+}
+
+/** 結果の3画面目（おすすめ）まで行く。 */
+async function toRecommendation(page: Page): Promise<void> {
+  await toResult(page);
+  for (let step = 0; step < 2; step += 1) {
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(500);
+  }
+  await expect(page.locator("main h1").first()).toHaveText("今のあなたにおすすめ");
+}
+
 test.setTimeout(120_000);
 
 test.describe("AI活用診断", () => {
@@ -107,6 +138,8 @@ test.describe("AI活用診断", () => {
     const asked: string[] = [];
     for (let guard = 0; guard < 12; guard += 1) {
       if (await page.getByTestId("completion-view").count()) break;
+      /* 分析中は問いではない。数えない（`diagnosis/Analyzing.tsx`） */
+      if (await page.getByTestId("diagnosis-analyzing").count()) break;
       asked.push((await page.locator("main h1").first().innerText()).trim());
       if (!(await answerOne(page))) break;
     }
@@ -188,51 +221,105 @@ test.describe("AI活用診断", () => {
     }
   });
 
-  test("結果は、読む前に図で分かる", async ({ page }) => {
+  test("結果は、3画面に分かれて出る", async ({ page }) => {
     /*
-      前はここが文字だけだった。見出しと短い文が縦に並ぶ形で、
-      読むまで何も分からない——診断の結果としては遅い。
+      前は1画面だった。図・できていること・次の一歩・おすすめが同時に
+      並び、下のボタンは最初から「ここから始める」。**読む前に次へ行く
+      道が目に入る**ので、結果は読まれずに押されていた。
     */
-    await openDiagnosis(page);
-    for (let guard = 0; guard < 8; guard += 1) {
-      if (!(await answerOne(page))) break;
-    }
+    await toResult(page);
 
-    // 開いた直後は道。5つの点でどこまで来たかを出す
+    // ①現在地。ここではまだ Lesson の話をしない
+    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
     await expect(page.getByTestId("growth-track")).toBeVisible();
     await expect(page.getByTestId("growth-node")).toHaveCount(5);
-    // 光る点は1つだけ。2つあると現在地が決められない
     await expect(page.locator("[data-testid='growth-node'][data-state='here']"))
       .toHaveCount(1);
-    // 軸ごとの内訳は、まだ出さない（図を開いた一枚の中）
-    await expect(page.getByTestId("axis-bar")).toHaveCount(0);
+    await expect(page.getByTestId("diagnosis-next-skill")).toHaveCount(0);
+    await expect(page.getByTestId("primary-action")).toHaveText(
+      /使い方のバランスを見る/,
+    );
 
-    await expect(
-      page.getByTestId("diagnosis-strengths").getByRole("listitem"),
-    ).toHaveCount(2);
+    // ②4つの力
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(500);
+    await expect(page.locator("main h1").first()).toHaveText("4つの力のバランス");
+    await expect(page.getByTestId("diagnosis-axes-summary")).toContainText("強み");
+    await expect(page.getByTestId("diagnosis-axes-summary")).toContainText(
+      "次に伸ばす力",
+    );
+    await expect(page.getByTestId("diagnosis-axes-summary")).toContainText(
+      "次に覚えること",
+    );
+    await expect(page.getByTestId("primary-action")).toHaveText(
+      /おすすめLessonを見る/,
+    );
 
-    // 大きく出すおすすめは1本、添えるのが2本
-    await expect(page.getByTestId("diagnosis-next-skill")).toBeVisible();
+    // ③おすすめ。ここで初めて Lesson が出る
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(500);
+    await expect(page.locator("main h1").first()).toHaveText("今のあなたにおすすめ");
     await expect(page.getByTestId("diagnosis-lesson")).toHaveCount(1);
-    await expect(
-      page.getByTestId("diagnosis-also").getByRole("listitem"),
-    ).toHaveCount(2);
-
-    await expect(page.getByTestId("primary-action")).toHaveText(/ここから始める/);
-    await expect(
-      page.getByRole("button", { name: "Day1から確認する" }),
-    ).toBeVisible();
+    // なぜこの1本かが、同じカードの中にある
+    await expect(page.getByTestId("diagnosis-reason-line")).toBeVisible();
+    await expect(page.getByTestId("primary-action")).toHaveText(/Day \d+をはじめる/);
   });
 
-  test("長い話は、開いた一枚のさらに奥だけ", async ({ page }) => {
+  test("答え終わってすぐは、結果ではなく分析中", async ({ page }) => {
     /*
-      通常の画面に長文を置くと、読む画面になって次の一歩が遠くなる。
-      開いた一枚の中だけは送ってよい。
+      押した／出た、の2コマしかないと、答えが読まれた実感が残らない
+      ——「アンケートのよう」と言われたのがそこ。足しているのは待ち
+      時間ではなく、**何を見て判断したか**。
     */
     await openDiagnosis(page);
     for (let guard = 0; guard < 8; guard += 1) {
       if (!(await answerOne(page))) break;
     }
+
+    const analyzing = page.getByTestId("diagnosis-analyzing");
+    await expect(analyzing).toBeVisible();
+    await expect(page.locator("main h1").first()).toHaveText("回答を分析しています");
+    // 4つの観点。結果の「4つの力」と同じ4つであること
+    await expect(page.getByTestId("analyzing-axis")).toHaveCount(4);
+    // ここで押せてしまうと、演出を飛ばして結果へ行ける
+    await expect(page.getByTestId("primary-action")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+
+    // 白い画面を挟まない。分析中から現在地へ、そのまま入れ替わる
+    await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 6000 });
+    await expect(analyzing).toHaveCount(0);
+  });
+
+  test("分析は、長すぎない", async ({ page }) => {
+    /*
+      待たせるのが目的ではない。4つ読んで終わる長さより延ばすと、
+      「固まった」に変わる。
+    */
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+    await expect(page.getByTestId("diagnosis-analyzing")).toBeVisible();
+
+    const started = Date.now();
+    await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 6000 });
+    expect(Date.now() - started).toBeLessThan(3500);
+  });
+
+  test("長い話は、1つの一枚の中だけ", async ({ page }) => {
+    /*
+      前はここに一枚が2つあった（「いまの様子」と「答えと理由」）。
+      前者は現在地・できていること・次にやること・4つの力の内訳が
+      入っていて、**いまはそれが画面そのもの**になっている。同じことを
+      2か所で言っていたので廃止した。
+
+      残したのは「この結果になった理由」1つ。3画面のどこからでも
+      同じ一枚へ届く——読みたくなる場所は人によって違うが、見たい
+      ものは同じ1つ。
+    */
+    await toResult(page);
 
     await expect(page.getByTestId("completion-view")).not.toContainText(
       "答えた内容",
@@ -242,27 +329,15 @@ test.describe("AI活用診断", () => {
     );
 
     await page.getByTestId("diagnosis-reason-open").click();
-
-    /*
-      1枚目は**補足**。切り替えと図と3行だけで、長い話は入れない。
-      別ページのように見えると、開くこと自体が重くなる。
-    */
-    const sheet = page.getByTestId("diagnosis-reason-sheet");
+    const sheet = page.getByTestId("diagnosis-detail-sheet");
     await expect(sheet).toBeVisible();
     await expect(sheet).toHaveAttribute("data-placement", "center");
-    await expect(sheet).not.toContainText("答えた内容");
-    // 内訳は、図を見に来た人が知りたいところ。同じ一枚の中に置く
+    await expect(sheet).toContainText("答えた内容");
     await expect(sheet.getByTestId("axis-bar")).toHaveCount(4);
 
-    await page.getByTestId("diagnosis-detail-open").click();
-    const deep = page.getByTestId("diagnosis-detail-sheet");
-    await expect(deep).toContainText("答えた内容");
-    await expect(deep).toContainText("次にやると良いこと");
+    // 廃止した一枚は、もう開かない
+    await expect(page.getByTestId("diagnosis-reason-sheet")).toHaveCount(0);
 
-    // Esc は、いちばん奥から順に閉じる
-    await page.keyboard.press("Escape");
-    await expect(deep).toHaveCount(0);
-    await expect(sheet).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(sheet).toHaveCount(0);
   });
@@ -295,7 +370,21 @@ test.describe("AI活用診断", () => {
         await expectFits(page, where);
         if (!(await answerOne(page))) break;
       }
-      await expectFits(page, "結果画面");
+
+      /*
+        結果の3画面も、1つずつ見る。**どれも同じだけ収まっている
+        必要がある**——1画面だったころは「結果画面」1回で足りたが、
+        いまは中身が画面ごとに違う。ひし形を置く回がいちばん高い。
+      */
+      await expect(page.getByTestId("completion-view")).toBeVisible({
+        timeout: 6000,
+      });
+      for (const name of ["現在地", "4つの力", "おすすめ"]) {
+        await expectFits(page, `結果（${name}）`);
+        if (name === "おすすめ") break;
+        await page.getByTestId("primary-action").click();
+        await page.waitForTimeout(500);
+      }
     });
   }
 
@@ -419,92 +508,53 @@ test.describe("AI活用診断", () => {
     );
   });
 
-  test("図は2通りから選べて、どちらも送らずに収まる", async ({ page }) => {
+  test("低い持ち方では、ひし形ではなく横棒で出す", async ({ page }) => {
     /*
-      ひし形（レーダー）のほうが縦に高い。ここを見ていないと、
-      切り替えた人だけが送らないと下のボタンに届かない状態になる
-      ——切り替えは押した人にしか起きないので、気づきにくい。
+      ひし形は正方形なので、幅を使えるだけ高さも要る。402×660 で
+      この画面に渡せるのは 200px ほどで、ひし形と下の3行の両方は
+      載らない。
+
+      **縮めて載せない。** 小さいひし形は4つの頂点が寄って、どこが
+      薄いのか読めない図になる——載っているだけで読めない図は、
+      場所を取るぶん無いほうがまし。同じ4つの段を横棒で言う。
     */
     await page.setViewportSize({ width: 402, height: 660 });
-    await openDiagnosis(page);
-    for (let guard = 0; guard < 8; guard += 1) {
-      if (!(await answerOne(page))) break;
-    }
-    await expect(page.getByTestId("completion-view")).toBeVisible();
+    await toResult(page);
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(500);
 
-    await expectFits(page, "結果（現在地）");
+    await expect(page.locator("main h1").first()).toHaveText("4つの力のバランス");
+    /*
+      見るのは**見えているか**で、DOM にあるかではない。高さで
+      出し分けているので（`hidden` / `flex`）、両方とも要素としては
+      置かれている。
+    */
+    await expect(page.getByTestId("axis-bars")).toBeVisible();
+    await expect(page.getByTestId("radar-chart")).not.toBeVisible();
+    await expectFits(page, "結果（4つの力・低い持ち方）");
+  });
 
-    await page.getByTestId("chart-tab-balance").click();
+  test("縦に余る端末では、ひし形で出す", async ({ page }) => {
+    await page.setViewportSize({ width: 430, height: 932 });
+    await toResult(page);
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(500);
+
     await expect(page.getByTestId("radar-chart")).toBeVisible();
-    // 片方ずつ。2つ同時には出さない
-    await expect(page.getByTestId("growth-track")).toHaveCount(0);
-    await page.waitForTimeout(600);
-    await expectFits(page, "結果（スキルバランス）");
-
-    // できていることは、切り替えても消えない
-    await expect(
-      page.getByTestId("diagnosis-strengths").getByRole("listitem"),
-    ).toHaveCount(2);
-
-    await page.getByTestId("chart-tab-stage").click();
-    await expect(page.getByTestId("growth-track")).toBeVisible();
-    await expect(page.getByTestId("radar-chart")).toHaveCount(0);
+    await expectFits(page, "結果（4つの力・高い端末）");
   });
 
-  test("図を押すと、一枚の中で大きく開く", async ({ page }) => {
+  test("その1本が合わない人の行き先は、押した人にだけ", async ({ page }) => {
     /*
-      結果の画面に置ける大きさは、いちばん低い持ち方（402×660）で
-      送らずに収まる上限まで——ひし形は 92px 角しかなく、**読むには
-      小さい**。収める都合と読める大きさは両立しないので、読みたい人
-      には開いた一枚のほうで応える。
+      画面に3枚並べると「次に何をするか」をもう一度選ばせることに
+      なる。かといって消すと、画像をやりたくて来た人に1本だけ出して
+      終わる形になる。決めるのは上の1本、ここはその逃げ道。
     */
     await page.setViewportSize({ width: 402, height: 660 });
-    await openDiagnosis(page);
-    for (let guard = 0; guard < 8; guard += 1) {
-      if (!(await answerOne(page))) break;
-    }
+    await toRecommendation(page);
 
-    // 画面に置くほうは小さい版。道は横に伸びるので、寸法は据え置き
-    await expect(page.getByTestId("growth-track")).toHaveAttribute(
-      "data-size",
-      "sm",
-    );
-    await page.getByTestId("chart-expand").click();
-
-    const sheet = page.getByTestId("diagnosis-reason-sheet");
-    await expect(sheet).toBeVisible();
-    await expect(sheet.getByTestId("growth-track")).toHaveAttribute(
-      "data-size",
-      "lg",
-    );
-
-    // 中で切り替えたものが、閉じたあとの図にも残る
-    await sheet.getByTestId("chart-tab-balance").click();
-    await expect(sheet.getByTestId("radar-chart")).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(sheet).toHaveCount(0);
-    await expect(page.getByTestId("radar-chart")).toHaveAttribute(
-      "data-size",
-      "fluid",
-    );
-    await page.waitForTimeout(600);
-    await expectFits(page, "結果（開いて閉じたあと）");
-  });
-
-  test("低い持ち方では、ほかのおすすめを行1本にたたむ", async ({ page }) => {
-    /*
-      Safari の上下の帯が両方出た状態（402×660）には、2枚の札を置く
-      余りが無い。そこでは名前を伏せて行1本にし、押した人にだけ
-      一枚の中で見せる——**どちらの道でも同じ2本に届く**。
-    */
-    await page.setViewportSize({ width: 402, height: 660 });
-    await openDiagnosis(page);
-    for (let guard = 0; guard < 8; guard += 1) {
-      if (!(await answerOne(page))) break;
-    }
-
-    await expect(page.getByTestId("diagnosis-also")).not.toBeVisible();
-    await expectFits(page, "結果（低い持ち方）");
+    await expect(page.getByTestId("diagnosis-also")).toHaveCount(0);
+    await expectFits(page, "結果（おすすめ・低い持ち方）");
 
     await page.getByTestId("diagnosis-also-open").click();
     const sheet = page.getByTestId("diagnosis-also-sheet");
@@ -512,52 +562,35 @@ test.describe("AI活用診断", () => {
     await expect(sheet.getByRole("listitem")).toHaveCount(2);
   });
 
-  test("端末の「戻る」は、開いた一枚から順に閉じる", async ({ page }) => {
+  test("端末の「戻る」は、開いた一枚から閉じる", async ({ page }) => {
     /*
-      ここがいちばん効く直し。
-
       このアプリは**画面**（TOP / HOME / LESSON …）を履歴に積んで
       いて、一枚（モーダル）は積んでいなかった。開いている最中に
       端末の「戻る」を押すと、一枚は無視されて画面ごと前へ移る
       ——閉じたいだけの人が、診断の外まで出されていた。
 
-      いまは一枚が開くとき、画面はそのままの履歴を1つ積む。押された
-      「戻る」はその1つを消費し、こちらは閉じるだけで済む。
-      背面には何もしないので、図の切り替えも選んだ札もそのまま残る。
+      いまは一枚が開くとき、画面はそのままの履歴を1つ積む。
     */
-    await openDiagnosis(page);
-    for (let guard = 0; guard < 8; guard += 1) {
-      if (!(await answerOne(page))) break;
-    }
+    await toRecommendation(page);
 
-    // 図を切り替えてから開く。閉じたときに戻っていないことを見るため
-    await page.getByTestId("chart-tab-balance").click();
-    await page.getByTestId("chart-expand").click();
-    await expect(page.getByTestId("diagnosis-reason-sheet")).toBeVisible();
-    await page.getByTestId("diagnosis-detail-open").click();
+    await page.getByTestId("diagnosis-reason-open").click();
     await expect(page.getByTestId("diagnosis-detail-sheet")).toBeVisible();
 
     /*
       押すのは端末の「戻る」。`page.goBack()` は使わない——あれは
       文書の読み込みを待つので、`pushState` だけで積んだ同じURLの
       履歴では待ち切れず、余分に戻ることがある（実際そうなった）。
-      履歴を1つ戻すこと自体は、こちらのほうが正確に写せる。
     */
     const back = () => page.evaluate(() => window.history.back());
 
-    // 1回目 … 奥の一枚だけ閉じる
+    // 1回目 … 一枚だけ閉じる。背面のおすすめはそのまま
     await back();
     await expect(page.getByTestId("diagnosis-detail-sheet")).toHaveCount(0);
-    await expect(page.getByTestId("diagnosis-reason-sheet")).toBeVisible();
+    await expect(page.locator("main h1").first()).toHaveText("今のあなたにおすすめ");
 
-    // 2回目 … 一枚を閉じて、結果の画面へ。**切り替えは戻っていない**
+    // 2回目 … 結果の中を1画面ぶん戻る。診断からは出ない
     await back();
-    await expect(page.getByTestId("diagnosis-reason-sheet")).toHaveCount(0);
-    await expect(page.getByTestId("completion-view")).toBeVisible();
-    await expect(page.getByTestId("chart-switch").first()).toHaveAttribute(
-      "data-kind",
-      "balance",
-    );
+    await expect(page.locator("main h1").first()).toHaveText("4つの力のバランス");
   });
 
   test("×で閉じたあとも、「戻る」の数がずれない", async ({ page }) => {
@@ -565,28 +598,20 @@ test.describe("AI活用診断", () => {
       開くときに積んだ履歴は、×やEscで閉じたときにも戻す。戻さないと
       閉じたあとの1回目の「戻る」が空振りする（押しても何も起きない）。
     */
-    await openDiagnosis(page);
-    for (let guard = 0; guard < 8; guard += 1) {
-      if (!(await answerOne(page))) break;
-    }
+    await toResult(page);
 
-    await page.getByTestId("chart-expand").click();
-    await expect(page.getByTestId("diagnosis-reason-sheet")).toBeVisible();
-    await page.getByTestId("diagnosis-reason-close").click();
-    await expect(page.getByTestId("diagnosis-reason-sheet")).toHaveCount(0);
+    await page.getByTestId("diagnosis-reason-open").click();
+    await expect(page.getByTestId("diagnosis-detail-sheet")).toBeVisible();
+    await page.getByTestId("diagnosis-detail-close").click();
+    await expect(page.getByTestId("diagnosis-detail-sheet")).toHaveCount(0);
 
     /*
-      ここでの「戻る」は**空振りしない**。行き先は最後の問い。
+      ここでの「戻る」は**空振りしない**。現在地からの行き先は
+      最後の問い——結果の1画面目なので、戻る先は教材のほうになる。
 
       前はここで診断そのものから出ていた。レッスンの中の回を履歴に
       積んでいなかったので、結果でブラウザバックを押すと**5問すべてを
       飛ばしてコースの画面まで出る**（実測で履歴6段、1回でコースへ）。
-      答えを見直したい人が、いちばん押しそうな操作で、いちばん遠くへ
-      運ばれていた。
-
-      いまは帯の「←」と同じ意味にしてある（`pages/LessonRunner.tsx`）。
-      見るのは2つ——**押しても外へ出ないこと**と、**1回ぶんだけ戻る
-      こと**。空振り（何も起きない）はどちらでもないので、これで捕まる。
     */
     await page.evaluate(() => window.history.back());
     await page.waitForTimeout(400);
@@ -596,40 +621,58 @@ test.describe("AI活用診断", () => {
 
   test("「戻る」は、1回ぶんだけ戻る", async ({ page }) => {
     /*
-      押しっぱなしで外まで出ないこと。**回をまたいで積み直せているか**を
-      見る。積み直しを忘れると、2回目の「戻る」が素通りしてレッスンの
-      外へ出る（`BackStack` は押されたぶんを消すので、こちらが持ち直す
-      必要がある）。
+      押しっぱなしで外まで出ないこと。結果の中では**画面を1つずつ**、
+      抜けたら問いを1つずつ。分析中へは戻さない——同じ 1.8 秒をもう
+      一度待つだけで、戻る先として意味を持たない。
     */
-    await openDiagnosis(page);
-    for (let guard = 0; guard < 8; guard += 1) {
-      if (!(await answerOne(page))) break;
-    }
-    await expect(page.getByTestId("completion-view")).toBeVisible();
+    await toRecommendation(page);
 
     const back = () => page.evaluate(() => window.history.back());
-    for (const expected of ["5 / 5", "4 / 5", "3 / 5"]) {
+    const heading = () => page.locator("main h1").first();
+
+    await back();
+    await expect(heading()).toHaveText("4つの力のバランス");
+    await back();
+    await expect(heading()).toHaveText("あなたの現在地");
+
+    // ここから先は教材の問い。1問ずつ戻る
+    for (const expected of ["5 / 5", "4 / 5"]) {
       await back();
       await expect(page.getByTestId("lesson-mission-count")).toContainText(expected);
     }
   });
 
-  test("添えたレッスンを押すと、その回が始まる", async ({ page }) => {
+  test("おすすめを押すと、その回が始まる", async ({ page }) => {
     /*
       押せる形にしてあるのに押せないと、見えているだけで届かない道になる。
       **診断を受けた記録も残ること**——ここを飛ばすと、受けたのに
       受けていないことになる（ホームのおすすめが既定のまま戻る）。
     */
-    await openDiagnosis(page);
-    for (let guard = 0; guard < 8; guard += 1) {
-      if (!(await answerOne(page))) break;
-    }
+    await toRecommendation(page);
 
+    const label = (await page.getByTestId("diagnosis-lesson").innerText()).replace(
+      /\s+/g,
+      "",
+    );
+    await page.getByTestId("primary-action").click();
+
+    // 診断から出て、そのレッスンが開いている
+    await expect(page.getByTestId("completion-view")).toHaveCount(0);
+    const title = (await page.getByTestId("lesson-header").innerText()).replace(
+      /\s+/g,
+      "",
+    );
+    expect(title).toContain(label);
+  });
+
+  test("ほかの候補を押しても、その回が始まる", async ({ page }) => {
+    await toRecommendation(page);
+
+    await page.getByTestId("diagnosis-also-open").click();
     const also = page.getByTestId("diagnosis-also-pick").first();
     const label = (await also.innerText()).replace(/\s+/g, "");
     await also.click();
 
-    // 診断から出て、そのレッスンが開いている
     await expect(page.getByTestId("completion-view")).toHaveCount(0);
     const title = (await page.getByTestId("lesson-header").innerText()).replace(
       /\s+/g,
@@ -660,20 +703,16 @@ test.describe("AI活用診断", () => {
 
   test("結果まで着いても、←と×は消えない", async ({ page }) => {
     /*
-      帯は診断のあいだじゅう出しておく。**結果の画面でも。**
+      帯は診断のあいだじゅう出しておく。**結果の3画面でも。**
 
       結果を読んで「さっきの問いは何と答えたっけ」と思う人はいるし、
       おすすめを取らずに戻りたい人もいる。ここで帯を消すと、
-      画面の中のボタン2つ以外に行き先が無くなる。
+      画面の中のボタン以外に行き先が無くなる。
 
       そして結果の「×」では確かめない。「診断を終了しますか？」は
       **途中でやめる人**への一言で、答え終わった人には当てはまらない。
     */
-    await openDiagnosis(page);
-    for (let guard = 0; guard < 8; guard += 1) {
-      if (!(await answerOne(page))) break;
-    }
-    await expect(page.getByTestId("completion-view")).toBeVisible();
+    await toResult(page);
 
     await expect(page.getByTestId("lesson-back")).toBeVisible();
     await expect(page.getByTestId("lesson-exit")).toBeVisible();
@@ -685,10 +724,20 @@ test.describe("AI活用診断", () => {
 
     // 戻って結果へ着き直し、そこから×で出る（たしかめは挟まない）
     await page.getByTestId("primary-action").click();
-    await expect(page.getByTestId("completion-view")).toBeVisible();
+    await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 6000 });
     await page.getByTestId("lesson-exit").click();
     await expect(page.getByTestId("diagnosis-leave-sheet")).toHaveCount(0);
     await expect(page.getByTestId("tab-bar")).toBeVisible();
+  });
+
+  test("おすすめまで進んでも、←と×は消えない", async ({ page }) => {
+    await toRecommendation(page);
+    await expect(page.getByTestId("lesson-back")).toBeVisible();
+    await expect(page.getByTestId("lesson-exit")).toBeVisible();
+
+    // 「診断結果をもう一度見る」は、結果の先頭へ戻す
+    await page.getByRole("button", { name: "診断結果をもう一度見る" }).click();
+    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
   });
 
   test("開始画面も、送らずに全部見える", async ({ page }) => {
@@ -711,6 +760,34 @@ test.describe("AI活用診断", () => {
     await page.waitForTimeout(600);
 
     await expectFits(page, "診断の開始画面");
+
+    /*
+      大きな説明画像を置かない。**絵の中の「AI活用診断」が上の帯と
+      二重**になっていて、しかも詰め込まれた1枚が広告のバナーに
+      見えていた。いまは UI で組んである。
+    */
+    await expect(page.getByTestId("teaching-image")).toHaveCount(0);
+
+    // 答える前の不安に、3つだけ答える
+    const meta = (await page.getByTestId("diagnosis-meta").innerText()).replace(
+      /\s+/g,
+      "",
+    );
+    expect(meta).toContain("全5問");
+    expect(meta).toContain("約1分");
+    expect(meta).toContain("正解・不正解なし");
+
+    /*
+      5段階は見せるが、**現在地はまだ出さない**。ここは診断する範囲の
+      下見で、結果ではない。1つ光らせると、答える前に「あなたはここ」と
+      言うことになる。
+    */
+    await expect(page.getByTestId("growth-node")).toHaveCount(5);
+    await expect(
+      page.locator("[data-testid='growth-node'][data-state='here']"),
+    ).toHaveCount(0);
+
+    await expect(page.getByTestId("primary-action")).toHaveText(/診断をはじめる/);
     // 降りる道も、進む道のすぐ下にある
     await expect(
       page.getByRole("button", { name: "診断せずに始める" }),

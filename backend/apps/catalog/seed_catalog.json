@@ -17,16 +17,18 @@
         {
           "id": "intro",
           "type": "intro",
-          "title": "5つの質問で、今のAIの使い方を見てみよう",
-          "poMessage": "1〜2分で終わるよ！",
-          "poEmotion": "question"
+          "title": "今のAIの使い方をチェック",
+          "poMessage": "いつもの使い方に近いものを選んでね",
+          "poEmotion": "question",
+          "instruction": "5つの質問から、今の得意なことと、次に伸ばす力が分かります。",
+          "primaryLabel": "診断をはじめる"
         },
         {
           "id": "ai_usage",
           "type": "single_choice",
           "primaryLabel": "次へ",
           "title": "AIをどれくらい使っていますか？",
-          "instruction": "いまの正直なところで大丈夫です。",
+          "instruction": "普段の自分に一番近いものを1つ選んでください。",
           "poMessage": "いまの正直なところで大丈夫です。",
           "poEmotion": "question",
           "key": "ai_usage",
@@ -59,7 +61,7 @@
           "type": "single_choice",
           "primaryLabel": "次へ",
           "title": "AIにお願いするとき、どれに近い？",
-          "instruction": "いちばん近いものをひとつ。",
+          "instruction": "普段の自分に一番近いものを1つ選んでください。",
           "poMessage": "いちばん近いものをひとつ。",
           "poEmotion": "question",
           "key": "ask_style",
@@ -232,7 +234,7 @@
         {
           "id": "want_to_do",
           "type": "multi_choice",
-          "primaryLabel": "この内容で進む",
+          "primaryLabel": "診断結果を見る",
           "title": "AIで何をできるようになりたい？",
           "instruction": "いくつでも選べます。",
           "poMessage": "ここは希望なので、気になるものを。",

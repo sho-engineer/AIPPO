@@ -20,6 +20,8 @@ import { SafetyNote } from "../SafetyNote";
 import { FullText } from "./MoreSheet";
 import { AssembleStep } from "./steps/Assemble";
 import { DiagnosisResult } from "./DiagnosisResult";
+import { DiagnosisIntro } from "./diagnosis/DiagnosisIntro";
+import type { DiagnosisPhase } from "../../course/diagnosisFlow";
 import { SkillGet } from "./SkillGet";
 import { StepDone } from "./StepDone";
 import {
@@ -79,6 +81,15 @@ export interface StepRendererProps {
    * いて、そこを通らずに移ると**受けたことが残らない**。
    */
   onPickLesson?: (lessonId: string) => void;
+  /**
+   * 診断の結果の、いまの画面（`course/diagnosisFlow.ts`）。
+   *
+   * ここが持たない理由は、下の帯（見出し・ボタン）を出しているのが
+   * `LessonRunner` だから。**上と下で別々に持つと、言うことがずれる。**
+   */
+  diagnosisPhase?: DiagnosisPhase;
+  /** 分析中が終わったので、結果へ移る。 */
+  onAnalyzed?: () => void;
 }
 
 /**
@@ -115,6 +126,8 @@ export function StepRenderer({
   onOpenCourseCatalog,
   onOpenRecipe,
   onPickLesson,
+  diagnosisPhase = "stage",
+  onAnalyzed = () => {},
 }: StepRendererProps) {
   const { step, values, runs } = api;
   const completedCount = completedIds.length;
@@ -187,6 +200,16 @@ export function StepRenderer({
       );
 
     case "intro":
+      /*
+        診断の開始画面は、絵ではなく UI で組む。
+
+        前はここにも全体図を1枚置いていた。1枚で伝わるなら読む前に
+        見せたほうが早い、という置き方だったが、実物は**広告のバナー**
+        に見え、しかも絵の中の「AI活用診断」が上の帯と二重になって
+        いた。いまは見出し・説明・3つのメタ・5段階のプレビューだけ
+        （`diagnosis/DiagnosisIntro.tsx`）。
+      */
+      if (lesson.id === "diagnosis") return <DiagnosisIntro />;
       return (
         /*
           絵は**残りの高さに収める。**
@@ -724,14 +747,17 @@ export function StepRenderer({
     case "completion":
       if (lesson.id === "diagnosis") {
         /*
-          上から **図・図・次にやること**（`DiagnosisResult.tsx`）。
-          読まなくても現在地が分かる形にしてある。長い話と、答えの
-          直しは「くわしく見る」の一枚の中。
+          結果は4画面（`course/diagnosisFlow.ts`）。どれを出しているかは
+          **ここでは決めない**——下の帯の見出しとボタンを出している
+          `LessonRunner` が持っていて、上と下で言うことがずれないように
+          1か所から配る。
         */
         return (
           <DiagnosisResult
             values={values}
             lessons={course.lessons}
+            phase={diagnosisPhase}
+            onAnalyzed={onAnalyzed}
             onEditAnswer={api.goTo}
             onPickLesson={onPickLesson}
           />

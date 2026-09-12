@@ -130,19 +130,23 @@ export const ALL_COURSE_IMAGES: (TeachingImageEntry & { courseId: string })[] =
 
 const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
   /*
-    現在地チェック（AI活用診断）。
+    現在地チェック（AI活用診断）には、絵を置かない。
 
-    ここだけ骨格を使っていない教材で、最初のステップの名前が
-    `outcome_preview` ではなく `intro`。**ステップの名前で置き場所を
-    決めている**ので、名前が違えば置き場所も違う。
+    前はここに開始画面の全体図が1枚あった（`diagnosis_overview.webp`）。
+    外した理由は2つ。
+
+      ・絵の中に「AI活用診断」が大きく焼き込まれていて、上の帯と
+        **同じ言葉が1画面に2回**出ていた
+      ・「診断でわかること」「こんなときに」「診断後にわかること」まで
+        詰まった1枚で、**広告のバナー**に見えた
+
+    代わりは UI で組んである（`diagnosis/DiagnosisIntro.tsx`）。
+    絵と違って中の1つずつが本物の文字なので、読み上げにも届き、
+    画面の高さに合わせて畳める。
+
+    `visualType` の `diagnosis_overview` は**残してある**。診断の絵を
+    また作るときの置き場所がここだと分かるように、名前だけ置いておく。
   */
-  diagnosis: {
-    intro: {
-      src: "/assets/teaching/diagnosis_overview.webp",
-      alt: "AI活用診断の全体図。いくつかの質問に答えると、いまのAI活用の現在地と、次に学ぶおすすめのLessonが分かることを示したもの。",
-      visualType: "diagnosis_overview",
-    },
-  },
 
   /*
     Day1「文章を分かりやすくする」。

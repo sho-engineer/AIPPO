@@ -41,6 +41,8 @@ export interface StepShellProps {
   label?: string;
   /** 帯の右に出す数え方（`LessonProgress`）。 */
   count?: string;
+  /** 帯を決まった数の段に割る（`LessonProgress`）。診断の5問で使う。 */
+  segments?: { total: number; done: number };
   /**
    * いまどの区切りか。
    *
@@ -150,6 +152,7 @@ export function StepShell({
   currentMission,
   label,
   count,
+  segments,
   phase,
   po,
   summary,
@@ -226,6 +229,7 @@ export function StepShell({
           currentMission={currentMission}
           label={label}
           count={count}
+          segments={segments}
         />
       </div>
 

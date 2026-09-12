@@ -81,12 +81,25 @@ export interface GrowthTrackProps {
    * 姿になる。低い持ち方では2行で切って、あふれさせない。
    */
   summary?: boolean;
+  /**
+   * まだ測っていない道として出すか（開始画面）。
+   *
+   * 診断を**始める前**に、これから何を見るのかを見せる。同じ5つの
+   * 名前をもう1か所に書き写すのではなく、結果で使う道をそのまま使う
+   * ——書き写すと、段の名前を変えたときに片方だけ古くなる。
+   *
+   * 出さないもの: 進んだぶんの線、いまいる点、段の名前と説明。
+   * **現在地はまだ無い。** ここで1つを光らせると、答える前に
+   * 「あなたはここ」と言うことになる。
+   */
+  preview?: boolean;
 }
 
 export function GrowthTrack({
   stage,
   size = "sm",
   summary = false,
+  preview = false,
 }: GrowthTrackProps) {
   const big = size === "lg";
   const [drawn, setDrawn] = useState(false);
@@ -108,7 +121,12 @@ export function GrowthTrack({
       はみ出す量も増え、6px しか空けていない上の切り替えに乗り上げて
       いた——「現在地」の札の上に丸が重なって出ていた。
     */
-    <div data-testid="growth-track" data-size={size} className={big ? "pt-2" : ""}>
+    <div
+      data-testid="growth-track"
+      data-size={size}
+      data-preview={preview ? "true" : undefined}
+      className={big ? "pt-2" : ""}
+    >
       <div className="relative">
         {/*
           道そのもの。左右に点の半径ぶんの余白を作らず、**点の中心を
@@ -120,18 +138,21 @@ export function GrowthTrack({
             big ? "h-1.5" : "h-1"
           }`}
         >
-          <div
-            className="h-full rounded-full bg-brand transition-[width] duration-500 ease-out"
-            style={{ width: `${drawn ? filled : 0}%` }}
-            aria-hidden="true"
-          />
+          {/* 始める前は、進んだぶんが無い。線は灰のまま置く */}
+          {!preview && (
+            <div
+              className="h-full rounded-full bg-brand transition-[width] duration-500 ease-out"
+              style={{ width: `${drawn ? filled : 0}%` }}
+              aria-hidden="true"
+            />
+          )}
         </div>
 
         <ul className="absolute inset-x-0 top-0 flex" role="list">
           {STAGES.map((one, at) => {
-            const done = at <= index;
-            const here = at === index;
-            const next = at === index + 1;
+            const done = !preview && at <= index;
+            const here = !preview && at === index;
+            const next = !preview && at === index + 1;
             return (
               <li
                 key={one.number}
@@ -194,7 +215,10 @@ export function GrowthTrack({
       {/*
         いまいるところの名前。読み上げには、道ではなくこの文が届く
         ——点の並びは飾りとして隠してある。
+
+        始める前は出さない。**まだどこでもない。**
       */}
+      {!preview && (
       <p
         className={`font-bold leading-6 text-brand-dark ${
           big ? "mt-11 text-center text-base" : "mt-8 text-[0.9375rem]"
@@ -203,7 +227,8 @@ export function GrowthTrack({
       >
         {STAGES[index].name}
       </p>
-      {(big || summary) && (
+      )}
+      {!preview && (big || summary) && (
         <p
           /*
             小さいほうでは、**縦に余裕のある端末でだけ**出す。
@@ -222,7 +247,9 @@ export function GrowthTrack({
         </p>
       )}
       <p className="sr-only">
-        5つの段階のうち {STAGES[index].number} つ目です。
+        {preview
+          ? `この診断では、${SHORT.join("・")} の5つの段階を見ます。`
+          : `5つの段階のうち ${STAGES[index].number} つ目です。`}
       </p>
     </div>
   );

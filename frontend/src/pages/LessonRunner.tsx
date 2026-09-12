@@ -12,7 +12,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { IconBook } from "../components/Icons";
+import { IconBook, IconChecklist } from "../components/Icons";
 import { PrivacyDialog } from "../components/course/PrivacyDialog";
 import { DayCompletePage } from "../components/course/DayCompletePage";
 import { LessonHeader } from "../components/course/LessonHeader";
@@ -29,6 +29,12 @@ import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
 import { useAuth } from "../auth/AuthContext";
 import { useCourse } from "../course/live";
+import {
+  PHASE_COPY,
+  nextPhase,
+  prevPhase,
+  type DiagnosisPhase,
+} from "../course/diagnosisFlow";
 import { buildAiInput } from "../course/engine";
 import { promptEntryFor } from "../course/promptSummary";
 import { savePrompt } from "../course/promptLibrary";
@@ -230,16 +236,6 @@ export function LessonRunner({
     最初の回では積まない。そこでの「戻る」はレッスンから出る合図で、
     行き先を持たない層を置くと、出口が消える。
   */
-  const stepId = step.id;
-  useEffect(() => {
-    if (!api.canBack || celebrating) return;
-    return backStack.push(() => api.goBack());
-    /*
-      回が変わるたびに積み直す。押されたぶんは `BackStack` の側で
-      消えるので、積み直さないと2回目の「戻る」が素通りする。
-    */
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backStack, api.canBack, stepId, celebrating]);
 
   /*
     送信のステップに入ったら、そのまま送る。
@@ -306,6 +302,78 @@ export function LessonRunner({
   const questions = lesson.steps.filter((each) => each.key);
   const questionCount = questions.length;
   const questionAt = questions.findIndex((each) => each.id === step.id);
+
+  /*
+    診断の結果は4画面（`course/diagnosisFlow.ts`）。いまどれかを持つ。
+
+    **教材のステップにはしない。** 増やすと3層（同梱・seed・配信）
+    すべてに同じものが要り、採点も進み具合の分母も動く。ここで変わる
+    のは結果の見せ方だけで、教材の中身ではない。
+
+    ここに置いてあるのは、見出し・ポー・下のボタンを出しているのが
+    この画面だから。中身側（`DiagnosisResult`）と別々に持つと、
+    **画面の上と下で言うことがずれる。**
+  */
+  const isDiagnosisResult = lesson.id === "diagnosis" && step.type === "completion";
+  const [phase, setPhase] = useState<DiagnosisPhase>("analyzing");
+  /*
+    結果の画面を離れたら、分析中に戻す。
+
+    答えを直しに問いへ戻った人は、直したあともう一度ここへ来る。
+    そのとき前回の続き（おすすめ）から始まると、**直した結果を
+    見ないまま**次へ行くことになる。
+  */
+  const atResult = isDiagnosisResult;
+  useEffect(() => {
+    if (!atResult) setPhase("analyzing");
+  }, [atResult]);
+
+  /*
+    押されたときに何をするかは、**そのときの状態で決める。**
+
+    積むのは回が変わったときだけ（下の `useEffect`）。積んだ関数が
+    そのときの `phase` を閉じ込めていると、診断の結果の中で画面を
+    進めても、端末の「戻る」は**積んだ瞬間の画面**へ戻ろうとする。
+    入れ物だけ先に置いて、中身は毎回書き換える。
+  */
+  const backRef = useRef<() => void>(() => {});
+
+  /**
+   * 1歩戻る。帯の「←」も端末の「戻る」も、ここを通る。
+   *
+   * 診断の結果の中にいるときは、まず**画面を1つ**戻す。4画面は教材の
+   * ステップではないので `api.goBack()` はこれを知らない——そのまま
+   * 呼ぶと、おすすめからいきなり5問目へ出る。分析中へは戻さない
+   * （`prevPhase`）。同じ 1.8 秒をもう一度待つだけで、戻る先として
+   * 意味を持たない。
+   */
+  const goBackOne = () => {
+    if (isDiagnosisResult) {
+      const back = prevPhase(phase);
+      if (back) {
+        setPhase(back);
+        return;
+      }
+    }
+    api.goBack();
+  };
+  backRef.current = goBackOne;
+
+  const stepId = step.id;
+  useEffect(() => {
+    if (!api.canBack || celebrating) return;
+    /*
+      回が変わるたびに積み直す。押されたぶんは `BackStack` の側で
+      消えるので、積み直さないと2回目の「戻る」が素通りする。
+    */
+    return backStack.push(() => backRef.current());
+    /*
+      **結果の画面が変わったら積み直す。** ここを忘れると、端末の
+      「戻る」が2回目から素通りしてレッスンの外へ出る——1回目で
+      `BackStack` の1つが消え、次を積んでいないので履歴の底が
+      むき出しになる（実測で、4つの力からコースの画面まで出た）。
+    */
+  }, [backStack, api.canBack, stepId, celebrating, isDiagnosisResult, phase]);
 
   /*
     この回に**入ってきたときの答え**。
@@ -456,6 +524,12 @@ export function LessonRunner({
             }
           : undefined
       }
+      /*
+        結果の4画面。**上の見出しと下のボタンと同じ値を渡す。**
+        別々に持つと、画面の上と下で言うことがずれる。
+      */
+      diagnosisPhase={phase}
+      onAnalyzed={() => setPhase("stage")}
     />
   );
 
@@ -531,6 +605,19 @@ export function LessonRunner({
           のは次にやることなので、押した先はその1本にする。
         */
         if (lesson.id === "diagnosis") {
+          /*
+            結果は4画面。**最後まで来て初めて、レッスンへ渡す。**
+
+            前はここが1画面で、下のボタンは最初から「ここから始める」
+            だった。結果を読み終える前に次へ行く道が目に入るので、
+            結果は読まれずに押されていた。いまは
+            現在地 → 4つの力 → おすすめ、と進んでから。
+          */
+          const ahead = nextPhase(phase);
+          if (ahead) {
+            setPhase(ahead);
+            return;
+          }
           finalizeCompletion();
           if (onSelectLesson) onSelectLesson(recommendLesson(values));
           else onOpenCourse();
@@ -694,7 +781,8 @@ export function LessonRunner({
                     閉じれば元の姿に戻る。
                   */
                   if (backStack.closeTop()) return;
-                  api.goBack();
+                  /* 端末の「戻る」と同じ道を通す（`goBackOne`） */
+                  goBackOne();
                 }
               : undefined
         }
@@ -843,14 +931,20 @@ export function LessonRunner({
       ) : (
         <>
       <StepShell
-        {...(lesson.id === "diagnosis" && step.type === "completion"
+        {...(isDiagnosisResult
           ? {
               /*
-                「診断の結果」をやめた。**評価された感じ**が残る言い方で、
-                この画面でしているのは点を付けることではなく、
-                いまの場所を一緒に確かめること。
+                結果は4画面。見出しも肩書きも、その画面のものを出す
+                （`course/diagnosisFlow.ts`）。
+
+                分析中だけ肩書きを出さない。**まだ結果ではない**ので、
+                そこに「診断結果」と書くと、出る前から出たことになる。
               */
-              title: "いまの現在地",
+              eyebrow: PHASE_COPY[phase].eyebrow
+                ? { icon: IconChecklist, label: PHASE_COPY[phase].eyebrow as string }
+                : undefined,
+              title: PHASE_COPY[phase].title,
+              instruction: PHASE_COPY[phase].instruction,
             }
           : step.type === "concept_card" && step.skill
           ? {
@@ -896,13 +990,41 @@ export function LessonRunner({
               : ""
             : undefined
         }
+        /*
+          診断の帯は、**問いの数だけ段に割る。**
+
+          前は1本の帯が少しずつ伸びるだけで、「4割くらい」は分かっても
+          「2問目」は分からなかった。右の「質問 2 / 5」を読まないと
+          位置が決まらない＝帯が仕事をしていない状態。段に割ると、
+          埋まった数がそのまま問い数になる。
+
+          問いの画面だけ。開始画面と結果では出さない——そこは問いでは
+          ないので、数えるものが無い。
+        */
+        segments={
+          lesson.id === "diagnosis" && questionAt >= 0
+            ? { total: questionCount, done: questionAt + 1 }
+            : undefined
+        }
         currentMission={api.missions.current}
         phase={step.phase}
         /*
           表情は、場面のほうが強いときだけ差し替える
           （`poPresence` の `emotion`）。ふだんは教材データに従う。
         */
-        po={po?.emotion ? { ...api.po, emotion: po.emotion } : api.po}
+        /*
+          結果の4画面では、ポーもその画面のことを言う。
+
+          教材データの `poMessage`（「いまはここ！」）は1画面ぶんの
+          言葉で、4画面で言い回すと**3画面で場面と合わない**。
+        */
+        po={
+          isDiagnosisResult
+            ? { ...api.po, message: PHASE_COPY[phase].po }
+            : po?.emotion
+              ? { ...api.po, emotion: po.emotion }
+              : api.po
+        }
         /*
           成果物を出す回の終わりでは、答えた内容の畳みを出さない。
 
@@ -952,13 +1074,17 @@ export function LessonRunner({
         }
         onEditSummary={editSummary}
         primaryLabel={
-          lesson.id === "diagnosis" && step.type === "completion"
+          isDiagnosisResult
             ? /*
-                「おすすめLessonから始める」をやめた。日本語の中に
-                Lesson が挟まって読みにくく、押す前に一度立ち止まる。
-                押した先は上のカードに書いてあるので、ここは短くてよい。
+                おすすめの画面だけ、Day の番号を入れる。
+
+                押した先がどこかを**押す前に**言う。おすすめは人に
+                よって Day1 とはかぎらないので、番号は結果から取る。
+                残りの画面は `PHASE_COPY` のまま。
               */
-              "ここから始める"
+              phase === "lesson"
+              ? `Day ${course.lessons.find((one) => one.id === recommendLesson(values))?.number ?? 1}をはじめる`
+              : PHASE_COPY[phase].primary
             : primaryLabel(step)
         }
         onPrimary={onPrimary}
@@ -975,7 +1101,15 @@ export function LessonRunner({
         */
         primaryDisabled={
           Boolean(blockingIssue) ||
-          (step.type === "observation" && !isAnswered(step, values))
+          (step.type === "observation" && !isAnswered(step, values)) ||
+          /*
+            分析している 1.8 秒は、押せない。
+
+            ボタンを消さずに残すのは、**次の画面でボタンが生えると
+            中身が上へ跳ねる**から。押す場所は4画面とも同じ高さに
+            しておく。
+          */
+          (isDiagnosisResult && phase === "analyzing")
         }
         hintNearButton={api.issue?.reason ?? null}
         error={api.error}
@@ -1013,21 +1147,36 @@ export function LessonRunner({
                   すぐ下に同じ言葉で置く。
                 */
                 { label: "診断せずに始める", onClick: onExit }
-            : lesson.id === "diagnosis" && step.type === "completion"
+            : isDiagnosisResult
               ? /*
-                  おすすめより前を飛ばさせない。
+                  結果の画面の、細い1行。**画面ごとに行き先が違う。**
 
-                  「Day1から確認する」は、おすすめが Day2 以降だった人
-                  のための道。基礎を飛ばしたくない人が自分で選べる形に
-                  しておく——こちらから強制はしない。
+                    分析中  … 置かない（まだ何も出ていない）
+                    現在地  … 置かない。ここは進むだけ
+                    4つの力 … 現在地に戻る
+                    おすすめ … 診断結果をもう一度見る（現在地へ）
+
+                  前はここが「Day1から確認する」だった。おすすめが
+                  Day2 以降だった人のための道だが、**結果を読み終える
+                  前から出ていた**ので、読まずに Day1 へ出る道として
+                  働いていた。おすすめ以外の1本は「ほかの候補も見る」が
+                  持っている（`DiagnosisResult.tsx`）。
                 */
-                {
-                  label: "Day1から確認する",
-                  onClick: () =>
-                    onSelectLesson
-                      ? onSelectLesson("rewrite_text")
-                      : onOpenCourse(),
-                }
+                PHASE_COPY[phase].secondary
+                ? {
+                    label: PHASE_COPY[phase].secondary as string,
+                    /*
+                      おすすめから戻る先は**現在地**にする。1つ前
+                      （4つの力）ではない——ここに書いてあるのは
+                      「診断結果をもう一度見る」で、結果は現在地から
+                      始まる。1歩だけ戻したい人は帯の「←」を押す。
+                    */
+                    onClick: () =>
+                      setPhase(
+                        phase === "lesson" ? "stage" : (prevPhase(phase) ?? "stage"),
+                      ),
+                  }
+                : undefined
               : step.type === "completion"
               ? // 同じレッスンをもう一度。身についたか確かめたい人の逃げ道
                 { label: "もう一度試す", onClick: api.restart }

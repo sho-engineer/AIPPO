@@ -272,6 +272,22 @@ export function poAppearance(where: PoSituation): PoAppearance | null {
   }
 
   /*
+    診断の開始画面も `result` の段（44px）で出す。
+
+    レッスンの開始画面と同じ `start`（120px）にしていたが、あちらは
+    絵1枚のための画面で、ポーが主役になってよい。こちらはポーの下に
+    3つのメタと5段階のプレビューが並ぶ**読む画面**で、120px のポーが
+    その全部を下へ押す（実測で、下に大きく空きが残る一方で中身は
+    上半分に詰まっていた）。
+
+    ここでのポーの役は「答え方の不安に一言」だけ。段を下げても
+    吹き出しは同じ大きさで出る。
+  */
+  if (where.diagnosis && where.stepType === "intro") {
+    return { scene: "result", speaks: true, emotion: "question" };
+  }
+
+  /*
     診断の問いには、ポーを出さない。**入りと結果だけ。**
 
     診断は7画面あって、そのうち5画面が問い。全部にポーが立つと、

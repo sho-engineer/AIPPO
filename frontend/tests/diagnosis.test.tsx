@@ -18,20 +18,38 @@
  *   4. 職種・業界・使っているAIサービスを聞かないこと
  */
 
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { AssembleStep } from "../src/components/course/steps/Assemble";
-import { DiagnosisResult } from "../src/components/course/DiagnosisResult";
+import {
+  DiagnosisResult,
+  type DiagnosisResultProps,
+} from "../src/components/course/DiagnosisResult";
+import { DiagnosisIntro } from "../src/components/course/diagnosis/DiagnosisIntro";
+import { ANALYZING_MS } from "../src/components/course/diagnosis/Analyzing";
 import { COURSE, getLesson } from "../src/course/catalog";
 import {
   AXES,
+  AXIS_LABELS,
+  NEXT_LEARNING,
   NEXT_SKILL,
   STAGES,
   scoreDiagnosis,
 } from "../src/course/diagnosisScore";
-import { recommendLesson, recommendReason } from "../src/course/recommend";
+import {
+  DIAGNOSIS_PHASES,
+  PHASE_COPY,
+  nextPhase,
+  prevPhase,
+  type DiagnosisPhase,
+} from "../src/course/diagnosisFlow";
+import {
+  recommendLead,
+  recommendLesson,
+  recommendReason,
+} from "../src/course/recommend";
 import { isAnswered } from "../src/course/autoAdvance";
 import { poAppearance } from "../src/course/poPresence";
 
@@ -425,7 +443,17 @@ describe("次の一歩と、おすすめの1本", () => {
   });
 });
 
-describe("結果画面", () => {
+
+describe("結果の4画面", () => {
+  /*
+    前は結果が1画面だった。図・できていること・次の一歩・おすすめが
+    同時に並び、下のボタンは最初から「ここから始める」。**読む前に
+    次へ行く道が目に入る**ので、結果は読まれずに押されていた。
+
+    いまは4つに割ってある（`course/diagnosisFlow.ts`）。見張るのは、
+    **それぞれの画面が、その画面のことだけを言っていること**。
+    1つの画面に次の画面の話が混ざった時点で、割った意味が消える。
+  */
   const values = {
     ai_usage: "sometimes",
     ask_style: "condition",
@@ -434,190 +462,214 @@ describe("結果画面", () => {
     want_to_do: "writing",
   };
 
-  it("読まなくても分かる形——まず図が出る", () => {
-    /*
-      前はここが文字だけだった。「いまの現在地」「できていること」
-      「次の一歩」と見出しが縦に並び、下に短い文がぶら下がる。読めば
-      分かるが、**読むまで何も分からない**。
-    */
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
-
-    // 開いた直後は道。5つの点でどこまで来たかを出す
-    expect(screen.getByTestId("growth-track")).toBeInTheDocument();
-    expect(screen.getAllByTestId("growth-node")).toHaveLength(5);
-  });
-
-  it("図は2通りから選べる", async () => {
-    /*
-      同じ4つの答えでも知りたいことは人によって違う。両方を同時に
-      出すと縦に伸びるうえ、どちらを読めばよいのか決められない。
-    */
-    const user = userEvent.setup();
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
-
-    expect(screen.queryByTestId("radar-chart")).toBeNull();
-
-    await user.click(screen.getByTestId("chart-tab-balance"));
-    expect(screen.getByTestId("radar-chart")).toBeInTheDocument();
-    // 片方ずつ。2つ同時には出さない
-    expect(screen.queryByTestId("growth-track")).toBeNull();
-
-    await user.click(screen.getByTestId("chart-tab-stage"));
-    expect(screen.getByTestId("growth-track")).toBeInTheDocument();
-    expect(screen.queryByTestId("radar-chart")).toBeNull();
-  });
-
-  it("図を押すと、一枚の中で大きく開く", async () => {
-    /*
-      結果の画面に置ける大きさは、いちばん低い持ち方で送らずに収まる
-      上限まで——ひし形は 92px 角しかなく、読むには小さい。収める都合と
-      読める大きさは両立しないので、読みたい人には開いた一枚で応える。
-    */
-    const user = userEvent.setup();
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
-
-    expect(screen.getByTestId("growth-track")).toHaveAttribute("data-size", "sm");
-
-    await user.click(screen.getByTestId("chart-expand"));
-
-    const sheet = screen.getByTestId("diagnosis-reason-sheet");
-    expect(sheet.querySelector("[data-testid='growth-track']")).toHaveAttribute(
-      "data-size",
-      "lg",
-    );
-  });
-
-  it("開いた中で切り替えると、後ろの図も同じものになる", async () => {
-    // 閉じたときに、見ていたものと違う図が残っていると混乱する
-    const user = userEvent.setup();
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
-
-    await user.click(screen.getByTestId("chart-expand"));
-    const sheet = screen.getByTestId("diagnosis-reason-sheet");
-    await user.click(
-      sheet.querySelector("[data-testid='chart-tab-balance']") as HTMLElement,
-    );
-    await user.click(screen.getByTestId("diagnosis-reason-close"));
-
-    expect(screen.getByTestId("radar-chart")).toHaveAttribute("data-size", "fluid");
-    expect(screen.queryByTestId("growth-track")).toBeNull();
-  });
-
-  it("図を切り替えても、できていることは消えない", async () => {
-    // 切り替えるのは図の見せ方であって、できていることではない
-    const user = userEvent.setup();
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
-
-    await user.click(screen.getByTestId("chart-tab-balance"));
-    expect(
-      screen.getByTestId("diagnosis-strengths").querySelectorAll("li"),
-    ).toHaveLength(2);
-  });
-
-  it("軸ごとの内訳は、図を開いた人にだけ", async () => {
-    /*
-      内訳は「なぜそう出たか」を知りたい人のもの。次の1本を決めるのに
-      要るものではないので、通常の画面には出さない。
-
-      図と同じ一枚の中に置く——図を見に来た人が知りたいのはまさに
-      この中身で、さらに奥へ置くと扉が1つ多かった。
-    */
-    const user = userEvent.setup();
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
-
-    expect(screen.queryAllByTestId("axis-bar")).toHaveLength(0);
-
-    await user.click(screen.getByTestId("diagnosis-reason-open"));
-    expect(screen.getAllByTestId("axis-bar")).toHaveLength(4);
-  });
-
-  it("添えたレッスンは、押せば始められる", async () => {
-    // 押せる形にしてあるのに押せないと、見えているだけで届かない道になる
-    const user = userEvent.setup();
-    const picked: string[] = [];
+  const show = (phase: DiagnosisPhase, extra: Partial<DiagnosisResultProps> = {}) =>
     render(
       <DiagnosisResult
         values={values}
         lessons={COURSE.lessons}
-        onPickLesson={(id) => picked.push(id)}
+        phase={phase}
+        onAnalyzed={() => {}}
+        {...extra}
       />,
     );
 
-    await user.click(screen.getAllByTestId("diagnosis-also-pick")[0]);
-    expect(picked).toHaveLength(1);
+  it("答え終わってすぐは、結果ではなく分析中", () => {
+    /*
+      押した／出た、の2コマしかないと、答えが読まれた実感が残らない
+      ——「アンケートのよう」と言われたのがそこ。足しているのは待ち
+      時間ではなく、**何を見て判断したか**。
+    */
+    show("analyzing");
+
+    expect(screen.getByTestId("diagnosis-analyzing")).toBeInTheDocument();
+    // 4つの観点。結果の「4つの力」と同じ4つであること
+    expect(screen.getAllByTestId("analyzing-axis")).toHaveLength(AXES.length);
+    // まだ結果は1つも出さない
+    expect(screen.queryByTestId("growth-track")).toBeNull();
+    expect(screen.queryByTestId("diagnosis-next-skill")).toBeNull();
+  });
+
+  it("分析が終わったら、待たずに次へ渡す", () => {
+    vi.useFakeTimers();
+    let done = 0;
+    render(
+      <DiagnosisResult
+        values={values}
+        lessons={COURSE.lessons}
+        phase="analyzing"
+        onAnalyzed={() => (done += 1)}
+      />,
+    );
+
+    expect(done).toBe(0);
+    act(() => void vi.advanceTimersByTime(ANALYZING_MS + 50));
+    expect(done).toBe(1);
+    vi.useRealTimers();
+  });
+
+  it("①現在地では、まだ Lesson の話をしない", () => {
+    /*
+      いちばん効いた並べ替え。前は現在地のすぐ下に「次の一歩 ＋
+      おすすめ Day1」が並んでいて、現在地を読み終える前に目が
+      そちらへ行っていた。次の話は2画面あと。
+    */
+    show("stage");
+
+    expect(screen.getByTestId("growth-track")).toBeInTheDocument();
+    expect(screen.getAllByTestId("growth-node")).toHaveLength(5);
+    expect(screen.queryByTestId("diagnosis-next-skill")).toBeNull();
+    expect(screen.queryByTestId("diagnosis-lesson")).toBeNull();
+  });
+
+  it("①現在地には、回答から見えた特徴を3つまで", () => {
+    /*
+      できていることだけを並べると、読んだ人は次に何をするのか
+      分からない。**最後の1つは必ず「これから」**にしてある
+      （`traitsOf`）。境目がこの並びの中にあることが、次の画面への橋。
+    */
+    show("stage");
+
+    const items = screen.getByTestId("diagnosis-traits").querySelectorAll("li");
+    expect(items.length).toBeGreaterThan(0);
+    expect(items.length).toBeLessThanOrEqual(3);
+    expect(items[items.length - 1].textContent).toContain("これから");
   });
 
   it("いまいる点が1つだけ光り、次の点が分かる", () => {
     // 光る点が2つあると、どちらが現在地なのか決められない
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+    show("stage");
 
     const nodes = screen.getAllByTestId("growth-node");
-    const here = nodes.filter((one) => one.dataset.state === "here");
-    const next = nodes.filter((one) => one.dataset.state === "next");
-    expect(here).toHaveLength(1);
-    expect(next.length).toBeLessThanOrEqual(1);
+    expect(nodes.filter((one) => one.dataset.state === "here")).toHaveLength(1);
+    expect(
+      nodes.filter((one) => one.dataset.state === "next").length,
+    ).toBeLessThanOrEqual(1);
   });
 
-  it("おすすめは、1本目を大きく・残り2本を小さく", () => {
+  it("②4つの力は、図だけで終わらせない", () => {
     /*
-      1本だけにしていた時期がある。3本並ぶと「次に何をするか」を
-      もう一度選ばせることになる、という理由だった。ただし1本だけだと
-      **その1本が刺さらなかった人の行き先が無くなる**ので、
-      大きさを変えて3本出す。
+      ひし形は「どこが薄いか」を一目にするが、そこから何をすれば
+      よいかは出てこない。強み／次に伸ばす力／次に覚えること の3行で
+      次の画面へつなぐ。
     */
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+    show("axes");
 
-    expect(screen.getByTestId("diagnosis-next-skill")).toBeInTheDocument();
-    // 大きく出すのは1本だけ
-    expect(screen.getAllByTestId("diagnosis-lesson")).toHaveLength(1);
-    // 添えるのは2本まで。上の1本より弱く見せる
+    const rows = screen
+      .getByTestId("diagnosis-axes-summary")
+      .querySelectorAll("div");
+    expect(rows).toHaveLength(3);
+    const text = screen.getByTestId("diagnosis-axes-summary").textContent ?? "";
+    expect(text).toContain("強み");
+    expect(text).toContain("次に伸ばす力");
+    expect(text).toContain("次に覚えること");
+  });
+
+  it("②の「次に覚えること」は、技の名前ではなくやることで書く", () => {
+    /*
+      「ターゲット指定」はこのアプリの中の呼び名で、初めて見る人には
+      何をするのか分からない。ここはそのレッスンで**実際に手を動かす
+      こと**を1行で言う。
+    */
+    const { weakest } = scoreDiagnosis(values);
+    show("axes");
+
+    expect(screen.getByTestId("diagnosis-axes-summary")).toHaveTextContent(
+      NEXT_LEARNING[weakest],
+    );
+  });
+
+  it("②の強みと次に伸ばす力が、採点と食い違わない", () => {
+    const result = scoreDiagnosis(values);
+    show("axes");
+
+    const text = screen.getByTestId("diagnosis-axes-summary").textContent ?? "";
+    expect(text).toContain(AXIS_LABELS[result.strongest]);
+    expect(text).toContain(AXIS_LABELS[result.weakest]);
+  });
+
+  it("③おすすめは、診断の結果を引いて理由を言う", () => {
+    /*
+      「あなたにおすすめ」とだけ書いてあると、何を見て選んだのかが
+      分からない——診断の結果とつながっていない推薦は、広告と
+      区別が付かない。
+    */
+    show("lesson");
+
+    expect(screen.getByTestId("diagnosis-lesson")).toBeInTheDocument();
+    expect(screen.getByTestId("diagnosis-reason-line")).toHaveTextContent(
+      recommendLead(values),
+    );
+  });
+
+  it("③のおすすめは、押せば始められる", async () => {
+    // 押せる形にしてあるのに押せないと、見えているだけで届かない道になる
+    const user = userEvent.setup();
+    const picked: string[] = [];
+    show("lesson", { onPickLesson: (id: string) => picked.push(id) });
+
+    await user.click(screen.getByTestId("diagnosis-next-skill"));
+    expect(picked).toEqual([recommendLesson(values)]);
+  });
+
+  it("その1本が合わない人の行き先も、押せば出る", async () => {
+    /*
+      画面に3枚並べると「次に何をするか」をもう一度選ばせることに
+      なる。かといって消すと、画像をやりたくて来た人に1本だけ出して
+      終わる形になる。決めるのは上の1本、ここはその逃げ道。
+    */
+    const user = userEvent.setup();
+    show("lesson");
+
+    await user.click(screen.getByTestId("diagnosis-also-open"));
     expect(
       screen.getByTestId("diagnosis-also").querySelectorAll("li"),
     ).toHaveLength(2);
   });
 
-  it("できていることは、2つまで", () => {
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
-    expect(
-      screen.getByTestId("diagnosis-strengths").querySelectorAll("li"),
-    ).toHaveLength(2);
-  });
-
-  it("細かい点数を、通常の画面に出さない", () => {
+  it("細かい点数を、どの画面にも出さない", () => {
     // 5問から出した数字に、68点・82点のような精度は無い
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
-
-    const shown = screen.getByTestId("completion-view").textContent ?? "";
-    expect(shown).not.toMatch(/\d+点/);
-    expect(shown).not.toMatch(/\d\s*\/\s*5/);
+    for (const phase of ["stage", "axes", "lesson"] as const) {
+      const view = show(phase);
+      const shown =
+        view.getByTestId("completion-view").textContent ?? "";
+      expect(shown, phase).not.toMatch(/\d+点/);
+      expect(shown, phase).not.toMatch(/\d\s*\/\s*5/);
+      view.unmount();
+    }
   });
 
-  it("長い話は、開いた一枚のさらに奥へ逃がす", async () => {
-    const user = userEvent.setup();
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
-
-    // 通常の画面には、答えの一覧も内訳も出ていない
-    const shown = screen.getByTestId("completion-view").textContent ?? "";
-    expect(shown).not.toContain("答えた内容");
-    expect(shown).not.toContain("次にやると良いこと");
-
-    await user.click(screen.getByTestId("diagnosis-reason-open"));
-
+  it("長い話は、どの画面からも同じ一枚の中へ", async () => {
     /*
-      1枚目は**補足**。切り替えと図と3行だけで、長い話は入れない。
-      別ページのように見えると、開くこと自体が重くなる。
+      入口を画面ごとに変えない。読みたくなる場所は人によって違うが
+      （現在地に納得できない／おすすめに納得できない）、見たいものは
+      同じ「答えた内容と、そこからの判断」1つ。
     */
-    const sheet = screen.getByTestId("diagnosis-reason-sheet");
-    expect(sheet).toHaveAttribute("data-placement", "center");
-    expect(sheet).toHaveTextContent(STAGES[3].name);
-    // 読み物（答えの一覧）は、さらに奥
-    expect(sheet).not.toHaveTextContent("答えた内容");
+    const user = userEvent.setup();
+    for (const phase of ["stage", "axes", "lesson"] as const) {
+      const view = show(phase);
 
-    await user.click(screen.getByTestId("diagnosis-detail-open"));
+      const shown = view.getByTestId("completion-view").textContent ?? "";
+      expect(shown, phase).not.toContain("答えた内容");
 
-    const deep = screen.getByTestId("diagnosis-detail-sheet");
-    expect(deep).toHaveTextContent("答えた内容");
-    expect(deep).toHaveTextContent("次にやると良いこと");
+      await user.click(view.getByTestId("diagnosis-reason-open"));
+      const sheet = view.getByTestId("diagnosis-detail-sheet");
+      expect(sheet).toHaveTextContent("答えた内容");
+      expect(sheet).toHaveTextContent("4つの力の内訳");
+      view.unmount();
+    }
+  });
+
+  it("「いまの様子」の一枚は、もう無い", () => {
+    /*
+      現在地・できていること・次にやること・4つの力の内訳が入って
+      いた一枚。いまはそれが**画面そのもの**になったので、同じことを
+      2か所で言っている状態だった。廃止したことをここで押さえる
+      ——戻すと、また画面と一枚が同じことを言い始める。
+    */
+    show("stage");
+    expect(screen.queryByTestId("diagnosis-reason-sheet")).toBeNull();
+    // 図の切り替えも、置き場所が役を持ったので要らない
+    expect(screen.queryByTestId("chart-switch")).toBeNull();
   });
 
   it("答えの直しは、その一枚の中から", async () => {
@@ -627,16 +679,9 @@ describe("結果画面", () => {
     */
     const user = userEvent.setup();
     const edited: string[] = [];
-    render(
-      <DiagnosisResult
-        values={values}
-        lessons={COURSE.lessons}
-        onEditAnswer={(id) => edited.push(id)}
-      />,
-    );
+    show("stage", { onEditAnswer: (id: string) => edited.push(id) });
 
     await user.click(screen.getByTestId("diagnosis-reason-open"));
-    await user.click(screen.getByTestId("diagnosis-detail-open"));
     const buttons = screen
       .getByTestId("diagnosis-detail-sheet")
       .querySelectorAll("button");
@@ -648,13 +693,96 @@ describe("結果画面", () => {
 
   it("理由の中では、記号ではなく選んだ言葉で返す", async () => {
     const user = userEvent.setup();
-    render(<DiagnosisResult values={values} lessons={COURSE.lessons} />);
+    show("stage");
     await user.click(screen.getByTestId("diagnosis-reason-open"));
-    await user.click(screen.getByTestId("diagnosis-detail-open"));
 
     const sheet = screen.getByTestId("diagnosis-detail-sheet");
     expect(sheet).toHaveTextContent("困ったときにAIを使う");
     expect(sheet).not.toHaveTextContent("sometimes");
     expect(sheet).not.toHaveTextContent("first_time");
+  });
+});
+
+describe("画面の上と下で、言うことがずれない", () => {
+  /*
+    見出しと下のボタンは `LessonRunner`、中身は `DiagnosisResult` が
+    出す。**2つのファイルにまたがる**ので、文言は1か所に持たせてある
+    （`course/diagnosisFlow.ts`）。ここはその表そのものを見る。
+  */
+  it("4画面とも、見出しと主ボタンを持っている", () => {
+    for (const phase of DIAGNOSIS_PHASES) {
+      const copy = PHASE_COPY[phase];
+      expect(copy.title, phase).toBeTruthy();
+      expect(copy.po, phase).toBeTruthy();
+      /* おすすめだけは Day の番号で作るので空 */
+      if (phase !== "lesson") expect(copy.primary, phase).toBeTruthy();
+    }
+  });
+
+  it("分析中には「診断結果」と書かない", () => {
+    // まだ出ていないものを、出たことにしない
+    expect(PHASE_COPY.analyzing.eyebrow).toBeUndefined();
+    for (const phase of ["stage", "axes", "lesson"] as const) {
+      expect(PHASE_COPY[phase].eyebrow, phase).toBe("診断結果");
+    }
+  });
+
+  it("分析中へは戻さない", () => {
+    /*
+      戻ったところで同じ 1.8 秒をもう一度待つだけで、戻る先として
+      意味を持たない。現在地から戻る人が行きたいのは最後の質問。
+    */
+    expect(prevPhase("stage")).toBeNull();
+    expect(prevPhase("axes")).toBe("stage");
+    expect(prevPhase("lesson")).toBe("axes");
+  });
+
+  it("進む順は、現在地 → 4つの力 → おすすめ", () => {
+    expect(nextPhase("analyzing")).toBe("stage");
+    expect(nextPhase("stage")).toBe("axes");
+    expect(nextPhase("axes")).toBe("lesson");
+    // 最後まで来たら、レッスンへ渡す（`LessonRunner`）
+    expect(nextPhase("lesson")).toBeNull();
+  });
+});
+
+describe("開始画面", () => {
+  it("大きな説明画像を置かない", () => {
+    /*
+      ここには全体図が1枚あった。外した理由は2つで、**どちらも絵を
+      差し替えても直らない**——絵の中の「AI活用診断」が上の帯と
+      二重になっていたことと、詰め込まれた1枚が広告のバナーに
+      見えたこと。
+    */
+    render(<DiagnosisIntro />);
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("答える前の不安に、3つだけ答える", () => {
+    // 長さが分からない・間違えたら嫌だ、が始めない理由の大半
+    render(<DiagnosisIntro />);
+
+    const meta = screen.getByTestId("diagnosis-meta").textContent ?? "";
+    expect(meta).toContain("全5問");
+    expect(meta).toContain("約1分");
+    expect(meta).toContain("正解・不正解なし");
+  });
+
+  it("5段階は見せるが、現在地はまだ出さない", () => {
+    /*
+      これは**診断する範囲**の下見で、結果ではない。1つを光らせると、
+      答える前に「あなたはここ」と言うことになる。
+    */
+    render(<DiagnosisIntro />);
+
+    const nodes = screen.getAllByTestId("growth-node");
+    expect(nodes).toHaveLength(5);
+    expect(nodes.filter((one) => one.dataset.state === "here")).toHaveLength(0);
+    expect(screen.queryByTestId("growth-stage-name")).toBeNull();
+  });
+
+  it("「全5問」と、教材の問いの数が食い違わない", () => {
+    // 増やしたときに、開始画面だけが古い数を言い続けないように
+    expect(questions).toHaveLength(5);
   });
 });
