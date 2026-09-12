@@ -82,6 +82,24 @@ async function runUntil(page: Page, testId: string) {
 test.setTimeout(120_000);
 
 test.describe("変わったところの一枚", () => {
+  test("持ち帰る一言が、押さなくても見えている", async ({ page }) => {
+    /*
+      教材が持つ一言（`course/lessonPlan.ts` の `takeaway`）が、
+      実際の画面まで届いているか。
+
+      部品の検査（`tests/compareStep.test.tsx`）と教材の検査
+      （`tests/lessonPlan.test.ts`）は、それぞれの端しか見ていない。
+      **つないでいるのは `StepRenderer` の1行**で、そこが落ちても
+      どちらの検査も緑のまま——画面から一言が消えるだけになる。
+    */
+    await start(page);
+    await runUntil(page, "compare-more");
+
+    await expect(page.getByTestId("compare-takeaway")).toContainText(
+      "誰に伝えるかを足すと",
+    );
+  });
+
   test("差分・道のり・図が、押せば全部ある", async ({ page }) => {
     await start(page);
     await runUntil(page, "compare-more");

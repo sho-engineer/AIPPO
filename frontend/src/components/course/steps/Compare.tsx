@@ -38,6 +38,7 @@ export function ThreeWayCompare({
   improved,
   condition,
   swaps,
+  takeaway,
   picture = null,
 }: {
   original: string;
@@ -50,6 +51,13 @@ export function ThreeWayCompare({
    * 「変わったところ」で**1組だけ**、代表例として出す。
    */
   swaps?: TermSwap[];
+  /**
+   * 持ち帰る一言（`course/lessonPlan.ts` の `takeaway`）。
+   *
+   * 無ければ出さない。**教材ごとに書いたものだけを出す**——ここを
+   * 機械で組み立てると、どの回でも同じことを言う行になる。
+   */
+  takeaway?: string;
   /**
    * 同じことを図で1枚。**開いた一枚の中に置く。**
    *
@@ -354,10 +362,25 @@ export function ThreeWayCompare({
                 </li>
               );
             }
-            return points.map((point) => (
+            return points.map((point, at) => (
               <li
                 key={point}
-                className="flex items-start gap-2 text-sm leading-6"
+                /*
+                  低い持ち方では、3つ目を畳む。
+
+                  402×660 でこの画面に渡せる高さに、✓3本と持ち帰る一言
+                  （2行・64px）の両方は載らない——実測で 24px 足りない。
+                  どちらかを削るなら**材料のほうを1つ**にする。✓は
+                  「この1回に何が起きたか」で、一言は「次に何をすればいいか」。
+                  持ち帰れるのは後者だけで、しかも3本目は上から確かな順に
+                  積んだいちばん弱い1本（`changePointsOf`）。
+
+                  消してはいない。「変わったところを見る」の一枚が
+                  同じ `changePointsOf` の全部を並べている。
+                */
+                className={`items-start gap-2 text-sm leading-6 ${
+                  at >= 2 ? "hidden [@media(min-height:700px)]:flex" : "flex"
+                }`}
               >
                 <IconCheckCircle className="mt-1 h-4 w-4 shrink-0 text-accent-teal" />
                 <span className="min-w-0">{point}</span>
@@ -366,6 +389,28 @@ export function ThreeWayCompare({
           })()}
         </ul>
       </div>
+
+      {/*
+        持ち帰る一言。
+
+        すぐ上の✓は「この1回に何が起きたか」で止まっている。それは
+        **今日の結果**であって、明日ほかの文章で困ったときには使えない。
+        ここで「何を足したから変わったのか」を1行だけ言う。
+
+        ✓の列と地続きに見えないよう、面で囲って色を変える。同じ書式で
+        下に足すと4つ目の✓に読めて、**結論ではなく続き**になる。
+      */}
+      {takeaway && (
+        <p
+          className="mt-2.5 flex shrink-0 items-start gap-2 rounded-card
+                     bg-brand-soft/60 px-3 py-2 text-sm font-bold leading-6
+                     text-brand-dark"
+          data-testid="compare-takeaway"
+        >
+          <IconSparkle className="mt-1 h-4 w-4 shrink-0 text-brand" aria-hidden="true" />
+          <span className="min-w-0">{takeaway}</span>
+        </p>
+      )}
 
       <div className="mt-3 shrink-0">
         <MoreButton testId="compare-more" onClick={() => setMore(true)}>

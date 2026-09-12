@@ -169,3 +169,47 @@ describe("狭い画面で見比べる", () => {
     );
   });
 });
+
+describe("持ち帰る一言", () => {
+  /*
+    ✓の並びは「この1回に何が起きたか」で止まっている。それは今日の
+    結果で、明日ほかの文章で困ったときには使えない。次に自分で頼むとき
+    に使えるのは「何を足したから変わったのか」のほうなので、それを
+    画面に1行だけ残す。
+
+    **押さなくても見える場所に置く。**「変わったところを見る」の中に
+    入れると、押さない人には持ち帰るものが1つも残らない。
+  */
+  it("押さなくても、画面に出ている", () => {
+    render(
+      <ThreeWayCompare
+        original="もと"
+        first={LONG_FIRST}
+        improved={LONG_IMPROVED}
+        condition="もっと短く"
+        takeaway="誰に伝えるかを足すと、言葉の選び方が変わる。"
+      />,
+    );
+
+    expect(screen.getByTestId("compare-takeaway")).toHaveTextContent(
+      "誰に伝えるかを足すと、言葉の選び方が変わる。",
+    );
+  });
+
+  it("教材が持っていなければ、空の枠を置かない", () => {
+    /*
+      無いものを機械で組み立てない。どの回でも同じことを言う行になり、
+      2回目からは読み飛ばされる（そして場所だけ取る）。
+    */
+    render(
+      <ThreeWayCompare
+        original="もと"
+        first={LONG_FIRST}
+        improved={LONG_IMPROVED}
+        condition="もっと短く"
+      />,
+    );
+
+    expect(screen.queryByTestId("compare-takeaway")).toBeNull();
+  });
+});

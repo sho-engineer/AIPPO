@@ -641,6 +641,8 @@ export function StepRenderer({
               condition={values.condition ?? ""}
             /* 代表例を1組。用語の対応表にしない（Compare.tsx） */
             swaps={lessonPlan(lesson.id)?.swaps}
+              /* 持ち帰る一言。教材ごとに書いたものだけ（lessonPlan.ts） */
+              takeaway={lessonPlan(lesson.id)?.takeaway}
               picture={picture}
             />
             {/*

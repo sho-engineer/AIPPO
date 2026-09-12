@@ -156,6 +156,40 @@ describe("今日やることの図", () => {
     expect(defaults?.length, "黙って長さを頼んでいる").toBeUndefined();
   });
 
+  it("持ち帰る一言は、結果ではなく手を言う", () => {
+    /*
+      見比べる画面のいちばん下に出る1行（`steps/Compare.tsx`）。
+      すぐ上の✓が「この1回に何が起きたか」を言っているので、ここが
+      同じことを言うと、行が1本増えるだけで持ち帰るものが増えない。
+
+      見るのは3つ。
+
+        ・ほかの一言（`goalNote`・`changeNote`）の写しでないこと。
+          同じ文を2か所に置くと、読む人には1つのことが2回出るだけ。
+        ・Day2 の役（短く・要約）を先に取っていないこと。ほかの画面と
+          同じ決まり（上の「Day1 は「短くする」を教えていない」）。
+        ・短いこと。この行は見比べる画面のいちばん下にあり、伸びると
+          「変わったところを見る」が画面の外へ出る。22字で幅390の2行・
+          64px、低い持ち方（402×660）でちょうど収まる——余りは無い。
+          26字は、その実測に少しだけ足した上限。
+    */
+    for (const [lessonId, plan] of Object.entries(LESSON_PLANS)) {
+      expect(plan.takeaway, `${lessonId}: 持ち帰る一言が空`).toBeTruthy();
+      expect(
+        plan.takeaway,
+        `${lessonId}: 持ち帰る一言が Day2 の役（短く・要約）を取っている`,
+      ).not.toMatch(/短く|要約/);
+      expect(
+        [plan.goalNote, plan.changeNote],
+        `${lessonId}: 持ち帰る一言が、ほかの一言の写しになっている`,
+      ).not.toContain(plan.takeaway);
+      expect(
+        plan.takeaway.length,
+        `${lessonId}: 持ち帰る一言が長い（1行に収める）`,
+      ).toBeLessThanOrEqual(26);
+    }
+  });
+
   it("完成イメージの Before は、最初のひと区切りだけ", () => {
     /*
       Day1 の題材は 202字の専門文。丸ごと置くと、**始めるかどうかを
