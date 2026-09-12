@@ -428,15 +428,18 @@ export function App() {
             key={lesson.id}
             lesson={lesson}
             /*
-              帯の「×」と、Day 完了の「コースに戻る」の行き先。
-              そのレッスンが入っているコースの中身。
+              帯の「×」の行き先。そのレッスンが入っているコースの中身。
             */
             onExit={() => goBack("COURSE_DETAIL")}
             /*
-              Day 完了の「コースに戻る」。来た道ではなく、
-              **書いてあるとおりコースの中身**へ渡す。
+              Day 完了の「ホームに戻る」。来た道ではなく、
+              **書いてあるとおりホーム**へ渡す。
+
+              1本終えた直後に見たいのは、その1本が数に反映された
+              ところ。それを出しているのはホームのほう
+              （`components/course/DayCompletePage.tsx`）。
             */
-            onOpenCourse={() => navigate("COURSE_DETAIL")}
+            onOpenCourse={() => navigate("HOME")}
             // 完了画面から、そのまま次のレッスンへ入れるようにする
             onSelectLesson={(id) => openLesson(id, "LESSON")}
             // コース完走の締めくくりから、コース一覧へ

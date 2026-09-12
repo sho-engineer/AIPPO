@@ -186,8 +186,14 @@ test.describe("Day を終えた画面", () => {
     // 出た直後（まだ段階の途中）に押す
     await page.getByTestId("day-complete-back").click();
 
+    /*
+      行き先はホーム。**1本終えた直後に見たいのは、その1本が数に
+      反映されたところ**で、それを出しているのはホームのほう
+      （「これまでの記録 n / 4」と「今週の学習」）。
+      コースの中身へは、ホームの「学習の道のりを見る」から1回で行ける。
+    */
     await expect(page.getByTestId("day-complete")).toHaveCount(0);
-    await expect(page.getByTestId("course-outline")).toBeVisible();
+    await expect(page.getByTestId("next-up")).toBeVisible();
   });
 
   test("帯の「←」で、完了画面へ戻れる", async ({ page }) => {

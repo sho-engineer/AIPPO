@@ -38,6 +38,30 @@ import { STAGES } from "../../../course/diagnosisScore";
  */
 const SHORT: readonly string[] = ["試す", "頼む", "条件", "使い分け", "組み立て"];
 
+/**
+ * 丸を、道の**線の中心**へ座らせるための引き上げ量（px）。
+ *
+ * 丸は道の上に重ねて置く。上へ引く量を全部同じにしていたが、
+ * **丸の直径は状態で違う**（いまここ / それ以外）ので、同じだけ引くと
+ * 中心がそろわない。実測したずれは
+ *
+ *     小さいほう … いまここが 3px 低い
+ *     大きいほう … いまここ以外が 4px 高い
+ *
+ * 数 px だが、5つ並んだ道では**1つだけ浮いて見える**。
+ *
+ * 揃える式は1つ。
+ *
+ *     引き上げ = 丸の直径 ÷ 2 − 線の太さ ÷ 2
+ *
+ * 直径か線の太さを変えたら、ここも一緒に動く。数を直接書かずに式で
+ * 出しているのは、**4つの組み合わせのどれかを直し忘れる**のを
+ * 防ぐため（前はそれで2つずれていた）。
+ */
+function liftOf(diameter: number, line: number): number {
+  return diameter / 2 - line / 2;
+}
+
 export interface GrowthTrackProps {
   /** いまの段階（1〜5）。 */
   stage: number;
@@ -125,8 +149,6 @@ export function GrowthTrack({
                     どこにも点が無い（＝5つ並んだ道に見えない）状態だった。
                   */
                   className={`block rounded-full border-2 transition duration-300 ease-out ${
-                    big ? "-mt-[9px]" : "-mt-[3px]"
-                  } ${
                     here
                       ? `${big ? "h-6 w-6" : "h-4 w-4"} border-brand bg-brand ring-4 ring-brand-soft`
                       : `${big ? "h-4 w-4" : "h-2.5 w-2.5"} ${
@@ -138,6 +160,15 @@ export function GrowthTrack({
                         }`
                   }`}
                   style={{
+                    /*
+                      引き上げは**その丸の直径から出す**。Tailwind の
+                      任意値だと組み合わせが4つになり、片方を変えたときに
+                      もう片方を直し忘れる（実際そうなっていた）。
+                    */
+                    marginTop: -liftOf(
+                      here ? (big ? 24 : 16) : big ? 16 : 10,
+                      big ? 6 : 4,
+                    ),
                     transform: drawn && here ? "scale(1)" : here ? "scale(0.6)" : undefined,
                     transitionDelay: `${300 + at * 40}ms`,
                   }}
