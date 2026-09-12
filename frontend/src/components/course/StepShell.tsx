@@ -89,6 +89,21 @@ export interface StepShellProps {
    * どちらも正しい行き先なので、対等に並べる。
    */
   secondaryProminent?: boolean;
+  /**
+   * 逃げ道が無い画面でも、その行のぶんの高さを空けておくか。
+   *
+   * 何のためか
+   * ----------
+   * 続けて見る画面の並びで、**押す場所が上下に跳ねる**のを止める。
+   * 診断の結果は4画面を順に押していくが、逃げ道を持つのは後ろの2つ
+   * だけ。何もしないと、現在地から4つの力へ移った瞬間に主ボタンが
+   * 46px 上がる（実測）——指を置いたまま次を押そうとすると、
+   * 前の画面のボタンがあった場所には何も無い。
+   *
+   * ふだんは `false`。レッスンの中は画面ごとに役が違い、そこで空の
+   * 行を空けると、逃げ道が無いことまで場所を取って主張する。
+   */
+  reserveSecondary?: boolean;
   busy?: boolean;
   /**
    * 選んだので、まもなく自動で次へ進む状態か。
@@ -165,6 +180,7 @@ export function StepShell({
   error,
   secondary,
   secondaryProminent = false,
+  reserveSecondary = false,
   busy = false,
   autoAdvancing = false,
   showPo = true,
@@ -496,14 +512,34 @@ export function StepShell({
             )}
           </div>
 
-          {secondary && !secondaryProminent && (
+          {/*
+            逃げ道の行。**空けるときも、同じ `button` で空ける。**
+
+            一度 `div` で場所だけ空けてみたが、6px 足りなかった。
+            `button` は Tailwind の preflight で `font: inherit` に
+            なるため、`text-xs` の行の高さ（16px）ではなく本文の
+            行間（22.1px）で描かれる——**同じクラスを書いても、
+            要素が違えば高さが違う**。
+
+            数で合わせにいくと、字の大きさを変えた日にまたずれる。
+            同じものを置いて、見えなくするほうが確か。
+
+            見えないほうは、押せず・読まれず・順番にも入らない
+            （`disabled` / `aria-hidden` / `tabIndex`）。
+          */}
+          {(secondary || reserveSecondary) && !secondaryProminent && (
             <button
               type="button"
-              onClick={secondary.onClick}
-              className="mt-2 w-full py-2 text-xs text-ink-muted underline
-                         transition hover:text-ink"
+              onClick={secondary?.onClick}
+              disabled={!secondary}
+              aria-hidden={!secondary}
+              tabIndex={secondary ? undefined : -1}
+              className={`mt-2 w-full py-2 text-xs text-ink-muted underline
+                          transition hover:text-ink ${
+                            secondary ? "" : "invisible"
+                          }`}
             >
-              {secondary.label}
+              {secondary ? secondary.label : "\u00a0"}
             </button>
           )}
         </div>

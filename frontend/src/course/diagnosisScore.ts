@@ -343,11 +343,39 @@ const TRAIT_NEXT: Record<Axis, string> = {
 };
 
 export function traitsOf(result: DiagnosisResult): string[] {
-  const done = AXES.filter(
-    (axis) => axis !== result.weakest && result.axes[axis] >= 3,
-  )
-    .slice(0, 2)
-    .map((axis) => TRAIT_DONE[axis]);
+  /*
+    できたことは、**現在地と同じ積み上げで数える。**
+
+    軸ごとに独立して「3以上なら できている」と書くと、現在地と
+    食い違う。実機で出たのがこれ——
+
+        あなたの現在地  まず触ってみる段階
+        回答から見えた特徴
+          ✓ 条件を加えて結果を調整できる
+          ✓ 目的に応じて使い方を選べる
+          ✓ AIへの頼み方はこれから
+
+    AIを使ったことがない人がミニ問題をうまく答えると、こうなる。
+    読んだ人には、同じ画面が2つのことを言っているようにしか見えない
+    ——しかも**下の3行のほうが具体的**なので、上の判定のほうが
+    間違っていると読まれる。
+
+    現在地は下から順に「ここは越えた」を数えて決まる
+    （`scoreDiagnosis` の `stageNumber`）。ここも同じにする：
+    **頼む → 条件 → 目的 → 流れ の順に見て、最初に届いていない
+    ところで止める。** 飛び越えた先は数えない。
+
+    その結果、始めたばかりの人には「これから」の1行だけが出る。
+    できていないことを2つ並べるよりも、次にやること1つのほうが要る。
+  */
+  const cleared: Axis[] = [];
+  for (const axis of AXES) {
+    if (axis === result.weakest || result.axes[axis] < 3) break;
+    cleared.push(axis);
+  }
+
+  /* 出すのは**いちばん先まで来ている2つ**。土台の話は要らない */
+  const done = cleared.slice(-2).map((axis) => TRAIT_DONE[axis]);
 
   return [...done, TRAIT_NEXT[result.weakest]];
 }

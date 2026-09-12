@@ -308,6 +308,46 @@ test.describe("AI活用診断", () => {
     expect(Date.now() - started).toBeLessThan(3500);
   });
 
+  test("結果の4画面で、押す場所が動かない", async ({ page }, testInfo) => {
+    /*
+      順に押していく画面なので、**指を置いたまま次を押せる**必要が
+      ある。前は、逃げ道を持つのが後ろの2つだけだったせいで、現在地
+      から4つの力へ移った瞬間に主ボタンが 46px 上がっていた（実測）。
+
+      空ける側も、**同じ `button` で空けている**（`StepShell` の
+      `reserveSecondary`）。一度 `div` で高さだけ真似たら 6px 足りな
+      かった——`button` は preflight の `font: inherit` で、`text-xs`
+      の行の高さではなく本文の行間で描かれる。
+    */
+    test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
+    await page.setViewportSize({ width: 402, height: 660 });
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+
+    const bottom = async () => {
+      const box = await page.getByTestId("primary-action").boundingBox();
+      return Math.round(box?.y ?? 0) + Math.round(box?.height ?? 0);
+    };
+
+    const seen: { where: string; at: number }[] = [];
+    seen.push({ where: "分析中", at: await bottom() });
+    await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 6000 });
+
+    for (const where of ["現在地", "4つの力", "おすすめ"]) {
+      seen.push({ where, at: await bottom() });
+      if (where === "おすすめ") break;
+      await page.getByTestId("primary-action").click();
+      await page.waitForTimeout(500);
+    }
+
+    const report = seen.map((one) => `${one.where}:${one.at}`).join(" / ");
+    for (const one of seen) {
+      expect(one.at, `押す場所が動いている（${report}）`).toBe(seen[0].at);
+    }
+  });
+
   test("長い話は、1つの一枚の中だけ", async ({ page }) => {
     /*
       前はここに一枚が2つあった（「いまの様子」と「答えと理由」）。

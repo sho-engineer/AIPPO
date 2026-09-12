@@ -37,6 +37,7 @@ import {
   NEXT_SKILL,
   STAGES,
   scoreDiagnosis,
+  traitsOf,
 } from "../src/course/diagnosisScore";
 import {
   DIAGNOSIS_PHASES,
@@ -519,6 +520,65 @@ describe("結果の4画面", () => {
     expect(screen.getAllByTestId("growth-node")).toHaveLength(5);
     expect(screen.queryByTestId("diagnosis-next-skill")).toBeNull();
     expect(screen.queryByTestId("diagnosis-lesson")).toBeNull();
+  });
+
+  it("特徴が、現在地と食い違わない", () => {
+    /*
+      実機で出た食い違い——
+
+          あなたの現在地  まず触ってみる段階
+          ✓ 条件を加えて結果を調整できる
+          ✓ 目的に応じて使い方を選べる
+
+      AIを使ったことがない人がミニ問題をうまく答えると、こうなった。
+      読んだ人には同じ画面が2つのことを言っているようにしか見えず、
+      しかも**下の3行のほうが具体的**なので、上の判定が間違っている
+      と読まれる。
+
+      総当たりで見る。5問の答えの組み合わせを機械に作らせて、
+      「まだ触っていない段階の人に、できていることが出ていない」
+      ことを全部の組で確かめる——**1つの例で直したつもりになると、
+      別の組み合わせで同じことが起きる**（前がまさにそれ）。
+    */
+    const usage = ["never", "tried", "sometimes", "work", "daily"];
+    const style = ["lost", "short", "condition", "adapt", "design"];
+    const built = ["explain|first_time|kind", "summarize|expert|casual"];
+    const matched = ["organize|compare|ideas", "organize|organize|organize"];
+
+    for (const ai_usage of usage) {
+      for (const ask_style of style) {
+        for (const build_prompt of built) {
+          for (const match_purpose of matched) {
+            const values = {
+              ai_usage,
+              ask_style,
+              build_prompt,
+              match_purpose,
+              want_to_do: "writing",
+            };
+            const result = scoreDiagnosis(values);
+            const traits = traitsOf(result);
+            const where = JSON.stringify(values);
+
+            /*
+              できている行の数は、**現在地が越えた段の数を超えない**。
+              現在地1（まず触ってみる）なら、できている行は0。
+            */
+            const doneLines = traits.filter(
+              (line) => !line.endsWith("これから"),
+            ).length;
+            expect(
+              doneLines,
+              `現在地は「${result.stage.name}」なのに、できている行が ${doneLines}本 ${where}`,
+            ).toBeLessThanOrEqual(result.stage.number - 1);
+
+            // 最後は必ず「これから」。次にやることが無い結果を出さない
+            expect(traits.at(-1), where).toMatch(/これから$/);
+            expect(traits.length, where).toBeLessThanOrEqual(3);
+          }
+        }
+      }
+    }
   });
 
   it("①現在地には、回答から見えた特徴を3つまで", () => {

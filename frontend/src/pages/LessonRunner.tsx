@@ -1194,6 +1194,15 @@ export function LessonRunner({
         */
         secondaryProminent={step.type === "completion" && lesson.id !== "diagnosis"}
         /*
+          結果の4画面では、押す場所を動かさない。
+
+          逃げ道を持つのは後ろの2つだけ（4つの力・おすすめ）。何も
+          しないと、現在地から4つの力へ移った瞬間に主ボタンが 46px
+          上がる（実測）——順に押していく画面で、指を置いたまま次を
+          押そうとすると、そこには何も無い。
+        */
+        reserveSecondary={isDiagnosisResult}
+        /*
           自動で進む回では、下のボタンに「送っています」ではなく
           進む合図を出す。押さなくてよいことが、押す前に分かる。
         */
