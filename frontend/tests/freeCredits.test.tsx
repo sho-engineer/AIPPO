@@ -401,15 +401,39 @@ describe("使い切ったときの画面", () => {
     await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
   });
 
-  it("サービス全体の上限のときは、登録を勧めない", () => {
+  it("もう登録している人には、登録を勧めない", () => {
     /*
-      ここで登録を勧めると嘘になる。登録しても増えないので、
-      押した人は登録したうえで同じ画面に戻る。
+      押した先に何も無いボタンを置かない。登録済みの人がここを押すと、
+      窓が開いて**もう持っているアカウントを作れ**と言われる。
+
+      前はこの検査を「サービス全体が上限に達したとき」として書いて
+      いたが、その止まり方はもうこの画面へ来ない（混み合いは時間を
+      おけば直るので、押し直せる画面が持つ）。**来ない状態を見張る
+      検査は、来る状態を見張っていない。**
     */
     render(<LessonPaused po={po} onExit={() => {}} />);
 
     expect(screen.queryByTestId("lesson-paused-register")).toBeNull();
     expect(screen.getByTestId("lesson-paused-exit")).toBeInTheDocument();
+  });
+
+  it("登録している人にも、出口は残す（行き止まりにしない）", async () => {
+    /*
+      増やす道が無いときでも、押せるものが1つは要る。そしてそこに
+      書くのは「明日また続ける」——**次にいつ何をするか**。
+      「ホームへ戻る」は押したら何が起きるかの説明で、読んだ人の
+      次の行動にならない（見出しは「今日の練習はここまで！」）。
+    */
+    const user = userEvent.setup();
+    const onExit = vi.fn();
+
+    render(<LessonPaused po={po} onExit={onExit} />);
+    const exit = screen.getByTestId("lesson-paused-exit");
+    expect(exit).toHaveTextContent(PAUSED_COPY.waitTomorrow);
+
+    await user.click(exit);
+
+    expect(onExit).toHaveBeenCalledTimes(1);
   });
 
   it("今日できるようになったことは、通り終えた分だけ出す", () => {

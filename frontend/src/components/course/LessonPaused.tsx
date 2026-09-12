@@ -56,10 +56,15 @@ export interface LessonPausedProps {
   /** 上限に達したときの、その場のポーの言葉（emotion は celebrate 側）。 */
   po: PoMessage;
   /**
-   * 使い切ったのが**その人の分**か。
+   * 登録すれば、今日の分がまだ増えるか。
    *
-   * `true` なら登録で増やせる。`false`（サービス全体が今日の上限に
-   * 達した）のときに登録を勧めると、登録しても進めないので嘘になる。
+   * つまり**まだ登録していない人か**（`pages/LessonRunner.tsx`）。
+   * 登録した人に登録を勧めると、押した先に何も無い——もう持っている
+   * アカウントを作れと言われる。
+   *
+   * 前はここを「サービス全体が上限に達したか」の意味で書いていたが、
+   * その止まり方（`limit`）はもうこの画面へ来ない。混み合いは時間を
+   * おけば直るので、押し直せる画面（`course/rescue.ts`）が持っている。
    */
   canRegisterForMore?: boolean;
   /** いまのレッスンで通り終えた区切りの名前（「試す」「変える」など）。 */
@@ -170,13 +175,25 @@ export function LessonPaused({
             </button>
           </div>
         ) : (
+          /*
+            もう登録している人。増やす道は無いので、出口は1本。
+
+            書くのは「明日また続ける」。**ここで言うべきは、どこへ
+            行くかではなく、次にいつ何をするか**——「ホームへ戻る」は
+            押したら何が起きるかの説明で、読んだ人の次の行動にならない
+            （そして、この画面の見出しは「今日の練習はここまで！」）。
+            登録した人にもしない人にも、明日また来てもらうことは同じ。
+
+            記録も、上の「明日また続ける」と同じものを送る。別の名前に
+            すると、同じ行動が登録の有無で2つに割れて数えられなくなる。
+          */
           <div className="mt-6">
             <PrimaryButton
               testId="lesson-paused-exit"
-              onClick={onExit}
+              onClick={waitTomorrow}
               trailing={<IconChevronRight className="h-5 w-5 shrink-0" />}
             >
-              ホームへ戻る
+              {PAUSED_COPY.waitTomorrow}
             </PrimaryButton>
           </div>
         )}

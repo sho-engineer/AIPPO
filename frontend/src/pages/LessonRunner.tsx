@@ -27,6 +27,7 @@ import {
 import { SkillStampCard } from "../components/course/SkillStampCard";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
+import { useAuth } from "../auth/AuthContext";
 import { useCourse } from "../course/live";
 import { buildAiInput } from "../course/engine";
 import { promptEntryFor } from "../course/promptSummary";
@@ -196,6 +197,14 @@ export function LessonRunner({
   const upcoming = nextLessons(course.lessons, lesson.id, completedIds);
   /* 帳面にしまえるのは登録した人だけ（course/keeping.ts）。 */
   const { canKeep } = useKeeping();
+  /*
+    もう登録しているかどうか。「今日はここまで」の画面で使う。
+
+    登録した人に「今すぐ登録して続ける」を出すと、押した先に何も無い
+    （もう登録している）。ここは**押した先が本当にある道だけを並べる**
+    と決めてある画面なので、その前提が崩れる。
+  */
+  const auth = useAuth();
   const send = async (label?: string) => {
     const outcome = await api.run({ label });
     if (outcome === "sent") api.goNext();
@@ -768,7 +777,21 @@ export function LessonRunner({
         <LessonPaused
           po={api.po}
           lessonId={lesson.id}
-          canRegisterForMore={api.errorKind === "out_of_credits"}
+          /*
+            登録を勧めるのは、**まだ登録していない人にだけ**。
+
+            前はここが `api.errorKind === "out_of_credits"` だった。
+            この画面へ来る条件がまさにそれ（すぐ上の `pausedForToday`）
+            なので、**いつでも `true`**——登録済みの人にも
+            「今すぐ続きを無料ではじめる」が出ていた。押すと登録の窓が
+            開き、もう持っているアカウントを作れと言われる。
+
+            条件が2か所に分かれていたせいで、片方が常に真になっている
+            ことが読み取れなかった。見るものを変える：
+            **持ち分が増えるかどうか**は、上限の種類ではなく
+            「まだ登録していないか」で決まる。
+          */
+          canRegisterForMore={!auth.user}
           /*
             今日できるようになったこと。**通り終えた区切りだけ**を渡す。
             いまいる区切りはまだ途中なので入れない。

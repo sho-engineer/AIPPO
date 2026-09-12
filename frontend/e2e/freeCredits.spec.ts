@@ -127,6 +127,30 @@ test.describe("使い切ったとき", () => {
     await expect(page.getByTestId("lesson-paused")).toBeVisible();
   });
 
+  test("もう登録している人には、登録を勧めない", async ({ page }) => {
+    /*
+      押した先に何も無いボタンを置かない。登録済みの人に
+      「今すぐ続きを無料ではじめる」を出すと、窓が開いて
+      **もう持っているアカウントを作れ**と言われる。
+
+      ここは画面の中だけでは決まらない。出し分けているのは
+      `pages/LessonRunner.tsx` の1行（`!auth.user`）で、そこが
+      落ちても部品の検査は緑のまま——**登録済みの人にだけ**
+      間違った道が出る。だから通しで見る。
+    */
+    await stubApi(page, {
+      signedIn: true,
+      failStatus: 429,
+      failCode: "FREE_CREDITS_EXHAUSTED",
+      failDetail: "今日はここまで！",
+    });
+    await untilPaused(page);
+
+    await expect(page.getByTestId("lesson-paused-register")).toHaveCount(0);
+    // 行き止まりにはしない。出口は1本だけ残す
+    await expect(page.getByTestId("lesson-paused-exit")).toBeVisible();
+  });
+
   test("こちら側の都合の名前を出さない", async ({ page }) => {
     await stubApi(page, {
       failStatus: 429,
