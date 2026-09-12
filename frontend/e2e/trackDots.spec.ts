@@ -123,41 +123,38 @@ test.describe("道の丸", () => {
     }
   });
 
-  test("開いた一枚でも、どの丸も線の中心に乗る", async ({ page }, testInfo) => {
+  test("開始画面のプレビューでも、どの丸も線の中心に乗る", async ({ page }, testInfo) => {
+    /*
+      開始画面にも同じ道を出す。**結果で使うものをそのまま置いている**
+      ので（`GrowthTrack` の `preview`）、ここがずれるときは結果も
+      ずれている——けれど逆は言えない。プレビューには「いまここ」の
+      大きい丸が無く、**5つとも小さいほうだけ**が並ぶ状態で、
+      結果の画面には出てこない組み合わせになる。
+
+      前はここが「押して開いた一枚（`lg`）」だった。その一枚は廃止
+      したので（結果の画面と同じことを言っていた）、見る先を
+      実際に出ている画面へ移す。
+    */
     test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
-    await toResult(page);
-    await page.getByTestId("diagnosis-reason-open").click();
-    await expect(page.getByTestId("diagnosis-reason-sheet")).toBeVisible();
+
+    await stubApi(page);
+    await page.goto("/");
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await page.getByRole("button", { name: "はじめる" }).first().click();
+    await page.getByRole("button", { name: "コース" }).first().click();
+    await page.getByTestId("current-course-open").click();
+    await page.getByTestId("lesson-diagnosis").first().click();
+    await dismissLessonIntro(page);
+    await expect(page.getByTestId("diagnosis-intro")).toBeVisible();
     await page.waitForTimeout(500);
 
-    /*
-      一枚の中の道を見る。背面にも同じ部品があるので、**後ろの1つ**を
-      取る——`querySelector` は前から拾うので、そのままだと背面を測る。
-    */
-    const rows = await page.evaluate(() => {
-      const tracks = [...document.querySelectorAll("[data-testid='growth-track']")];
-      const track = tracks[tracks.length - 1];
-      const line = track?.querySelector<HTMLElement>(".rounded-full.bg-brand-line");
-      if (!track || !line) return [];
-      const mid = line.getBoundingClientRect();
-      const center = mid.top + mid.height / 2;
-      return [...track.querySelectorAll<HTMLElement>("[data-testid='growth-node']")].map(
-        (node) => {
-          const dot = node.firstElementChild as HTMLElement;
-          const box = dot.getBoundingClientRect();
-          return {
-            state: node.dataset.state ?? "?",
-            off: Math.round((box.top + box.height / 2 - center) * 10) / 10,
-          };
-        },
-      );
-    });
-
-    expect(rows.length, "一枚の中に道が無い").toBe(5);
+    const rows = await drift(page);
+    expect(rows.length, "道の丸が見つからない").toBe(5);
     for (const one of rows) {
       expect(
         Math.abs(one.off),
-        `大きいほうで、丸が線の中心から外れている（${report(rows)}）`,
+        `開始画面で、丸が線の中心から外れている（${report(rows)}）`,
       ).toBeLessThanOrEqual(SLACK);
     }
   });

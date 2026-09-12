@@ -81,6 +81,27 @@ async function openConditionTiles(page: Page): Promise<void> {
   await expect(page.getByTestId("choice-tiles")).toBeVisible();
 }
 
+/**
+ * 終わる動きが全部終わるのを待つ。
+ *
+ * 時間で待たない。遅い環境で足りなくなる。終わらない動き（ポーは
+ * 呼吸するようにずっと浮いている——float / twinkle は
+ * `iterations: Infinity`）を待つと永久に止まるので、そこは外す。
+ */
+async function settled(page: Page): Promise<void> {
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((animation) => {
+          const timing = animation.effect?.getTiming();
+          return timing?.iterations !== Infinity;
+        })
+        .map((animation) => animation.finished.catch(() => {})),
+    ),
+  );
+}
+
 test.describe("選択肢のレイアウト", () => {
   test.beforeEach(async ({ page }) => {
     await stubApi(page);
@@ -105,22 +126,7 @@ test.describe("選択肢のレイアウト", () => {
       待つのは Web Animations の終わりそのもの。時間で待つと、
       遅い環境で足りなくなる。
     */
-    await page.evaluate(() =>
-      Promise.all(
-        document
-          .getAnimations()
-          /*
-            終わらない動きは待たない。ポーは呼吸するようにずっと浮いて
-            いる（float / twinkle。iterations は Infinity）ので、
-            全部を待つとここで永久に止まる。
-          */
-          .filter((animation) => {
-            const timing = animation.effect?.getTiming();
-            return timing?.iterations !== Infinity;
-          })
-          .map((animation) => animation.finished.catch(() => {})),
-      ),
-    );
+    await settled(page);
 
     /*
       文字の入っている span を、**組み方に依らず**拾って測る。
@@ -184,6 +190,17 @@ test.describe("選択肢のレイアウト", () => {
     await choice.click();
     // 選択の見た目（枠・地の色）が変わりきるのを待つ
     await expect(choice).toHaveAttribute("aria-pressed", "true");
+    /*
+      押した札は 0.24 秒だけ跳ねる（`animate-choice-pop`）。跳ねは
+      `transform` なので**まわりを押し出さない**が、跳ねている最中に
+      測ると、その札の中の文字は拡大された位置を返す。
+
+      ここで見たいのは**跳ねたあとに残るずれ**のほう。元の不具合は、
+      チェックの印が急に現れて文字の幅が 20px 以上縮む、という
+      折り返し位置そのものが変わる規模のもので、これは終わっても
+      戻らない。選ぶ前も同じように待ってから測っている。
+    */
+    await settled(page);
 
     const after = await measure();
     expect(after, "選択後に文字が見つからない").not.toBeNull();

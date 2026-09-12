@@ -49,7 +49,11 @@ async function answerAll(page: Page): Promise<void> {
   // 最初の1枚は説明。そこから5問
   await page.getByTestId("primary-action").click();
   await answerRemaining(page);
-  await expect(page.getByTestId("completion-view")).toBeVisible();
+  /*
+    5問目のあとは分析中が 1.8 秒挟まる（`diagnosis/Analyzing.tsx`）。
+    既定の待ち（5秒）でも届くが、遅い環境で足りなくならないよう明示する。
+  */
+  await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 6000 });
 }
 
 /**
@@ -62,6 +66,8 @@ async function answerAll(page: Page): Promise<void> {
 async function answerRemaining(page: Page): Promise<void> {
   for (let guard = 0; guard < 12; guard += 1) {
     if (await page.getByTestId("completion-view").count()) return;
+    /* 分析中は答える画面ではない。押せるものが無いので、ここで止める */
+    if (await page.getByTestId("diagnosis-analyzing").count()) return;
 
     const parts = page.getByTestId("assemble-part");
     const count = await parts.count();
@@ -104,21 +110,23 @@ async function answerRemaining(page: Page): Promise<void> {
 /**
  * 答えの一覧を開いて、行の文字を読む。
  *
- * 置き場が変わった。前は結果画面のいちばん上に折りたたみ
- * （「ここまでに答えた内容（5件）」）で出ていたが、結果を見に来た人の
- * 最初に自分の答えが目に入る形だったので、開いた一枚の**さらに奥**へ
- * 移した（`DiagnosisResult.tsx`）。1枚目は補足として軽くしてある。
+ * 置き場が2度変わった。
+ *
+ *   1. 結果画面のいちばん上の折りたたみ（「ここまでに答えた内容」）
+ *      → 結果を見に来た人の最初に、自分の答えが目に入っていた
+ *   2. 一枚の、さらに奥（「いまの様子」→「答えと理由」）
+ *      → 手前の一枚が、結果の画面と同じことを言っていた
+ *
+ * いまは一枚1つだけ（「この結果になった理由」）。結果の3画面の
+ * どこからでも、同じここへ届く（`DiagnosisResult.tsx`）。
  */
 async function summaryLines(page: Page): Promise<string[]> {
-  const deep = page.getByTestId("diagnosis-detail-sheet");
-  if ((await deep.count()) === 0) {
-    if ((await page.getByTestId("diagnosis-reason-sheet").count()) === 0) {
-      await page.getByTestId("diagnosis-reason-open").click();
-    }
-    await page.getByTestId("diagnosis-detail-open").click();
-    await expect(deep).toBeVisible();
+  const sheet = page.getByTestId("diagnosis-detail-sheet");
+  if ((await sheet.count()) === 0) {
+    await page.getByTestId("diagnosis-reason-open").click();
+    await expect(sheet).toBeVisible();
   }
-  const lines = await deep.locator("li").allInnerTexts();
+  const lines = await sheet.locator("li").allInnerTexts();
   return lines.map((line) => line.replace(/\s*なおす\s*$/, "").trim());
 }
 
