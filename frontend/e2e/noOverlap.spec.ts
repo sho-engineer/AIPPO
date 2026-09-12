@@ -3,22 +3,36 @@
  *
  * なぜ要るか
  * ----------
- * 実機（iPhone Safari）の写しで、**文字の上に文字が乗っている**画面が
- * 3つ見つかった。どれも「1画面に収まっているか」の検査（`stepFits`）は
- * 通る——ページもその中の枠も送れていないのに、**中の要素どうしが
- * 重なっている**からで、高さを測るだけでは見つからない。
- *
- *   条件をひとつ足そう … 「自分で条件を追加」を押すと、元の文の札が
- *                        下の選択肢の上へ落ちてきて重なる
- *   自分の文章        … 安全の一言が、文字数の行に重なる
- *   自分の文章の結果  … 「最初／改善後」の札が、ポーの吹き出しに隠れて
- *                        上半分しか見えない
+ * 高さの検査（`stepFits`）は「1画面に収まっているか」しか見ない。
+ * ページも枠も送れていないのに**要素どうしが重なっている**ずれは、
+ * 高さを測るだけでは見つからない。実機の写しで崩れて見える画面が
+ * 出たとき、数で裏を取る手段が無かった。
  *
  * どう見るか
  * ----------
- * 画面の中の**文字を持つ箱**を総当たりで突き合わせ、四角どうしが
- * 重なっていたら落とす。親子・兄弟の入れ子は重なって当然なので、
+ * 画面の中の**文字を持つ、いちばん内側の箱**を総当たりで突き合わせ、
+ * 四角どうしが重なっていたら落とす。親子は重なって当然なので、
  * **どちらも相手を含まない**組だけを見る。
+ *
+ * 見えていない文字を数えない（ここで2回間違えた）
+ * ----------------------------------------------
+ * この検査を書いた最初の版は、実在しない重なりを2件「見つけた」。
+ * **道具のほうが間違っていた。** 直したのは2つ。
+ *
+ *   ① 閉じた `<details>` の中身
+ *      `content-visibility: hidden` の下にあり、
+ *      `getBoundingClientRect()` は**畳む前の箱をそのまま返す**。
+ *      閉じた「ここまでに答えた内容」の中身が 122px の箱を返し、
+ *      下の見出しと重なっていることになっていた。
+ *      → `checkVisibility()` に聞く。
+ *
+ *   ② 切り取られた行
+ *      `line-clamp` は `overflow: hidden` で切るので、**切られて
+ *      見えていない行も四角を返す**。固定の帯の下に潜っている行も同じ。
+ *      → 祖先の切る箱と交差させて、**実際に描かれている四角**で見る。
+ *
+ * どちらも「画面に出ていないもの」を数えていた。重なりを数で見る道具は、
+ * **見えているかどうかを先に決められないと使いものにならない。**
  *
  * 重なりの許容
  * ------------
@@ -48,6 +62,36 @@ async function overlaps(page: Page): Promise<Overlap[]> {
     const root = document.querySelector("main");
     if (!root) return [];
 
+    /*
+      **実際に描かれている四角**を返す。無ければ null。
+
+      要素そのものの四角では足りない。`line-clamp` は
+      `overflow: hidden` で切るので、**切られた行も四角は返す**
+      ——切られて見えていない文字を「重なっている」と数えてしまう。
+      固定の帯の下に潜っている行も同じ。
+
+      祖先をたどって、切る箱（`overflow` が `visible` でないもの）の
+      内側と交差させる。残った四角が、目に見えている部分。
+    */
+    const shown = (el: Element): DOMRect | null => {
+      let box = el.getBoundingClientRect();
+      let node: Element | null = el.parentElement;
+      while (node) {
+        const style = getComputedStyle(node);
+        if (style.overflowX !== "visible" || style.overflowY !== "visible") {
+          const clip = node.getBoundingClientRect();
+          const left = Math.max(box.left, clip.left);
+          const top = Math.max(box.top, clip.top);
+          const right = Math.min(box.right, clip.right);
+          const bottom = Math.min(box.bottom, clip.bottom);
+          if (right <= left || bottom <= top) return null;
+          box = new DOMRect(left, top, right - left, bottom - top);
+        }
+        node = node.parentElement;
+      }
+      return box;
+    };
+
     const name = (el: Element) => {
       const node = el as HTMLElement;
       return (
@@ -66,10 +110,24 @@ async function overlaps(page: Page): Promise<Overlap[]> {
     const leaves = [...root.querySelectorAll<HTMLElement>("*")].filter((el) => {
       if (el.children.length > 0) return false;
       if (!(el.textContent ?? "").trim()) return false;
-      const style = getComputedStyle(el);
-      if (style.visibility === "hidden" || style.opacity === "0") return false;
-      const box = el.getBoundingClientRect();
-      return box.width > 4 && box.height > 4;
+      /*
+        **見えているかは `checkVisibility` で聞く。**
+
+        `getComputedStyle` の `visibility` と `opacity` だけでは足りない。
+        閉じた `<details>` の中身は `content-visibility: hidden` の下に
+        あり、`getBoundingClientRect()` は**畳む前の箱をそのまま返す**
+        ——実測で、閉じた「ここまでに答えた内容」の中身が 122px の箱を
+        返し、その下の見出しと重なっていることになっていた。
+
+        画面には出ていないので、これは重なりではない。最初にこの検査を
+        書いたとき、それを2件「見つけた」と報告した。**道具のほうが
+        間違っていた。**
+      */
+      if (!el.checkVisibility({ checkVisibilityCSS: true, contentVisibilityAuto: true })) {
+        return false;
+      }
+      const box = shown(el);
+      return box !== null && box.width > 4 && box.height > 4;
     });
 
     const found: { a: string; b: string; by: number }[] = [];
@@ -78,8 +136,9 @@ async function overlaps(page: Page): Promise<Overlap[]> {
         const one = leaves[i];
         const two = leaves[j];
         if (one.contains(two) || two.contains(one)) continue;
-        const a = one.getBoundingClientRect();
-        const b = two.getBoundingClientRect();
+        const a = shown(one);
+        const b = shown(two);
+        if (!a || !b) continue;
         const across = Math.min(a.right, b.right) - Math.max(a.left, b.left);
         const down = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
         if (across > slack && down > slack) {
@@ -152,20 +211,7 @@ function report(found: Overlap[]): string {
 }
 
 test.describe("文字どうしが重ならない", () => {
-  /*
-    まだ直していない2件が、この検査で見つかっている。**直すまで
-    `fixme` にしてある**——通らない検査を緑に見せないため。
-
-      ① 「ここまでに答えた内容」を開くと、中身が見出しに重なる
-         （`StepShell.tsx` の `<details>`。実測 13〜30px）
-      ② 低い持ち方で、ポーの吹き出しが下の名札に重なる
-         （実測 22px。390×844 では起きず、393×727 で出る）
-
-    どちらも縦の高さの検査（`stepFits`）は通る。ページも枠も送れて
-    いないのに**要素どうしが重なっている**からで、高さを測るだけでは
-    見つからない種類のずれ。実機の写しで先に見つかった。
-  */
-  test.fixme("Day1 のどの回でも重ならない", async ({ page }, testInfo) => {
+  test("Day1 のどの回でも重ならない", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
     await start(page);
 
@@ -178,11 +224,18 @@ test.describe("文字どうしが重ならない", () => {
     }
   });
 
-  test.fixme("「自分で条件を追加」を押しても重ならない", async ({ page }, testInfo) => {
+  test("「自分で条件を追加」を押しても重ならない", async ({ page }, testInfo) => {
     /*
-      実機で崩れていた回。押すと、元の文の札が下の選択肢の上へ落ちて
-      きて、「中の単語同士の関係を…」が「AI初心者向けに」の札に
-      重なっていた。**入れ替わる高さのぶん、押した瞬間に上が詰まる。**
+      実機の写しで崩れて見えた回。押すと、元の文の札が下の選択肢の上へ
+      落ちてきているように見えた。
+
+      **これは重なりではなかった。** 実寸では本文カード（y367→471）と
+      選択肢（y483→727）が一切重なっていない。正体は
+      `overflow-y-auto` の箱が縮むときに iPhone の Safari が描き直しを
+      取りこぼし、**古い位置の文字が残る**こと。箱そのものをやめて
+      直してある（`components/course/StepRenderer.tsx`）。
+
+      ここでは、**やめたあとに本当の重なりが生まれていないこと**を見る。
     */
     test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
     await start(page);
