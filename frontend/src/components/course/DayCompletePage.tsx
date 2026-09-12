@@ -310,32 +310,41 @@ export function DayCompletePage({
           )}
         </div>
 
+        {/*
+          主のボタンは**ホームに戻る**。
+
+          前は「次のレッスンへ」がここに座っていた。押した先はあるので
+          壊れてはいないが、**1日ぶんを終えた人を、そのまま次の1日へ
+          流し込む**形になっていた。1日1本という約束と食い違ううえ、
+          終えたことがホームに反映されるところ（Day1 完了・進み具合・
+          覚えた技・次は Day2）を、いちばん見てほしい人が見ずに通り
+          過ぎる。
+
+          次の1本は消していない。下の細い行に残っていて、いま続けたい
+          人はそこから入れる——**選ぶのはその人**にする。
+        */}
         <div className="mt-8 space-y-2" style={reveal(STEPS.cta)}>
+          <PrimaryButton
+            testId="day-complete-back"
+            onClick={onBackToCourse}
+            trailing={<IconChevronRight className="h-5 w-5 shrink-0" />}
+          >
+            ホームに戻る
+          </PrimaryButton>
           {primary && (
-            <PrimaryButton
-              testId="day-complete-next"
+            <button
+              type="button"
+              data-testid="day-complete-next"
               onClick={() => {
                 track(EVENTS.dayCompleteNextClicked, { amount: day });
                 primary.onClick();
               }}
-              trailing={<IconChevronRight className="h-5 w-5 shrink-0" />}
+              className="min-h-[2.75rem] w-full rounded-cta px-6 text-sm font-bold
+                         text-brand-dark transition hover:bg-brand-soft"
             >
               {primary.label}
-            </PrimaryButton>
+            </button>
           )}
-          {/*
-            戻る道は必ず残す。次のレッスンが無い回でも、ここだけは出す
-            ——押せる行き先が1つも無い画面を作らない。
-          */}
-          <button
-            type="button"
-            data-testid="day-complete-back"
-            onClick={onBackToCourse}
-            className="min-h-[2.75rem] w-full rounded-cta px-6 text-sm font-bold
-                       text-brand-dark transition hover:bg-brand-soft"
-          >
-            ホームに戻る
-          </button>
         </div>
       </div>
     </div>

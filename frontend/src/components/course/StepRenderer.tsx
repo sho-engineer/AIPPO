@@ -21,6 +21,9 @@ import { FullText } from "./MoreSheet";
 import { AssembleStep } from "./steps/Assemble";
 import { DiagnosisResult } from "./DiagnosisResult";
 import { DiagnosisIntro } from "./diagnosis/DiagnosisIntro";
+import { Changes } from "./day1/Changes";
+import { Instruction } from "./day1/Instruction";
+import { SkillRecap } from "./day1/SkillRecap";
 import type { DiagnosisPhase } from "../../course/diagnosisFlow";
 import { SkillGet } from "./SkillGet";
 import { StepDone } from "./StepDone";
@@ -151,7 +154,49 @@ export function StepRenderer({
     threeWay?: boolean;
     /** 「まだ微妙」を選んだ人にだけ聞く、任意の理由（course/shared.ts）。 */
     reasons?: StepOption[];
+    /* ── ここから下は Day1 の手書きの流れ（`course/day1Steps.ts`） ── */
+    /** 選択肢を持たない開始画面。元の文章の頭だけを見せる。 */
+    sourcePreview?: boolean;
+    /** 送っているあいだに出す、そのとき何をしているかの1行。 */
+    waiting?: string;
+    /** 結果を全文ではなく、代表的な変化だけで見せる。 */
+    changesOnly?: boolean;
+    /** 今回足した条件の名前（「読む人」）。 */
+    changedLabel?: string;
+    /** そのとき起きたことを言う1行。 */
+    changedNote?: string;
+    /** 指定した条件を全部並べるか（自分の文章の回）。 */
+    showConditions?: boolean;
+    /** 選ぶたびに、いまの指示が組み上がるのを見せる。 */
+    showInstruction?: boolean;
+    /** 指示の1行目。この回のあいだ動かない。 */
+    purpose?: string;
+    /** その画面で名前を言うだけの技（受け取る演出は出さない）。 */
+    silentSkill?: string;
+    /** 最後にまとめて受け取る3つ。 */
+    recap?: { name: string; body: string }[];
+    /** 自分の文章の回で選べる例文。 */
+    samples?: { label: string; value: string }[];
+    /** さっきまで使っていた文章を、そのまま使う。 */
+    reuseSource?: string;
+    /** 問いの見出し（`observation`）。 */
+    question?: string;
+    /** その回の例文。開始画面で元の文章として出す。 */
+    sampleText?: string;
+    /** 仕事でそのまま使える形（完了画面）。 */
+    reusablePrompt?: string;
   };
+
+  /*
+    Day1 の「現在の指示」。**選んだものだけを行にする。**
+
+    まだのものは薄く置いておく（`Instruction`）。消しておくと、あと
+    何が足せるのか分からないうえ、選んだ瞬間に下が押し出される。
+  */
+  const instructionLines = [
+    { label: "読む人", value: values.audience ?? "", hint: "読む人を決める" },
+    { label: "伝え方", value: values.tone ?? "", hint: "伝え方を決める" },
+  ];
 
   /*
     いま頼んでいること。送っている最中の画面に小さく出す。
@@ -286,6 +331,15 @@ export function StepRenderer({
       );
 
     case "concept_card":
+      /*
+        その日の技を、**まとめて1回だけ**受け取る（Day1）。
+
+        前は1つずつ、使った場所で受け取っていた。名前が付くのは使った
+        直後がよい——それは変えていない。変えたのは**祝う回数**の
+        ほうで、3回あると、そのたびに学習が止まる。
+      */
+      if (meta.recap) return <SkillRecap items={meta.recap} />;
+
       if (!step.card) return null;
 
       /*
@@ -328,6 +382,25 @@ export function StepRenderer({
       );
 
     case "quick_try":
+      /*
+        選択肢を持たない開始画面（Day1）。**ここでは何も選ばせない。**
+
+        出すのは元の文章の頭だけ。押すことは1つ——分かりやすくして
+        もらう。1回目から条件を選ばせると、そのあと読む人を足しても、
+        変わったのがどちらのせいなのか分からない。
+      */
+      if (meta.sourcePreview) {
+        return (
+          <div className="shrink-0" data-testid="source-preview">
+            <FullText
+              lines={3}
+              label="元の文章"
+              text={meta.sampleText ?? ""}
+              testId="source-text"
+            />
+          </div>
+        );
+      }
       return (
         <div>
           <ChoiceStep
@@ -361,6 +434,33 @@ export function StepRenderer({
         </div>
       );
     case "observation":
+      /*
+        結果を、**全文ではなく代表的な変化で**見せる（Day1）。
+
+        202字の専門文とその書き直しを毎回読み比べさせると、いちばん
+        見てほしい変化がその中に埋もれる。聞くのも感想ではなく、
+        変化を見つける操作にする——「分かりやすくなった？」は、
+        答えても次にすることが変わらない。
+      */
+      if (meta.changesOnly) {
+        return (
+          <div className="flex min-h-0 flex-1 flex-col">
+            {lastRun && (
+              <Changes before={lastRun.inputText} after={lastRun.outputText} />
+            )}
+            <div className="mt-3 shrink-0">
+              {meta.question && (
+                <p className="mb-2 text-sm font-bold leading-6">{meta.question}</p>
+              )}
+              <ObservationList
+                step={step}
+                value={values[step.key ?? ""] ?? ""}
+                onChange={(value) => api.setValue(step.key ?? "", value)}
+              />
+            </div>
+          </div>
+        );
+      }
       return (
         /*
           見比べる面に「残りの高さ」を渡し、下の問いは自分の高さのまま
@@ -542,12 +642,30 @@ export function StepRenderer({
           revealed={revealed}
         />
       ) : (
-        <ChoiceStep
-          step={step}
-          value={values[step.key ?? ""] ?? ""}
-          onChange={(value) => api.setValue(step.key ?? "", value)}
-          multiple={step.type === "multi_choice"}
-        />
+        <div>
+          <ChoiceStep
+            step={step}
+            value={values[step.key ?? ""] ?? ""}
+            onChange={(value) => api.setValue(step.key ?? "", value)}
+            multiple={step.type === "multi_choice"}
+          />
+          {/*
+            選ぶたびに、AIへの指示が1行増えるのを見せる（Day1）。
+
+            Day1 でいちばん持ち帰ってほしいのは「条件を足すと結果が
+            変わる」で、そのためには**自分が足したことが見えている**
+            必要がある。前は選んだ札が青くなるだけで、AIへ何を伝えた
+            のかは画面のどこにも出ていなかった。
+          */}
+          {meta.showInstruction && (
+            <div className="mt-4">
+              <Instruction
+                purpose={meta.purpose ?? ""}
+                lines={instructionLines}
+              />
+            </div>
+          )}
+        </div>
       );
 
     case "text_input":
@@ -620,7 +738,14 @@ export function StepRenderer({
           failed={Boolean(api.error)}
           message={
             api.isSubmitting
-              ? waitingLine(step)
+              /*
+                教材が「そのとき何をしているか」を持っていれば、それを出す。
+
+                同じ絵の待ち画面が4回続くと、4回とも同じ場面に見える。
+                足した条件ごとに違うことを言えば、待っているあいだも
+                **いま何が効いているのか**が分かる（`day1Steps.ts`）。
+              */
+              ? (meta.waiting ?? waitingLine(step))
               : api.error
                 ? "止まっています"
                 : "送っています。"
@@ -689,6 +814,43 @@ export function StepRenderer({
               これまでの結果は「変わったところを見る」の一枚が持つ
               （そこの「ここまでの道のり」が同じものを並べている）。
             */}
+            <div className="shrink-0">
+              <SafetyNote placement="output" />
+            </div>
+          </div>
+        );
+      }
+      /*
+        結果を、**全文ではなく代表的な変化で**見せる（Day1）。
+
+        足した条件と、その条件で変わった1〜2組。全文は「全文を見る」
+        の全画面の一枚へ——カードの中で送らせない。
+      */
+      if (meta.changesOnly) {
+        return (
+          <div className="flex min-h-0 flex-1 flex-col">
+            {lastRun && (
+              <StepDone label="書き直しました" trigger={runs.length} subtle />
+            )}
+            {lastRun && (
+              <Changes
+                before={lastRun.inputText}
+                after={lastRun.outputText}
+                changed={
+                  meta.changedLabel
+                    ? {
+                        label: meta.changedLabel,
+                        value:
+                          meta.changedLabel === "読む人"
+                            ? (values.audience ?? "")
+                            : (values.tone ?? ""),
+                      }
+                    : undefined
+                }
+                note={meta.changedNote}
+                conditions={meta.showConditions ? promptCards(values) : undefined}
+              />
+            )}
             <div className="shrink-0">
               <SafetyNote placement="output" />
             </div>
@@ -767,6 +929,8 @@ export function StepRenderer({
         <CompletionView
           course={course}
           skills={lesson.learnedSkills ?? lesson.outcomes}
+          /* 明日また使える型。成果物（その日の1本）とは別（`day1Steps.ts`） */
+          reusablePrompt={meta.reusablePrompt}
           /*
             できるようになったこと。完了画面のいちばん上に出す。
 

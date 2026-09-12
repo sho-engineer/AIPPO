@@ -83,6 +83,7 @@ export function CompletionView({
   onOpenCourseCatalog,
   onOpenRecipe,
   award = null,
+  reusablePrompt,
 }: {
   /** スタンプの絵と、節目の中身を決めるのに使う。 */
   course: Course;
@@ -120,6 +121,16 @@ export function CompletionView({
    * 無い回（やり直し・届かなかったとき）は、その節ごと出さない。
    */
   award?: LessonAward | null;
+  /**
+   * 仕事でそのまま使える形（`day1Steps.ts` の `reusablePrompt`）。
+   *
+   * なぜ成果物とは別に置くか
+   * ------------------------
+   * 成果物（`outcomeText`）は**その日つくった1本**で、一度きりのもの。
+   * こちらは**次にまた使える型**で、〇〇を自分の場面で埋めて使う。
+   * 持ち帰るものが2つあるうち、明日の机の上で効くのはこちら。
+   */
+  reusablePrompt?: string;
 }) {
   /*
     このレッスンで、新しく超えた節目。
@@ -252,6 +263,34 @@ export function CompletionView({
             {skills.join(" ／ ")}
           </span>
         </p>
+      )}
+
+      {/*
+        仕事でそのまま使える3行。**コピーできるようにする。**
+
+        「できるようになりました」と言われても、明日その場面が来た
+        ときに何と書けばよいかは思い出せない。型を1つ持ち帰れば、
+        〇〇を埋めるだけで再現できる。
+
+        成果物の上に置く。成果物はその日つくった1本（一度きり）で、
+        こちらは**次にまた使えるもの**。持ち帰る価値が高いほうを先に。
+      */}
+      {reusablePrompt && (
+        <section
+          className="mt-2 shrink-0 rounded-card border border-brand-line
+                     bg-brand-soft/60 px-3.5 py-2.5"
+          data-testid="reusable-prompt"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-xs font-bold leading-5 text-ink-muted">
+              仕事で使う形
+            </h3>
+            <CopyButton text={reusablePrompt} />
+          </div>
+          <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-brand-dark">
+            {reusablePrompt}
+          </p>
+        </section>
       )}
 
       {/*
