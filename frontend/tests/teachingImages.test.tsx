@@ -105,11 +105,19 @@ describe("出し方", () => {
       ここは飾りではなく中身。見えない人に「何の図か」が
       伝わらないと、そのぶんだけ教材が欠ける。
     */
-    /* Day1 から絵を外したので、絵を持っている教材で見る（Day2） */
-    for (const [, entry] of Object.entries({
-      a: teachingImage("summarize_text", "concept_1"),
-    })) {
-      expect(entry?.alt.length ?? 0).toBeGreaterThan(10);
+    /*
+      1枚だけ見ない。**表にある全部を見る。**
+
+      前はここで Day2 の1枚を名指ししていて、その画面の id が変わった
+      だけで「読み上げに渡している」ことを何も見なくなった（実際、
+      Day2 を組み直したときに素通りした）。
+    */
+    expect(ALL_TEACHING_IMAGES.length).toBeGreaterThan(0);
+    for (const entry of ALL_TEACHING_IMAGES) {
+      expect(
+        entry.alt.length,
+        `${entry.lessonId}/${entry.stepId} の説明が短すぎる`,
+      ).toBeGreaterThan(10);
     }
   });
 });
@@ -134,7 +142,8 @@ describe("時間を二度言わない", () => {
         minutes={8}
         poMessage="ためしの一言"
         skills={[]}
-        overview={teachingImage(DAY1, "outcome_preview")}
+        /* 全体図を持っているのは Day2（Day1 にはこの画面が無い） */
+        overview={teachingImage(DAY2, "outcome_preview")}
       />,
     );
 
@@ -185,7 +194,15 @@ describe("時間を二度言わない", () => {
       (entry) => entry.visualType === "lesson_overview",
     );
 
-    expect(overviews).toHaveLength(8);
+    /*
+      枚数は決め打ちにしない。**「載っているものは全部そう書いてある」**
+      ことだけを見る。
+
+      前はここが「8枚」だった。Day1 が全体図の画面ごと無くなり、表から
+      1行消えた時点で落ちた——教材の作りが変わるたびに数を書き替える
+      なら、この検査が見ているのは「前回の枚数」になる。
+    */
+    expect(overviews.length, "全体図が1枚も無い").toBeGreaterThan(0);
     for (const entry of overviews) {
       expect(entry.showsMinutes, `${entry.lessonId} の全体図`).toBe(true);
     }
@@ -209,7 +226,8 @@ describe("必ず見せるものと、見たい人に見せるもの", () => {
       <OutcomePreview
         poMessage="ためしの一言"
         skills={[]}
-        overview={teachingImage(DAY1, "outcome_preview")}
+        /* 全体図を持っているのは Day2（Day1 にはこの画面が無い） */
+        overview={teachingImage(DAY2, "outcome_preview")}
       />,
     );
 
@@ -240,12 +258,12 @@ describe("必ず見せるものと、見たい人に見せるもの", () => {
       どの教材かではない。
     */
     const card = getLesson("summarize_text")!.steps.find(
-      (step) => step.id === "concept_1",
+      (step) => step.id === "concept_summary",
     )!.card!;
     render(
       <ConceptCardView
         card={card}
-        image={teachingImage("summarize_text", "concept_1")}
+        image={teachingImage("summarize_text", "concept_summary")}
         headingShown
       />,
     );
@@ -281,15 +299,19 @@ describe("Day1 には、レッスンの中の絵を置かない", () => {
     expect(placed).toEqual([]);
   });
 
-  it("全体図は表に残す。ただしレッスンの中では使わない", () => {
+  it("全体図は、表からも外す", () => {
     /*
-      完成例を先に見せない形にしたので、Day1 の画面には出てこない。
-      コース一覧の「できあがり」で使うので、表からは消さない。
+      表に残していた時期がある。「コース一覧のできあがりで使うから」と
+      書いてあったが、**実際には使っていなかった**——`lessonOverview`
+      を呼ぶのは `outcome_preview` の画面だけで（`StepRenderer`）、
+      Day1 にはその画面が無い。一覧の絵は別の表が持っている
+      （`course/lessonThumbnail.ts`）。
+
+      開かれない画面を指す1行を残すと、絵を消したときに気づけない
+      まま表と教材が食い違う（`course/teachingImages.ts` の決まり）。
     */
-    expect(teachingImage(DAY1, "outcome_preview")?.visualType).toBe(
-      "lesson_overview",
-    );
     expect(lesson.steps.some((step) => step.id === "outcome_preview")).toBe(false);
+    expect(teachingImage(DAY1, "outcome_preview")).toBeNull();
   });
 
   it("絵だけの画面は、章扉だけ", () => {
@@ -316,26 +338,35 @@ describe("Day2 のどこに出るか", () => {
   const order = lesson.steps.map((step) => step.id);
   const at = (stepId: string) => order.indexOf(stepId);
 
-  it("5枚が、それぞれの画面に割り当たっている", () => {
+  it("4枚が、それぞれの画面に割り当たっている", () => {
+    /*
+      5枚から4枚へ。Day2 を4つの段に組み直したとき、読む人と目的を
+      足す段に添える図（`compare_04_context`）が Repository に無い
+      ことが分かった。**無い絵を指さない**——比べる中身は実際の
+      2つのまとめが持っているので、図が無くてもあの段は成り立つ。
+    */
     const placed = order.filter((id) => teachingImage(DAY2, id) !== null);
 
     expect(placed).toEqual([
       "outcome_preview",
-      "compare_results",
-      "concept_1",
-      "concept_output_format",
+      "concept_summary",
+      "see_format",
+      "concept_format",
       "concept_context",
     ]);
   });
 
   it("比べる図は、一度試して条件を足したあとに出る", () => {
-    expect(at("compare_results")).toBeGreaterThan(at("quick_try"));
-    expect(at("compare_results")).toBeGreaterThan(at("add_condition"));
-    expect(at("compare_results")).toBeGreaterThan(at("generate_improved"));
+    expect(at("see_format")).toBeGreaterThan(at("read_source"));
+    expect(at("see_format")).toBeGreaterThan(at("add_format"));
+    expect(at("see_format")).toBeGreaterThan(at("generate_format"));
   });
 
-  it("解説の絵は、比べた直後に出る", () => {
-    expect(at("concept_1") - at("compare_results")).toBe(1);
+  it("解説の絵は、その技を使った直後に出る", () => {
+    // 要約は1回目の結果の直後、出力形式は形を変えた結果の直後
+    expect(at("concept_summary") - at("see_basic")).toBe(1);
+    expect(at("concept_format") - at("see_format")).toBe(1);
+    expect(at("concept_context") - at("see_context")).toBe(1);
   });
 
   it("解説の絵を続けて2枚出さない", () => {
@@ -359,24 +390,29 @@ describe("Day2 のどこに出るか", () => {
     }
   });
 
-  it("出力形式の指定は、形を選ぶ直前に出る", () => {
-    expect(at("real_format") - at("concept_output_format")).toBe(1);
-  });
-
-  it("コンテキストは、目的を足す直前に出る", () => {
-    expect(at("real_purpose") - at("concept_context")).toBe(1);
-  });
-
   it("出力形式の指定を、コンテキストより先に出す", () => {
-    // 直前の比較で見たのが「3つの箇条書きで」の効果なので、そこから続ける
-    expect(at("concept_output_format")).toBeLessThan(at("concept_context"));
+    // 形を変えた効果を見た直後に名前を付け、そのあとで目的の話へ移る
+    expect(at("concept_format")).toBeLessThan(at("concept_context"));
   });
 
   it("画像だけの画面を増やしていない", () => {
-    for (const id of ["outcome_preview", "compare_results"]) {
-      expect(order).toContain(id);
-    }
-    expect(order).toHaveLength(19);
+    /*
+      絵は**すでにある画面に添える**もので、絵のためだけの画面を
+      作らない。章扉は絵を持たない（Day2 は題と帯で足りる）ので、
+      絵が乗るのはどれも中身のある画面。
+    */
+    const withImage = order.filter((id) => teachingImage(DAY2, id) !== null);
+    const types = withImage.map(
+      (id) => lesson.steps.find((step) => step.id === id)!.type,
+    );
+
+    expect(types).toEqual([
+      "outcome_preview",
+      "concept_card",
+      "result_compare",
+      "concept_card",
+      "concept_card",
+    ]);
   });
 });
 
@@ -412,16 +448,43 @@ describe("表に載せた絵が、実際にあること", () => {
       種類（visualType）は画面が出し分けに使う。置き場所と合っていないと、
       比べる図が解説として出る、といったことが起きる。
       種類は書き手が毎回選ぶものではなく、**置き場所から決まる**。
-    */
-    for (const entry of ALL_TEACHING_IMAGES) {
-      const expected = entry.stepId === "outcome_preview"
-        ? "lesson_overview"
-        : entry.stepId.startsWith("section_")
-          ? "section"
-          : entry.stepId.startsWith("compare_")
-            ? "compare"
-            : "skill_concept";
 
+      置き場所は**ステップの種類**で読む
+      ----------------------------------
+      前は id の頭文字で見ていた（`compare_` で始まれば比べる図）。
+      id は画面でやることに合わせて付けるもので、絵の種類のために
+      あるのではない——Day2 を組み直して `compare_results` が
+      `see_format`（形を変えた結果を見る回）になったとたん、
+      比べる図が「解説の絵」と判定された。
+
+      ステップの種類なら、名前の付け方が変わっても動かない。
+    */
+    const TYPE_TO_VISUAL: Record<string, string> = {
+      outcome_preview: "lesson_overview",
+      section_transition: "section",
+      concept_card: "skill_concept",
+      observation: "compare",
+      result_compare: "compare",
+      improvement_choice: "compare",
+    };
+
+    for (const entry of ALL_TEACHING_IMAGES) {
+      const lesson = getLesson(entry.lessonId);
+      /*
+        同梱データに無い教材は飛ばす。アイデアを広げる・情報を整理する・
+        画像の2本はサーバーだけが持っていて（`course/catalog.ts` の
+        `START_CURRICULUM`）、ここからは並びを引けない。
+      */
+      if (!lesson) continue;
+
+      const step = lesson.steps.find((one) => one.id === entry.stepId);
+      expect(step, `${entry.lessonId}/${entry.stepId} が教材に無い`).toBeTruthy();
+
+      const expected = TYPE_TO_VISUAL[step!.type];
+      expect(
+        expected,
+        `${entry.lessonId}/${entry.stepId}: ${step!.type} に絵を置く決まりが無い`,
+      ).toBeTruthy();
       expect(entry.visualType, `${entry.lessonId}/${entry.stepId}`).toBe(expected);
     }
 
@@ -644,7 +707,7 @@ describe("本文と重ねない", () => {
     いう決まりのほうで、どの教材かではない。
   */
   const card = getLesson(DAY2)!.steps.find(
-    (step) => step.id === "concept_output_format",
+    (step) => step.id === "concept_format",
   )!.card!;
   const day2Card = getLesson(DAY2)!.steps.find(
     (step) => step.id === "concept_context",
@@ -668,7 +731,7 @@ describe("本文と重ねない", () => {
     render(
       <ConceptCardView
         card={card}
-        image={teachingImage(DAY2, "concept_output_format")}
+        image={teachingImage(DAY2, "concept_format")}
         headingShown
       />,
     );

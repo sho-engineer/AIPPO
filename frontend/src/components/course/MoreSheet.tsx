@@ -421,6 +421,7 @@ export function FullText({
   lines = 3,
   tight = false,
   peek = true,
+  showLabel = false,
 }: {
   /** 何の文章か。「元の文章」「AIの結果」など。 */
   label: string;
@@ -457,6 +458,19 @@ export function FullText({
    * 押した先は同じ一枚なので、**届く先は変わらない**。
    */
   peek?: boolean;
+  /**
+   * 名札を、**画面にも出すか**。
+   *
+   * ふだんは出さない。名札は読み上げ（`aria-label`）だけが持ち、
+   * 画面には抜粋そのものを置く——「元の文章」と書かなくても、
+   * その場に置いてあれば何の文章かは分かる。
+   *
+   * 出すのは、**名札そのものが中身の一部**のとき。Day2 の題材は
+   * Lesson 用に作った架空の調査資料で、実在の調査と読み違えられると
+   * この数字を仕事で引用する人が出る。読み上げにしか無い名札は、
+   * 目で読む人を止められない。
+   */
+  showLabel?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const body = text || "（入力なし）";
@@ -488,6 +502,16 @@ export function FullText({
         */}
         {peek ? (
           <>
+            {showLabel && (
+              /* 名札。地色を変えて、本文と地続きに読まれないようにする */
+              <span
+                className="mb-1.5 inline-block rounded-full bg-brand-soft px-2 py-0.5
+                           text-[0.6875rem] font-bold leading-4 text-brand-dark"
+                data-testid="source-badge"
+              >
+                {label}
+              </span>
+            )}
             <span
               className={`${(tight ? CLAMP_SHORT : CLAMP)[lines]}
                           whitespace-pre-wrap break-words text-sm leading-7`}

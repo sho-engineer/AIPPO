@@ -289,6 +289,17 @@ export function LessonRunner({
   */
   const editSummary = (stepId: string) => api.goTo(stepId);
 
+  /*
+    結果から条件へ戻る道。教材が行き先を持っている回にだけ出す
+    （`course/day2Steps.ts` の `own_result`）。
+  */
+  const stepMeta = (step.meta ?? {}) as { editStep?: string; editLabel?: string };
+  const editStep =
+    stepMeta.editStep && lesson.steps.some((one) => one.id === stepMeta.editStep)
+      ? stepMeta.editStep
+      : undefined;
+  const editLabel = stepMeta.editLabel ?? "条件を直す";
+
   const answerNow = step.key ? (values[step.key] ?? "") : "";
 
   /*
@@ -1130,7 +1141,17 @@ export function LessonRunner({
             （`steps/Results.tsx` の `asked-conditions`）。**入口を
             2つ持つほど大事なものではない。**
           */
-          step.id === "real_task_intro"
+          /*
+            結果から、条件へ戻る道（Day2 の仕上がり画面）。
+
+            出てきたものを読んだあとで「もっと短く」「上司ではなく
+            自分用に」と気づく。押す先が「完了」しか無いと、直すには
+            戻るボタンを4回押すことになる。入れた文章も選んだ条件も
+            消えない（`values` はステップを移っても残る）。
+          */
+          editStep
+            ? { label: editLabel, onClick: () => api.goTo(editStep) }
+          : step.id === "real_task_intro"
             ? { label: "次のレッスンへ", onClick: api.finishEarly }
             : step.type === "real_task"
             ? { label: "今回はスキップする", onClick: api.skipRealTask }

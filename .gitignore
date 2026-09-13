@@ -41,3 +41,4 @@ test_db.sqlite3-wal
 
 # サブエージェントの作業場所。リポジトリには入れない
 .claude/worktrees/
+frontend/qa/

@@ -17,7 +17,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
 import { dismissLessonIntro } from "./support/lessonIntro";
-import { serveOpenCatalog } from "./support/openLessons";
+import { serveOpenCatalog, flowLessonId } from "./support/openLessons";
 
 
 async function openDiagnosisQuestion(page: Page): Promise<void> {
@@ -57,7 +57,7 @@ async function openConditionTiles(page: Page): Promise<void> {
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await page.getByRole("button", { name: "コース" }).first().click();
   await page.getByTestId("current-course-open").click();
-  await page.getByTestId("lesson-summarize_text").click();
+  await page.getByTestId(`lesson-${flowLessonId()}`).click();
   await dismissLessonIntro(page);
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 

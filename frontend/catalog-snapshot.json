@@ -768,7 +768,8 @@
                 "value": "新人向けの説明"
               }
             ],
-            "reuseSource": "Transformer型言語モデルにおける自己注意機構では、各トークンから生成されたQueryとKeyの内積をスケーリングし、Softmax関数によって正規化したAttention WeightをValueに適用することで、系列内のトークン間依存関係を動的に表現する。さらに、多層化されたMulti-Head Attentionにより異なる表現部分空間における依存関係を並列的に学習することが可能となる。"
+            "reuseSource": "Transformer型言語モデルにおける自己注意機構では、各トークンから生成されたQueryとKeyの内積をスケーリングし、Softmax関数によって正規化したAttention WeightをValueに適用することで、系列内のトークン間依存関係を動的に表現する。さらに、多層化されたMulti-Head Attentionにより異なる表現部分空間における依存関係を並列的に学習することが可能となる。",
+            "skipTo": "skills_recap"
           }
         },
         {
@@ -903,20 +904,21 @@
       "id": "summarize_text",
       "number": 2,
       "title": "長い文章を短くまとめる",
-      "goal": "まとめる目的と出力の形を指定できるようになる",
-      "outcomeTitle": "長い会議メモを、3行の共有文にする",
-      "outcomeDescription": "何のためのまとめかを伝えて、必要なところだけ取り出します。",
-      "estimatedMinutes": 8,
-      "beforeExample": "本日の定例会議では、まず先月の売上について報告がありました。前年同月比で110%となり、特に新規顧客からの受注が伸びています。一方で既存顧客の解約が3件あり、原因は納期の遅れとの分析でした。",
-      "afterExample": "・先月の売上は前年比110%。新規顧客が伸びた\n・既存顧客の解約が3件。原因は納期の遅れ\n・次は納期の改善を検討する",
+      "goal": "読む人と目的に合った短い要約を作れるようになる",
+      "outcomeTitle": "長い調査資料を、判断に使える3つの要点にする",
+      "outcomeDescription": "誰が何のために読むかを伝えて、必要なところだけ残します。",
+      "estimatedMinutes": 3,
+      "beforeExample": "社内の情報共有方法を見直すため、営業・企画・管理部門の社員120名を対象にアンケートを実施しました。回答者の68％が「必要な情報を探すのに時間がかかる」と答え、特に過去の会議内容や決定事項を見つけにくいという意見が多く見られました。また、54％が同じ内容を複数のツールへ入力した経験があると回答しています。一方、新しい情報共有ツールの導入については、62％が前向きでしたが、操作を覚える負担やデータ移行への不安も挙げられました。試験導入を希望した営業部では、問い合わせ対応に必要な情報を探す時間を短縮できる可能性があります。まず営業部の20名を対象に1か月間試験導入し、検索時間と利用率を確認したうえで、全社展開を判断する案が出ています。",
+      "afterExample": "・68％が情報検索に時間がかかると回答し、54％が複数ツールへの重複入力を経験\n・新ツールの導入には62％が前向きだが、操作習得とデータ移行への不安がある\n・営業部20名で1か月試験導入し、検索時間と利用率を基に全社展開を判断する案",
       "learnedSkills": [
         "要約",
-        "目的の指定",
-        "出力形式の指定"
+        "出力形式の指定",
+        "コンテキスト"
       ],
       "outcomes": [
-        "何のためのまとめかを伝えられる",
-        "箇条書き・行数など形を指定できる"
+        "長い文章から必要な情報を残して短くできる",
+        "箇条書きなど、返してほしい形を指定できる",
+        "誰が何のために読むかを伝えられる"
       ],
       "tags": [
         "reading",
@@ -929,261 +931,206 @@
           "id": "outcome_preview",
           "type": "outcome_preview",
           "phase": "try",
-          "title": "今日つくるもの",
-          "poMessage": "まず、できあがりを見てみよう！",
-          "poEmotion": "neutral"
+          "title": "長い文章を短くまとめる",
+          "instruction": "長い調査資料から、必要な情報だけを取り出してみよう。",
+          "poMessage": "短くするだけじゃなく、使える形にしていくよ",
+          "poEmotion": "celebrate",
+          "primaryLabel": "はじめる"
         },
         {
-          "id": "quick_try",
+          "id": "section_1",
+          "type": "section_transition",
+          "phase": "try",
+          "title": "まず短くしてみよう",
+          "poMessage": "長い文章を、まず一度短くしてみよう！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "sectionNumber": 1,
+            "sectionLabel": "短くする"
+          }
+        },
+        {
+          "id": "read_source",
           "type": "quick_try",
           "phase": "try",
-          "title": "何のためにまとめますか？",
-          "instruction": "ひとつ選ぶと、すぐにAIがまとめます。",
-          "poMessage": "選んでみよう！",
-          "poEmotion": "question",
-          "key": "purpose",
-          "required": true,
-          "options": [
-            {
-              "value": "人に共有するため",
-              "label": "人に共有する"
-            },
-            {
-              "value": "自分がやることを知るため",
-              "label": "自分の作業を知る"
-            },
-            {
-              "value": "内容をつかむため",
-              "label": "内容をざっとつかむ"
-            }
-          ],
+          "title": "社内の情報共有に関する調査",
+          "instruction": "この調査資料を、そのままAIに渡してみます。長いので、頭の数行だけ出しています。",
+          "poMessage": "まずは、そのまま短くしてもらおう！",
+          "poEmotion": "neutral",
+          "primaryLabel": "短くまとめる",
           "aiAction": {
             "action": "summarize",
             "inputs": {
               "source_text": "original_text",
-              "purpose": "purpose",
               "format": "format",
-              "length": "length"
+              "purpose": "purpose"
             }
           },
           "meta": {
-            "sampleText": "本日の定例会議では、まず先月の売上について報告がありました。前年同月比で110%となり、特に新規顧客からの受注が伸びています。一方で既存顧客の解約が3件あり、原因は納期の遅れとの分析でした。次に、来月の展示会について、出展ブースの設営を来週金曜までに確定させること、パンフレットの校正を水曜までに終えることが決まりました。",
-            "defaults": {
-              "format": "重要な点を3つ",
-              "length": "3行で"
-            }
+            "sampleText": "社内の情報共有方法を見直すため、営業・企画・管理部門の社員120名を対象にアンケートを実施しました。回答者の68％が「必要な情報を探すのに時間がかかる」と答え、特に過去の会議内容や決定事項を見つけにくいという意見が多く見られました。また、54％が同じ内容を複数のツールへ入力した経験があると回答しています。一方、新しい情報共有ツールの導入については、62％が前向きでしたが、操作を覚える負担やデータ移行への不安も挙げられました。試験導入を希望した営業部では、問い合わせ対応に必要な情報を探す時間を短縮できる可能性があります。まず営業部の20名を対象に1か月間試験導入し、検索時間と利用率を確認したうえで、全社展開を判断する案が出ています。",
+            "sourcePreview": true,
+            "sourceLabel": "調査資料（Lesson用サンプル）"
           }
         },
         {
-          "id": "generate_first",
+          "id": "generate_basic",
           "type": "ai_generate",
           "phase": "try",
-          "title": "書き直しています",
-          "instruction": "必要なところを取り出しています。",
-          "poMessage": "もう少し！",
+          "title": "短くまとめています",
+          "poMessage": "いま読んでいるところ！",
           "poEmotion": "thinking",
           "aiAction": {
             "action": "summarize",
             "inputs": {
               "source_text": "original_text",
-              "purpose": "purpose",
               "format": "format",
-              "length": "length"
+              "purpose": "purpose"
             }
-          }
-        },
-        {
-          "id": "observe_result",
-          "type": "observation",
-          "phase": "try",
-          "title": "どこが変わった？",
-          "instruction": "",
-          "poMessage": "どうだった？",
-          "poEmotion": "question",
-          "key": "observation",
-          "options": [
-            {
-              "value": "短くなった",
-              "label": "短くなった"
-            },
-            {
-              "value": "要点だけ残った",
-              "label": "要点だけ残った"
-            },
-            {
-              "value": "箇条書きになった",
-              "label": "箇条書きになった"
-            },
-            {
-              "value": "やることが分かった",
-              "label": "やることが分かった"
-            },
-            {
-              "value": "よく分からない",
-              "label": "よく分からない"
-            }
-          ],
+          },
           "meta": {
-            "reviewPoints": [
-              "元に無い話が混ざっていないか",
-              "指定した形になっているか",
-              "自分が必要な情報が残っているか"
-            ],
-            "factCheck": false
+            "waiting": "長い文章から、残すところを選んでいます…"
           }
         },
         {
-          "id": "add_condition",
-          "type": "condition_choice",
-          "phase": "compare",
-          "title": "条件をひとつ足そう",
-          "instruction": "",
-          "poMessage": "どれにする？",
-          "poEmotion": "hint",
-          "key": "condition",
-          "required": true,
-          "options": [
-            {
-              "value": "もっと短く",
-              "label": "もっと短く",
-              "icon": "scissors"
-            },
-            {
-              "value": "もっと丁寧に",
-              "label": "もっと丁寧に",
-              "icon": "heart"
-            },
-            {
-              "value": "やわらかく",
-              "label": "やわらかく",
-              "icon": "smile"
-            },
-            {
-              "value": "要点を先に",
-              "label": "要点を先に",
-              "icon": "list-ordered"
-            },
-            {
-              "value": "箇条書きにする",
-              "label": "箇条書きにする",
-              "icon": "list-bullet"
-            },
-            {
-              "value": "",
-              "label": "自分で条件を追加",
-              "free": true,
-              "icon": "plus"
-            }
-          ],
-          "aiAction": {
-            "action": "improve",
-            "inputs": {}
-          }
-        },
-        {
-          "id": "generate_improved",
-          "type": "ai_generate",
-          "phase": "compare",
-          "title": "直しています",
-          "instruction": "",
-          "poMessage": "もう少し！",
-          "poEmotion": "thinking",
-          "aiAction": {
-            "action": "improve",
-            "inputs": {}
-          }
-        },
-        {
-          "id": "compare_results",
+          "id": "see_basic",
           "type": "result_compare",
-          "phase": "compare",
-          "title": "こんなに変わった",
-          "instruction": "",
-          "poMessage": "変わった！",
+          "phase": "try",
+          "title": "大事な内容が短くなった",
+          "instruction": "長い文章から、重要な内容を残して短くするのが「要約」です。",
+          "poMessage": "どこが残ったか、見てみよう！",
           "poEmotion": "celebrate",
+          "primaryLabel": "要約を覚える",
           "meta": {
-            "reviewPoints": [
-              "元に無い話が混ざっていないか",
-              "指定した形になっているか",
-              "自分が必要な情報が残っているか"
-            ],
-            "factCheck": false,
-            "threeWay": true
+            "resultOnly": true
           }
         },
         {
-          "id": "concept_1",
+          "id": "concept_summary",
           "type": "concept_card",
-          "phase": "compare",
+          "phase": "try",
           "title": "要約",
-          "poMessage": "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
+          "poMessage": "いまやったのが、これ。",
           "poEmotion": "neutral",
+          "primaryLabel": "読みやすい形に変える",
           "skippable": true,
           "card": {
             "title": "要約",
-            "body": "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
+            "body": "長い文章から、重要な内容を残して短くする方法です。",
             "visual": "three_points",
             "points": [
-              "目的",
-              "決定事項",
+              "課題",
+              "懸念",
               "次の行動"
             ],
             "reviewExample": {
-              "body": "何を残すかは、そのあと何に使うかで決まります。",
+              "body": "全部を削るのではなく、あとで使うものを残します。",
               "points": [
-                "共有する",
-                "作業を知る",
-                "内容をつかむ"
+                "数字",
+                "決まったこと",
+                "次にやること"
               ]
             }
+          },
+          "meta": {
+            "silentSkill": "要約"
           }
         },
         {
-          "id": "real_task_intro",
-          "type": "safety_check",
-          "phase": "own",
-          "title": "自分の文章でも試す？",
-          "poMessage": "自分の仕事でも試してみる？",
-          "poEmotion": "hint",
-          "key": "real_task_choice",
+          "id": "section_2",
+          "type": "section_transition",
+          "phase": "compare",
+          "title": "読みやすい形に変えよう",
+          "poMessage": "こんどは、欲しい形まで伝えよう！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "sectionNumber": 2,
+            "sectionLabel": "形を決める"
+          }
+        },
+        {
+          "id": "add_format",
+          "type": "single_choice",
+          "phase": "compare",
+          "title": "どんな形で欲しい？",
+          "instruction": "いまの指示に、1つ足してみましょう。",
+          "poMessage": "形まで言うと、そのまま使えます。",
+          "poEmotion": "question",
+          "primaryLabel": "この条件でまとめる",
+          "key": "format",
+          "required": true,
           "options": [
             {
-              "value": "自分で入力する",
-              "label": "自分の文章で試す"
-            },
-            {
-              "value": "別のサンプルを試す",
-              "label": "別の例で試す"
+              "value": "3つの箇条書きで",
+              "label": "3つの箇条書きで",
+              "note": "要点が3つに分かれて、ひと目で確かめられます。"
             }
-          ]
-        },
-        {
-          "id": "real_task",
-          "type": "real_task",
-          "phase": "own",
-          "title": "自分の文章",
-          "instruction": "手元にある長い文章を、ひとつ入れてみましょう。",
-          "poMessage": "自分の仕事でも試してみる？",
-          "poEmotion": "hint",
-          "key": "real_task_text",
-          "placeholder": "例）今日届いた長いメールの本文",
-          "required": true,
-          "validationRules": {
-            "suggestLength": 20,
-            "maxLength": 5000
+          ],
+          "meta": {
+            "showInstruction": true,
+            "purpose": "長い文章を短くまとめる",
+            "instructionLines": [
+              {
+                "key": "format",
+                "label": "形式",
+                "hint": "欲しい形を決める",
+                "suffix": "まとめてください"
+              },
+              {
+                "key": "purpose",
+                "label": "読む人と目的",
+                "hint": "誰が何のために読むかを決める",
+                "suffix": "まとめてください"
+              }
+            ]
           }
         },
         {
-          "id": "concept_output_format",
+          "id": "generate_format",
+          "type": "ai_generate",
+          "phase": "compare",
+          "title": "まとめ直しています",
+          "poMessage": "3つに分けているところ！",
+          "poEmotion": "thinking",
+          "aiAction": {
+            "action": "summarize",
+            "inputs": {
+              "source_text": "original_text",
+              "format": "format",
+              "purpose": "purpose"
+            }
+          },
+          "meta": {
+            "waiting": "指定された形に合わせて、まとめ直しています…"
+          }
+        },
+        {
+          "id": "see_format",
+          "type": "result_compare",
+          "phase": "compare",
+          "title": "3つの要点になった",
+          "poMessage": "同じ内容でも、確かめやすさが変わりました。",
+          "poEmotion": "celebrate",
+          "primaryLabel": "この変化を覚える",
+          "meta": {
+            "changesOnly": true,
+            "compareWithPrevious": true,
+            "changedLabel": "形式",
+            "changedKey": "format",
+            "changedNote": "要点を素早く確認できる形になった"
+          }
+        },
+        {
+          "id": "concept_format",
           "type": "concept_card",
-          "phase": "own",
+          "phase": "compare",
           "title": "出力形式の指定",
-          "poMessage": "何を答えるかだけでなく、どう答えるかも指定できます。",
+          "poMessage": "欲しい形を、先に伝えました。",
           "poEmotion": "neutral",
+          "primaryLabel": "読む目的を伝える",
           "skippable": true,
           "card": {
             "title": "出力形式の指定",
-            "body": "同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できます。",
+            "body": "箇条書きなど、AIから返してほしい形を指定する方法です。",
             "visual": "three_points",
             "points": [
               "3行で",
@@ -1198,51 +1145,107 @@
                 "見出しを付けて"
               ]
             }
+          },
+          "meta": {
+            "silentSkill": "出力形式の指定"
           }
         },
         {
-          "id": "real_format",
+          "id": "section_3",
+          "type": "section_transition",
+          "phase": "deepen",
+          "title": "読む目的を伝えよう",
+          "poMessage": "誰が何のために読むかを、足してみよう！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "sectionNumber": 3,
+            "sectionLabel": "目的を伝える"
+          }
+        },
+        {
+          "id": "add_context",
           "type": "single_choice",
-          "title": "どんな形で欲しいですか",
-          "poMessage": "そのまま使える形を選んでください。",
+          "phase": "deepen",
+          "title": "誰が、何のために読む？",
+          "instruction": "形はそのまま。もう1つ足してみましょう。",
+          "poMessage": "読む人が変わると、残す情報も変わります。",
           "poEmotion": "question",
-          "key": "format",
+          "primaryLabel": "この条件でまとめる",
+          "key": "purpose",
           "required": true,
           "options": [
             {
-              "value": "3行で",
-              "label": "3行で"
-            },
-            {
-              "value": "重要な点を3つ",
-              "label": "重要な点を3つ"
-            },
-            {
-              "value": "次にやることを抽出",
-              "label": "次にやることを抽出"
-            },
-            {
-              "value": "初心者向けに説明",
-              "label": "初心者向けに説明"
-            },
-            {
-              "value": "",
-              "label": "自分で指定する",
-              "free": true
+              "value": "新しいツールを試すか判断する上司向けに",
+              "label": "新しいツールを試すか判断する上司向けに",
+              "note": "判断に使う数字や、次の行動が残ります。"
             }
-          ]
+          ],
+          "meta": {
+            "showInstruction": true,
+            "purpose": "長い文章を短くまとめる",
+            "instructionLines": [
+              {
+                "key": "format",
+                "label": "形式",
+                "hint": "欲しい形を決める",
+                "suffix": "まとめてください"
+              },
+              {
+                "key": "purpose",
+                "label": "読む人と目的",
+                "hint": "誰が何のために読むかを決める",
+                "suffix": "まとめてください"
+              }
+            ]
+          }
+        },
+        {
+          "id": "generate_context",
+          "type": "ai_generate",
+          "phase": "deepen",
+          "title": "まとめ直しています",
+          "poMessage": "判断に要るものを選んでいるところ！",
+          "poEmotion": "thinking",
+          "aiAction": {
+            "action": "summarize",
+            "inputs": {
+              "source_text": "original_text",
+              "format": "format",
+              "purpose": "purpose"
+            }
+          },
+          "meta": {
+            "waiting": "読む人と目的に合わせて、残すものを選び直しています…"
+          }
+        },
+        {
+          "id": "see_context",
+          "type": "result_compare",
+          "phase": "deepen",
+          "title": "判断材料が残った",
+          "poMessage": "上司が決めるのに要るものが残りました。",
+          "poEmotion": "celebrate",
+          "primaryLabel": "この変化を覚える",
+          "meta": {
+            "changesOnly": true,
+            "compareWithPrevious": true,
+            "changedLabel": "読む人と目的",
+            "changedKey": "purpose",
+            "changedNote": "上司の判断に必要な情報が優先された"
+          }
         },
         {
           "id": "concept_context",
           "type": "concept_card",
-          "phase": "own",
+          "phase": "deepen",
           "title": "コンテキスト",
-          "poMessage": "背景を伝えるほど、目的に合った答えになります。",
-          "poEmotion": "hint",
+          "poMessage": "背景を渡すと、残るものが変わります。",
+          "poEmotion": "neutral",
+          "primaryLabel": "自分の文章で試す",
           "skippable": true,
           "card": {
             "title": "コンテキスト",
-            "body": "目的・相手・場面という背景を渡すと、要点の絞り方が変わります。",
+            "body": "読む人や目的を伝え、AIが残す情報を調整する方法です。",
             "visual": "three_points",
             "points": [
               "目的",
@@ -1250,35 +1253,75 @@
               "場面"
             ],
             "reviewExample": {
-              "body": "「共有用」と「自分の作業用」では、残すべきところが違います。",
+              "body": "同じ資料でも、共有用と判断用では残すところが違います。",
               "points": [
-                "共有する",
-                "作業を知る",
-                "内容をつかむ"
+                "誰が読む",
+                "何を決める",
+                "いつ使う"
               ]
             }
+          },
+          "meta": {
+            "silentSkill": "コンテキスト"
           }
         },
         {
-          "id": "real_purpose",
-          "type": "single_choice",
-          "title": "何のためにまとめますか",
-          "poMessage": "これで最後の質問です。目的が変わると、残す情報が変わります。",
+          "id": "section_4",
+          "type": "section_transition",
+          "phase": "own",
+          "title": "自分の文章で試そう",
+          "poMessage": "組み上げた3つを、自分の文章に！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "sectionNumber": 4,
+            "sectionLabel": "自分で"
+          }
+        },
+        {
+          "id": "own_text",
+          "type": "real_task",
+          "phase": "own",
+          "title": "まとめたい文章を用意しよう",
+          "instruction": "長めの文章を1つ。手元に無ければ、例文を使えます。",
+          "poMessage": "仕事で読むのが大変だった文章でどうぞ。",
           "poEmotion": "question",
-          "key": "purpose",
+          "primaryLabel": "この文章でいく",
+          "key": "real_task_text",
           "required": true,
+          "placeholder": "まとめたい文章を入れてください",
+          "hints": [
+            "長い会議メモや、返信が積み重なったメールが試しやすいです。",
+            "5行くらいあると、まとまり方の違いが分かります。",
+            "思いつかなければ、上の「例文を使う」で進められます。"
+          ],
+          "meta": {
+            "fallbackSample": "新しい社内研修について48名へアンケートを実施しました。31名が短時間のオンライン研修を希望し、集合研修を希望した人は9名でした。自由記述では、業務時間内に受講できること、実際の仕事で使う例が含まれること、後から復習できることへの要望が多く見られました。来月、営業部と管理部から各10名を募り、30分のオンライン研修を試験実施する案が出ています。参加率と研修後アンケートを確認してから、全社導入を判断する予定です。",
+            "skipTo": "skills_recap"
+          }
+        },
+        {
+          "id": "own_reader",
+          "type": "single_choice",
+          "phase": "own",
+          "title": "誰が読みますか？",
+          "poMessage": "読む人で、残す情報が変わります。",
+          "poEmotion": "question",
+          "primaryLabel": "この相手でいく",
+          "key": "own_audience",
+          "required": true,
+          "placeholder": "例）取引先の担当者",
           "options": [
             {
-              "value": "内容をつかむため",
-              "label": "内容をつかむため"
+              "value": "上司",
+              "label": "上司"
             },
             {
-              "value": "人に共有するため",
-              "label": "人に共有するため"
+              "value": "同じチームの人",
+              "label": "同じチームの人"
             },
             {
-              "value": "自分がやることを知るため",
-              "label": "自分の作業のため"
+              "value": "自分",
+              "label": "自分"
             },
             {
               "value": "",
@@ -1288,74 +1331,163 @@
           ]
         },
         {
-          "id": "prompt_preview",
+          "id": "own_purpose",
+          "type": "single_choice",
+          "phase": "own",
+          "title": "何のために読みますか？",
+          "poMessage": "目的が変わると、残すものが変わります。",
+          "poEmotion": "question",
+          "primaryLabel": "この目的でいく",
+          "key": "own_purpose",
+          "required": true,
+          "placeholder": "例）来週の打ち合わせで説明するため",
+          "options": [
+            {
+              "value": "やるかどうか判断するため",
+              "label": "やるかどうか判断するため"
+            },
+            {
+              "value": "人に共有するため",
+              "label": "人に共有するため"
+            },
+            {
+              "value": "自分のやることを知るため",
+              "label": "自分のやることを知るため"
+            },
+            {
+              "value": "",
+              "label": "自分で指定する",
+              "free": true
+            }
+          ]
+        },
+        {
+          "id": "own_format",
+          "type": "single_choice",
+          "phase": "own",
+          "title": "どんな形で欲しいですか？",
+          "poMessage": "そのまま貼って使える形を選んでください。",
+          "poEmotion": "question",
+          "primaryLabel": "この形でいく",
+          "key": "own_format",
+          "required": true,
+          "placeholder": "例）見出しを付けて",
+          "options": [
+            {
+              "value": "3つの箇条書きで",
+              "label": "3つの箇条書きで"
+            },
+            {
+              "value": "5つの箇条書きで",
+              "label": "5つの箇条書きで"
+            },
+            {
+              "value": "3行の文章で",
+              "label": "3行の文章で"
+            },
+            {
+              "value": "次にやることだけ",
+              "label": "次にやることだけ"
+            },
+            {
+              "value": "",
+              "label": "自分で指定する",
+              "free": true
+            }
+          ]
+        },
+        {
+          "id": "confirm_prompt",
           "type": "prompt_preview",
           "phase": "own",
-          "title": "伝え方を確認",
-          "instruction": "送る前に、どんなお願いになっているか見てみましょう。",
-          "poMessage": "これでお願いするね！",
-          "poEmotion": "talking",
+          "title": "AIへの指示",
+          "poMessage": "自分で組み立てた指示です。",
+          "poEmotion": "neutral",
+          "primaryLabel": "この条件でまとめる",
           "aiAction": {
             "action": "summarize",
             "inputs": {
-              "source_text": "original_text",
-              "purpose": "purpose",
-              "format": "format",
-              "length": "length"
+              "real_task_text": "original_text",
+              "own_audience": "audience",
+              "own_purpose": "purpose",
+              "own_format": "format"
             }
+          },
+          "meta": {
+            "purpose": "長い文章を短くまとめる"
           }
         },
         {
-          "id": "generate_real",
+          "id": "generate_own",
           "type": "ai_generate",
           "phase": "own",
-          "title": "書き直しています",
-          "instruction": "必要なところを取り出しています。",
-          "poMessage": "もう少し！",
+          "title": "まとめています",
+          "poMessage": "3つの条件でまとめているところ！",
           "poEmotion": "thinking",
           "aiAction": {
             "action": "summarize",
             "inputs": {
-              "source_text": "original_text",
-              "purpose": "purpose",
-              "format": "format",
-              "length": "length"
+              "real_task_text": "original_text",
+              "own_audience": "audience",
+              "own_purpose": "purpose",
+              "own_format": "format"
             }
+          },
+          "meta": {
+            "waiting": "読む人・目的・形に合わせて、まとめています…"
           }
         },
         {
-          "id": "real_task_result",
+          "id": "own_result",
           "type": "result_compare",
           "phase": "own",
-          "title": "自分の文章の結果",
-          "instruction": "そのまま使える形になっているか見てみましょう。",
-          "poMessage": "そのまま使えそう？",
+          "title": "使える要約ができた",
+          "poMessage": "自分の文章でもできました！",
           "poEmotion": "celebrate",
+          "primaryLabel": "これで完了",
           "meta": {
-            "reviewPoints": [
-              "元に無い話が混ざっていないか",
-              "指定した形になっているか",
-              "自分が必要な情報が残っているか"
-            ],
-            "factCheck": false
+            "resultOnly": true,
+            "showConditions": true,
+            "editStep": "own_reader",
+            "editLabel": "条件を直す"
           }
         },
         {
-          "id": "reflection",
-          "type": "reflection",
+          "id": "skills_recap",
+          "type": "concept_card",
           "phase": "own",
-          "title": "ふりかえり",
-          "instruction": "今日おぼえたことを確認しましょう。",
-          "poMessage": "目的と形を先に伝えると、まとめ方が変わることを確かめられましたね。",
-          "poEmotion": "neutral"
+          "title": "3つのAI技をGET！",
+          "instruction": "誰が何のために読むかを伝えると、使いやすい要約になります。",
+          "poMessage": "3つとも、もう使えます！",
+          "poEmotion": "celebrate",
+          "primaryLabel": "今日の成果を見る",
+          "meta": {
+            "recap": [
+              {
+                "name": "要約",
+                "body": "重要な内容を残して短くする方法"
+              },
+              {
+                "name": "出力形式の指定",
+                "body": "返してほしい形を指定する方法"
+              },
+              {
+                "name": "コンテキスト",
+                "body": "読む人と目的を伝える方法"
+              }
+            ]
+          }
         },
         {
           "id": "completion",
           "type": "completion",
           "phase": "own",
-          "title": "できるようになりました",
-          "poMessage": "次は「分からないことを説明してもらう」も試してみましょう。",
-          "poEmotion": "celebrate"
+          "title": "長い文章から、必要な情報を取り出せた！",
+          "poMessage": "おつかれさま！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "reusablePrompt": "以下の文章を、〇〇が〇〇のために確認できるよう、\n重要な内容を〇〇でまとめてください。"
+          }
         }
       ],
       "stageKey": "ask",

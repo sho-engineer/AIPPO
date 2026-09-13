@@ -21,6 +21,7 @@
  */
 
 import { DAY1_STEPS } from "./day1Steps";
+import { DAY2_SOURCE, DAY2_STEPS } from "./day2Steps";
 import { buildLessonFlow } from "./shared";
 import type { Course, CourseStage, Lesson } from "./types";
 
@@ -467,182 +468,50 @@ const LESSON_1: Lesson = {
 
 // ---------------------------------------------------------------- Lesson 2
 
+/**
+ * Day2「長い文章を短くまとめる」。
+ *
+ * 骨格をやめた理由は `course/day2Steps.ts` の頭に書いた。要点だけ言うと、
+ * 骨格は**条件を足すのが1回**で、Day2 が渡したい3つの技のうち2つは
+ * 「足したら何が変わったか」を見ないと意味が分からない。1回では
+ * 2つぶんの変化を見せられない。
+ *
+ * 4つの段に分けて、段ごとに1つ足す（Day1 と同じ並べ方）。
+ */
 const LESSON_2: Lesson = {
   id: "summarize_text",
   number: 2,
   title: "長い文章を短くまとめる",
-  goal: "まとめる目的と出力の形を指定できるようになる",
+  goal: "読む人と目的に合った短い要約を作れるようになる",
 
-  outcomeTitle: "長い会議メモを、3行の共有文にする",
-  outcomeDescription: "何のためのまとめかを伝えて、必要なところだけ取り出します。",
-  estimatedMinutes: 8,
-  beforeExample:
-    "本日の定例会議では、まず先月の売上について報告がありました。前年同月比で110%となり、特に新規顧客からの受注が伸びています。一方で既存顧客の解約が3件あり、原因は納期の遅れとの分析でした。",
+  outcomeTitle: "長い調査資料を、判断に使える3つの要点にする",
+  outcomeDescription: "誰が何のために読むかを伝えて、必要なところだけ残します。",
+  /*
+    絵（`day2_overview`）に「約3分」が焼き込んである。数はそちらに
+    合わせる——別の数を出すと、同じ画面の絵と文字が食い違う。
+  */
+  estimatedMinutes: 3,
+  beforeExample: DAY2_SOURCE,
   afterExample:
-    "・先月の売上は前年比110%。新規顧客が伸びた\n・既存顧客の解約が3件。原因は納期の遅れ\n・次は納期の改善を検討する",
+    "・68％が情報検索に時間がかかると回答し、54％が複数ツールへの重複入力を経験\n・新ツールの導入には62％が前向きだが、操作習得とデータ移行への不安がある\n・営業部20名で1か月試験導入し、検索時間と利用率を基に全社展開を判断する案",
   /*
     技の名前は、**AI技の台帳と同じ言葉**にする
-    （`content/skill-registry.yaml`）。
-
-    前はここが「何のためのまとめかを伝える」「出力の形を指定する」
-    ——やることの説明であって、技の名前ではなかった。ここで覚えた
-    言葉が外の記事や同僚との会話で通じないと、このアプリの中でしか
-    使えない知識になる（憲章の Do Not Do）。
-
-    台帳との食い違いは `npm run validate:lessons` が止める。
+    （`content/skill-registry.yaml`）。ここで覚えた言葉が外の記事や
+    同僚との会話で通じないと、このアプリの中でしか使えない知識になる
+    （憲章の Do Not Do）。台帳との食い違いは
+    `npm run validate:lessons` が止める。
   */
-  learnedSkills: ["要約", "目的の指定", "出力形式の指定"],
+  learnedSkills: ["要約", "出力形式の指定", "コンテキスト"],
 
-  outcomes: ["何のためのまとめかを伝えられる", "箇条書き・行数など形を指定できる"],
+  outcomes: [
+    "長い文章から必要な情報を残して短くできる",
+    "箇条書きなど、返してほしい形を指定できる",
+    "誰が何のために読むかを伝えられる",
+  ],
   tags: ["reading", "summarizing"],
   usesAi: true,
   mode: "standard",
-  steps: buildLessonFlow({
-    aiAction: {
-      action: "summarize",
-      inputs: {
-        source_text: "original_text",
-        purpose: "purpose",
-        format: "format",
-        length: "length",
-      },
-    },
-    sampleText:
-      "本日の定例会議では、まず先月の売上について報告がありました。前年同月比で110%となり、特に新規顧客からの受注が伸びています。一方で既存顧客の解約が3件あり、原因は納期の遅れとの分析でした。次に、来月の展示会について、出展ブースの設営を来週金曜までに確定させること、パンフレットの校正を水曜までに終えることが決まりました。",
-    quickTitle: "何のためにまとめますか？",
-    quickInstruction: "ひとつ選ぶと、すぐにAIがまとめます。",
-    quickKey: "purpose",
-    quickOptions: [
-      { value: "人に共有するため", label: "人に共有する" },
-      { value: "自分がやることを知るため", label: "自分の作業を知る" },
-      { value: "内容をつかむため", label: "内容をざっとつかむ" },
-    ],
-    quickDefaults: { format: "重要な点を3つ", length: "3行で" },
-    working: "必要なところを取り出しています。",
-    observationOptions: [
-      { value: "短くなった", label: "短くなった" },
-      { value: "要点だけ残った", label: "要点だけ残った" },
-      { value: "箇条書きになった", label: "箇条書きになった" },
-      { value: "やることが分かった", label: "やることが分かった" },
-      { value: "よく分からない", label: "よく分からない" },
-    ],
-    /*
-      骨格が続けて出す解説は**1枚だけ**にしてある。
-
-      覚える技は3つ（要約・出力形式の指定・コンテキスト）で、残り2つは
-      それを実際に使う場面の直前へ移した（下の realTaskSteps）。
-      **技は、使う直前に出す。**
-
-      「足された話に気をつける」は解説から外した。技ではなく確かめ方の
-      話で、**同じことを下の reviewPoints が言っている**（結果を見る
-      画面で毎回出る）。解説でも言うと、1レッスンに4枚並ぶことになる。
-    */
-    conceptCards: [
-      {
-        title: "要約",
-        body: "全部を削るのではなく、目的・決定事項・次の行動といった大事な情報を残します。",
-        visual: "three_points",
-        points: ["目的", "決定事項", "次の行動"],
-        reviewExample: {
-          body: "何を残すかは、そのあと何に使うかで決まります。",
-          points: ["共有する", "作業を知る", "内容をつかむ"],
-        },
-      },
-    ],
-    reviewPoints: [
-      "元に無い話が混ざっていないか",
-      "指定した形になっているか",
-      "自分が必要な情報が残っているか",
-    ],
-    realTaskLabel: "手元にある長い文章を、ひとつ入れてみましょう。",
-    realTaskPlaceholder: "例）今日届いた長いメールの本文",
-    /*
-      自分の文章を入れたあとの並び。
-
-          【出力形式の指定】 → どんな形で欲しいか
-          → 【コンテキスト】 → 何のためにまとめるか → 送る
-
-      形を先に聞く。直前の比較で見たのが「3つの箇条書きで」の効果
-      なので、そこから続けて自分の文章の形を決めるのが素直な順になる。
-
-      解説を2枚続けて出さない。**あいだに必ず手を動かす画面が入る。**
-      技を出す位置も、覚えてもらう場面のすぐ手前にしてある。
-    */
-    realTaskSteps: [
-      {
-        id: "concept_output_format",
-        type: "concept_card",
-        phase: "own",
-        title: "出力形式の指定",
-        poMessage: "何を答えるかだけでなく、どう答えるかも指定できます。",
-        poEmotion: "neutral",
-        // 解説は必ず飛ばせる。読みたくない人を足止めしない
-        skippable: true,
-        card: {
-          title: "出力形式の指定",
-          body: "同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できます。",
-          visual: "three_points",
-          points: ["3行で", "箇条書きで", "表で"],
-          reviewExample: {
-            body: "そのまま貼って使える形を言うと、直す手間が減ります。",
-            points: ["重要な点を3つ", "次にやることだけ", "見出しを付けて"],
-          },
-        },
-      },
-      {
-        id: "real_format",
-        type: "single_choice",
-        title: "どんな形で欲しいですか",
-        poMessage: "そのまま使える形を選んでください。",
-        poEmotion: "question",
-        key: "format",
-        required: true,
-        options: [
-          { value: "3行で", label: "3行で" },
-          { value: "重要な点を3つ", label: "重要な点を3つ" },
-          { value: "次にやることを抽出", label: "次にやることを抽出" },
-          { value: "初心者向けに説明", label: "初心者向けに説明" },
-          { value: "", label: "自分で指定する", free: true },
-        ],
-      },
-      {
-        id: "concept_context",
-        type: "concept_card",
-        phase: "own",
-        title: "コンテキスト",
-        poMessage: "背景を伝えるほど、目的に合った答えになります。",
-        poEmotion: "hint",
-        skippable: true,
-        card: {
-          title: "コンテキスト",
-          body: "目的・相手・場面という背景を渡すと、要点の絞り方が変わります。",
-          visual: "three_points",
-          points: ["目的", "相手", "場面"],
-          reviewExample: {
-            body: "「共有用」と「自分の作業用」では、残すべきところが違います。",
-            points: ["共有する", "作業を知る", "内容をつかむ"],
-          },
-        },
-      },
-      {
-        id: "real_purpose",
-        type: "single_choice",
-        title: "何のためにまとめますか",
-        poMessage: "これで最後の質問です。目的が変わると、残す情報が変わります。",
-        poEmotion: "question",
-        key: "purpose",
-        required: true,
-        options: [
-          { value: "内容をつかむため", label: "内容をつかむため" },
-          { value: "人に共有するため", label: "人に共有するため" },
-          { value: "自分がやることを知るため", label: "自分の作業のため" },
-          { value: "", label: "自分で指定する", free: true },
-        ],
-      },
-    ],
-    takeaway: "目的と形を先に伝えると、まとめ方が変わることを確かめられましたね。",
-    nextSuggestion: "次は「分からないことを説明してもらう」も試してみましょう。",
-  }),
+  steps: DAY2_STEPS,
 };
 
 // ---------------------------------------------------------------- Lesson 3

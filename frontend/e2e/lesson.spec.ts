@@ -23,6 +23,7 @@ import { fileURLToPath } from "node:url";
 import { stubApi, type StubHandle } from "./support/stubApi";
 import { dismissLessonIntro } from "./support/lessonIntro";
 import { openLessonById } from "./support/openLesson";
+import { flowLessonId } from "./support/openLessons";
 
 const SNAPSHOT = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -154,14 +155,14 @@ test.describe("レッスンを最後まで進める", () => {
 
   test("1枚の絵から始まる（説明を先に読ませない）", async ({ page }) => {
     /*
-      見るのは Day2（`summarize_text`）。
+      見るのは**骨格のままの教材**（`flowLessonId`）。
 
       Day1 は4つの段に組み直したとき、開始画面（`outcome_preview`）を
-      持たなくなり、いきなり1段目の章扉から始まる。開始画面の組み方
-      そのものは Day2 以降が持っているので、そちらで見る。
-      Day2 は第1リリースでは準備中——検査のあいだだけ開ける。
+      持たなくなり、いきなり1段目の章扉から始まる。開始画面の組み方は
+      骨格が持っているので、そちらで見る。第1リリースでは準備中
+      ——検査のあいだだけ開ける。
     */
-    await openLessonById(page, "summarize_text");
+    await openLessonById(page, flowLessonId());
 
     await expect(page.getByTestId("outcome-preview")).toBeVisible();
     // 詳しい話は畳んである。絵を見る前に読み下させない
@@ -184,8 +185,8 @@ test.describe("レッスンを最後まで進める", () => {
       「全体図を見る」「詳しく見る」「初級」まで並んでいて、
       押せる先が4つあった。
     */
-    // Day1 は開始画面を持たない（上の回のコメント）。ここも Day2 で見る
-    await openLessonById(page, "summarize_text");
+    // Day1 は開始画面を持たない（上の回のコメント）。ここも骨格で見る
+    await openLessonById(page, flowLessonId());
 
     await expect(page.getByTestId("primary-action").first()).toBeVisible();
     await expect(page.getByTestId("outcome-intro-open")).toBeVisible();
@@ -229,14 +230,14 @@ test.describe("レッスンを最後まで進める", () => {
 
   test("条件を足す回は、前の結果を対象にする", async ({ page }) => {
     /*
-      見るのは Day2（`summarize_text`）。
+      見るのは**骨格のままの教材**（`flowLessonId`）。
 
-      Day1 は4つの段に組み直したとき、**毎回 `rewrite` を送り直す**
-      形になった（押した条件を積み上げて、そのつど全部を渡す）。
-      前の結果を対象にする `improve` を使うのは Day2 以降。
-      Day2 は第1リリースでは準備中——検査のあいだだけ開ける。
+      Day1 と Day2 は手書きに組み直したとき、**毎回もとの文章を
+      送り直す**形になった（押した条件を積み上げて、そのつど全部を
+      渡す）。前の結果を対象にする `improve` を使うのは骨格のほう。
+      第1リリースでは準備中——検査のあいだだけ開ける。
     */
-    await openLessonById(page, "summarize_text");
+    await openLessonById(page, flowLessonId());
     await runToEnd(page);
 
     const improve = api.calls.filter((call) => call.action === "improve");

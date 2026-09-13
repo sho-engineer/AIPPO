@@ -17,7 +17,6 @@ import type { LessonStep } from "../src/course/types";
 
 const REWRITE = getLesson("rewrite_text")!;
 /* 骨格のままの教材。Day1 が骨格を離れたので、骨格の話はこちらで見る */
-const SUMMARIZE = getLesson("summarize_text")!;
 
 /**
  * 骨格（`course/shared.ts` の `buildLessonFlow`）から組み立てている教材。
@@ -34,10 +33,43 @@ const SUMMARIZE = getLesson("summarize_text")!;
  * いない教材まで見ると、検査が通らないのではなく**意味を持たない**
  * ——「完成イメージから始まっているか」は、始めない教材には問えない。
  */
-const FLOW_LESSONS = COURSE.lessons.filter(
-  (entry) =>
-    entry.usesAi && entry.id !== "final_challenge" && entry.id !== "rewrite_text",
-);
+/**
+ * 骨格（`course/shared.ts` の `buildLessonFlow`）で組んだ教材。
+ *
+ * **名前で外さない。** 前はここが「`rewrite_text` 以外」で、Day2 も
+ * 手書きへ移ったときにまた1行足すことになった。書き足すたびに、この
+ * 一覧が表しているのは「骨格型」ではなく「前回までに手書きになった
+ * もの以外」になる。
+ *
+ * 見分け方はサーバー側の取り込みと同じ——**並びの中に骨格の頭が
+ * あるか**（`backend/.../seed_catalog.py` の `_flow_start`）。
+ */
+const FLOW_HEAD = ["outcome_preview", "quick_try", "generate_first", "observe_result"];
+
+const FLOW_LESSONS = COURSE.lessons.filter((entry) => {
+  if (!entry.usesAi || entry.id === "final_challenge") return false;
+  const ids = entry.steps.map((step) => step.id);
+  return ids.some((_, at) =>
+    FLOW_HEAD.every((head, offset) => ids[at + offset] === head),
+  );
+});
+
+/**
+ * 分かれ道（任意の回）を持っている教材を1本。
+ *
+ * 主導線から降りられる教材でしか、「分母に任意の回を入れない」は
+ * 見られない。持っている教材は減っているので、名前ではなく**並びから
+ * 探す**（`real_task_intro` から先が任意の区間）。
+ */
+const WITH_OPTIONAL_STEPS = (() => {
+  const found = COURSE.lessons.find((entry) =>
+    entry.steps.some((step) => step.id === "real_task_intro"),
+  );
+  if (!found) {
+    throw new Error("分かれ道を持つ教材が1本も無い。この検査は何も見ていない");
+  }
+  return found;
+})();
 
 describe("教材データ", () => {
   it("現在地チェックは Day として数えない", () => {
@@ -410,14 +442,16 @@ describe("進み方", () => {
       任意の回を分母に入れると、主導線をやり切った人が「9 / 19」で
       終わる——最後まで来たのに途中でやめたように見える。
 
-      **Day1 では見られない。** あそこは自分の文章を書くところが
-      任意ではなくなった（この回でいちばん大事な画面なので、
-      やるかどうかを聞く画面ごと外した）。任意の回を持っている
-      Day2 で見る。
+      **どの教材で見るかは決め打ちにしない。** 分かれ道（「自分の
+      文章でも試す？」＝`real_task_intro`）を持っている教材は減って
+      いる。Day1 も Day2 も、自分の文章を書く回を主導線に組み込んだ
+      ときに分かれ道ごと外した。名前で指すと、外すたびにここを
+      書き替えることになる。
     */
-    const total = progressOf(SUMMARIZE, SUMMARIZE.steps[0].id).total;
+    const lesson = WITH_OPTIONAL_STEPS;
+    const total = progressOf(lesson, lesson.steps[0].id).total;
 
-    expect(total).toBeLessThan(SUMMARIZE.steps.length);
+    expect(total).toBeLessThan(lesson.steps.length);
     expect(total).toBeGreaterThan(1);
   });
 
@@ -437,12 +471,13 @@ describe("進み方", () => {
       入った以上は道のりの一部。隠すと今度は
       「進んでいるのに増えない」になる。
     */
-    /* Day1 は任意の回を持たなくなったので、持っている Day2 で見る */
-    const main = progressOf(SUMMARIZE, "real_task_intro");
-    const inside = progressOf(SUMMARIZE, "real_task");
+    /* 分かれ道を持っている教材で見る（上の回と同じ理由） */
+    const lesson = WITH_OPTIONAL_STEPS;
+    const main = progressOf(lesson, "real_task_intro");
+    const inside = progressOf(lesson, "real_task");
 
     expect(inside.total).toBeGreaterThan(main.total);
-    expect(inside.total).toBe(SUMMARIZE.steps.length);
+    expect(inside.total).toBe(lesson.steps.length);
   });
 });
 
@@ -642,6 +677,33 @@ describe("おすすめの選び方", () => {
     // 診断直後に「AIを使わない回」を勧めても、体験が始まらない
     for (const id of recommendLessons({ pain_point: "comparing" })) {
       expect(getLesson(id)!.usesAi).toBe(true);
+    }
+  });
+});
+
+describe("自分の文章を飛ばしたとき", () => {
+  /*
+    飛ばした先に「入れたはずの文章を送る画面」が残っていると、
+    空の本文が AI へ行く（`course/useCourseLesson.ts` の `skipRealTask`）。
+    教材を1本足すたびに同じ穴が開くので、**全部の教材**で見る。
+  */
+  it("飛ばす先が書いてある教材は、その先で送らない", () => {
+    for (const lesson of COURSE.lessons) {
+      const own = lesson.steps.find((step) => step.type === "real_task");
+      if (!own) continue;
+
+      const skipTo = (own.meta as { skipTo?: string } | undefined)?.skipTo;
+      const after = skipTo
+        ? lesson.steps.findIndex((step) => step.id === skipTo)
+        : lesson.steps.findIndex((step) => step.id === own.id) + 1;
+
+      expect(after, `${lesson.title}: 飛ぶ先が並びに無い`).toBeGreaterThan(0);
+      for (const step of lesson.steps.slice(after)) {
+        expect(
+          step.aiAction,
+          `${lesson.title}: 飛ばした先の ${step.id} で、まだ送ろうとしている`,
+        ).toBeUndefined();
+      }
     }
   });
 });

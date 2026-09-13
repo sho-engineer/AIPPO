@@ -608,6 +608,17 @@ export function buildLessonFlow(options: FlowOptions): LessonStep[] {
       */
       required: true,
       validationRules: { suggestLength: 20, maxLength: 5000 },
+      /*
+        「今回はスキップする」の行き先。**この先は入れたはずの文章を
+        使う画面ばかり**なので、1歩進めると条件を選ばされ、確認まで来て、
+        **空の本文を AI へ送る**ことになる（実測で `original_text: ""`）。
+        本物のサーバーは本文の無い依頼を弾くので、飛ばした人だけが
+        自分のせいではない失敗の画面に出る。
+
+        飛ぶ先はふりかえり。そこから先は文章を使わない。
+        （`course/useCourseLesson.ts` の `skipRealTask`）
+      */
+      meta: { skipTo: "reflection" },
     },
     ...(options.realTaskSteps ?? []),
     {

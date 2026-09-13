@@ -114,14 +114,32 @@ export function PrimaryButton({
       aria-disabled={dim || undefined}
       aria-label={ariaLabel}
       data-testid={testId}
-      className={`flex min-h-[3.5rem] items-center justify-center gap-2 rounded-cta
+      /*
+        `min-w-0` を置く理由。
+
+        完了画面では2つのボタンが横に並ぶ（`StepShell` の
+        `secondaryProminent`）。中の文字は折り返さない決まりなので、
+        そのままだと**ボタンは文字より細くなれない**——320px の端末で
+        「完了する」と「もう一度試す」が並んだとき、右のボタンが
+        画面の外へ 36px はみ出していた（実測。Day1・Day2 の両方）。
+
+        `min-w-0` があれば、余地が足りないぶんは中で切り詰められる
+        （下の `truncate`）。幅に余裕のある端末では何も変わらない。
+      */
+      className={`flex min-h-[3.5rem] min-w-0 items-center justify-center gap-2 rounded-cta
                   px-6 py-3 text-base font-bold transition
                   ${dim ? "cursor-not-allowed opacity-50 shadow-none" : "active:scale-[0.98]"}
                   ${inline ? "" : "w-full"} ${look} ${className}`}
     >
       {icon}
-      {/* 折り返さない。ボタンの文字が2行になると、高さが変わって並びが崩れる */}
-      <span className="whitespace-nowrap">{children}</span>
+      {/*
+        折り返さない。ボタンの文字が2行になると、高さが変わって並びが崩れる。
+
+        入り切らないときは**末尾を省く**（`truncate`）。読めない1文字を
+        見せるより、画面からはみ出さないほうを取る——押す場所そのものが
+        画面の外に出ると、押せない。
+      */}
+      <span className="min-w-0 truncate">{children}</span>
       {trailing}
     </button>
   );

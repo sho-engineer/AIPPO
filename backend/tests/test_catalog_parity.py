@@ -116,16 +116,25 @@ class TestParity:
         """
         from apps.catalog.expand import _flow_options
         from apps.catalog.flow import build_lesson_flow
+        from apps.catalog.management.commands.seed_catalog import _flow_start
 
         legacy_slugs = [row["id"] for row in SEED["lessons"]]
         flow_lessons = Lesson.objects.filter(
             template=LessonTemplate.OUTCOME_FIRST, slug__in=legacy_slugs
         )
-        # 7 から 6 へ。Day1（rewrite_text）が骨格を離れ、手書きの並びに
-        # なった——骨格は「できあがりを見せて、まねして、深める」形で、
-        # Day1 のねらい（自分で条件を組み立てると結果が変わる）は
-        # その中では脇に置かれる。骨格そのものは Day2〜5 のまま。
-        assert flow_lessons.count() == 6
+        # 本数は決め打ちにしない。**教材のほうから数える。**
+        #
+        # 前はここが「6本」と書いてあり、Day1 が骨格を離れたときに
+        # 7 から直した。Day2 も離れたのでまた落ちた——教材を1本
+        # 手書きにするたびに数を書き替えるなら、この検査が見ている
+        # のは「骨格の使われ方」ではなく「前回の数」になる。
+        #
+        # 取り込みと同じ見分け方（並びの中に骨格の頭があるか）で数える。
+        expected = {
+            row["id"] for row in SEED["lessons"] if _flow_start(row) is not None
+        }
+        assert {lesson.slug for lesson in flow_lessons} == expected
+        assert expected, "骨格型が1本も無い。骨格そのものが使われていない"
 
         for lesson in flow_lessons:
             generated = {step["id"] for step in build_lesson_flow(_flow_options(lesson))}

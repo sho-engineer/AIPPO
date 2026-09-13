@@ -49,14 +49,14 @@ skills:
     description: 長い文章から必要な情報を残して短くする方法。
     first_introduced: day-2
 
-  - id: purpose-setting
-    label: 目的の指定
-    description: 何のために使うのかをAIに伝えて、残す情報を変える方法。
-    first_introduced: day-2
-
   - id: output-format
     label: 出力形式の指定
     description: 箇条書き・表・3行など、返してほしい形を指定する方法。
+    first_introduced: day-2
+
+  - id: context-setting
+    label: コンテキスト
+    description: 読む人や目的をAIに渡して、残す情報を場面に合わせる方法。
     first_introduced: day-2
 
   # ---------------------------------------------------------- Day 3
@@ -95,7 +95,11 @@ skills:
     description: どんな立場の人として答えてほしいかをAIに伝える方法。
     first_introduced: null
 
-  - id: context-setting
-    label: コンテキスト
-    description: 前提や背景をAIに渡して、答えを場面に合わせる方法。
+  #: Day2 が「コンテキスト」を渡すようになったので、こちらは行き場が無い。
+  #: 意味は近いが別の技——「何のために」だけを言うのがこちらで、
+  #: 「誰が・何のために・どの場面で」まで渡すのがコンテキスト。
+  #: 使う Lesson ができた日に `first_introduced` を埋める。
+  - id: purpose-setting
+    label: 目的の指定
+    description: 何のために使うのかをAIに伝えて、残す情報を変える方法。
     first_introduced: null

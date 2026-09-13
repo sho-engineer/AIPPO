@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LessonRunner } from "../src/pages/LessonRunner";
 import { passSections } from "./support/sections";
 import { PrivacyDialog } from "../src/components/course/PrivacyDialog";
-import { getLesson } from "../src/course/catalog";
+import { COURSE, getLesson } from "../src/course/catalog";
 import { loadDraft } from "../src/lib/draft";
 import type { Lesson } from "../src/course/types";
 
@@ -18,22 +18,45 @@ import type { Lesson } from "../src/course/types";
  *
  * 教材が2種類ある
  * ---------------
- * Day1（`rewrite_text`）だけが**独自の並び**を持つ。4つの章に分かれ、
- * 開いた最初の画面がもう仕事の場面で、「今日つくるもの」も
- * 「このレッスンについて」も無い（`course/day1Steps.ts`）。
+ * Day1・Day2 は**手書きの並び**を持つ。4つの章に分かれ、段ごとに
+ * 条件を1つ足す（`course/day1Steps.ts` / `course/day2Steps.ts`）。
  *
- * ほかの教材は共通の骨格（`course/shared.ts` の `buildLessonFlow`）で
+ * 残りは共通の骨格（`course/shared.ts` の `buildLessonFlow`）で
  * できている——完成イメージ → 1つ選ぶ → 送る → 観察 → 条件を足す →
  * 比べる → 解説 → 自分の課題。
  *
- * **両方を通す。** 片方だけにすると、骨格を触ったときに Day1 が、
- * Day1 を触ったときに骨格が、それぞれ誰にも見られないまま壊れる。
+ * **両方を通す。** 片方だけにすると、骨格を触ったときに手書きが、
+ * 手書きを触ったときに骨格が、それぞれ誰にも見られないまま壊れる。
  * 送る・失敗する・待つといった共通の振る舞いは Day1（いちばん多くの人が
- * 通る道）で、骨格そのものの形は Day2 で見る。
+ * 通る道）で、骨格そのものの形は骨格型の教材で見る。
+ *
+ * 骨格型を名前で指さない
+ * ----------------------
+ * ここは `summarize_text` と書いてあった。Day2 が手書きへ移った日に
+ * 7件まとめて落ちた——**名前で指すと、教材の作りを変えるたびに
+ * 検査の側を書き替えることになる。** 並びから探す。
  */
 
 const DAY1 = getLesson("rewrite_text")!;
-const FLOW = getLesson("summarize_text")!;
+
+/** 骨格の頭。ここが並びの中にあれば骨格型（サーバー側の取り込みと同じ）。 */
+const FLOW_HEAD = ["outcome_preview", "quick_try", "generate_first", "observe_result"];
+
+const FLOW = (() => {
+  const found = COURSE.lessons.find((lesson) => {
+    const ids = lesson.steps.map((step) => step.id);
+    return ids.some((_, at) =>
+      FLOW_HEAD.every((head, offset) => ids[at + offset] === head),
+    );
+  });
+  if (!found) throw new Error("骨格型の教材が1本も無い。骨格が使われていない");
+  return found;
+})();
+
+/** 骨格の最初の問い。文言は教材から引く（検査に書き写さない）。 */
+const FLOW_QUICK = FLOW.steps.find((step) => step.type === "quick_try")!;
+/** その問いの1つ目の札。 */
+const FLOW_PICK = FLOW_QUICK.options![0];
 
 let generate: ReturnType<typeof vi.fn>;
 
@@ -104,9 +127,11 @@ async function toFirstResult(user: User) {
 }
 
 /**
- * 骨格（Day2）で、最初の1回に選ぶものを選ぶところまで。
+ * 骨格で、最初の1回に選ぶものを選ぶところまで。
  *
- * 完成イメージ → 「何のためにまとめますか？」の3択。
+ * 完成イメージ → 最初の問いの3択。問いの文言も札も**教材から引く**
+ * （`FLOW_QUICK` / `FLOW_PICK`）——ここに書き写すと、骨格を使う教材が
+ * 入れ替わるたびに検査の側を直すことになる。
  */
 async function toFlowQuickTry(user: User) {
   await passSections(user);
@@ -119,7 +144,9 @@ async function toFlowQuickTry(user: User) {
     そちらも混ざる。行かタイルか札かは言葉の長さで決まるものなので、
     ここで並べ方まで縛らない。
   */
-  await user.click(await screen.findByRole("button", { name: /人に共有する/ }));
+  await user.click(
+    await screen.findByRole("button", { name: new RegExp(FLOW_PICK.label) }),
+  );
 }
 
 /** 骨格の最初の結果まで。 */
@@ -220,11 +247,14 @@ describe("成果物ファースト（骨格）", () => {
     await user.click(screen.getByTestId("primary-action"));
 
     expect(
-      await screen.findByRole("heading", { name: "何のためにまとめますか？" }),
+      await screen.findByRole("heading", { name: FLOW_QUICK.title }),
     ).toBeInTheDocument();
-    // 形も長さも、まだ聞かない（自分の文章のところで聞く）
-    expect(screen.queryByRole("button", { name: "3行で" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "重要な点を3つ" })).toBeNull();
+    /*
+      聞くのは1つだけ。**この問いの札より多くを並べない**——形も
+      長さも、自分の文章のところで聞く。
+    */
+    const asked = document.querySelectorAll("[aria-pressed]").length;
+    expect(asked).toBe(FLOW_QUICK.options!.length);
     // 何を送るのかは見えている（例文が入っている）
     expect(screen.getByText(/AIにはこう伝えます/)).toBeInTheDocument();
   });
@@ -461,7 +491,7 @@ describe("入力を失わない", () => {
     await user.click(screen.getByTestId("primary-action"));
 
     expect(
-      await screen.findByRole("button", { name: /人に共有する/ }),
+      await screen.findByRole("button", { name: new RegExp(FLOW_PICK.label) }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 
@@ -472,7 +502,7 @@ describe("入力を失わない", () => {
     await toFlowQuickTry(user);
 
     await waitFor(() => {
-      expect(loadDraft(FLOW.id)?.values.purpose).toBe("人に共有するため");
+      expect(loadDraft(FLOW.id)?.values[FLOW_QUICK.key!]).toBe(FLOW_PICK.value);
     });
 
     view.unmount();
@@ -480,7 +510,7 @@ describe("入力を失わない", () => {
 
     // 途中のステップから再開する
     expect(
-      await screen.findByRole("button", { name: /人に共有する/ }),
+      await screen.findByRole("button", { name: new RegExp(FLOW_PICK.label) }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 });
@@ -892,5 +922,35 @@ describe("ポーの状態", () => {
 
     // 失敗の文は1か所だけ。2か所にあると、2つ別のことが起きたと読める
     expect(within(rescue).getAllByText(/うまく届かなかった/)).toHaveLength(1);
+  });
+});
+
+describe("送った本文を、記録に残す", () => {
+  /*
+    結果の画面は、記録した本文を「元の文章」として出し、AIの結果と
+    突き合わせて「変わったところを見る」を出す（`steps/Results.tsx`）。
+
+    本文の置き場は**頼みごとによって違う**（`apps/ai/actions.py` の
+    `body_field`）——書き直す回は `original_text`、説明の回は `topic`、
+    比べる回は `options_text`。前はここが `original_text` 固定で、
+    合わない教材では空のまま記録されていた。画面には
+    「元の文章 （入力なし）」と出て、**変わったところを見る道も
+    消えていた**。
+  */
+  it("本文の置き場が違う教材でも、空にならない", async () => {
+    const user = userEvent.setup();
+    renderFlow();
+    await toFlowResult(user);
+
+    const [sent] = generate.mock.calls[0] as [Record<string, unknown>];
+    const input = (sent.input ?? {}) as Record<string, string>;
+    const body =
+      input.original_text ?? input.topic ?? input.options_text ?? input.source_text;
+    expect(body, "AIへ本文を送っていない").toBeTruthy();
+
+    // 送った本文が、そのまま画面の「元の文章」に出ている
+    expect(
+      await screen.findByTestId("result-before"),
+    ).toHaveTextContent(body!.slice(0, 8));
   });
 });

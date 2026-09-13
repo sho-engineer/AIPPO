@@ -17,6 +17,7 @@ import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
 import { openLessonById } from "./support/openLesson";
+import { flowLessonId } from "./support/openLessons";
 import { dismissLessonIntro } from "./support/lessonIntro";
 
 /**
@@ -82,18 +83,18 @@ async function advance(page: Page): Promise<boolean> {
 test.describe("ポーの絵", () => {
   test("出た表情は、それぞれ自分の絵を読んでいる", async ({ page }) => {
     /*
-      通すのは Day2（`summarize_text`）。
+      通すのは**骨格のままの教材**（`flowLessonId`）。
 
-      Day1 は結果と問いの画面からポーを外したので
+      Day1 と Day2 は結果と問いの画面からポーを外したので
       （`course/poPresence.ts`）、1本通してもポーは入りと完了の2画面
       しか出ない。**表情が2つでは、絵の読み分けを見たことにならない。**
-      Day2 には比べる場面と条件を聞く場面が残っている。
+      骨格の教材には比べる場面と条件を聞く場面が残っている。
 
-      Day2 は第1リリースでは準備中——検査のあいだだけ開ける。
+      第1リリースでは準備中——検査のあいだだけ開ける。
     */
     test.setTimeout(90_000);
     await stubApi(page);
-    await openLessonById(page, "summarize_text");
+    await openLessonById(page, flowLessonId());
 
     /*
       表情ごとに、出た絵を**ぜんぶ**集める（1枚だけ見ない）。

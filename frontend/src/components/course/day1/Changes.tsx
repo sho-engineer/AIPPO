@@ -22,6 +22,8 @@
 import { useState } from "react";
 
 import { IconArrowDown, IconCheckCircle } from "../../Icons";
+import { TeachingImage } from "../../lessons/TeachingImage";
+import type { TeachingImageEntry } from "../../../course/teachingImages";
 import { MoreButton, MoreSheet } from "../MoreSheet";
 import { changePairs } from "../../../course/changePairs";
 import { changePointsOf, NO_MEASURABLE_CHANGE } from "../steps/Compare";
@@ -45,6 +47,14 @@ export interface ChangesProps {
   note?: string;
   /** 指定した条件を全部並べるか（自分の文章の回）。 */
   conditions?: { label: string; value: string }[];
+  /**
+   * 同じことを言う、教材の図。**あれば全文の一枚の中へ。**
+   *
+   * 画面には置かない。主役は自分の結果のほうで、図はその裏取り
+   * ——先に置くと、答え合わせの絵を見てから自分の結果を確かめる
+   * 作業になる。持っている教材だけが渡す（`course/teachingImages.ts`）。
+   */
+  figure?: TeachingImageEntry | null;
 }
 
 export function Changes({
@@ -53,6 +63,7 @@ export function Changes({
   changed,
   note,
   conditions,
+  figure = null,
 }: ChangesProps) {
   const [full, setFull] = useState(false);
   /* 文字が無くても落とさない。無いものは空として扱う */
@@ -62,7 +73,20 @@ export function Changes({
   const points = changePointsOf(from, to, changed?.value);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col" data-testid="day1-changes">
+    /*
+      `min-h-fit` を置く理由。
+
+      この面は残りの高さに合わせて縮む（`flex-1`）。ところが中には
+      縮まないもの（足した条件・気づきの1行・「全文を見る」）が
+      3つあり、`min-h-0` のままだとそこまで押し潰される——**中身が
+      箱の外へはみ出し、下の注意書きが「全文を見る」の上へ重なる**
+      （320×568 で実測。押す場所が 23px 隠れていた）。
+
+      `min-h-fit` にすると、縮まないぶんより下へは縮まない。入り切らない
+      ときは画面の側が送れる（`step-stage`）——押せない部品を作るより、
+      低い端末で少し送ってもらうほうを取る。
+    */
+    <div className="flex min-h-fit flex-1 flex-col" data-testid="day1-changes">
       {/*
         何を変えたか。**今回足したものだけ。**
 
@@ -215,6 +239,32 @@ export function Changes({
               {from}
             </p>
           </section>
+          {figure && (
+            /*
+              教材の図。**畳んでおく。**
+
+              ここまでで自分の結果は読み終わっている。図は「同じことが
+              ほかの例でも起きる」を見たい人のためのもので、開いた瞬間に
+              出すものではない（`steps/ConceptCard.tsx` と同じ扱い）。
+            */
+            <details className="mt-5 border-t border-line pt-4" data-testid="changes-figure">
+              <summary
+                data-testid="changes-figure-toggle"
+                className="row-tap cursor-pointer list-none text-sm font-bold text-brand
+                           transition hover:text-brand-dark"
+              >
+                くわしく見る（図）
+              </summary>
+              <div className="mt-3">
+                <TeachingImage
+                  src={figure.src}
+                  alt={figure.alt}
+                  width={figure.width}
+                  height={figure.height}
+                />
+              </div>
+            </details>
+          )}
         </MoreSheet>
       )}
     </div>

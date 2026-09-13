@@ -28,6 +28,15 @@ export interface InstructionLine {
   value: string;
   /** まだのときに出す、うすい見本。 */
   hint: string;
+  /**
+   * 選んだ言葉のうしろに付ける、頼み方の結び。
+   *
+   * Day1 は「上司**に合わせてください**」。Day2 は「3つの箇条書きで
+   * **まとめてください**」——教材ごとに頼んでいることが違うので、
+   * 文の結びまで画面側で決め打ちにしない（実際、Day2 をそのまま
+   * 通すと「3つの箇条書きでに合わせてください」になった）。
+   */
+  suffix?: string;
 }
 
 export interface InstructionProps {
@@ -86,7 +95,9 @@ export function Instruction({ purpose, lines }: InstructionProps) {
                 line.value ? "font-bold text-brand-dark" : "text-ink-muted"
               }`}
             >
-              {line.value ? `${line.value}に合わせてください` : line.hint}
+              {line.value
+                ? `${line.value}${line.suffix ?? "に合わせてください"}`
+                : line.hint}
             </span>
           </li>
         ))}

@@ -33,6 +33,27 @@ def seeded(db):
     call_command("seed_catalog")
 
 
+def a_flow_lesson() -> Lesson:
+    """骨格のままの教材を1本。**名前で決め打ちにしない。**
+
+    骨格型の決まり（例文がある・AIの頼み方がある・行で上書きできる）を
+    見る検査は、骨格を使っている教材でないと何も見ていないことになる。
+
+    ところがどの教材が骨格型かは動く。Day1 が手書きへ移ったとき
+    ここは Day2 へ書き替えられ、Day2 も手書きへ移ってまた落ちた。
+    **書き替えるたびに、この検査が見ているのは「前回どれだったか」に
+    なる。** DB から探す。
+    """
+    lesson = (
+        Lesson.objects.filter(template=LessonTemplate.OUTCOME_FIRST)
+        .exclude(sample_text="")
+        .order_by("sort_order")
+        .first()
+    )
+    assert lesson is not None, "骨格型の教材が1本も無い"
+    return lesson
+
+
 @pytest.fixture
 def admin_client_logged_in(db, client):
     """管理画面を触れる人。"""
@@ -139,22 +160,21 @@ class TestReleaseCheck:
     def test_flow_lesson_without_a_sample_is_caught(self, seeded):
         """骨格型の検査なので、**骨格のままの教材**で見る。
 
-        Day1（rewrite_text）は骨格を離れて手書きの並びになったので、
-        ここの検査は素通りする（骨格を持たない教材には効かない）。
-        Day2 に付け替えてある——見たいのは「骨格型で、例文やAIの
-        頼み方が抜けていたら止まること」で、どの教材かではない。
+        どの教材かは決め打ちにしない（`a_flow_lesson`）。見たいのは
+        「骨格型で、例文やAIの頼み方が抜けていたら止まること」で、
+        どの教材かではない。
 
         例文が無いと、学習者は空欄から始めることになる。
         """
-        lesson = Lesson.objects.get(slug="summarize_text")
+        lesson = a_flow_lesson()
         lesson.sample_text = ""
         lesson.save()
 
         assert any("例文" in problem for problem in validate_for_release(lesson))
 
     def test_flow_lesson_without_an_ai_action_is_caught(self, seeded):
-        """ここも骨格型の検査（すぐ上と同じ理由で Day2 を使う）。"""
-        lesson = Lesson.objects.get(slug="summarize_text")
+        """ここも骨格型の検査（すぐ上と同じ理由）。"""
+        lesson = a_flow_lesson()
         lesson.ai_action = {}
         lesson.save()
 
@@ -196,7 +216,7 @@ class TestPublishingGuard:
     def test_incomplete_lesson_is_pushed_back_to_coming_soon(
         self, admin_client_logged_in, seeded
     ):
-        lesson = Lesson.objects.get(slug="summarize_text")
+        lesson = a_flow_lesson()
         lesson.sample_text = ""  # 例文を消して不備を作る
         lesson.save()
 
@@ -306,13 +326,13 @@ class TestAdminEditsReachTheScreen:
     def test_overriding_a_generated_step_shows_up(self, seeded):
         """骨格が作ったステップを、行で上書きできること。
 
-        骨格のままの教材で見る。Day1 は骨格を離れたので、そこで
+        骨格のままの教材で見る（`a_flow_lesson`）。手書きの教材で
         `quick_try` を上書きしても、比べる相手（骨格が作ったぶん）が
         無い。
         """
         from apps.catalog.expand import lesson_to_dict
 
-        lesson = Lesson.objects.get(slug="summarize_text")
+        lesson = a_flow_lesson()
         LessonStep.objects.create(
             lesson=lesson,
             placement=StepPlacement.OVERRIDE,

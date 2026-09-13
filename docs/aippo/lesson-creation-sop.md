@@ -24,6 +24,7 @@ Lesson は前後とつながっているので、隣が変わっていれば合�
 | Course | `frontend/src/components/course/CourseOutline.tsx` |
 | 前後の Lesson | 実際に開いて通す |
 | Day1 の最新UI | `frontend/src/course/day1Steps.ts` |
+| Day2 の最新UI | `frontend/src/course/day2Steps.ts` |
 | Lesson Player | `frontend/src/pages/LessonRunner.tsx` |
 | Section Intro | `frontend/src/components/course/SectionTransition.tsx` |
 | AI生成画面 | `frontend/src/components/course/steps/Generating.tsx` |
@@ -106,9 +107,21 @@ Image generation prompt / サイズ / 背景要件 / Canonical Po の Reference�
 | 作り方 | いつ使うか |
 |---|---|
 | 骨格（`course/shared.ts` の `buildLessonFlow`） | 既定。材料を渡すだけで19画面が組める |
-| 手書き（`course/day1Steps.ts` の形） | 骨格では表せない並びのときだけ |
+| 手書き（`course/day1Steps.ts` / `day2Steps.ts` の形） | 骨格では表せない並びのときだけ |
 
 手書きにするなら、理由をファイルの頭に書く。
+
+**手書きは例外ではなくなってきている。** Day1・Day2 はどちらも骨格を
+離れた——理由も同じで、骨格は**条件を足すのが1回**しかなく、技を
+2つ以上渡す回では「足したら何が変わったか」を見せ切れない。
+4つの段に分けて段ごとに1つ足す形（Day1・Day2 の並び）が、いまのところ
+いちばん通る。新しい Lesson は、まずそちらを見てから決める。
+
+検査を書くときは、**どの Lesson が骨格型かを名前で決め打ちにしない**。
+骨格の形を見る検査は `flowLessonId()`（`e2e/support/openLessons.ts`）や
+並びからの判定で選ぶ——名前で書くと、Lesson を1本手書きにするたびに
+検査の側を書き替えることになり、見ているものが「前回どれだったか」に
+なる。
 
 変えたら3層をそろえる。
 

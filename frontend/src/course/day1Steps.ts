@@ -481,6 +481,13 @@ export const DAY1_STEPS: LessonStep[] = [
       ],
       /* さっきまで使っていた専門文も、そのまま使える */
       reuseSource: DAY1_SOURCE,
+      /*
+        「今回はスキップする」の行き先。**この先は文章を使う画面ばかり**
+        なので、1歩進めると空の本文を AI へ送ることになる
+        （`course/useCourseLesson.ts` の `skipRealTask`）。
+        飛ばした人は、3つの技を受け取るところへ出る。
+      */
+      skipTo: "skills_recap",
     },
   },
   {

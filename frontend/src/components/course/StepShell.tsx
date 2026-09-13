@@ -456,7 +456,21 @@ export function StepShell({
             進むボタン。幅いっぱい・56px。支給デザイン6枚とも、
             下端にあるのはこの1つだけ。
           */}
-          <div className={secondaryProminent ? "flex items-stretch gap-3" : ""}>
+          {/*
+            2つ並べるのは、**横に並べても文字が読めるとき**だけ。
+
+            360px より狭い端末では縦に積む。横に並べると1つあたり
+            140px ほどになり、「完了する」「もう一度試す」が
+            「完了…」「もう…」に切り詰められた（320×568 で実測）。
+            押す先が読めないボタンは、押す先が無いのと同じ。
+          */}
+          <div
+            className={
+              secondaryProminent
+                ? "flex flex-col items-stretch gap-3 min-[360px]:flex-row"
+                : ""
+            }
+          >
             <PrimaryButton
               testId="primary-action"
               onClick={onPrimary}

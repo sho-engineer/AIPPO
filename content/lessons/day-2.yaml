@@ -2,24 +2,21 @@
 #
 # **まだ公開しない。** 第1リリースで開けるのは診断と Day1 だけ
 # （`backend/apps/catalog/release_seeding.py` の RELEASE_COMING_SOON）。
+# 実装が終わって検査が通っても、`published` にできるのは人だけ
+# （`docs/aippo/lesson-release-gates.md`）。
 #
-# 実装はもうある
-# --------------
-# 画面も教材データも出来ていて、骨格（`course/shared.ts` の
-# `buildLessonFlow`）から19画面が組み上がる。止めているのはリリース
-# 判定が済んでいないからで、作りかけだからではない。
-#
-# だからここは**作り直しの設計書ではなく、いまある実装の写し**。
-# 公開するときは、この Spec を見ながら Release Gate
-# （`docs/aippo/lesson-release-gates.md`）を1つずつ潰す。
+# この Spec は実装の正本ではない
+# ------------------------------
+# 正本は `frontend/src/course/day2Steps.ts` →
+# `backend/apps/catalog/seed_catalog.json` → DB の3層。ここは設計の
+# 記録と、`npm run validate:lessons` が突き合わせる相手。
 #
 # 章立てについて
 # --------------
-# Day1 は4章に分かれているが、Day2 は骨格そのままで**章扉を持たない**
-# （`section_transition` が0）。SOP の「原則3〜4章」に届いていない
-# ——公開前に埋める宿題として、下の `release.release_notes` に
-# 書き出してある。Validator は章数を **Warning** で報せる
-# （Error にすると、いま動いているものが赤くなるだけで直らない）。
+# 骨格（`course/shared.ts` の `buildLessonFlow`）をやめて手書きにした。
+# 骨格は**条件を足すのが1回**で、Day2 が渡す3つの技のうち2つは
+# 「足したら何が変わったか」を見ないと意味が分からない。1回では
+# 2つぶんの変化を見せられない。理由は `day2Steps.ts` の頭に書いた。
 
 id: day-2
 day: 2
@@ -27,87 +24,124 @@ implementation_id: summarize_text
 slug: summarize-long-text
 title: 長い文章を短くまとめる
 
-#: 一覧には出すが、始められない
-status: coming_soon
-version: 1
+#: 検査と実ブラウザQAが済んだ。**published にできるのは人だけ**
+#: （`docs/aippo/lesson-release-gates.md`）。AI も CI も上げない。
+status: review
+version: 2
 
-learning_goal: 長い文章から、あとで使う情報を残して短くまとめられる
+learning_goal: 長い文章から必要な情報を残し、読む目的に合った短い要約を作れる
 target_user: AI初心者の会社員
+#: 絵（day2_overview）に「約3分」が焼き込んである。数はそちらに合わせる
 estimated_minutes: 3
 
 ai_skills:
   - id: summarization
     usage: new
-  - id: purpose-setting
-    usage: new
   - id: output-format
+    usage: new
+  - id: context-setting
     usage: new
 
 sections:
   - id: section-1
-    name: まず短くしてみる
+    name: まず短くしてみよう
     type: practice
-    user_goal: 何のためにまとめるのかを選んで、1回送ってみる
-    user_action: 「人に共有する」など、まとめる目的を3択から1つ選ぶ
-    ai_action: 会議メモから、選ばれた目的に合う情報を残して短くする
-    expected_output: 元の会議メモが、目的に沿って短くなったもの
-    user_notices: 全部を削るのではなく、残すものが選ばれていること
-    learning_takeaway: 何のためにまとめるかで、残す情報が変わる
-    next_action: 条件を1つ足す
+    user_goal: 長い調査資料が短くなる体験をする
+    user_action: 固定の調査資料を確認し「短くまとめる」を押す
+    ai_action: 重要な課題・懸念・次の行動を残して段落形式で要約する
+    expected_output: 情報検索の課題・重複入力・導入上の不安・試験導入案が残った2〜3文
+    user_notices: 長い文章から重要な内容を残して短くできる
+    learning_takeaway: 要約は単に文字を減らすのではなく重要な情報を残すこと
+    next_action: 要約を読みやすい形式に変える
 
   - id: section-2
-    name: 条件を足して比べる
-    type: practice
-    user_goal: 条件を1つ足して、同じ文章がどう変わるかを見る
-    user_action: 「もっと短く」など、条件を1つ選ぶ
-    ai_action: 直前の結果を対象に、足された条件を反映して作り直す
-    expected_output: 1回目より短く、または形の変わったまとめ
-    user_notices: 元へ戻すのではなく、直前の結果に足されていること
-    learning_takeaway: 要約は、必要な情報を残して短くすること
-    next_action: 自分の文章で使う
+    name: 読みやすい形に変えよう
+    type: guided_practice
+    user_goal: 出力形式を指定すると確認しやすくなることを知る
+    user_action: 「3つの箇条書きで」を追加して再生成する
+    ai_action: 同じ調査資料を3項目の箇条書きで要約する
+    expected_output: 課題・懸念・次の行動が分かるちょうど3項目
+    user_notices: 内容が同じでも形式を指定すると読みやすさが変わる
+    learning_takeaway: 欲しい形まで伝えると結果をそのまま使いやすい
+    next_action: 読む人と目的を追加する
 
   - id: section-3
-    name: 自分の文章で使う
-    type: own
-    user_goal: 手元の長い文章を、自分の欲しい形でまとめる
-    user_action: 自分の文章を入れ、形と目的を指定して送る
-    ai_action: 指定された形と目的で、入力された文章をまとめる
-    expected_output: 学習者自身の文章が、そのまま貼って使える形になったもの
-    user_notices: 形を指定すると、直す手間が減ること
-    learning_takeaway: 返してほしい形を言うと、そのまま仕事に載せられる
-    next_action: Homeに戻る
+    name: 読む目的を伝えよう
+    type: guided_practice
+    user_goal: 読む人と目的に応じて残る情報が変わることを知る
+    user_action: 「新しいツールを試すか判断する上司向けに」を追加する
+    ai_action: 数字・懸念・試験導入案を優先して3項目で要約する
+    expected_output: 68％・54％・62％・営業部20名・1か月・検索時間・利用率・全社展開判断が残った3項目
+    user_notices: 判断に必要な数字・リスク・次の行動が優先された
+    learning_takeaway: 誰が何のために読むかを伝えると使える要約になる
+    next_action: 自分の文章またはサンプルで試す
+
+  - id: section-4
+    name: 自分の文章で試そう
+    type: application
+    user_goal: 形式と目的を指定して要約を自分で作る
+    user_action: 自分の文章または例文を選び、読む人・目的・形式を指定する
+    ai_action: 指定条件に従って完成物だけを返す
+    expected_output: 学習者の文章が、指定した読む人・目的・形式でまとまったもの
+    user_notices: 同じ型を調査資料・会議メモ・メールなどに応用できる
+    learning_takeaway: 文章＋読む人＋目的＋形式をセットで伝える
+    next_action: Skill GetとCompletionへ進む
 
 prompts:
   - id: summarize
-    version: 1
-    user_input: まとめたい長い文章（教材の会議メモ、または学習者の文章）
+    version: 2
+    user_input: まとめたい長い文章（教材の調査資料、または学習者の文章）
     system_instruction: >-
-      元の文章から、指定された目的に必要な情報を残してまとめる。
-      元に無い内容を足さない。作業宣言を付けない。
+      元の文章から、指定された読む人と目的に必要な情報を残してまとめる。
+      数字を書き換えない。元に無い結論や推奨を作らない。
+      「3つの箇条書きで」ならちょうど3項目。作業宣言を付けない。
     conditions:
-      - まとめる目的（人に共有する／自分の作業を知る／内容をつかむ）
-      - 出力の形（3行で／重要な点を3つ／次にやることを抽出）
+      - 読む人（上司／同じチームの人／自分／自由入力）
+      - まとめる目的（判断のため／共有のため／自分の作業のため／自由入力）
+      - 出力の形（3つの箇条書き／5つの箇条書き／3行／次にやることだけ／自由入力）
     output_format: まとめた文章のみ。前置きも後書きも付けない
     expected_behavior: >-
-      目的を変えると、残る情報が変わる。形を変えると、同じ情報が
-      違う並びで出る。どちらも元に無い話を足さない。
+      形を変えると同じ情報が違う並びで出る。読む人と目的を足すと、
+      判断に要る数字と次の行動が優先される。どちらも元に無い話を足さない。
     failure_handling: >-
       入力と選んだ条件を保持したまま、同じ画面で押し直せる。
+      結果の画面からは「条件を直す」で条件へ戻れ、入れた文章も残る。
 
+#: 置き場所そのものを書く（Asset ID ではなく `frontend/public` からの道）。
+#: `npm run validate:lessons` がファイルの有無をここで確かめるため。
 assets:
-  lesson_overview: null
-  #: 章扉はまだ無い。章立てを入れるときに、必要かどうかを判断する
+  #: Asset ID `day_02_overview`
+  lesson_overview: /assets/teaching/day2_overview.webp
+  #: 章扉に絵は要らない。段が変わったことは題と帯が言っている
   section_intros: []
-  concept_visuals: []
-  compare_visuals: []
+  #: Asset ID `skill_04_summarization` / `skill_05_output_format` / `skill_06_context`
+  concept_visuals:
+    - /assets/teaching/skill_04_summarization.webp
+    - /assets/teaching/skill_05_output_format.webp
+    - /assets/teaching/skill_06_context.webp
+  #: 実結果のCompareが主。図は「全文を見る」の中に畳んで置く補足
+  #: Asset ID `compare_03_summary_format`
+  compare_visuals:
+    - /assets/teaching/compare_03_summary_format.webp
   completion_visual: null
 
 release:
-  qa_status: not_started
+  #: 自動検査と、Chromium（実ブラウザ）での完走QAが済んだ状態
+  qa_status: automated_and_browser_done
+  #: **人のレビューはまだ。** ここが埋まるまで published にしない
   reviewed_by: null
   reviewed_at: null
   release_notes: >-
-    公開前の宿題: (1) 章立てが骨格のままで章扉を持たない——SOP の
-    3〜4章に合わせるか、Day2 は骨格のままでよいと判断して SOP 側に
-    例外を書くかを決める。(2) 実寸での完走QAが未実施。
-    (3) Release Gate の各項目が未確認。
+    済んだこと: 4サイズ（320×568 / 375×667 / 390×844 / 430×932）で
+    横あふれ・カード内スクロール・押し場所の被りを検査で見張り、
+    390×844 と 320×568 は実ブラウザで最初からHome復帰まで通した。
+    例文の道と自分の文章の道の両方。
+    残っていること: (1) **人による最終承認**——Release Gate の
+    「判定」（docs/aippo/lesson-release-gates.md）はここだけが未了。
+    (2) iPhone 実機（Safari）での確認。Chromium と Safari では
+    safe-area と 100dvh の扱いが違う。
+    (3) 320×568 では完了画面が縦に収まらず、画面の逃げ道
+    （step-stage）で送ることになる。Day1 も同じ（123px / 138px）。
+    (4) `compare_04_context` に当たる図が Repository に無い。Section 3
+    は実結果のCompareだけで成り立っているので不足ではないが、
+    足すなら作る判断が要る。

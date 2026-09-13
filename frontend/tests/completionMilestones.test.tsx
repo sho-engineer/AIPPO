@@ -17,7 +17,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { CompletionView } from "../src/components/course/steps/Completion";
-import { COURSE } from "../src/course/catalog";
+import { COURSE, getLesson } from "../src/course/catalog";
 
 const BASE = {
   course: COURSE,
@@ -79,9 +79,18 @@ describe("節目のまとめ", () => {
     await openRecord();
 
     const outcomes = screen.getByTestId("checkpoint-outcomes");
-    // 教材の outcomes をそのまま並べる。新しく言葉を作らない
-    expect(outcomes).toHaveTextContent("読む人に合わせて言葉を変えられる");
-    expect(outcomes).toHaveTextContent("何のためのまとめかを伝えられる");
+    /*
+      教材の outcomes をそのまま並べる。新しく言葉を作らない。
+
+      文言は**教材から引く**。ここに書き写すと、教材を直したときに
+      検査だけが古い言葉を持ったまま落ちる（Day2 を組み直したときに
+      実際そうなった）。
+    */
+    for (const id of ["rewrite_text", "summarize_text"]) {
+      for (const line of getLesson(id)!.outcomes) {
+        expect(outcomes, `${id}: ${line}`).toHaveTextContent(line);
+      }
+    }
   });
 
   it("いま終えた1本も、まとめに入る", async () => {
@@ -102,9 +111,10 @@ describe("節目のまとめ", () => {
 
     await openRecord();
 
-    expect(screen.getByTestId("checkpoint-outcomes")).toHaveTextContent(
-      "何のためのまとめかを伝えられる",
-    );
+    /* いま終えた1本（Day2）の outcomes が、そのまま出ていること */
+    for (const line of getLesson("summarize_text")!.outcomes) {
+      expect(screen.getByTestId("checkpoint-outcomes")).toHaveTextContent(line);
+    }
   });
 
   it("特典は『予告』であって、『獲得しました』ではない", async () => {

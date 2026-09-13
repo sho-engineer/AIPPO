@@ -51,7 +51,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
 import { dismissLessonIntro } from "./support/lessonIntro";
-import { serveOpenCatalog } from "./support/openLessons";
+import { serveOpenCatalog, flowLessonId } from "./support/openLessons";
 
 const SLACK = 8;
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
@@ -282,13 +282,13 @@ test.describe("文字どうしが重ならない", () => {
 
       ここでは、**やめたあとに本当の重なりが生まれていないこと**を見る。
 
-      行き先は Day2（`summarize_text`）。Day1 を4つの段に組み直した
-      とき、条件を選ぶ回は「誰に伝えるか」「どんな伝え方にするか」に
-      分かれ、この形ではなくなった。いま同じ組み方が出るのは Day2 以降
-      ——第1リリースでは準備中なので、検査のあいだだけ開ける。
+      行き先は**骨格のままの教材**（`flowLessonId`）。Day1 と Day2 は
+      手書きへ移ったとき、条件を選ぶ回がこの形ではなくなった。
+      名前で指すと、手書きが増えるたびに書き替えることになる。
+      第1リリースでは準備中なので、検査のあいだだけ開ける。
     */
     test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
-    await startLesson(page, "summarize_text");
+    await startLesson(page, flowLessonId());
     await runToHeading(page, /条件をひとつ足そう/);
 
     const free = page

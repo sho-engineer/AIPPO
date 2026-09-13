@@ -167,28 +167,30 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
     では使わない**——完成例を先に見せない形にしたので、Day1 の画面には
     出てこない。コース一覧の「できあがり」で使う。
   */
-  rewrite_text: {
-    outcome_preview: {
-      src: "/assets/teaching/day1_overview.webp",
-      alt: "Day1「文章を分かりやすくする」の全体図。専門用語・技術用語・略語が多く意味をつかみにくい文章が、専門用語を減らして相手に合わせて説明した文章に変わることを並べて示し、終えたらできるようになること3つと学習時間の目安を添えたもの。",
-      visualType: "lesson_overview",
-      width: 1254,
-      height: 1254,
-      showsMinutes: true,
-    },
-  },
+  /*
+    Day1「文章を分かりやすくする」。**この表には1枚も載せない。**
+
+    Day1 を4つの段に組み直したとき、全体図を出していた画面
+    （`outcome_preview`）そのものが無くなった。あそこは章扉から
+    始まる形になり、絵は章扉が自分で持つ（教材データの
+    `meta.image`）。この表に残しておくと、**開かれない画面を指す
+    1行**が残る——消したときに気づけないまま、表と教材が食い違う。
+
+    章扉の絵をこちらへ移さないのは、重ねて置くと差し替えたときに
+    どちらが効くか決まらなくなるため（`tests/teachingImages.test.tsx`）。
+  */
 
   /*
     Day2「長い文章を短くまとめる」。
 
     出る順は、レッスンの流れそのまま。
-      完成イメージ → まず要約してみる → 要約とは
-      → 条件を足して再実行 → まとめ方で変わる
-      → 自分の文章 → 出力形式の指定 → 形を選ぶ
-      → コンテキスト → 目的を足す
+      完成イメージ → まず短くしてみる → 要約とは
+      → 形を足して再実行 → 3つの要点になった（比べる図はこの中）
+      → 出力形式の指定 → 目的を足して再実行 → 判断材料が残った
+      → コンテキスト → 自分の文章
 
-    Day1 と同じ決まりで置く。比べる図は一度試して条件を足したあと、
-    解説の絵は使う直前、そして解説の絵を続けて2枚出さない。
+    決まりは Day1 と同じ。比べる図は一度試して条件を足したあと、
+    解説の絵はその技を使った直後、そして解説の絵を続けて2枚出さない。
   */
   summarize_text: {
     outcome_preview: {
@@ -199,21 +201,37 @@ const BY_LESSON: Record<string, Record<string, TeachingImageEntry>> = {
       height: 1227,
       showsMinutes: true,
     },
-    concept_1: {
+    concept_summary: {
       src: "/assets/teaching/skill_04_summarization.webp",
       alt: "AI技「要約」の図。長い文章から、目的・決定事項・次の行動といった要点だけを取り出すことを示したもの。全部を削るのではなく、大事な情報を残す。",
       visualType: "skill_concept",
     },
-    compare_results: {
+    /*
+      形を足したあとの結果に添える図。**画面には出さない。**
+
+      主役は自分の結果のほうで、この図はその裏取り。「全文を見る」の
+      一枚の中で、さらにもう一手開いた人にだけ出る
+      （`components/course/day1/Changes.tsx` の `changes-figure`）。
+    */
+    see_format: {
       src: "/assets/teaching/compare_03_summary_format.webp",
       alt: "まとめ方を指定すると要約が変わることの図。ただ「要約して」と頼んだ場合と、「重要なポイントを3つの箇条書きで」と足した場合を並べ、長さと出力形式が変わることを示したもの。",
       visualType: "compare",
     },
-    concept_output_format: {
+    concept_format: {
       src: "/assets/teaching/skill_05_output_format.webp",
       alt: "AI技「出力形式の指定」の図。同じ情報でも、3行・箇条書き・表のどれで欲しいかを指定できることを示したもの。",
       visualType: "skill_concept",
     },
+    /*
+      読む人と目的を足したあとの結果には、図を添えない。
+
+      `compare_04_context` に当たる絵が Repository に無い。**無い絵を
+      指さない**——`public/` に置いただけのファイルを画面が指す作りに
+      すると、消したときに気づけないまま壊れた絵が出る。
+      比べる中身は実際の2つのまとめが持っているので、図が無くても
+      この段は成り立つ。
+    */
     concept_context: {
       src: "/assets/teaching/skill_06_context.webp",
       alt: "AI技「コンテキスト」の図。ただ「まとめて」と頼んだ場合と、目的・相手・場面という背景を渡した場合を並べ、背景を伝えるほど目的に合った回答になることを示したもの。",

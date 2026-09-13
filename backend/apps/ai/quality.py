@@ -140,6 +140,46 @@ def follows_format(values: dict, text: str) -> Verdict:
     return Verdict.passed()
 
 
+#: 「3つの箇条書きで」のように、**個数まで言われた**ときの数。
+#: 全角・半角どちらの数字でも拾う。
+_ASKED_COUNT = re.compile(r"([0-9０-９]+)\s*(?:つ|個|項目)\s*の?\s*(?:箇条書き|ポイント|要点)")
+
+
+def follows_item_count(values: dict, text: str) -> Verdict:
+    """個数まで頼んだのに、その数になっていないか。
+
+    Day2 の2段目は「3つの箇条書きで」と頼み、次の画面が
+    **「3つの要点になった」**と言う。7項目で返ってくると、画面の
+    見出しが嘘になる。
+
+    ±1 までは通す
+    -------------
+    ここも**ゆるい側**に倒してある（このファイルの決まり）。3つと
+    頼んで2つや4つで返るのは、学習としては起きている——「形まで
+    言うと、そのまま使える」は伝わる。1つや5つ以上は起きていない。
+
+    作り直しは2回までで、通らなければ失敗画面へ出る（views.py）。
+    ちょうどの数を求めて弾くと、**正しく答えているものまで**
+    作り直させることになり、待ち時間と費用だけが増える。
+
+    箇条書きになっていないときは、ここでは何も言わない
+    （`follows_format` の担当）。
+    """
+    asked = f"{values.get('format', '')}{values.get('improvement', '')}"
+    match = _ASKED_COUNT.search(asked)
+    if not match:
+        return Verdict.passed()
+
+    wanted = int(unicodedata.normalize("NFKC", match.group(1)))
+    found = len(_BULLET.findall(text or ""))
+    if found == 0:
+        return Verdict.passed()
+
+    if abs(found - wanted) >= 2:
+        return Verdict.failed("item_count")
+    return Verdict.passed()
+
+
 def follows_length(values: dict, text: str) -> Verdict:
     """頼んだ長さに、だいたい沿っているか。
 
@@ -312,7 +352,7 @@ def no_json_leak(values: dict, text: str) -> Verdict:
 #: 共通で掛けるもの。どのレッスンでも、これが起きたら学習にならない。
 COMMON: tuple[Check, ...] = (no_copy, not_empty_ish, no_json_leak, no_preamble)
 
-#: 頼んだこと別。**まだ Day1（rewrite / improve）だけ。**
+#: 頼んだこと別。**Day1（rewrite / improve）と Day2（summarize）だけ。**
 #:
 #: 横展開するときはここに1行足す。載っていない頼みごとは共通だけを
 #: 掛ける——**知らないものを勝手に弾かない**。品質検査は、
@@ -323,6 +363,12 @@ BY_ACTION: dict[str, tuple[Check, ...]] = {
     # 本文にふつうに出る。共通に上げると、そちらで誤検知が増える。
     "rewrite": (follows_length, no_work_declaration),
     "improve": (follows_length, follows_format),
+    # Day2。**形と個数まで頼む**教材なので、そこが起きたかを見る。
+    #
+    # 作業の宣言（`no_work_declaration`）は掛けない。あの検査が
+    # 目印にしている言葉は書き直しの依頼を指すもので、要約の本文には
+    # ふつうに出る（「〜向けにまとめた結果」など）。
+    "summarize": (follows_format, follows_item_count, follows_length),
 }
 
 
@@ -353,6 +399,7 @@ RETRY_HINT: dict[str, str] = {
     "not_shorter": "元の文章より必ず短くしてください。",
     "too_many_lines": "指定された行数に収めてください。",
     "format_ignored": "各項目の行頭に「・」を付けた箇条書きで返してください。",
+    "item_count": "指定された項目数ちょうどで返してください。多くても少なくてもいけません。",
     "preamble": "前置きや報告を書かず、成果物の文章だけを返してください。",
     "work_declaration": (
         "これから何をするかを述べる文で書きはじめないでください。"

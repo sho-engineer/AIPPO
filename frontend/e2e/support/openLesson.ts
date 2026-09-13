@@ -13,10 +13,15 @@
 import { expect, type Page } from "@playwright/test";
 
 import { dismissLessonIntro } from "./lessonIntro";
-import { serveOpenCatalog } from "./openLessons";
+import { serveOpenCatalog, type SnapshotLesson } from "./openLessons";
 
-export async function openLessonById(page: Page, lessonId: string): Promise<void> {
-  await serveOpenCatalog(page);
+export async function openLessonById(
+  page: Page,
+  lessonId: string,
+  /** 配る前に教材へ手を入れる（`serveOpenCatalog`）。 */
+  edit?: (lesson: SnapshotLesson) => SnapshotLesson,
+): Promise<void> {
+  await serveOpenCatalog(page, edit);
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();

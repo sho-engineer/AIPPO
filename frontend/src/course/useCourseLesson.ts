@@ -620,7 +620,25 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
             sequence: current.length + 1,
             stepId: step.id,
             label: options.label ?? (current.length === 0 ? "1回目" : `${current.length + 1}回目`),
-            inputText: input.original_text ?? "",
+            /*
+              送った**本文**を残す。
+
+              前はここが `input.original_text` 固定だった。AIへの
+              頼みごとによって本文の置き場が違う（`apps/ai/actions.py`
+              の `body_field`）——説明の回は `topic`、比べる回は
+              `options_text`。合わない教材では空のまま記録され、
+              結果の画面に「元の文章 （入力なし）」と出て、
+              **変わったところを見る道も消えていた**（実測）。
+
+              置き場の候補を順に見る。どれも無ければ空——そのときは
+              「比べる相手が無い」で正しい。
+            */
+            inputText:
+              input.original_text ??
+              input.topic ??
+              input.options_text ??
+              input.source_text ??
+              "",
             outputText: response.result,
             usage: response.usage,
             extras: response.extras ?? {},
@@ -766,8 +784,24 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       stepId: step.id,
       reason: "real_task_skipped",
     });
-    move(nextStepId(lesson, stepId));
-  }, [lesson, move, step.id, stepId]);
+    /*
+      飛ぶ先は、**その文章を使わない画面**まで。
+
+      前は「次の1歩」へ進めていた。自分の文章を入れる回を飛ばすと、
+      その先には入れたはずの文章を送る画面が並んでいる——条件を選ばされ、
+      確認の画面まで来て、**空の本文を AI へ送る**ことになる
+      （実測。Day1 も Day2 も `original_text: ""` で送っていた）。
+      本物のサーバーは本文が空の依頼を弾くので、飛ばした人だけが
+      自分のせいではない失敗の画面に出る。
+
+      行き先は教材が持つ（`meta.skipTo`）。**歩数で数えない**
+      ——回を1つ足した日にずれる。書いていない教材はこれまでどおり
+      1歩進む（自分の文章のあとに送る画面が無い教材のため）。
+    */
+    const skipTo = (step.meta as { skipTo?: string } | undefined)?.skipTo;
+    const landing = skipTo && findStep(lesson, skipTo) ? skipTo : null;
+    move(landing ?? nextStepId(lesson, stepId));
+  }, [lesson, move, step, stepId]);
 
   /**
    * 残りを飛ばして、まとめの画面へ。

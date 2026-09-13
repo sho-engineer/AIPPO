@@ -181,6 +181,29 @@ export function StepRenderer({
     sampleText?: string;
     /** 仕事でそのまま使える形（完了画面）。 */
     reusablePrompt?: string;
+    /* ── ここから下は Day2 の手書きの流れ（`course/day2Steps.ts`） ── */
+    /** 元の文章に添える名札（「調査資料（Lesson用サンプル）」）。 */
+    sourceLabel?: string;
+    /** 比べずに、返ってきたものだけを出す（1回目の結果・自分の文章の結果）。 */
+    resultOnly?: boolean;
+    /**
+     * 比べる相手を、**1つ前のAIの結果**にする。
+     *
+     * 既定は元の文章と比べる（Day1）。要約では元が 300字・結果が 3行
+     * なので、対応する文が取れない——見せたいのは「まとめ方が変わった」
+     * ことなので、前のまとめと今のまとめを突き合わせる。
+     */
+    compareWithPrevious?: boolean;
+    /** 積み上がる指示の行。省くと Day1 の2行（読む人・伝え方）。 */
+    instructionLines?: { key: string; label: string; hint: string; suffix?: string }[];
+    /** 自分の文章が無い人のための例文（`real_task`）。 */
+    fallbackSample?: string;
+    /** 副の行の行き先。結果から条件へ戻る（`pages/LessonRunner.tsx`）。 */
+    editStep?: string;
+    /** 副の行の文言。 */
+    editLabel?: string;
+    /** 今回足した条件が入っている値の鍵。省くと Day1 の読む人／伝え方。 */
+    changedKey?: string;
   };
 
   /*
@@ -189,10 +212,17 @@ export function StepRenderer({
     まだのものは薄く置いておく（`Instruction`）。消しておくと、あと
     何が足せるのか分からないうえ、選んだ瞬間に下が押し出される。
   */
-  const instructionLines = [
-    { label: "読む人", value: values.audience ?? "", hint: "読む人を決める" },
-    { label: "伝え方", value: values.tone ?? "", hint: "伝え方を決める" },
-  ];
+  const instructionLines = (
+    meta.instructionLines ?? [
+      { key: "audience", label: "読む人", hint: "読む人を決める" },
+      { key: "tone", label: "伝え方", hint: "伝え方を決める" },
+    ]
+  ).map((line) => ({
+    label: line.label,
+    value: values[line.key] ?? "",
+    hint: line.hint,
+    suffix: line.suffix,
+  }));
 
   /*
     いま頼んでいること。送っている最中の画面に小さく出す。
@@ -207,6 +237,57 @@ export function StepRenderer({
     const quick = lesson.steps.find((entry) => entry.type === "quick_try");
     return (quick?.meta as { sampleText?: string } | undefined)?.sampleText;
   })();
+
+  /**
+   * 届いたときの一言。教材が頼んでいることで変わる。
+   *
+   * Day1 は「書き直しました」、Day2 は「まとめました」。頼んだことと
+   * 違う言葉が返ると、押した操作と結果のつながりが切れる。
+   */
+  const doneLabel = lesson.id === "summarize_text" ? "まとめました" : "書き直しました";
+
+  /**
+   * 比べる相手。
+   *
+   * 既定は**そのとき送った文章**（Day1 は毎回、元の文章を送るので
+   * 元と比べることになる）。`compareWithPrevious` のときは1つ前の
+   * AIの結果——要約は元が 300字・結果が 3行で、対応する文が取れない。
+   */
+  const comparedWith = meta.compareWithPrevious
+    ? (runs[runs.length - 2]?.outputText ?? lastRun?.inputText)
+    : lastRun?.inputText;
+
+  /**
+   * 今回足した条件の中身。
+   *
+   * 教材が鍵を書いていればそれを引く（`meta.changedKey`）。書いて
+   * いない Day1 は、これまでどおり名前から引く。
+   */
+  /**
+   * その回でAIへ渡した条件。**画面の値をそのまま並べない。**
+   *
+   * `values` には、教材が持っている全部の答えが入っている——固定の
+   * 題材で選んだ条件も、自分の文章そのものも、観察の答えも。それを
+   * そのまま条件として並べると、**自分の長文が「条件」の札として
+   * 積まれる**（Day2 の仕上がり画面で、条件欄が 263px になった）。
+   *
+   * 送った形（`aiAction.inputs`）を通す。本文は `promptCards` が
+   * 落とすので、残るのは実際に渡した条件だけになる。
+   */
+  const sentConditions = (() => {
+    const at = lesson.steps.findIndex((one) => one.id === step.id);
+    for (let index = at; index >= 0; index -= 1) {
+      const found = lesson.steps[index];
+      if (found.aiAction) return promptCards(buildAiInput(found, values));
+    }
+    return promptCards(values);
+  })();
+
+  const changedValue = meta.changedKey
+    ? (values[meta.changedKey] ?? "")
+    : meta.changedLabel === "読む人"
+      ? (values.audience ?? "")
+      : (values.tone ?? "");
 
   switch (step.type) {
     case "safety_check":
@@ -361,9 +442,16 @@ export function StepRenderer({
       if (meta.sourcePreview) {
         return (
           <div className="shrink-0" data-testid="source-preview">
+            {/*
+              名札は教材が決める。Day2 の題材は**Lesson用に作った
+              架空の調査資料**なので、実在の調査と読み違えられないよう、
+              出すどの画面にもその旨の名札を付ける。
+            */}
             <FullText
               lines={3}
-              label="元の文章"
+              label={meta.sourceLabel ?? "元の文章"}
+              /* 名札が中身の一部のときだけ、画面にも出す（`MoreSheet`） */
+              showLabel={Boolean(meta.sourceLabel)}
               text={meta.sampleText ?? ""}
               testId="source-text"
             />
@@ -463,7 +551,7 @@ export function StepRenderer({
                 「専門用語を減らす」1枚だけで、条件を足すたびに増える。
                 名前つきの一覧は「変わったところ」の一枚の中。
               */
-              conditions={promptCards(values)}
+              conditions={sentConditions}
               factCheck={meta.factCheck}
               /*
                 広げない。広げると縮んだ枠が抜粋を切り、「全文を見る」も
@@ -650,7 +738,18 @@ export function StepRenderer({
           step={step}
           value={values[step.key ?? ""] ?? ""}
           onChange={(value) => api.setValue(step.key ?? "", value)}
-          sampleText={step.type === "real_task" ? undefined : sampleText}
+          /*
+            自分の文章の回に例文を渡すか。
+
+            Day1 は渡さない（`undefined`）——あちらの題材は自分で
+            書いた文章で、例文を入れると「書き直す前の文章」が
+            教材のものになる。Day2 は渡す。まとめたくなるほど長い
+            文章が手元に無い日でも、同じ型を1回通せるようにする
+            （`meta.fallbackSample`）。
+          */
+          sampleText={
+            step.type === "real_task" ? meta.fallbackSample : sampleText
+          }
           onHint={api.showHint}
           hintsLeft={(step.hints?.length ?? 0) - api.hintIndex}
         />
@@ -799,25 +898,63 @@ export function StepRenderer({
         return (
           <div className="flex min-h-0 flex-1 flex-col">
             {lastRun && (
-              <StepDone label="書き直しました" trigger={runs.length} subtle />
+              <StepDone label={doneLabel} trigger={runs.length} subtle />
             )}
             {lastRun && (
               <Changes
-                before={lastRun.inputText}
+                before={comparedWith}
                 after={lastRun.outputText}
                 changed={
                   meta.changedLabel
-                    ? {
-                        label: meta.changedLabel,
-                        value:
-                          meta.changedLabel === "読む人"
-                            ? (values.audience ?? "")
-                            : (values.tone ?? ""),
-                      }
+                    ? { label: meta.changedLabel, value: changedValue }
                     : undefined
                 }
                 note={meta.changedNote}
-                conditions={meta.showConditions ? promptCards(values) : undefined}
+                conditions={meta.showConditions ? sentConditions : undefined}
+                figure={picture?.visualType === "compare" ? picture : null}
+              />
+            )}
+            <div className="shrink-0">
+              <SafetyNote placement="output" />
+            </div>
+          </div>
+        );
+      }
+
+      /*
+        比べずに、返ってきたものだけを出す。
+
+        使うのは2か所——**まだ何も足していない1回目**と、
+        **自分の文章の仕上がり**。どちらも「何を変えた？」に書ける
+        ことが無い（前者は条件が無く、後者は比べる相手が自分の文章
+        そのもの）。空の枠を置くくらいなら、結果を読ませる。
+      */
+      if (meta.resultOnly) {
+        return (
+          <div className="flex min-h-0 flex-1 flex-col">
+            {lastRun && (
+              <StepDone label={doneLabel} trigger={runs.length} subtle />
+            )}
+            {lastRun && (
+              <ResultCompare
+                before={lastRun.inputText}
+                after={lastRun.outputText}
+                reviewPoints={meta.reviewPoints ?? []}
+                showPoints={false}
+                showChanges={false}
+                onlyResult
+                conditions={meta.showConditions ? sentConditions : undefined}
+                factCheck={meta.factCheck}
+                /*
+                  広げない。**カードの中で送らせない。**
+
+                  広げる（既定）と、面は残りの高さに合わせて縮み、
+                  入りきらないぶんをその中で送ることになる。320×568 で
+                  実際にそうなった（面の中に送る先ができていた）。
+                  高さを決めてしまえば、抜粋は3行で切れて、残りは
+                  「全文を見る」の一枚で読む形になる。
+                */
+                fill={false}
               />
             )}
             <div className="shrink-0">

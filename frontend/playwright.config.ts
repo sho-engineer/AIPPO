@@ -28,6 +28,22 @@ const webServerCommand = againstBuild
 
 export default defineConfig({
   testDir: "./e2e",
+  /*
+    頭に `_` が付くものは、ふだん回さない。
+
+    実ブラウザQA用の写し取り（`e2e/_qa-*.spec.ts`）や、調べもの用の
+    使い捨てを置く場所。**目で見るための道具**で、通す・落とすを
+    決めるものではない——CI に混ぜると、写しが1枚増えるたびに
+    CI の時間が延びる。
+
+    見たいときは `QA=1` を付けて回す。
+
+        QA=1 npx playwright test e2e/_qa-day2.spec.ts --project=mobile
+
+    消さずに残すのは、**次に同じ画面を見たくなったときに書き直さない
+    ため**。QA は1回で終わるものではない。
+  */
+  testIgnore: process.env.QA ? [] : /_.*\.spec\.ts$/,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

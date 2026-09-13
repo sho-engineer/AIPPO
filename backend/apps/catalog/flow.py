@@ -388,6 +388,15 @@ def build_lesson_flow(options: dict[str, Any]) -> list[dict[str, Any]]:
             # 空のままでは進めない。短いだけなら止めず提案にとどめる
             "required": True,
             "validationRules": {"suggestLength": 20, "maxLength": 5000},
+            # 「今回はスキップする」の行き先。
+            #
+            # この先は入れたはずの文章を使う画面ばかりなので、1歩進めると
+            # 条件を選ばされ、確認まで来て、**空の本文を AI へ送る**ことに
+            # なる（実測で `original_text: ""`）。本物のサーバーは本文の
+            # 無い依頼を弾くので、飛ばした人だけが自分のせいではない
+            # 失敗の画面に出る。飛ぶ先はふりかえり——そこから先は
+            # 文章を使わない（frontend の `course/useCourseLesson.ts`）
+            "meta": {"skipTo": "reflection"},
         },
         {
             # 自分で条件を組み立てた回だけ、送る前に依頼内容を見せる。
