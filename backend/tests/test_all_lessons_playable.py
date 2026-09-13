@@ -27,6 +27,7 @@ from apps.catalog.models import (
     Lesson,
     PublishStatus,
 )
+from apps.catalog.release_seeding import RELEASE_COMING_SOON
 
 GENERATE_URL = "/api/v1/ai/generate/"
 CATALOG_URL = "/api/v1/catalog/"
@@ -120,19 +121,19 @@ def _lessons_for(action_id: str) -> tuple[str, ...]:
 
 @pytest.mark.django_db
 class TestEveryLessonIsShipped:
-    #: まだ開けない教材。
-    #:
-    #: 仕組みが無いからではなく、費用の見通しを先に立てるため
-    #: （docs/image-lessons.md）。開けるときにここから外す。
-    NOT_OPEN_YET = {"image_generation", "image_edit"}
-
     def test_every_finished_lesson_is_startable(self, seeded):
-        """中身のある教材は、すべて始められること。
+        """開けていない教材が、**リリース範囲の表と一致する**こと。
 
-        数えるのはこのコースの分だけにする。教材の表には
-        「これから増えるコース」の分も入っていて、そちらは
-        中身がまだ無いので**始められないのが正しい**。
-        全件で数えると、正しい追加のたびにここが落ちる。
+        前はここが「中身のある教材はすべて始められる」だった。第1
+        リリースで Day1 だけを開くと決めたので、その形では成り立たない
+        ——中身は9本ぶん揃っていて、閉じているのは判定待ちだから。
+
+        代わりに、閉じている顔ぶれが**公開範囲の表そのもの**である
+        ことを見る。表を1か所に集めてあるので（`release_seeding` の
+        RELEASE_COMING_SOON）、ここが食い違うのは、どこか別の場所が
+        勝手に開け閉めしたときだけ。
+
+        教材を公開するときに直すのは表の1行で、この検査は直さなくてよい。
         """
         stuck = set(
             seeded.lessons.exclude(
@@ -140,7 +141,7 @@ class TestEveryLessonIsShipped:
             ).values_list("slug", flat=True)
         )
 
-        assert stuck == self.NOT_OPEN_YET, f"始められない教材が変わった: {stuck}"
+        assert stuck == set(RELEASE_COMING_SOON), f"始められない教材が変わった: {stuck}"
 
     def test_every_open_lesson_ships_steps(self, api_client, seeded):
         """開けている教材に、中身が空のものが無いこと。
@@ -177,7 +178,18 @@ class TestEveryActionRuns:
 
     @pytest.mark.parametrize("action_id", sorted(ACTIONS))
     def test_action_runs_for_its_own_lesson(self, api_client, seeded, action_id):
-        """アクションは、紐づいた教材のどれからでも通ること。"""
+        """アクションは、紐づいた教材のどれからでも通ること。
+
+        **公開範囲はここでは見ない。** 見たいのは配線——どの教材から
+        どのアクションが呼べるか——で、それは第1リリースで何を開くかとは
+        別の話。判定待ちで閉じている教材を素通りさせると、公開した日に
+        初めて壊れていたと分かることになる。
+
+        なので、この試験のあいだだけ全部を開ける。閉じていること自体は
+        `test_every_finished_lesson_is_startable` が別に見ている。
+        """
+        Lesson.objects.update(availability_status=AvailabilityStatus.AVAILABLE)
+
         for lesson_id in _lessons_for(action_id):
             response = self._post(api_client, lesson_id, action_id)
 

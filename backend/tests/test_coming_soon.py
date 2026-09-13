@@ -31,6 +31,7 @@ from apps.catalog.models import (
     Lesson,
     PublishStatus,
 )
+from apps.catalog.release_seeding import RELEASE_COMING_SOON
 
 CATALOG_URL = "/api/v1/catalog/"
 GENERATE_URL = "/api/v1/ai/generate/"
@@ -41,6 +42,12 @@ GENERATE_URL = "/api/v1/ai/generate/"
 # 「開けるものを閉じたらどうなるか」を見るので、もともと
 # 近日公開のもの（画像の2本）では確かめにならない。
 GATED = "rewrite_text"
+
+#: 止まったことを「隣と比べて」確かめるための1本。
+#:
+#: 第1リリースでは Day2 以降が閉じているので、`gated` フィクスチャが
+#: ここだけ開け直す。閉じた1本と閉じた隣では、止まったことが分からない。
+OPEN_NEIGHBOUR = "summarize_text"
 
 
 @pytest.fixture
@@ -56,13 +63,21 @@ def seeded(db):
 
 @pytest.fixture
 def gated(seeded):
-    """1本だけ近日公開にする。
+    """1本を近日公開にし、隣の1本は開けておく。
 
-    取り込みの既定は全部が始められるので、止まることを確かめるには
-    こちらで閉じる。管理画面から閉じたのと同じ状態になる。
+    ここで見たいのは**止まる仕組み**であって、第1リリースで何を
+    開くかではない。リリース範囲のほうは
+    `test_the_closed_lessons_match_the_release_list` が別に見ている。
+
+    隣を開け直しているのは、そのため。第1リリースでは Day2 以降が
+    閉じているので、何もしないと「閉じた1本と、閉じた隣」になって、
+    **止まったことを確かめられない**。
     """
     Lesson.objects.filter(slug=GATED).update(
         availability_status=AvailabilityStatus.COMING_SOON
+    )
+    Lesson.objects.filter(slug=OPEN_NEIGHBOUR).update(
+        availability_status=AvailabilityStatus.AVAILABLE
     )
     return GATED
 
@@ -76,14 +91,16 @@ def _use_mock(settings):
 class TestReleaseScope:
     """取り込んだ直後の状態。"""
 
-    def test_lessons_with_real_content_are_startable(self, seeded):
-        """中身のある教材は、全部が始められる。
+    def test_the_closed_lessons_match_the_release_list(self, seeded):
+        """閉じている顔ぶれが、**リリース範囲の表と一致する**こと。
 
-        閉じておくと、画面には出ているのに押せない教材が並ぶだけになる。
+        前はここが「中身のある教材は全部が始められる」だった。第1
+        リリースで Day1 だけを開くと決めたので、その形では成り立たない
+        ——中身は揃っていて、閉じているのは判定待ちだから。
 
-        画像の2本（STEP 3）だけは別。仕組みが無いからではなく、
-        費用の見通しを先に立てるため止めてある（docs/image-lessons.md）。
-        こちらは中身も無いので、閉じているのが正しい。
+        表は1か所（`release_seeding` の RELEASE_COMING_SOON）。ここが
+        食い違うのは、どこか別の場所が勝手に開け閉めしたときだけ。
+        教材を公開するときに直すのは表の1行で、この検査は直さなくてよい。
         """
         stuck = set(
             Lesson.objects.filter(course=seeded)
@@ -91,7 +108,7 @@ class TestReleaseScope:
             .values_list("slug", flat=True)
         )
 
-        assert stuck == {"image_generation", "image_edit"}
+        assert stuck == set(RELEASE_COMING_SOON)
 
     def test_a_gated_lesson_is_still_listed(self, gated):
         """一覧から消してはいけない。出したうえで止めるのが「近日公開」。"""
@@ -181,7 +198,7 @@ class TestCatalogApi:
         assert coming["goal"]
 
         # 閉じたのはこの1本だけ。隣は開いたままであること
-        available = lessons["summarize_text"]
+        available = lessons[OPEN_NEIGHBOUR]
         assert available["availability"] == "available"
         assert len(available["steps"]) > 10
 

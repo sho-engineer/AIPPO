@@ -17,6 +17,7 @@ from __future__ import annotations
 import pytest
 from django.core.management import call_command
 
+from apps.catalog.models import AvailabilityStatus, Lesson, PublishStatus
 from apps.rewards.models import (
     AiTaskPricing,
     LearningPath,
@@ -78,15 +79,64 @@ class TestSeedCatalogAlsoSeedsRewards:
         assert AiTaskPricing.objects.get(task_type="image_standard").credit_cost > 0
 
     def test_running_twice_does_not_duplicate_anything(self):
-        call_command("seed_catalog", verbosity=0)
+        """2回流しても、増えないこと。
+
+        本数を決め打ちにしない
+        ----------------------
+        前はここに 17 / 15 と書いてあった。スタンプと学習パスは
+        リリース範囲から作られる（`apps/rewards/seeding.py`——始められ
+        ない教材にスタンプ枠を置くと、埋めようのない台紙になる）ので、
+        **教材を1本公開するたびにここが落ちる**。落ちるだけで、
+        「二重に入っていないか」というこの試験の目的は何も見ていない。
+
+        しかも2つのコースで方針が違う。スタートコースの学習パスは
+        開けている分だけを入れ、AI活用コースは準備中の分も入れて
+        「必須ではない」印を付ける。決め打ちの数は、その違いも
+        いっしょに固めてしまう。
+
+        1回目の数を控えて、2回目と突き合わせる。名前のとおりのことを、
+        範囲が変わっても見られる形にする。
+        """
         call_command("seed_catalog", verbosity=0)
 
-        assert LearningPath.objects.filter(slug="first_step_7days").count() == 1
-        # スタートコース7本（開けている分）＋ AI活用コース10本
-        assert LearningPathLesson.objects.count() == 17
-        assert StampDefinition.objects.count() == 15
-        assert PathRewardMilestone.objects.count() == 5
-        assert AiTaskPricing.objects.count() == 6
+        def counts() -> dict[str, int]:
+            return {
+                "path": LearningPath.objects.filter(slug="first_step_7days").count(),
+                "path_lessons": LearningPathLesson.objects.count(),
+                "stamps": StampDefinition.objects.count(),
+                "milestones": PathRewardMilestone.objects.count(),
+                "pricing": AiTaskPricing.objects.count(),
+            }
+
+        first = counts()
+        call_command("seed_catalog", verbosity=0)
+
+        assert counts() == first
+        # 空回りしていないこと。0件どうしを比べても通ってしまう
+        assert first["path"] == 1
+        assert first["stamps"] > 0
+        assert first["milestones"] == 5
+        assert first["pricing"] == 6
+
+    def test_stamps_are_only_for_lessons_you_can_start(self):
+        """スタンプは、**始められる教材にだけ**付く。
+
+        始められない教材の枠を台紙に置くと、埋めようのない穴が残る。
+        第1リリースでは Day2 以降が準備中なので、ここが効いている。
+        """
+        call_command("seed_catalog", verbosity=0)
+
+        stamped = set(
+            StampDefinition.objects.values_list("lesson__slug", flat=True)
+        )
+        closed = set(
+            Lesson.objects.exclude(
+                availability_status=AvailabilityStatus.AVAILABLE
+            ).values_list("slug", flat=True)
+        )
+
+        assert stamped, "スタンプが1つも入っていない"
+        assert stamped & closed == set(), f"始められない教材にスタンプ: {stamped & closed}"
 
 
 class TestRecipes:
@@ -141,7 +191,11 @@ class TestSeedRewardsCommand:
 
         call_command("seed_rewards", verbosity=0)
 
-        assert StampDefinition.objects.count() == 15
+        # 開けている教材の数だけ入る（`test_running_twice…` と同じ理由）
+        assert StampDefinition.objects.count() == Lesson.objects.filter(
+            status=PublishStatus.PUBLISHED,
+            availability_status=AvailabilityStatus.AVAILABLE,
+        ).count()
 
     def test_it_does_not_crash_when_there_is_no_catalog_yet(self):
         """コースがまだ無い環境で呼ばれても、落ちずに知らせるだけ。"""
