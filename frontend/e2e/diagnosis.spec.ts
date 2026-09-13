@@ -17,12 +17,26 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { dismissLessonIntro } from "./support/lessonIntro";
 import { stubApi } from "./support/stubApi";
+import { serveOpenCatalog } from "./support/openLessons";
 
 /** 影や余白の端数で数 px は動く。 */
 const SLACK = 8;
 
-async function openDiagnosis(page: Page) {
+/**
+ * 診断を開く。
+ *
+ * `allOpen` は「ほかの候補」を見る回だけ。第1リリースで開いているのは
+ * 診断と Day1 だけなので、**ほかの候補になれる教材が1本もない**
+ * ——候補の一枚そのものが出ない。公開範囲の話は
+ * `e2e/releaseGate.spec.ts` が別に見るので、ここでは検査のあいだだけ開ける。
+ */
+async function openDiagnosis(page: Page, options: { allOpen?: boolean } = {}) {
   await stubApi(page);
+  /*
+    `stubApi` のあと、画面を開く前。あとから登録した経路が先に当たり、
+    教材は起動時に1回しか聞かない（`support/openLessons.ts`）。
+  */
+  if (options.allOpen) await serveOpenCatalog(page);
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
@@ -99,8 +113,11 @@ async function answerOne(page: Page): Promise<boolean> {
  *
  * 途中に待ち画面は無い。5問目を押したら、そのまま現在地が出る。
  */
-async function toResult(page: Page): Promise<void> {
-  await openDiagnosis(page);
+async function toResult(
+  page: Page,
+  options: { allOpen?: boolean } = {},
+): Promise<void> {
+  await openDiagnosis(page, options);
   for (let guard = 0; guard < 8; guard += 1) {
     if (!(await answerOne(page))) break;
   }
@@ -109,8 +126,11 @@ async function toResult(page: Page): Promise<void> {
 }
 
 /** 結果の3画面目（おすすめ）まで行く。 */
-async function toRecommendation(page: Page): Promise<void> {
-  await toResult(page);
+async function toRecommendation(
+  page: Page,
+  options: { allOpen?: boolean } = {},
+): Promise<void> {
+  await toResult(page, options);
   for (let step = 0; step < 2; step += 1) {
     await page.getByTestId("primary-action").click();
     await page.waitForTimeout(500);
@@ -603,7 +623,7 @@ test.describe("AI活用診断", () => {
       終わる形になる。決めるのは上の1本、ここはその逃げ道。
     */
     await page.setViewportSize({ width: 402, height: 660 });
-    await toRecommendation(page);
+    await toRecommendation(page, { allOpen: true });
 
     await expect(page.getByTestId("diagnosis-also")).toHaveCount(0);
     await expectFits(page, "結果（おすすめ・低い持ち方）");
@@ -718,7 +738,7 @@ test.describe("AI活用診断", () => {
   });
 
   test("ほかの候補を押しても、その回が始まる", async ({ page }) => {
-    await toRecommendation(page);
+    await toRecommendation(page, { allOpen: true });
 
     await page.getByTestId("diagnosis-also-open").click();
     const also = page.getByTestId("diagnosis-also-pick").first();

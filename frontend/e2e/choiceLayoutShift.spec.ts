@@ -17,6 +17,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
 import { dismissLessonIntro } from "./support/lessonIntro";
+import { serveOpenCatalog } from "./support/openLessons";
 
 
 async function openDiagnosisQuestion(page: Page): Promise<void> {
@@ -36,15 +37,27 @@ async function openDiagnosisQuestion(page: Page): Promise<void> {
  * 条件のタイル（`steps/Tiles.tsx`）が出るところまで進める。
  *
  * 診断の選択肢はラベルが短いので別の組み方（チップ）になる。
- * タイルの折り返しは、レッスンの中の「どう直しますか」まで
+ * タイルの折り返しは、レッスンの中の「条件をひとつ足そう」まで
  * 行かないと確かめられない。
+ *
+ * 行き先は Day2（`summarize_text`）
+ * --------------------------------
+ * Day1 を4つの段に組み直したとき、条件を選ぶ回は「誰に伝えるか」
+ * 「どんな伝え方にするか」の2回に分かれ、**タイルではなくなった**。
+ * いまタイルが出るのは Day2 以降。第1リリースでは準備中なので、
+ * 検査のあいだだけ開ける（`support/openLessons.ts`）。
  */
 async function openConditionTiles(page: Page): Promise<void> {
+  await stubApi(page);
+  await serveOpenCatalog(page);
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
   await page.getByRole("button", { name: "はじめる" }).first().click();
-  await page.getByTestId("continue-lesson").click();
+  await expect(page.getByTestId("tab-bar")).toBeVisible();
+  await page.getByRole("button", { name: "コース" }).first().click();
+  await page.getByTestId("current-course-open").click();
+  await page.getByTestId("lesson-summarize_text").click();
   await dismissLessonIntro(page);
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 

@@ -180,10 +180,11 @@ test.describe("続きから始める", () => {
 
     // 比べる画面まで進める
     for (let i = 0; i < 12; i++) {
-      if (await page.getByTestId("compare-more").isVisible().catch(() => false)) break;
+      if (await page.getByTestId("day1-changes").isVisible().catch(() => false)) break;
       if (!(await advance(page))) break;
       await page.waitForTimeout(150);
     }
+    await expect(page.getByTestId("day1-changes")).toBeVisible();
     /*
       空白の入り方は `innerText` と描き直しで揺れるので、比べるのは
       **中身の文字**にする。見たいのは「AI が返したものが残っているか」
@@ -191,34 +192,28 @@ test.describe("続きから始める", () => {
     */
     const flat = (text: string) => text.replace(/\s+/g, "");
     /*
-      1回目の結果は「変わったところを見る」の一枚の中にある。
-      画面に縦積みすると比べる面が潰れるので移した
-      （`components/course/steps/Compare.tsx`）。
+      AI が返した全文は「全文を見る」の一枚の中にある。画面のほうは
+      代表的な変化だけを出すので（`components/course/day1/Changes.tsx`）、
+      **返ってきたものが残っているか**はここでしか読めない。
     */
-    const readFirst = async () => {
-      await page.getByTestId("compare-more").click();
-      /*
-        「ここまでの道のり」は、一枚の中でもう一手押した先へ移った
-        （「全文を比べる」）。開いた瞬間に長い3本が並ぶと、上の3節
-        まで目が戻らないため（`components/course/steps/Compare.tsx`）。
-      */
-      await page.getByTestId("full-compare-open").click();
-      const text = flat(await page.getByTestId("compare-first").innerText());
+    const readResult = async () => {
+      await page.getByTestId("open-full-text").click();
+      const sheet = page.getByTestId("full-text-sheet");
+      await expect(sheet).toBeVisible();
+      const text = flat(await sheet.innerText());
       // 開いた一枚は滑って出るので、×は動いている間クリックできない。
-      // Esc なら位置に関係なく閉じられる。閉じるのは上に重ねた1枚ずつ
+      // Esc なら位置に関係なく閉じられる
       await page.keyboard.press("Escape");
-      await page.getByTestId("full-compare").waitFor({ state: "detached" });
-      await page.keyboard.press("Escape");
-      await page.getByTestId("changes-sheet").waitFor({ state: "detached" });
+      await sheet.waitFor({ state: "detached" });
       return text;
     };
 
-    const before = await readFirst();
+    const before = await readResult();
     expect(before.length).toBeGreaterThan(0);
 
     await page.reload();
     await page.waitForTimeout(800);
 
-    await expect.poll(readFirst).toBe(before);
+    await expect.poll(readResult).toBe(before);
   });
 });

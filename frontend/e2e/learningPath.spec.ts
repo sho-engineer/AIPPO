@@ -14,6 +14,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { serveOpenCatalog } from "./support/openLessons";
 import { dismissLessonIntro } from "./support/lessonIntro";
 
 const PHONE = { width: 390, height: 844 };
@@ -63,6 +64,14 @@ async function columns(page: Page) {
 test.describe("コースの道のり", () => {
   test.beforeEach(async ({ page }) => {
     await stubApi(page);
+    /*
+      検査のあいだだけ、教材を全部開ける。
+    
+      第1リリースで開いているのは診断と Day1 だけなので、そのままだと
+      ここが見たいもの（次の1本・節目・応用例からの行き先）が出ない。
+      公開状態そのものは `e2e/releaseGate.spec.ts` が別に見ている。
+    */
+    await serveOpenCatalog(page);
     await page.setViewportSize(PHONE);
   });
 

@@ -27,6 +27,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
 import { dismissLessonIntro } from "./support/lessonIntro";
+import { openLessonById } from "./support/openLesson";
 
 /** 台紙に対する neutral の幅（`PO_BOX.neutral.width`）。 */
 const VISIBLE_WIDTH_RATIO = 0.59;
@@ -120,8 +121,14 @@ test.describe("ポーと吹き出し", () => {
   test("進んでも離れない", async ({ page }) => {
     /*
       1画面だけ詰めても意味が無い。ポーが出るどの画面でも隣にいること。
+
+      通すのは Day2（`summarize_text`）。Day1 は結果と問いの画面から
+      ポーを外したので（`course/poPresence.ts`）、話す画面が入りと
+      完了だけになり、**進んだ先で離れていないか**を見られない。
+      Day2 は第1リリースでは準備中——検査のあいだだけ開ける。
     */
-    await start(page);
+    await stubApi(page);
+    await openLessonById(page, "summarize_text");
     const seen: number[] = [];
 
     for (let step = 0; step < 10; step += 1) {

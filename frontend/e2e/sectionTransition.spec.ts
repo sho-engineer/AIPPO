@@ -14,6 +14,10 @@
  *   4. 帯が、章扉で見せた名前と同じ言葉を出すこと
  */
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
@@ -77,6 +81,30 @@ async function advance(page: Page): Promise<boolean> {
   return true;
 }
 
+const SNAPSHOT = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../catalog-snapshot.json",
+);
+
+/**
+ * 教材データ側の、段の名前。
+ *
+ * 検査に書き写さない——書き写すと、教材を直したときに**両方が同じ
+ * 間違いで揃う**。引いてくらべる。
+ */
+function sectionLabels(lessonId: string): string[] {
+  const course = JSON.parse(readFileSync(SNAPSHOT, "utf8")) as {
+    lessons: {
+      id: string;
+      steps: { type: string; meta?: { sectionLabel?: string } }[];
+    }[];
+  };
+  const lesson = course.lessons.find((one) => one.id === lessonId);
+  return (lesson?.steps ?? [])
+    .filter((step) => step.type === "section_transition")
+    .map((step) => step.meta?.sectionLabel ?? "");
+}
+
 test.setTimeout(180_000);
 
 test.describe("段が変わったことを、1枚で言う", () => {
@@ -96,10 +124,10 @@ test.describe("段が変わったことを、1枚で言う", () => {
     }
 
     expect(covers).toEqual([
-      "まずは試してみよう",
-      "相手を決めよう",
-      "トーンを変えよう",
-      "自分で仕上げよう",
+      "まずはAIに頼んでみる",
+      "誰に伝えるか決める",
+      "伝え方を決める",
+      "自分の仕事で使う",
     ]);
   });
 
@@ -342,6 +370,9 @@ test.describe("段が変わったことを、1枚で言う", () => {
       出すと、見たばかりの段の名前が画面から消える。
     */
     await start(page);
+    const cover = (await coverTitle(page)) ?? "";
+    expect(cover, "章扉が出ていない").not.toBe("");
+
     // 章扉①を通り抜けると、帯のある画面に出る
     await page.getByTestId("primary-action").first().click();
     await page.waitForTimeout(700);
@@ -352,6 +383,17 @@ test.describe("段が変わったことを、1枚で言う", () => {
       .getAttribute("aria-valuetext");
 
     expect(band).toContain("4つのうち1つ目");
-    expect(band).toContain("試す");
+
+    /*
+      言葉そのものは決め打ちにしない。見たいのは「**その段のデータに
+      書いてある名前で呼んでいるか**」なので、教材のほうから引いて
+      くらべる。共通の区切りの名前（試す・変える・深める・自分で使う）へ
+      戻ってしまったら、ここで落ちる。
+    */
+    const label = /いまは「(.+?)」/.exec(band ?? "")?.[1];
+    expect(label, `帯に段の名前が無い（${band}）`).toBeTruthy();
+    expect(label, `章扉「${cover}」の段の名前と、帯が食い違っている`).toBe(
+      sectionLabels("rewrite_text")[0],
+    );
   });
 });

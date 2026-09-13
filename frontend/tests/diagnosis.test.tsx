@@ -718,6 +718,32 @@ describe("結果の4画面", () => {
     expect(screen.queryByTestId("diagnosis-also-open")).toBeNull();
   });
 
+  it("公開したかどうかは、**届いた一覧**で決める", () => {
+    /*
+      公開状態を持っているのはサーバーから届く一覧のほう
+      （`src/course/live.ts`）。同梱データだけを見ていると、教材を
+      1本開いた日に、画面の一覧は増えているのに診断のおすすめだけが
+      古い範囲のまま残る——「Day2 が並んでいるのに、診断はすすめて
+      くれない」状態になる。
+
+      `recommendPlan` は渡された一覧で決めること。
+    */
+    const opened = COURSE.lessons.map((lesson) => ({
+      ...lesson,
+      availability: "available" as const,
+    }));
+
+    const closed = recommendPlan(values);
+    const open = recommendPlan(values, opened);
+
+    // 同梱データのままなら、逃げ道は無い（上の回と同じ）
+    expect(closed.rest).toEqual([]);
+    // 全部開けば、逃げ道が出てくる
+    expect(open.rest.length).toBeGreaterThan(0);
+    // 本来のおすすめも「準備中」ではなくなる
+    expect(open.waiting).toBeUndefined();
+  });
+
   it("本来のおすすめが準備中なら、そう添える", () => {
     /*
       黙って Day1 へ差し替えない。答えから出た行き先が画面に出て

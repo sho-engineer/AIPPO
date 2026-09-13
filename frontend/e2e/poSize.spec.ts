@@ -35,7 +35,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro } from "./support/lessonIntro";
+import { openLessonById } from "./support/openLesson";
 
 /** 台紙に対する neutral の背丈（`PO_BOX.neutral.height`）。 */
 const VISIBLE_RATIO = 0.723;
@@ -119,10 +119,19 @@ test.describe("ポーの大きさ", () => {
       背丈が食い違っていないか**。表に無い組み合わせが1つでも出れば
       落ちる。
     */
-    await start(page);
-    await page.getByTestId("continue-lesson").click();
-    await dismissLessonIntro(page);
-    await expect(page.getByTestId("lesson-header")).toBeVisible();
+    /*
+      通すのは Day2（`summarize_text`）。
+
+      Day1 は4つの段に組み直したとき、結果と問いの画面からポーを
+      外した（`course/poPresence.ts`）。残るのは入りと完了だけ
+      ——どちらも `lg` なので、**大きさが場面で変わることを1本の中で
+      見られない**。Day2 には比べる場面（`md`）と条件を聞く場面
+      （`lg`）が両方あるので、食い違いがここで出る。
+
+      Day2 は第1リリースでは準備中。検査のあいだだけ開ける。
+    */
+    await stubApi(page);
+    await openLessonById(page, "summarize_text");
 
     // 入りの画面（完成イメージ）は、話しかける場面
     await expectSize(page, "lg", "レッスンの入り");

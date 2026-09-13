@@ -1,29 +1,27 @@
 /**
- * 主導線だけで終われる（Day1）。
+ * 押す先を1つだけ追って、Day1 を終えられる。
  *
- * 前は19画面あって、**全部通らないと終われなかった**。7〜9分。
- * 仕事終わりに開ける長さではない。そこで、途中に分かれ道
- * （「自分の文章でも試す？」）を置き、そこで一度終われるようにした。
+ * 前はここに「分かれ道」があった
+ * ------------------------------
+ * 19画面を通り切らないと終われなかった時期があり、途中に
+ * 「自分の文章でも試す？」を置いて、そこで一度降りられるようにして
+ * いた。**その分かれ道は、いまは無い。**
  *
- * 分かれ道の場所を、後ろへ動かした
- * --------------------------------
- * 前は「技を深める回」の**手前**にあった。そのため、そこで降りた人は
- * その日の技を1つしか受け取れない——Day1 でいえば、教材が
- * 「今日おぼえるのは誰向けかと言い方」と言っているのに、
- * **トーン指定を一度も見ないまま終わっていた**。
+ * Day1 を4つの段に組み直したとき、4段目そのものを「自分の仕事で使う」
+ * にした（`course/catalog.ts`）。降りる先だった回が、いまは最後の段の
+ * 本体になっている——降りる道を消したのではなく、**降りた先が本編に
+ * なった**ので、分かれる場所が無くなった。
  *
- * いまは Day1 の3つ（プロンプト・ターゲット指定・トーン指定）を
- * 渡し終えてから分かれる。**そのぶん、降りられるのは遅くなった**
- * ——9画面ではなく17画面ほど。習うことと、自分の文章で使うことは
- * 別なので、そこを分ける場所にした。
+ * だからここで見るものも変わる。
  *
- * 降りた人が失うのは「自分の文章で試す」だけ。
+ *   1. 押す先を1つだけ追って、完了画面まで行けること
+ *      （選ばせる回では、どれを選んでも詰まらない）
+ *   2. やり切った人が「途中」に見えないこと——帯の分母に、
+ *      **通らない回を混ぜていない**こと
+ *   3. 自分の文章の回が、主導線の中にあること
  *
- * 見張るのは3つ。
- *
- *   1. 主導線だけで完了画面まで行けること
- *   2. **やり切った人が「途中」に見えないこと**（帯が最後まで行く）
- *   3. 自分の文章の回が**消えていない**こと（続けた人には出る）
+ * 2 は、任意の回を作った日に効く見張り。分母にだけ足して分子に足さない
+ * 数え方をすると、最後まで来た人が「17 / 23」で終わる。
  */
 
 import { expect, test, type Page, type Locator } from "@playwright/test";
@@ -52,11 +50,6 @@ async function openRewrite(page: Page): Promise<void> {
 }
 
 async function advance(page: Page): Promise<boolean> {
-  /*
-    技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
-    閉じずに下のボタンを押そうとすると、背景が受け取ってしまう。
-  */
-
   const primary = page.getByTestId("primary-action").first();
   if (!(await primary.isVisible().catch(() => false))) return false;
 
@@ -82,101 +75,91 @@ async function advance(page: Page): Promise<boolean> {
   return true;
 }
 
-/** 「自分の文章でも試す？」まで、主導線を進める。 */
-async function toBranch(page: Page): Promise<number> {
-  await openRewrite(page);
-  let screens = 1;
-  for (let i = 0; i < 30; i++) {
-    if (
-      await page
-        .getByRole("heading", { name: "自分の文章でも試す？" })
-        .isVisible()
-        .catch(() => false)
-    ) {
-      return screens;
-    }
-    if (!(await advance(page))) break;
-    screens += 1;
-    await page.waitForTimeout(150);
-  }
-  throw new Error(`分かれ道まで届かなかった（${screens}画面）`);
+/** いま出ている画面の、帯の数え方。帯が無い画面では null。 */
+async function bar(page: Page): Promise<{ current: number; total: number } | null> {
+  const band = page.getByTestId("lesson-progress").first();
+  if (!(await band.count())) return null;
+  const current = Number(await band.getAttribute("aria-valuenow"));
+  const total = Number(await band.getAttribute("aria-valuemax"));
+  return Number.isFinite(current) && Number.isFinite(total) ? { current, total } : null;
 }
 
-test.describe("主導線だけで終われる", () => {
-  test("最後まで通らなくても、途中で終われる", async ({ page }) => {
-    /*
-      前は分かれ道が無く、23画面を通り切るしかなかった。
+interface Walk {
+  /** 通った画面の見出し（章扉も含む）。 */
+  headings: string[];
+  /** 完了画面の直前に出ていた帯。 */
+  lastBar: { current: number; total: number } | null;
+}
 
-      数で縛らない。**分かれ道がどこにあるかは教材の作り方の話**で、
-      Day1 は3つの技を渡し終えてから分かれると決めた（章扉③まで
-      通ってから）。ここで「9画面以内」と釘を刺すと、技を1つ削るか、
-      分かれ道を前へ戻すかしか道が無くなる。
+/**
+ * 押す先を1つだけ追って、完了画面まで歩く。
+ *
+ * 数は決め打ちにしない。**何画面あるかは教材の作り方の話**で、
+ * ここで上限を書くと、回を1つ足すたびに検査を直すことになる。
+ */
+async function walkToCompletion(page: Page): Promise<Walk> {
+  await openRewrite(page);
 
-      守りたいのは「**通り切らなくても終われる**」ことのほう。
-      それは下の「次のレッスンへ」の検査が見ている。ここでは、
-      分かれ道が最後まで行く前にあることだけを見る。
-    */
+  const headings: string[] = [];
+  let lastBar: Walk["lastBar"] = null;
+
+  for (let guard = 0; guard < 40; guard += 1) {
+    if (await page.getByTestId("completion-view").isVisible().catch(() => false)) {
+      return { headings, lastBar };
+    }
+
+    const heading = await page
+      .locator("h1")
+      .first()
+      .innerText()
+      .catch(() => "");
+    if (heading) headings.push(heading.replace(/\s+/g, ""));
+    lastBar = (await bar(page)) ?? lastBar;
+
+    if (!(await advance(page))) break;
+    await page.waitForTimeout(150);
+  }
+
+  throw new Error(`完了まで届かなかった（${headings.length}画面）\n${headings.join(" / ")}`);
+}
+
+test.describe("押す先を1つだけ追って終われる", () => {
+  test("選ばせる回で詰まらずに、完了画面まで行ける", async ({ page }) => {
     await stubApi(page);
-
-    const screens = await toBranch(page);
-    const total = Number(
-      await page.getByTestId("lesson-progress").first().getAttribute("aria-valuemax"),
-    );
-
-    expect(screens).toBeLessThan(total);
-  });
-
-  test("「次のレッスンへ」で、そのまま完了できる", async ({ page }) => {
-    await stubApi(page);
-    await toBranch(page);
-
-    await page.getByRole("button", { name: "次のレッスンへ" }).click();
+    const { headings } = await walkToCompletion(page);
 
     await expect(page.getByTestId("completion-view")).toBeVisible();
+    // 1画面だけ見て終わっていない（歩けていないのに通るのを防ぐ）
+    expect(headings.length).toBeGreaterThan(5);
   });
 
-  test("**やり切った人が「途中」に見えない**", async ({ page }) => {
+  test("やり切った人が「途中」に見えない", async ({ page }) => {
     /*
-      任意の回を分母に入れていると、分かれ道まで来た人が
-      「17 / 23」で終わる。最後まで来たのに途中でやめたように見える。
-    */
-    await stubApi(page);
-    await toBranch(page);
-
-    /*
-      見るのは**分かれ道にいるとき**。完了画面で見ても分からない
-      ——`completion` は並びの最後なので、任意の回を分母に入れていても
-      「19 / 19」で釣り合ってしまう（最初そこを見ていて、壊しても
+      見るのは**完了画面の直前**。完了画面で見ても分からない
+      ——`completion` は並びの最後なので、通らない回を分母に入れていても
+      「19 / 19」で釣り合ってしまう（前にそこを見ていて、壊しても
       落ちなかった）。
 
-      分母に効いているかは、まだ主導線にいるあいだにしか見えない。
-
-      `aria-valuetext` も見ない。あちらは区切りの名前を持っていて、
-      歩数の数え方では変わらない。
-    */
-    const bar = page.getByTestId("lesson-progress").first();
-    const current = Number(await bar.getAttribute("aria-valuenow"));
-    const total = Number(await bar.getAttribute("aria-valuemax"));
-
-    // 主導線は17画面ほど。23（任意の回を含む数）になっていないこと
-    expect(total).toBeLessThan(20);
-    expect(total - current).toBeLessThanOrEqual(1);
-  });
-
-  test("自分の文章の回は消えていない（続けた人には出る）", async ({ page }) => {
-    /*
-      分かれ道の先が、行き止まりになっていないこと。「自分の文章で
-      試す」を選んだ人には、これまでどおり入力欄が出る。
-
-      技の回（相手・トーン）は分かれ道の**手前**へ移したので、
-      ここではもう出ない——降りた人も受け取れるようにするための
-      並べ替えで、消したのではない。
+      分母に効いているかは、まだ本編にいるあいだにしか見えない。
     */
     await stubApi(page);
-    await toBranch(page);
+    const { lastBar } = await walkToCompletion(page);
 
-    await page.getByTestId("primary-action").first().click();
+    expect(lastBar, "帯が1画面も出ていない").not.toBeNull();
+    expect(
+      lastBar!.total - lastBar!.current,
+      `最後の画面で「${lastBar!.current} / ${lastBar!.total}」——分母に、通らない回が混じっている`,
+    ).toBeLessThanOrEqual(1);
+  });
 
-    await expect(page.getByRole("heading", { name: "自分の文章" })).toBeVisible();
+  test("自分の文章の回は、主導線の中にある", async ({ page }) => {
+    /*
+      前はここが分かれ道の先にあり、降りた人には出なかった。いまは
+      4段目そのもの——**押す先を1つだけ追った人にも必ず出る**。
+    */
+    await stubApi(page);
+    const { headings } = await walkToCompletion(page);
+
+    expect(headings.some((one) => one.includes("自分の文章"))).toBe(true);
   });
 });

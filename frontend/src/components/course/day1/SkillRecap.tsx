@@ -68,7 +68,10 @@ export function SkillRecap({ items }: { items: SkillRecapItem[] }) {
                 {one.name}
               </span>
               {/* 1行に収める。2行を超えると、祝う画面が読む画面になる */}
-              <span className="mt-0.5 block text-xs leading-5 text-ink-muted">
+              <span
+                data-testid="skill-recap-body"
+                className="mt-0.5 block text-xs leading-5 text-ink-muted"
+              >
                 {one.body}
               </span>
             </span>

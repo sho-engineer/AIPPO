@@ -21,6 +21,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { dismissLessonIntro } from "./support/lessonIntro";
 import { openRecord } from "./support/openRecord";
 import { stubApi } from "./support/stubApi";
+import { serveOpenCatalog } from "./support/openLessons";
 
 const SAMPLE =
   "先月の売上について報告がありました。前年同月比で110%となり、新規顧客からの受注が伸びています。";
@@ -79,6 +80,14 @@ async function runToCompletion(page: Page): Promise<void> {
 test.describe("こんな使い方もできます", () => {
   test.beforeEach(async ({ page }) => {
     await stubApi(page);
+    /*
+      検査のあいだだけ、教材を全部開ける。
+    
+      第1リリースで開いているのは診断と Day1 だけなので、そのままだと
+      ここが見たいもの（次の1本・節目・応用例からの行き先）が出ない。
+      公開状態そのものは `e2e/releaseGate.spec.ts` が別に見ている。
+    */
+    await serveOpenCatalog(page);
   });
 
   test("完了画面に節が出る", async ({ page }) => {

@@ -51,6 +51,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
 import { dismissLessonIntro } from "./support/lessonIntro";
+import { serveOpenCatalog } from "./support/openLessons";
 
 const SLACK = 8;
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
@@ -224,6 +225,22 @@ async function start(page: Page) {
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 }
 
+/** 指定の1本を開く。準備中のものも、検査のあいだだけ開ける。 */
+async function startLesson(page: Page, lessonId: string) {
+  await stubApi(page);
+  await serveOpenCatalog(page);
+  await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
+  await page.getByRole("button", { name: "はじめる" }).first().click();
+  await expect(page.getByTestId("tab-bar")).toBeVisible();
+  await page.getByRole("button", { name: "コース" }).first().click();
+  await page.getByTestId("current-course-open").click();
+  await page.getByTestId(`lesson-${lessonId}`).click();
+  await dismissLessonIntro(page);
+  await expect(page.getByTestId("lesson-header")).toBeVisible();
+}
+
 /** その見出しの回まで進める。 */
 async function runToHeading(page: Page, heading: RegExp) {
   for (let step = 0; step < 30; step += 1) {
@@ -264,9 +281,14 @@ test.describe("文字どうしが重ならない", () => {
       直してある（`components/course/StepRenderer.tsx`）。
 
       ここでは、**やめたあとに本当の重なりが生まれていないこと**を見る。
+
+      行き先は Day2（`summarize_text`）。Day1 を4つの段に組み直した
+      とき、条件を選ぶ回は「誰に伝えるか」「どんな伝え方にするか」に
+      分かれ、この形ではなくなった。いま同じ組み方が出るのは Day2 以降
+      ——第1リリースでは準備中なので、検査のあいだだけ開ける。
     */
     test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
-    await start(page);
+    await startLesson(page, "summarize_text");
     await runToHeading(page, /条件をひとつ足そう/);
 
     const free = page

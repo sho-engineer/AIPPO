@@ -400,6 +400,40 @@ function checkReleaseScope(catalog) {
   return { open: open.map((one) => one.id) };
 }
 
+/**
+ * `catalog-snapshot.json` が、いまの `catalog.ts` と同じか。
+ *
+ * あの写しは2つに使われる。教材を取り込む JSON を作るときと、
+ * **E2E が「全部開いた形」を配るとき**（`e2e/support/openLessons.ts`）。
+ * 古いままだと、検査が実物と違うものを見て緑になる——いちばん
+ * 気づきにくい壊れ方なので、ここで止める。
+ *
+ * 直し方は1つ。`cd frontend && node dump-catalog.mjs`。
+ */
+function checkSnapshot(catalog) {
+  const at = "catalog-snapshot";
+  const path = join(ROOT, "frontend/catalog-snapshot.json");
+  if (!existsSync(path)) {
+    fail(at, "catalog-snapshot.json が無い（node dump-catalog.mjs）");
+    return;
+  }
+
+  const snapshot = JSON.parse(readFileSync(path, "utf8"));
+  const live = catalog.COURSE;
+
+  const seen = (snapshot.lessons ?? []).map((one) => `${one.id}:${one.steps?.length ?? 0}`);
+  const now = live.lessons.map((one) => `${one.id}:${one.steps.length}`);
+
+  if (seen.join("|") !== now.join("|")) {
+    fail(
+      at,
+      `catalog.ts と食い違っている。node dump-catalog.mjs を流す\n` +
+        `    写し: ${seen.join(", ")}\n` +
+        `    実物: ${now.join(", ")}`,
+    );
+  }
+}
+
 async function main() {
   const registry = loadRegistry();
   const specs = loadSpecs();
@@ -409,6 +443,7 @@ async function main() {
   const seen = { ids: new Set(), days: new Set(), slugs: new Set() };
   for (const entry of specs) checkSpec(entry, registry, catalog, seen);
   const scope = checkReleaseScope(catalog);
+  checkSnapshot(catalog);
 
   console.log(`Lesson Spec ${specs.length}本 / AI技 ${registry.skills.length}件`);
   console.log(`開いている教材: ${scope.open.join(", ")}`);

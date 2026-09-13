@@ -102,7 +102,11 @@ export function DiagnosisResult({
   const [why, setWhy] = useState(false);
 
   const result = scoreDiagnosis(values);
-  const plan = recommendPlan(values);
+  /*
+    サーバーから届いた一覧で決める。公開状態を持っているのはこちら
+    ——同梱データを見ていると、1本開いた日に診断だけが古い範囲で止まる。
+  */
+  const plan = recommendPlan(values, lessons);
   const skill = NEXT_SKILL[result.weakest];
   const find = (id: string) => lessons.find((one) => one.id === id);
   const first = find(plan.first);

@@ -22,6 +22,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { openRecord } from "./support/openRecord";
 import { stubApi } from "./support/stubApi";
+import { serveOpenCatalog } from "./support/openLessons";
 import { dismissLessonIntro } from "./support/lessonIntro";
 
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
@@ -97,6 +98,14 @@ async function runToCompletion(page: Page): Promise<void> {
 test.describe("道のりのスタンプ", () => {
   test.beforeEach(async ({ page }) => {
     await stubApi(page);
+    /*
+      検査のあいだだけ、教材を全部開ける。
+    
+      第1リリースで開いているのは診断と Day1 だけなので、そのままだと
+      ここが見たいもの（次の1本・節目・応用例からの行き先）が出ない。
+      公開状態そのものは `e2e/releaseGate.spec.ts` が別に見ている。
+    */
+    await serveOpenCatalog(page);
   });
 
   /*
@@ -143,6 +152,14 @@ test.describe("道のりのスタンプ", () => {
 test.describe("節目に届いた回", () => {
   test.beforeEach(async ({ page }) => {
     await stubApi(page);
+    /*
+      検査のあいだだけ、教材を全部開ける。
+    
+      第1リリースで開いているのは診断と Day1 だけなので、そのままだと
+      ここが見たいもの（次の1本・節目・応用例からの行き先）が出ない。
+      公開状態そのものは `e2e/releaseGate.spec.ts` が別に見ている。
+    */
+    await serveOpenCatalog(page);
   });
 
   test("ここまでで何ができるようになったかが出る", async ({ page }) => {
@@ -158,7 +175,7 @@ test.describe("節目に届いた回", () => {
 
     // 数と特典の話だけで終わらせない。積み上がったことを出す
     await expect(page.getByTestId("checkpoint-outcomes")).toContainText(
-      "読む相手を伝えて、説明のしかたを変えられる",
+      "読む人に合わせて言葉を変えられる",
     );
 
     /*
@@ -187,6 +204,14 @@ test.describe("節目に届いた回", () => {
 test.describe("コースを完走した回", () => {
   test.beforeEach(async ({ page }) => {
     await stubApi(page);
+    /*
+      検査のあいだだけ、教材を全部開ける。
+    
+      第1リリースで開いているのは診断と Day1 だけなので、そのままだと
+      ここが見たいもの（次の1本・節目・応用例からの行き先）が出ない。
+      公開状態そのものは `e2e/releaseGate.spec.ts` が別に見ている。
+    */
+    await serveOpenCatalog(page);
   });
 
   test("専用の締めくくりが出て、次のコースへ本当に移れる", async ({ page }) => {

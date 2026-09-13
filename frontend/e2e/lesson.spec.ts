@@ -16,8 +16,28 @@
 
 import { expect, test, type Page, type Locator } from "@playwright/test";
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { stubApi, type StubHandle } from "./support/stubApi";
 import { dismissLessonIntro } from "./support/lessonIntro";
+import { openLessonById } from "./support/openLesson";
+
+const SNAPSHOT = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../catalog-snapshot.json",
+);
+
+/** 教材データ側の、その1本の最後の画面の見出し。 */
+function completionTitle(lessonId: string): string {
+  const course = JSON.parse(readFileSync(SNAPSHOT, "utf8")) as {
+    lessons: { id: string; steps: { type: string; title?: string }[] }[];
+  };
+  const lesson = course.lessons.find((one) => one.id === lessonId);
+  const last = (lesson?.steps ?? []).find((step) => step.type === "completion");
+  return last?.title ?? "";
+}
 
 /**
  * 進めない状態か。
@@ -133,7 +153,15 @@ test.describe("レッスンを最後まで進める", () => {
   });
 
   test("1枚の絵から始まる（説明を先に読ませない）", async ({ page }) => {
-    await openRewrite(page);
+    /*
+      見るのは Day2（`summarize_text`）。
+
+      Day1 は4つの段に組み直したとき、開始画面（`outcome_preview`）を
+      持たなくなり、いきなり1段目の章扉から始まる。開始画面の組み方
+      そのものは Day2 以降が持っているので、そちらで見る。
+      Day2 は第1リリースでは準備中——検査のあいだだけ開ける。
+    */
+    await openLessonById(page, "summarize_text");
 
     await expect(page.getByTestId("outcome-preview")).toBeVisible();
     // 詳しい話は畳んである。絵を見る前に読み下させない
@@ -156,7 +184,8 @@ test.describe("レッスンを最後まで進める", () => {
       「全体図を見る」「詳しく見る」「初級」まで並んでいて、
       押せる先が4つあった。
     */
-    await openRewrite(page);
+    // Day1 は開始画面を持たない（上の回のコメント）。ここも Day2 で見る
+    await openLessonById(page, "summarize_text");
 
     await expect(page.getByTestId("primary-action").first()).toBeVisible();
     await expect(page.getByTestId("outcome-intro-open")).toBeVisible();
@@ -178,7 +207,13 @@ test.describe("レッスンを最後まで進める", () => {
     */
     const outcomes = page.getByTestId("completion-outcomes");
     await expect(outcomes.getByRole("listitem").first()).toBeVisible();
-    await expect(page.getByRole("heading", { name: "できるようになりました" })).toBeVisible();
+    /*
+      見出しは決め打ちにしない。教材のほうから引いてくらべる
+      ——書き写すと、教材を直したときに両方が同じ間違いで揃う。
+    */
+    await expect(
+      page.getByRole("heading", { name: completionTitle("rewrite_text") }),
+    ).toBeVisible();
     await expect(page.getByTestId("completion-view")).toContainText("覚えたAI技");
   });
 
@@ -193,7 +228,15 @@ test.describe("レッスンを最後まで進める", () => {
   });
 
   test("条件を足す回は、前の結果を対象にする", async ({ page }) => {
-    await openRewrite(page);
+    /*
+      見るのは Day2（`summarize_text`）。
+
+      Day1 は4つの段に組み直したとき、**毎回 `rewrite` を送り直す**
+      形になった（押した条件を積み上げて、そのつど全部を渡す）。
+      前の結果を対象にする `improve` を使うのは Day2 以降。
+      Day2 は第1リリースでは準備中——検査のあいだだけ開ける。
+    */
+    await openLessonById(page, "summarize_text");
     await runToEnd(page);
 
     const improve = api.calls.filter((call) => call.action === "improve");

@@ -17,10 +17,15 @@
  * 5. 一枚は**画面の上に**出る（下の画面が沈む）
  */
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
 import { dismissLessonIntro } from "./support/lessonIntro";
+import { openLessonById } from "./support/openLesson";
 
 /** 次へ進む。答えが要る回は、その場にあるもので埋める。 */
 async function advance(p: Page): Promise<boolean> {
@@ -69,6 +74,21 @@ async function start(page: Page) {
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 }
 
+/**
+ * Day2（`summarize_text`）を開く。
+ *
+ * 3本を見比べる一枚（`compare-more`）と、結果の「変わったところ」
+ * （`result-more`）は、Day2 以降の組み方。Day1 は4つの段に組み直した
+ * とき、結果を**代表的な変化**で出す形に変えたので
+ * （`components/course/day1/Changes.tsx`）、この2つが出ない。
+ *
+ * Day2 は第1リリースでは準備中——検査のあいだだけ開ける。
+ */
+async function startDay2(page: Page) {
+  await stubApi(page);
+  await openLessonById(page, "summarize_text");
+}
+
 /** その目印が出る回まで進める。 */
 async function runUntil(page: Page, testId: string) {
   for (let step = 0; step < 30; step += 1) {
@@ -78,29 +98,73 @@ async function runUntil(page: Page, testId: string) {
   await expect(page.getByTestId(testId)).toBeVisible();
 }
 
+const SNAPSHOT = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../catalog-snapshot.json",
+);
+
+/** Day1 の段ごとの一言（`meta.changedNote`）。並びは教材のとおり。 */
+function day1ChangedNotes(): string[] {
+  const course = JSON.parse(readFileSync(SNAPSHOT, "utf8")) as {
+    lessons: { id: string; steps: { meta?: { changedNote?: string } }[] }[];
+  };
+  const lesson = course.lessons.find((one) => one.id === "rewrite_text");
+  return (lesson?.steps ?? [])
+    .map((step) => step.meta?.changedNote ?? "")
+    .filter(Boolean)
+    .map((one) => one.replace(/\s+/g, ""));
+}
+
 test.setTimeout(120_000);
 
 test.describe("変わったところの一枚", () => {
   test("持ち帰る一言が、押さなくても見えている", async ({ page }) => {
     /*
-      教材が持つ一言（`course/lessonPlan.ts` の `takeaway`）が、
-      実際の画面まで届いているか。
+      教材が持つ一言が、実際の画面まで届いているか。
 
-      部品の検査（`tests/compareStep.test.tsx`）と教材の検査
-      （`tests/lessonPlan.test.ts`）は、それぞれの端しか見ていない。
+      部品の検査と教材の検査は、それぞれの端しか見ていない。
       **つないでいるのは `StepRenderer` の1行**で、そこが落ちても
       どちらの検査も緑のまま——画面から一言が消えるだけになる。
+
+      見る場所が変わった
+      ------------------
+      前は「変わったところを見る」の一枚の中の一言
+      （`course/lessonPlan.ts` の `takeaway`）を見ていた。Day1 を
+      4つの段に組み直したとき、結果は**代表的な変化**で出す形になり
+      （`components/course/day1/Changes.tsx`）、一言は段ごとの
+      `changedNote`（教材データ）が持つようになった。
+
+      いまの seam はそちら。教材データから引いてくらべる——検査に
+      書き写すと、教材を直したときに両方が同じ間違いで揃う。
     */
     await start(page);
-    await runUntil(page, "compare-more");
+    await runUntil(page, "change-note");
 
-    await expect(page.getByTestId("compare-takeaway")).toContainText(
-      "誰に伝えるかを足すと",
-    );
+    const notes = day1ChangedNotes();
+    expect(notes.length, "教材に段ごとの一言が無い").toBeGreaterThan(0);
+
+    /*
+      段を進めるたび、その段の一言が出ていること。1つ見て終わらない
+      ——`StepRenderer` が最初の1回だけ渡していても通ってしまう。
+    */
+    const seen: string[] = [];
+    for (let step = 0; step < 30 && seen.length < notes.length; step += 1) {
+      if (await page.getByTestId("change-note").count()) {
+        const text = (await page.getByTestId("change-note").innerText()).replace(
+          /\s+/g,
+          "",
+        );
+        const hit = notes.find((one) => text.includes(one));
+        if (hit && !seen.includes(hit)) seen.push(hit);
+      }
+      if (!(await advance(page))) break;
+    }
+
+    expect(seen, `画面に出た一言: ${seen.join(" / ")}`).toEqual(notes);
   });
 
   test("差分・道のり・図が、押せば全部ある", async ({ page }) => {
-    await start(page);
+    await startDay2(page);
     await runUntil(page, "compare-more");
 
     await page.getByTestId("compare-more").click();
@@ -140,7 +204,7 @@ test.describe("変わったところの一枚", () => {
       一枚の中の文章は3行で切ってある。**切った先を読むために
       一枚を送らせない**——押せば全文が出て、閉じれば元の続きから読める。
     */
-    await start(page);
+    await startDay2(page);
     await runUntil(page, "compare-more");
     await page.getByTestId("compare-more").click();
     // 3本の全文は、一枚の中でもう一手押した先（「全文を比べる」）
@@ -169,7 +233,7 @@ test.describe("変わったところの一枚", () => {
 
       画面いっぱいに広がっているかで見る。
     */
-    await start(page);
+    await startDay2(page);
     await runUntil(page, "compare-more");
     await page.getByTestId("compare-more").click();
 
@@ -192,15 +256,25 @@ test.describe("分かりやすくなった？の画面", () => {
       中身も見る。全文の突き合わせより先に、言いかえの対応が出ること
       （簡単になったかは、そちらのほうが早く分かる）。
     */
-    await start(page);
+    await startDay2(page);
     await runUntil(page, "observation-list");
 
     await page.getByTestId("result-more").click();
 
     const sheet = page.getByTestId("changes-sheet");
     await expect(sheet).toHaveAttribute("data-placement", "center");
-    await expect(page.getByTestId("changes-swaps")).toBeVisible();
     await expect(sheet).toContainText("ここを見て");
+    /*
+      言いかえの対応（`changes-swaps`）は、ここでは見ない。
+
+      あれは `course/lessonPlan.ts` の `swaps` から出るもので、
+      いま plan を持っているのは Day1 だけ。その Day1 は4つの段に
+      組み直したとき、この画面を通らなくなった（代表的な変化を出す
+      `day1/Changes.tsx` に変わった）。**つまり今どの教材からも
+      出ない**——ここで見張ると、教材の都合で落ち続ける。
+
+      Day2 以降に plan を足した日に、この行を戻すこと。
+    */
 
     // 全文の比べは、この中でもう1回押した人にだけ
     await expect(page.getByTestId("full-compare")).toHaveCount(0);
@@ -214,7 +288,7 @@ test.describe("分かりやすくなった？の画面", () => {
       背景が動くと、閉じたときに**さっきまで見ていた場所と違う所**へ
       戻る。答えの札が画面の外へ出ていれば、押せる場所を探し直しになる。
     */
-    await start(page);
+    await startDay2(page);
     await runUntil(page, "observation-list");
     await page.getByTestId("result-more").click();
     await expect(page.getByTestId("changes-sheet")).toBeVisible();
@@ -312,7 +386,9 @@ test.describe("AI技を受け取る画面", () => {
     await runUntil(page, "skill-recap");
 
     const rows = await page.evaluate(() =>
-      [...document.querySelectorAll("[data-testid='skill-recap-item'] p")].map(
+      [
+        ...document.querySelectorAll("[data-testid='skill-recap-body']"),
+      ].map(
         (node) => {
           const step = parseFloat(getComputedStyle(node).lineHeight);
           return {

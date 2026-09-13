@@ -8,6 +8,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { serveOpenCatalog } from "./support/openLessons";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 const DEX = {
   skills: [
@@ -69,11 +71,27 @@ test.describe("AI技図鑑", () => {
 
   test("まだの技から、そのレッスンへ入れる", async ({ page }) => {
     await stubApi(page, { skillDex: DEX });
+    /*
+      `compare_options`（Day5）は第1リリースでは準備中。ここで見たいのは
+      「図鑑から、その技を learn できるレッスンへ入れること」で、
+      公開範囲の話ではないので、検査のあいだだけ開ける。
+
+      置き場所は2つとも守ること。**`stubApi` のあと**——Playwright は
+      最後に登録した経路から照合するので、先に呼ぶと `stubApi` の空の
+      教材に上書きされる。そして**画面を開く前**——教材は起動時に1回
+      だけ聞くので、開いたあとに差し替えても届かない。
+    */
+    await serveOpenCatalog(page);
     await toHome(page);
 
     await page.getByRole("button", { name: "マイ学び" }).click();
     await page.getByTestId("skill-toggle-comparison").click();
     await page.getByTestId("skill-lesson-comparison-compare_options").click();
+    /*
+      レッスンは章扉（絵1枚）から始まる。章扉は `StepShell` の外なので、
+      通り抜けるまで帯は出ない。
+    */
+    await dismissLessonIntro(page);
 
     // 読んで終わりにしない。その場から学びに行ける
     await expect(page.getByTestId("lesson-progress")).toBeVisible();

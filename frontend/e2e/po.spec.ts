@@ -16,6 +16,7 @@
 import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
+import { openLessonById } from "./support/openLesson";
 import { dismissLessonIntro } from "./support/lessonIntro";
 
 /**
@@ -80,8 +81,19 @@ async function advance(page: Page): Promise<boolean> {
 
 test.describe("ポーの絵", () => {
   test("出た表情は、それぞれ自分の絵を読んでいる", async ({ page }) => {
+    /*
+      通すのは Day2（`summarize_text`）。
+
+      Day1 は結果と問いの画面からポーを外したので
+      （`course/poPresence.ts`）、1本通してもポーは入りと完了の2画面
+      しか出ない。**表情が2つでは、絵の読み分けを見たことにならない。**
+      Day2 には比べる場面と条件を聞く場面が残っている。
+
+      Day2 は第1リリースでは準備中——検査のあいだだけ開ける。
+    */
+    test.setTimeout(90_000);
     await stubApi(page);
-    await openRewrite(page);
+    await openLessonById(page, "summarize_text");
 
     /*
       表情ごとに、出た絵を**ぜんぶ**集める（1枚だけ見ない）。
@@ -172,8 +184,17 @@ test.describe("ポーの絵", () => {
           ひとつなので、待ってはいけない。
         */
         const here = page.locator("[data-po-scene]").first();
+        /*
+          数えたあとに消えることがある。Day1 はポーの出ない画面が
+          続くので、`count()` が通った直後に居なくなる瞬間に当たる
+          ——そのまま `getAttribute` を呼ぶと、既定の待ち時間まで
+          止まって検査ごと時間切れになる。**居ないことも答え**なので、
+          短く聞いて、答えが無ければ「居ない」とする。
+        */
         const found = (await here.count())
-          ? await here.getAttribute("data-po-scene")
+          ? await here
+              .getAttribute("data-po-scene", { timeout: 1000 })
+              .catch(() => null)
           : null;
         if (found) scene = found;
         await page.waitForTimeout(90);

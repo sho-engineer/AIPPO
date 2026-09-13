@@ -15,6 +15,7 @@
  */
 
 import { COURSE } from "./catalog";
+import type { Lesson } from "./types";
 import { isStartable } from "./availability";
 import {
   AXIS_LABELS,
@@ -221,12 +222,22 @@ export interface Recommendation {
   waiting?: string;
 }
 
-function startable(id: string): boolean {
-  const lesson = COURSE.lessons.find((one) => one.id === id);
-  return Boolean(lesson && isStartable(lesson));
-}
-
-export function recommendPlan(answers: Record<string, string>): Recommendation {
+/**
+ * いま並んでいる教材から決める。
+ *
+ * 既定は同梱の一覧だが、**画面はサーバーから届いたほうを渡す**
+ * （`components/course/DiagnosisResult.tsx`）。公開状態は
+ * サーバー側の一覧が持っているので、同梱データだけを見ていると、
+ * 教材を1本開いた日に、診断のおすすめだけが古い範囲のまま残る。
+ */
+export function recommendPlan(
+  answers: Record<string, string>,
+  lessons: readonly Lesson[] = COURSE.lessons,
+): Recommendation {
+  const startable = (id: string): boolean => {
+    const lesson = lessons.find((one) => one.id === id);
+    return Boolean(lesson && isStartable(lesson));
+  };
   /*
     答えから出る、本来の1本。公開しているかどうかはまだ見ない。
   */
