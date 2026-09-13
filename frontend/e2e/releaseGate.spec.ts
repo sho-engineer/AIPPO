@@ -145,8 +145,16 @@ test.describe("診断の結果", () => {
       }
     }
 
-    // 現在地 → 4つの力 → おすすめ
-    for (let step = 0; step < 2; step += 1) {
+    /*
+      結果の画面を順に押して、おすすめまで。**何画面あるかは書かない**
+      ——1つ足した日に、ここだけ古い数で止まる。
+    */
+    for (let guard = 0; guard < 6; guard += 1) {
+      if (
+        (await page.locator("main h1").first().innerText()).includes("おすすめ")
+      ) {
+        break;
+      }
       await page.getByTestId("primary-action").click();
       await page.waitForTimeout(400);
     }

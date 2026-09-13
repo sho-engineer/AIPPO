@@ -148,6 +148,97 @@ export interface SectionTransitionProps {
   onContinue: () => void;
   /** 下のボタンの文言。既定は「つづける」。 */
   label?: string;
+  /** 何章目か。絵が無いときだけ、小さく出す。 */
+  number?: number;
+  /** 章の短い名前（「短くする」など）。絵が無いときだけ出す。 */
+  sectionLabel?: string;
+}
+
+/**
+ * 絵を持たない章扉。
+ *
+ * なぜ別に書くか
+ * --------------
+ * 絵のある章扉は「絵が画面そのもの」で、見出しもボタンも絵の上へ
+ * 重ねる。その置き方のまま絵だけを外すと、**受け皿の見出しが画面
+ * 全面に広がり、下から重ねたボタンと重なる**——Day2 の章扉4枚で
+ * 実際にそうなっていた（見出しと「つづける」が 32px 重なる。
+ * `e2e/_audit.spec.ts`）。
+ *
+ * 絵が無いなら、重ねる相手も無い。ふつうに縦へ並べる。
+ *
+ * 絵を待たない
+ * ------------
+ * 章扉は**段の変わり目を知らせるだけ**の画面で、絵はそれを助ける
+ * もの。無い日に空白を出すより、名前で伝えるほうが速い。
+ */
+function PlainDoor({
+  title,
+  number,
+  sectionLabel,
+  label,
+  onContinue,
+}: {
+  title: string;
+  number?: number;
+  sectionLabel?: string;
+  label: string;
+  onContinue: () => void;
+}) {
+  return (
+    <section
+      data-testid="section-transition"
+      data-door="plain"
+      aria-labelledby="section-transition-title"
+      className="mx-auto flex h-[calc(100dvh-2.75rem-env(safe-area-inset-top))] w-full
+                 max-w-page flex-col px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2"
+    >
+      {/*
+        名前だけ。**説明を足さない。**
+
+        ここで言うことは1つ——「次の段に入る」。段の中身は次の画面から
+        始まるので、ここで先に説明すると同じことを2回言うことになる。
+      */}
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
+        {(number || sectionLabel) && (
+          <p
+            className="text-xs font-bold leading-5 text-brand"
+            data-testid="section-eyebrow"
+          >
+            {number ? `Section ${number}` : null}
+            {number && sectionLabel ? "　" : null}
+            {sectionLabel}
+          </p>
+        )}
+        <h1
+          id="section-transition-title"
+          className="mt-2 text-2xl font-bold leading-relaxed"
+        >
+          {title}
+        </h1>
+      </div>
+
+      <div className="shrink-0">
+        <button
+          type="button"
+          onClick={() => {
+            playSound("tap");
+            onContinue();
+          }}
+          data-testid="primary-action"
+          className={`mx-auto flex items-center justify-center gap-2 px-6
+                      text-base font-bold text-white transition active:scale-[0.98]
+                      ${CTA.width} ${CTA.height} ${CTA.look}`}
+        >
+          <span className="whitespace-nowrap">{label}</span>
+          <IconChevronRight
+            className="h-3.5 w-3.5 shrink-0 opacity-80"
+            aria-hidden="true"
+          />
+        </button>
+      </div>
+    </section>
+  );
 }
 
 export function SectionTransition({
@@ -155,6 +246,8 @@ export function SectionTransition({
   image,
   onContinue,
   label = "つづける",
+  number,
+  sectionLabel,
 }: SectionTransitionProps) {
   /*
     絵が届くまで、押しても進めないようにはしない。
@@ -165,6 +258,19 @@ export function SectionTransition({
   */
   const [shown, setShown] = useState(false);
   useEffect(() => setShown(false), [image?.src]);
+
+  /* 絵を持たない章は、重ねない置き方にする */
+  if (!image) {
+    return (
+      <PlainDoor
+        title={title}
+        number={number}
+        sectionLabel={sectionLabel}
+        label={label}
+        onContinue={onContinue}
+      />
+    );
+  }
 
   return (
     /*
@@ -258,10 +364,17 @@ export function SectionTransition({
           */}
           <h1
             id="section-transition-title"
+            /*
+              絵が届くまでの受け皿。**「つづける」の場所は空けておく。**
+
+              `inset-0` で敷いていたころ、絵が来ない回線ではこの見出しが
+              画面いっぱいに広がり、下から重ねたボタンと重なっていた。
+              下端 6rem ぶんはボタンの場所なので、そこまでで止める。
+            */
             className={
-              image && shown
+              shown
                 ? "sr-only"
-                : "pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-2xl font-bold leading-relaxed"
+                : "pointer-events-none absolute inset-x-0 top-0 bottom-24 flex items-center justify-center px-6 text-center text-2xl font-bold leading-relaxed"
             }
           >
             {title}

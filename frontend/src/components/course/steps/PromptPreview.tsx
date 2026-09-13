@@ -48,7 +48,17 @@ export function PromptPreview({ cards, detail, onOpenDetail }: PreviewProps) {
         印のキラキラも外す。ここは「送る前に確かめる」場面で、
         魔法の記号が要る場面ではない。
       */}
-      <Card className="flex min-h-0 flex-1 flex-col">
+      {/*
+        面は**中身より縮めない**（`min-h-fit`）。
+
+        `min-h-0 flex-1` にしていたころ、320×568 では面が中身より
+        26px 低く潰れ、`Card` の `overflow-hidden` が最後の条件を
+        切り落としていた（実測・`e2e/_audit.spec.ts` の「切れ」）。
+        送る前に確かめる画面で、確かめる材料が消えていた。
+
+        入り切らない日は、枠のほうが送れる（`step-stage`）。
+      */}
+      <Card className="flex min-h-fit flex-1 flex-col">
         {/*
           項目名と中身を左右に並べる。
           カードを縦に積むより、何を何に決めたのかが一覧で追える。

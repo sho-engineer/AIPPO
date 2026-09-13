@@ -134,15 +134,22 @@ for (const size of SIZES) {
       await expect(page.getByTestId("diagnosis-analyzing")).toHaveCount(0);
       await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
 
-      for (const title of ["4つの力のバランス", "今のあなたにおすすめ"]) {
+      /*
+        結果の画面を、おすすめまで押していく。**何画面あるかは
+        書かない**——1つ足した日に、ここだけ古い数で止まる。
+      */
+      const results: string[] = [];
+      for (let guard = 0; guard < 6; guard += 1) {
         seen.push(await measure(page));
+        results.push(await page.locator("main h1").first().innerText());
+        if (results[results.length - 1].includes("おすすめ")) break;
         await page.getByTestId("primary-action").click();
         await page.waitForTimeout(400);
-        await expect(page.locator("main h1").first()).toHaveText(title);
       }
-      seen.push(await measure(page));
+      expect(results[results.length - 1]).toBe("今のあなたにおすすめ");
+      expect(results, "結果の画面が並んでいない").toContain("4つの力のバランス");
 
-      // 5問ぶん + 開始 + 結果3画面
+      // 5問ぶん + 開始
       expect(screens.length, `画面が ${screens.length} 枚`).toBe(6);
 
       for (const [at, one] of seen.entries()) {
@@ -166,7 +173,15 @@ for (const size of SIZES) {
       for (let guard = 0; guard < 8; guard += 1) {
         if (!(await answerOne(page))) break;
       }
-      await page.getByTestId("primary-action").click();
+      for (let guard = 0; guard < 6; guard += 1) {
+        if (
+          (await page.locator("main h1").first().innerText()) === "4つの力のバランス"
+        ) {
+          break;
+        }
+        await page.getByTestId("primary-action").click();
+        await page.waitForTimeout(400);
+      }
       await expect(page.locator("main h1").first()).toHaveText("4つの力のバランス");
 
       const chart = page.getByTestId("radar-chart");
@@ -195,7 +210,7 @@ for (const size of SIZES) {
       expect(shape.height, `${size.name}: ひし形が ${shape.height}px`).toBeGreaterThanOrEqual(130);
       // 軸の名前は左右へはみ出す置き方をしている。カードの外まで出ないこと
       expect(shape.outside, `${size.name}: 軸の名前がカードの外`).toBe(0);
-      // 横棒は表に出さない。数で読みたい人は「この結果になった理由」の中
+      // 横棒は置かない。同じ4つの値を2通りで同時に見せない
       await expect(page.getByTestId("axis-bars")).toHaveCount(0);
     });
   });

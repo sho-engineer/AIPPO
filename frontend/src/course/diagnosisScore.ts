@@ -264,10 +264,10 @@ const STRENGTH_LINES: Record<Axis, string> = {
  *
  * なぜ要るか
  * ----------
- * 「この結果になった理由」の一枚には、答えた内容と4つの段が並ぶ。
- * けれど**そのあいだが抜けていた**——自分の答えと、出てきた段の
- * つながりが書いていないので、読んでも「そう出た」以上のことが
- * 分からない。診断を信じてもらえるかどうかは、たいていここで決まる。
+ * 結果の画面には、答えた内容と4つの段が並ぶ。けれど**そのあいだが
+ * 抜けていた**——自分の答えと、出てきた段のつながりが書いていないので、
+ * 読んでも「そう出た」以上のことが分からない。診断を信じてもらえるか
+ * どうかは、たいていここで決まる。
  *
  * 配点表から引く。**別に書かない。**
  * ここを手で書くと、配点を直した日に説明だけが古いまま残る
@@ -453,56 +453,128 @@ const TRAIT_NEXT: Record<Axis, string> = {
   workflow: "仕事の流れへの組み込みはこれから",
 };
 
-export function traitsOf(result: DiagnosisResult): string[] {
-  /*
-    できたことは、**現在地と同じ積み上げで数える。**
+/**
+ * 特徴の1行と、**その行の根拠になった回答**。
+ *
+ * なぜ根拠を一緒に返すか
+ * ----------------------
+ * 「条件を加えて結果を調整できる」とだけ出すと、どこからそう判断
+ * したのかが分からない。**5問しか答えていない人**にとっては、当たって
+ * いても外れていても「そう出た」以上のことが読み取れない
+ * ——診断された感じは、待ち時間ではなくここで決まる。
+ *
+ * 根拠は作文しない。**選んだ札に書いてあった言葉**（`answerLines`）と、
+ * その回答が動かした軸（`axesMovedBy`）だけでつなぐ。
+ *
+ * 根拠が無い行もある
+ * ------------------
+ * 「これから」の行は、たいてい**その軸を動かした回答が1つも無い**から
+ * そうなっている。そのときは無理に理由を作らず、5問に出てこなかった
+ * ことをそのまま言う（呼ぶ側が `from` の空で判断する）。
+ */
+export interface TraitLine {
+  axis: Axis;
+  /** 画面に出す1行。 */
+  text: string;
+  /** できていること（`true`）か、これから（`false`）か。 */
+  done: boolean;
+  /** この行の元になった回答。無いこともある。 */
+  from: { stepId: string; text: string }[];
+}
 
-    軸ごとに独立して「3以上なら できている」と書くと、現在地と
-    食い違う。実機で出たのがこれ——
+export function traitLines(
+  result: DiagnosisResult,
+  values: Record<string, string>,
+): TraitLine[] {
+  const lines = answerLines(values);
+  return traitSeeds(result).map((seed) => ({
+    ...seed,
+    from: lines.filter((line) => axesMovedBy(line.stepId, values).includes(seed.axis)),
+  }));
+}
 
-        あなたの現在地  まず触ってみる段階
-        回答から見えた特徴
-          ✓ 条件を加えて結果を調整できる
-          ✓ 目的に応じて使い方を選べる
-          ✓ AIへの頼み方はこれから
-
-    AIを使ったことがない人がミニ問題をうまく答えると、こうなる。
-    読んだ人には、同じ画面が2つのことを言っているようにしか見えない
-    ——しかも**下の3行のほうが具体的**なので、上の判定のほうが
-    間違っていると読まれる。
-
-    現在地は「最初に 4 に届いていない軸」から決まる
-    （`scoreDiagnosis`）。ここも同じにする：
-    **頼む → 条件 → 目的 → 流れ の順に見て、最初に届いていない
-    ところで止める。** 飛び越えた先は数えない。
-
-    その結果、始めたばかりの人には「これから」の1行だけが出る。
-    できていないことを2つ並べるよりも、次にやること1つのほうが要る。
-  */
+/** 特徴の行を、軸と「できている／これから」だけで決める。 */
+function traitSeeds(result: DiagnosisResult): { axis: Axis; text: string; done: boolean }[] {
   const cleared: Axis[] = [];
   for (const axis of AXES) {
     if (axis === result.weakest || result.axes[axis] < 3) break;
     cleared.push(axis);
   }
 
-  /* 出すのは**いちばん先まで来ている2つ**。土台の話は要らない */
-  const done = cleared.slice(-2).map((axis) => TRAIT_DONE[axis]);
-
-  /*
-    4つとも届いている人には、「これから」を出さない。
-
-    `weakest` は必ず1つ返す（おすすめを引く先が要るので）。全部
-    届いている人にはいちばん最後の軸が返り、それがそのまま
-    「仕事の流れへの組み込みはこれから」として出ていた——現在地が
-    「仕事の流れに組み込めている段階」なのに、である。
-
-    ここだけは**まだのところが無い**ので、そう言う。
-  */
   if (AXES.every((axis) => result.axes[axis] >= 4)) {
-    return [...AXES.slice(-2).map((axis) => TRAIT_DONE[axis]), ALL_ROUND];
+    return [
+      ...AXES.slice(-2).map((axis) => ({ axis, text: TRAIT_DONE[axis], done: true })),
+      { axis: result.weakest, text: ALL_ROUND, done: true },
+    ];
   }
 
-  return [...done, TRAIT_NEXT[result.weakest]];
+  return [
+    ...cleared.slice(-2).map((axis) => ({ axis, text: TRAIT_DONE[axis], done: true })),
+    { axis: result.weakest, text: TRAIT_NEXT[result.weakest], done: false },
+  ];
+}
+
+/**
+ * どの回答から判断したかを、人の言葉で並べる。
+ *
+ * 記号（`tried` `first_time`）のままでは、読んでも自分の答えだと
+ * 分からない。**選んだ札に書いてあった言葉**で返す。
+ *
+ * どの問いの答えかも一緒に返す。「なおす」でその問いへ戻すのに要る。
+ */
+export function answerLines(
+  values: Record<string, string>,
+): { stepId: string; text: string }[] {
+  const usage: Record<string, string> = {
+    never: "AIはまだ使ったことがない",
+    tried: "AIを試したことはある",
+    sometimes: "困ったときにAIを使う",
+    work: "仕事でAIをよく使う",
+    daily: "ほぼ毎日、いろいろな用途でAIを使う",
+  };
+  const style: Record<string, string> = {
+    lost: "何を書けばいいか迷う、と答えた",
+    short: "とりあえず短くお願いする、と答えた",
+    condition: "条件を足して頼むことがある、と答えた",
+    adapt: "相手や目的に合わせて頼み方を変える、と答えた",
+    design: "仕事の流れに合わせて頼み方を組み立てる、と答えた",
+  };
+
+  const lines: { stepId: string; text: string }[] = [];
+  if (usage[values.ai_usage ?? ""]) {
+    lines.push({ stepId: "ai_usage", text: usage[values.ai_usage] });
+  }
+  if (style[values.ask_style ?? ""]) {
+    lines.push({ stepId: "ask_style", text: style[values.ask_style] });
+  }
+
+  const built = (values.build_prompt ?? "").split("|").filter(Boolean);
+  if (built.length === 3) {
+    lines.push({
+      stepId: "build_prompt",
+      text: "お願いを、3つの枠で組み立てた（何をしてほしい・誰向け・言い方）",
+    });
+  }
+
+  const matched = (values.match_purpose ?? "").split("|");
+  const answer = ["organize", "compare", "ideas"];
+  const hits = answer.filter((one, index) => matched[index] === one).length;
+  if (matched.filter(Boolean).length === 3) {
+    lines.push({
+      stepId: "match_purpose",
+      text: `3つの場面のうち、${hits}つで場面に合う使い方を選んだ`,
+    });
+  }
+
+  return lines;
+}
+
+export function traitsOf(result: DiagnosisResult): string[] {
+  /*
+    行の決め方は `traitSeeds` が1か所で持つ。ここと `traitLines` で
+    別々に書いていたころは、片方だけ直すと画面と検査で違う行が出た。
+  */
+  return traitSeeds(result).map((seed) => seed.text);
 }
 
 /** 4つとも届いている人の、3行目。 */

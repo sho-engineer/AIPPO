@@ -1,7 +1,7 @@
 /**
  * AI活用診断の結果。
  *
- * 1画面を、3つに割った
+ * 1画面を、4つに割った
  * --------------------
  * 前はここが1画面だった。図・できていること・次の一歩・おすすめが
  * 同時に並び、下のボタンは「ここから始める」。**読む前に次へ行く道が
@@ -9,8 +9,9 @@
  * 「あっさりしていて、診断してもらった感じが弱い」と言われたのがそこ。
  *
  *     現在地  … 5段階のどこか。Lesson の話はまだしない
+ *     特徴    … 回答から見えた3行と、その元になった自分の答え
  *     4つの力 … ひし形と、強み／次に伸ばす力／次に覚えること
- *     おすすめ … 上の2つを受けた1本。ここで初めて Lesson が出る
+ *     おすすめ … 上の3つを受けた1本。ここで初めて Lesson が出る
  *
  * 順番と文言は `course/diagnosisFlow.ts` が持つ。見出しと下のボタンは
  * `LessonRunner` が出すので、**2つのファイルにまたがる**——片方だけ
@@ -34,12 +35,15 @@
  * ひし形は4つの力の画面と、**置き場所が役を持った**ので、選ばせる
  * 必要が無くなった。
  *
- * 残した一枚は1つだけ
- * -------------------
- * 「この結果になった理由」（`diagnosis-detail-sheet`）。結果の写しでは
- * なく、**答えた内容と、そこからどう判断したか**を持つ。答えを直す
- * 「なおす」もここにしか無い——結果を見てから「そこは違う」と気づいた
- * 人が、直せずに終わらないように。
+ * 「この結果になった理由」の一枚もやめた
+ * ----------------------------------------
+ * 中身（答えた内容と、そこからの判断）は**画面そのもの**にした
+ * （`TraitsView`）。一枚のままだと、判断は画面・根拠は一枚と離れて
+ * 置かれ、しかも3画面のどこからでも開けるので**同じものが何度も
+ * 載る**。押さない人には、根拠が1つも見えないままだった。
+
+ * 残っている一枚は「ほかの候補」だけ。あれは押した人にだけ要る
+ * 行き先で、結果の説明ではない。
  *
  * 点数を出さない
  * --------------
@@ -51,16 +55,13 @@ import { useState } from "react";
 
 import { IconCheck, IconChevronRight } from "../Icons";
 import { MoreSheet } from "./MoreSheet";
-import { AxisBars } from "./diagnosis/AxisBars";
 import { GrowthTrack } from "./diagnosis/GrowthTrack";
 import { RadarChart } from "./diagnosis/RadarChart";
 import {
   AXIS_LABELS,
   NEXT_LEARNING,
-  NEXT_SKILL,
-  axesMovedBy,
   scoreDiagnosis,
-  traitsOf,
+  traitLines,
 } from "../../course/diagnosisScore";
 import type { DiagnosisPhase } from "../../course/diagnosisFlow";
 import { lookOf } from "../../course/presentation";
@@ -77,7 +78,7 @@ export interface DiagnosisResultProps {
   /**
    * 答えを直しに戻る。
    *
-   * 入口は「この結果になった理由」の一枚の中だけ。結果を見に来た画面の
+   * 入口は特徴の画面（`TraitsView`）の中だけ。結果を見に来た画面の
    * いちばん上に答えの一覧を置いていたころは、**結果より先に自分の
    * 答えが目に入って**いた。
    */
@@ -98,16 +99,12 @@ export function DiagnosisResult({
   onEditAnswer,
   onPickLesson,
 }: DiagnosisResultProps) {
-  /* 「この結果になった理由」。3画面のどこからでも開ける */
-  const [why, setWhy] = useState(false);
-
   const result = scoreDiagnosis(values);
   /*
     サーバーから届いた一覧で決める。公開状態を持っているのはこちら
     ——同梱データを見ていると、1本開いた日に診断だけが古い範囲で止まる。
   */
   const plan = recommendPlan(values, lessons);
-  const skill = NEXT_SKILL[result.weakest];
   const find = (id: string) => lessons.find((one) => one.id === id);
   const first = find(plan.first);
 
@@ -125,6 +122,9 @@ export function DiagnosisResult({
       data-phase={phase}
     >
       {phase === "stage" && <StageView result={result} />}
+      {phase === "traits" && (
+        <TraitsView result={result} values={values} onEditAnswer={onEditAnswer} />
+      )}
       {phase === "axes" && <AxesView result={result} />}
       {phase === "lesson" && (
         <LessonView
@@ -134,128 +134,6 @@ export function DiagnosisResult({
           others={plan.rest.map(find).filter((one): one is Lesson => Boolean(one))}
           onPick={onPickLesson}
         />
-      )}
-
-      {/*
-        なぜこうなったのか。**3画面のどこからでも、同じ1つへ。**
-
-        入口を画面ごとに変えない。読みたくなる場所は人によって違う
-        （現在地に納得できない人／おすすめに納得できない人）が、
-        見たいものは同じ「答えた内容と、そこからの判断」1つ。
-      */}
-      <div className="mt-3 shrink-0">
-        <button
-          type="button"
-          onClick={() => setWhy(true)}
-          data-testid="diagnosis-reason-open"
-          className="-mx-1 flex items-center gap-0.5 rounded-badge px-1 py-1.5
-                     text-xs font-bold text-brand-dark transition hover:bg-brand-soft"
-        >
-          この結果になった理由
-          <IconChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-        </button>
-      </div>
-
-      {why && (
-        <MoreSheet
-          placement="center"
-          testId="diagnosis-detail-sheet"
-          title="この結果になった理由"
-          onClose={() => setWhy(false)}
-        >
-          <section>
-            <h3 className="text-xs font-bold text-ink-muted">次に伸ばす力</h3>
-            <p className="mt-1 text-sm leading-6">
-              {AXIS_LABELS[result.weakest]}。{skill.name}（{skill.summary}）を
-              覚えると、ここが動きます。
-            </p>
-            {first && (
-              <p className="mt-2 text-sm leading-6 text-ink-muted">
-                「{first.title}」をすすめているのは、{first.goal}回だからです。
-              </p>
-            )}
-          </section>
-
-          {/*
-            4つの力の内訳。**結果の言い直しではなく、元の数。**
-
-            画面に出ているのはひし形で、形は読めても1つずつの段は
-            読み取りにくい。数で確かめたい人はここに来る——だから
-            横棒はここにしか無い。表の画面はひし形、この一枚は数、と
-            役を分けてある（同じ値を2通りで同時に見せると、どちらを
-            読めばよいのか決められなくなる）。
-          */}
-          <section className="mt-5 border-t border-line pt-4">
-            <h3 className="text-xs font-bold text-ink-muted">4つの力の内訳</h3>
-            <div className="mt-2">
-              <AxisBars axes={result.axes} focus={result.weakest} showScore />
-            </div>
-            <p className="mt-2 text-[0.6875rem] leading-4 text-ink-muted">
-              ※ 5段階で表示しています。
-            </p>
-          </section>
-
-          {/*
-            答えた内容と、直す道。
-
-            結果を見てから「そこは違う」と気づく人がいる。気づいたのに
-            直せないと、出た結果を信じるしかなくなる。
-
-            答えの下に、**その答えが動かした力**を並べる（`axesMovedBy`）。
-            答えと段のあいだが抜けていると、読んでも「そう出た」以上の
-            ことが分からない。
-          */}
-          <section className="mt-5 border-t border-line pt-4">
-            <h3 className="text-xs font-bold text-ink-muted">答えた内容と、判定</h3>
-            <ul className="mt-2 space-y-3" role="list" data-testid="diagnosis-answers">
-              {answerLines(values).map((entry) => (
-                <li
-                  key={entry.stepId}
-                  className="flex items-start justify-between gap-3 text-sm leading-6"
-                >
-                  <span className="min-w-0">
-                    {entry.text}
-                    <span
-                      className="mt-1 flex flex-wrap gap-1"
-                      data-testid="diagnosis-answer-moves"
-                    >
-                      {axesMovedBy(entry.stepId, values).map((axis) => (
-                        <span
-                          key={axis}
-                          className="rounded-badge bg-brand-soft px-2 py-0.5
-                                     text-[0.6875rem] leading-4 text-brand-dark"
-                        >
-                          {AXIS_LABELS[axis]}
-                        </span>
-                      ))}
-                    </span>
-                  </span>
-                  {onEditAnswer && (
-                    <button
-                      type="button"
-                      /*
-                        先に一枚を閉じてから移る。
-
-                        開いたまま問いへ移ると、一枚は画面ごと消える。
-                        消え方が「閉じた」ではないので、開くときに
-                        積んだ履歴が1つ残り、そのあとの「戻る」が
-                        1回空振りする。
-                      */
-                      onClick={() => {
-                        setWhy(false);
-                        onEditAnswer(entry.stepId);
-                      }}
-                      className="shrink-0 rounded-badge border border-line px-3 py-1
-                                 text-xs text-brand-dark transition hover:bg-brand-soft"
-                    >
-                      なおす
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </section>
-        </MoreSheet>
       )}
     </div>
   );
@@ -267,7 +145,10 @@ export function DiagnosisResult({
  * いまどこにいるか。**ここでは Lesson の話をしない。**
  *
  * 前は同じ画面に「次の一歩 ＋ おすすめ Day1」が並んでいて、現在地を
- * 読み終える前に目がそちらへ行っていた。次の話は2画面あと。
+ * 読み終える前に目がそちらへ行っていた。次の話は3画面あと。
+ *
+ * 特徴の3行もここから外した。**判断と根拠を1つの画面に置く**ため、
+ * 次の画面（`TraitsView`）へ、元になった回答ごと移してある。
  */
 function StageView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
   return (
@@ -275,31 +156,111 @@ function StageView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
       <div className="rounded-card border border-line bg-surface px-4 pb-4 pt-3.5">
         <GrowthTrack stage={result.stage.number} summary />
       </div>
+    </div>
+  );
+}
 
-      {/*
-        回答から見えた特徴。**最大3つ。**
+// ------------------------------------------------- ②回答から見えた特徴
 
-        できていること2つと、これから1つ（`traitsOf`）。できている
-        ことだけを並べると、読んだ人は次に何をするのか分からない。
-        境目がこの並びの中にあることが、次の画面への橋になる。
-      */}
-      <p className="mt-4 text-xs font-bold leading-5 text-ink-muted">
-        回答から見えた特徴
-      </p>
-      <ul className="mt-2 space-y-1.5" role="list" data-testid="diagnosis-traits">
-        {traitsOf(result).map((line) => (
-          <li key={line} className="flex items-start gap-2 text-sm leading-6">
-            <span
-              aria-hidden="true"
-              className="mt-1 flex h-4 w-4 shrink-0 items-center justify-center
-                         rounded-full bg-brand text-white"
+/**
+ * 回答から見えた特徴と、**その元になった自分の答え**。
+ *
+ * 3行だけ出す（できていること2つ・これから1つ）。行の下に、
+ * その行の元になった回答を小さく並べる（`traitLines`）。
+ *
+ * 根拠が無いときは、無いと言う
+ * ----------------------------
+ * 「これから」の行は、たいてい**その力を動かした答えが1つも無い**から
+ * そうなっている。そこで理由を作文すると、5問から分からないことまで
+ * 言い切ることになる。出てこなかったことを、そのまま書く。
+ *
+ * 「なおす」はここにある
+ * ----------------------
+ * 結果を見てから「そこは違う」と気づく人がいる。気づいたのに直せないと、
+ * 出た結果を信じるしかなくなる。答えが並んでいるこの画面が、直す場所
+ * としてもいちばん近い。
+ */
+function TraitsView({
+  result,
+  values,
+  onEditAnswer,
+}: {
+  result: ReturnType<typeof scoreDiagnosis>;
+  values: Record<string, string>;
+  onEditAnswer?: (stepId: string) => void;
+}) {
+  const lines = traitLines(result, values);
+
+  return (
+    <div className="shrink-0">
+      <ul className="space-y-3" role="list" data-testid="diagnosis-traits">
+        {lines.map((line) => (
+          <li key={line.text} data-done={line.done ? "yes" : "no"}>
+            <p className="flex items-start gap-2 text-sm font-bold leading-6">
+              <span
+                aria-hidden="true"
+                className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center
+                            rounded-full text-white ${
+                              line.done ? "bg-brand" : "bg-ink-muted"
+                            }`}
+              >
+                <IconCheck className="h-2.5 w-2.5" />
+              </span>
+              <span className="min-w-0">{line.text}</span>
+            </p>
+
+            {/*
+              元になった回答。**選んだ札に書いてあった言葉のまま。**
+
+              「なおす」はその答えの行に付ける。どの答えを直すのかが
+              押す前に分かる。
+            */}
+            <ul
+              className="mt-1.5 space-y-1 pl-6"
+              role="list"
+              data-testid="diagnosis-trait-from"
             >
-              <IconCheck className="h-2.5 w-2.5" />
-            </span>
-            <span className="min-w-0">{line}</span>
+              {line.from.length === 0 ? (
+                <li className="text-xs leading-5 text-ink-muted">
+                  今回の5問には、この場面が出てきませんでした。
+                </li>
+              ) : (
+                line.from.map((entry) => (
+                  <li
+                    key={entry.stepId}
+                    className="flex items-start justify-between gap-2 text-xs leading-5
+                               text-ink-muted"
+                  >
+                    <span className="min-w-0">{entry.text}</span>
+                    {onEditAnswer && (
+                      <button
+                        type="button"
+                        onClick={() => onEditAnswer(entry.stepId)}
+                        data-testid="diagnosis-edit-answer"
+                        className="shrink-0 rounded-badge border border-line px-2 py-0.5
+                                   text-[0.6875rem] leading-4 text-brand-dark transition
+                                   hover:bg-brand-soft"
+                      >
+                        なおす
+                      </button>
+                    )}
+                  </li>
+                ))
+              )}
+            </ul>
           </li>
         ))}
       </ul>
+
+      {/*
+        言い切らない。**5問から分かる範囲**をここで断っておく。
+
+        3行はどれも「あなたはこうだ」の形をしている。5問の自己申告と
+        ミニ問題から出したものなので、そこまでを言う。
+      */}
+      <p className="mt-4 text-[0.6875rem] leading-4 text-ink-muted">
+        ※ 5つの回答から見た範囲です。
+      </p>
     </div>
   );
 }
@@ -357,9 +318,9 @@ function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
 
         いまは、どの高さでもひし形を出す。高さは置き場に任せてあり
         （`fluid`。下限 92px・上限 220px）、低い端末では小さくなるが
-        **形は保たれる**。数で確かめたい人のために、横棒は
-        「この結果になった理由」の中へ移した——同じ値を、役の違う
-        2か所で出す。
+        **形は保たれる**。数の内訳（横棒）は置かない——同じ4つの値を
+        2通りで同時に見せると、どちらを読めばよいのか決められなくなる。
+        ここで見せたいのは**4つの関係**なので、ひし形1つでよい。
 
         左右にはみ出す軸の名前ぶん、横に 2rem 空ける。ひし形は
         正方形の中に描かれ、「条件」「仕事」の名前はその外側へ

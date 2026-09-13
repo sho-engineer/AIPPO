@@ -354,7 +354,19 @@ function StatCard({
       type="button"
       onClick={onClick}
       data-testid={testId}
-      className="flex flex-1 items-center gap-2.5 rounded-card border border-line
+      /*
+        `min-w-0` が要る。
+
+        中の名前は `truncate`（＝折り返さない）なので、この札の
+        **min-content がその名前の全長**になる。札のほうに
+        `min-w-0` が無いと、flex の自動最小幅がそこで止まり、
+        2枚を並べたときに縮まない——320px では 159+12+133＝304px、
+        版面（280px）を 24px 超えて画面ごと横に送れていた（実測）。
+
+        `min-w-0` を置くと基準幅まで縮み、あふれたぶんは中の
+        `truncate` が引き受ける。
+      */
+      className="flex min-w-0 flex-1 items-center gap-2.5 rounded-card border border-line
                  bg-surface px-3 py-2.5 text-left transition
                  hover:border-brand-line active:scale-[0.98]"
     >

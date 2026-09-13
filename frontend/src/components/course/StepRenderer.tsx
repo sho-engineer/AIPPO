@@ -733,7 +733,8 @@ export function StepRenderer({
           入力欄に「残りの高さ」を渡す。注意書きは自分の高さのまま
           下に残るので、書く場所と「次へ」がいつも同時に見える。
         */
-        <div className="flex min-h-0 flex-1 flex-col">
+        /* 中身より縮めない。潰すと下の安全の一言へ重なる（`TextStep`） */
+        <div className="flex min-h-fit flex-1 flex-col">
         <TextStep
           step={step}
           value={values[step.key ?? ""] ?? ""}

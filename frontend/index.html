@@ -2,7 +2,26 @@
 <html lang="ja">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      画面の持ち方を、ここで決める。
+
+      viewport-fit=cover
+        これが無いと、iPhone では `env(safe-area-inset-*)` が**ぜんぶ 0**
+        になる。アプリの中では帯やボタンが安全領域を避けるように書いて
+        あるが、宣言が無いので実機では一度も効いていなかった
+        （切り欠きとホームバーの上に、そのまま重なる）。
+
+      interactive-widget=resizes-content
+        ソフトキーボードが出たとき、画面の高さ（`100dvh`）を縮める。
+        既定（`resizes-visual`）では高さが変わらないので、柱の
+        いちばん下に置いた「次へ」がキーボードの裏へ入る——入力欄と
+        ボタンが同時に見えることは、この画面でいちばん大事な条件
+        （要件 §6.11）。
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <meta
       name="description"

@@ -103,26 +103,32 @@ async function answerRemaining(page: Page): Promise<void> {
 }
 
 /**
- * 答えの一覧を開いて、行の文字を読む。
+ * 答えの行を読む。
  *
- * 置き場が2度変わった。
+ * 置き場が3度変わった。
  *
  *   1. 結果画面のいちばん上の折りたたみ（「ここまでに答えた内容」）
  *      → 結果を見に来た人の最初に、自分の答えが目に入っていた
  *   2. 一枚の、さらに奥（「いまの様子」→「答えと理由」）
  *      → 手前の一枚が、結果の画面と同じことを言っていた
+ *   3. 一枚1つだけ（「この結果になった理由」）
+ *      → 判断は画面・根拠は一枚、と離れていた。しかもどの画面からも
+ *        開けるので、**同じものが何度も載って**いた
  *
- * いまは一枚1つだけ（「この結果になった理由」）。結果の3画面の
- * どこからでも、同じここへ届く（`DiagnosisResult.tsx`）。
+ * いまは結果の2画面目（「回答から見えた特徴」）そのもの。判断の行の
+ * すぐ下に、その元になった答えと「なおす」が並ぶ（`DiagnosisResult`）。
  */
 async function summaryLines(page: Page): Promise<string[]> {
-  const sheet = page.getByTestId("diagnosis-detail-sheet");
-  if ((await sheet.count()) === 0) {
-    await page.getByTestId("diagnosis-reason-open").click();
-    await expect(sheet).toBeVisible();
+  const traits = page.getByTestId("diagnosis-traits");
+  while ((await traits.count()) === 0) {
+    const heading = await page.locator("main h1").first().innerText();
+    if (heading.includes("おすすめ")) throw new Error("特徴の画面に着かない");
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(400);
   }
-  const lines = await sheet.locator("li").allInnerTexts();
-  return lines.map((line) => line.replace(/\s*なおす\s*$/, "").trim());
+  await expect(traits).toBeVisible();
+  const lines = await page.getByTestId("diagnosis-trait-from").allInnerTexts();
+  return lines.map((line) => line.replace(/\s*なおす\s*/g, "").trim());
 }
 
 test.describe("診断の「なおす」", () => {

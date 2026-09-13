@@ -925,6 +925,14 @@ export function LessonRunner({
             `sections` から運ばれてくる）。別の表を引きに行かない。
           */
           image={sectionImage(step)}
+          /*
+            絵が無い章では、代わりに段の名前を出す（`PlainDoor`）。
+            絵があるときは焼き込まれているので渡しても使われない。
+          */
+          number={(step.meta as { sectionNumber?: number } | undefined)?.sectionNumber}
+          sectionLabel={
+            (step.meta as { sectionLabel?: string } | undefined)?.sectionLabel
+          }
           onContinue={onPrimary}
         />
       ) : stuck ? (

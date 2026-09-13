@@ -612,18 +612,59 @@ describe("結果の4画面", () => {
     }
   });
 
-  it("①現在地には、回答から見えた特徴を3つまで", () => {
+  it("①現在地では、まだ特徴もLessonも出さない", () => {
     /*
-      できていることだけを並べると、読んだ人は次に何をするのか
-      分からない。**最後の1つは必ず「これから」**にしてある
-      （`traitsOf`）。境目がこの並びの中にあることが、次の画面への橋。
+      ここで言うことは1つ——5段階のどこにいるか。特徴を同じ画面へ
+      足していたころは、**読み終える前に下の3行へ目が行って**いた。
     */
     show("stage");
 
-    const items = screen.getByTestId("diagnosis-traits").querySelectorAll("li");
+    expect(screen.queryByTestId("diagnosis-traits")).toBeNull();
+    expect(screen.queryByTestId("diagnosis-lesson")).toBeNull();
+  });
+
+  it("②特徴は3つまで。最後は「これから」", () => {
+    /*
+      できていることだけを並べると、読んだ人は次に何をするのか
+      分からない。**最後の1つは必ず「これから」**にしてある
+      （`traitLines`）。境目がこの並びの中にあることが、次の画面への橋。
+    */
+    show("traits");
+
+    const items = screen
+      .getByTestId("diagnosis-traits")
+      .querySelectorAll(":scope > li");
     expect(items.length).toBeGreaterThan(0);
     expect(items.length).toBeLessThanOrEqual(3);
     expect(items[items.length - 1].textContent).toContain("これから");
+  });
+
+  it("②特徴の1行ずつに、元になった答えが付く", () => {
+    /*
+      判断と根拠が離れていると、読んでも「そう出た」以上のことが
+      分からない。**同じ画面**に、選んだ札の言葉のまま置く。
+    */
+    show("traits");
+
+    const items = screen
+      .getByTestId("diagnosis-traits")
+      .querySelectorAll(":scope > li");
+    for (const item of items) {
+      const from = item.querySelector("[data-testid='diagnosis-trait-from']");
+      expect(from, item.textContent ?? "").not.toBeNull();
+      expect((from?.textContent ?? "").trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it("②5問から分かる範囲だと断る", () => {
+    /*
+      3行はどれも「あなたはこうだ」の形をしている。5問の自己申告と
+      ミニ問題から出したものなので、そこまでを言う。
+    */
+    show("traits");
+    expect(screen.getByTestId("completion-view")).toHaveTextContent(
+      "5つの回答から見た範囲",
+    );
   });
 
   it("いまいる点が1つだけ光り、次の点が分かる", () => {
@@ -777,7 +818,7 @@ describe("結果の4画面", () => {
 
   it("細かい点数を、どの画面にも出さない", () => {
     // 5問から出した数字に、68点・82点のような精度は無い
-    for (const phase of ["stage", "axes", "lesson"] as const) {
+    for (const phase of DIAGNOSIS_PHASES) {
       const view = show(phase);
       const shown =
         view.getByTestId("completion-view").textContent ?? "";
@@ -787,23 +828,16 @@ describe("結果の4画面", () => {
     }
   });
 
-  it("長い話は、どの画面からも同じ一枚の中へ", async () => {
+  it("「この結果になった理由」の一枚は、もう無い", () => {
     /*
-      入口を画面ごとに変えない。読みたくなる場所は人によって違うが
-      （現在地に納得できない／おすすめに納得できない）、見たいものは
-      同じ「答えた内容と、そこからの判断」1つ。
+      中身は画面そのものになった（②）。一枚のままだと、判断は画面・
+      根拠は一枚と離れて置かれ、しかも3画面のどこからでも開けるので
+      **同じものが何度も載る**。押さない人には根拠が1つも見えない。
     */
-    const user = userEvent.setup();
-    for (const phase of ["stage", "axes", "lesson"] as const) {
+    for (const phase of DIAGNOSIS_PHASES) {
       const view = show(phase);
-
-      const shown = view.getByTestId("completion-view").textContent ?? "";
-      expect(shown, phase).not.toContain("答えた内容");
-
-      await user.click(view.getByTestId("diagnosis-reason-open"));
-      const sheet = view.getByTestId("diagnosis-detail-sheet");
-      expect(sheet).toHaveTextContent("答えた内容");
-      expect(sheet).toHaveTextContent("4つの力の内訳");
+      expect(view.queryByTestId("diagnosis-reason-open"), phase).toBeNull();
+      expect(view.queryByTestId("diagnosis-detail-sheet"), phase).toBeNull();
       view.unmount();
     }
   });
@@ -821,34 +855,28 @@ describe("結果の4画面", () => {
     expect(screen.queryByTestId("chart-switch")).toBeNull();
   });
 
-  it("答えの直しは、その一枚の中から", async () => {
+  it("答えの直しは、答えが並んでいる画面から", async () => {
     /*
       結果を見てから「そこは違う」と気づく人がいる。気づいたのに
       直せないと、出た結果を信じるしかなくなる。
     */
     const user = userEvent.setup();
     const edited: string[] = [];
-    show("stage", { onEditAnswer: (id: string) => edited.push(id) });
+    show("traits", { onEditAnswer: (id: string) => edited.push(id) });
 
-    await user.click(screen.getByTestId("diagnosis-reason-open"));
-    const buttons = screen
-      .getByTestId("diagnosis-detail-sheet")
-      .querySelectorAll("button");
-    const fix = [...buttons].find((one) => one.textContent?.includes("なおす"));
-    expect(fix).toBeDefined();
-    await user.click(fix as HTMLElement);
-    expect(edited).toEqual(["ai_usage"]);
+    const fix = screen.getAllByTestId("diagnosis-edit-answer")[0];
+    await user.click(fix);
+    expect(edited).toHaveLength(1);
+    expect(edited[0]).toBeTruthy();
   });
 
-  it("理由の中では、記号ではなく選んだ言葉で返す", async () => {
-    const user = userEvent.setup();
-    show("stage");
-    await user.click(screen.getByTestId("diagnosis-reason-open"));
+  it("特徴の根拠は、記号ではなく選んだ言葉で返す", () => {
+    show("traits");
 
-    const sheet = screen.getByTestId("diagnosis-detail-sheet");
-    expect(sheet).toHaveTextContent("困ったときにAIを使う");
-    expect(sheet).not.toHaveTextContent("sometimes");
-    expect(sheet).not.toHaveTextContent("first_time");
+    const view = screen.getByTestId("completion-view");
+    expect(view).toHaveTextContent("困ったときにAIを使う");
+    expect(view).not.toHaveTextContent("sometimes");
+    expect(view).not.toHaveTextContent("first_time");
   });
 });
 
@@ -858,7 +886,7 @@ describe("画面の上と下で、言うことがずれない", () => {
     出す。**2つのファイルにまたがる**ので、文言は1か所に持たせてある
     （`course/diagnosisFlow.ts`）。ここはその表そのものを見る。
   */
-  it("3画面とも、見出しと主ボタンを持っている", () => {
+  it("どの画面も、見出しと主ボタンを持っている", () => {
     for (const phase of DIAGNOSIS_PHASES) {
       const copy = PHASE_COPY[phase];
       expect(copy.title, phase).toBeTruthy();
@@ -868,11 +896,11 @@ describe("画面の上と下で、言うことがずれない", () => {
     }
   });
 
-  it("3画面とも「診断結果」と名乗る", () => {
+  it("どの画面も「診断結果」と名乗る", () => {
     /*
       前はここに「分析中には『診断結果』と書かない」があった。
       まだ出ていないものを出たことにしない、という話だったが、
-      その画面自体を消したので、**残る3つは全部が結果**になった。
+      その画面自体を消したので、**残るものは全部が結果**になった。
     */
     for (const phase of DIAGNOSIS_PHASES) {
       expect(PHASE_COPY[phase].eyebrow, phase).toBe("診断結果");
@@ -886,12 +914,14 @@ describe("画面の上と下で、言うことがずれない", () => {
       教材のステップを1歩戻す（`LessonRunner`）。
     */
     expect(prevPhase("stage")).toBeNull();
-    expect(prevPhase("axes")).toBe("stage");
+    expect(prevPhase("traits")).toBe("stage");
+    expect(prevPhase("axes")).toBe("traits");
     expect(prevPhase("lesson")).toBe("axes");
   });
 
-  it("進む順は、現在地 → 4つの力 → おすすめ", () => {
-    expect(nextPhase("stage")).toBe("axes");
+  it("進む順は、現在地 → 特徴 → 4つの力 → おすすめ", () => {
+    expect(nextPhase("stage")).toBe("traits");
+    expect(nextPhase("traits")).toBe("axes");
     expect(nextPhase("axes")).toBe("lesson");
     // 最後まで来たら、レッスンへ渡す（`LessonRunner`）
     expect(nextPhase("lesson")).toBeNull();
