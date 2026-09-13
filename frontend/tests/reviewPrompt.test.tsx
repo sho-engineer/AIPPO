@@ -74,12 +74,22 @@ describe("見返しどき", () => {
     );
   });
 
-  it("複数あれば件数を出す", async () => {
+  it("準備中の教材は、見返しどきでも出さない", async () => {
+    /*
+      サーバーは「間があいた教材」をそのまま返す。第1リリースでは
+      Day2 以降が準備中なので、**返ってきたものをそのまま並べると
+      押せない行が出る**。見返すには開く必要があるので、ここは
+      開けるものだけに絞る（`course/availability.ts`）。
+
+      終えたことを無かったことにするのとは違う——記録は残っていて、
+      もう一度やる道が、公開まで開かないだけ。
+    */
     serve({ items: [item(READY), item(ALSO_READY)], due_count: 2 });
 
     render(<ReviewPrompt onSelectLesson={() => {}} />);
 
-    expect(await screen.findByTestId("review-prompt")).toHaveTextContent("2本");
+    await screen.findByTestId(`review-${READY}`);
+    expect(screen.queryByTestId(`review-${ALSO_READY}`)).not.toBeInTheDocument();
   });
 });
 

@@ -46,7 +46,7 @@ import {
   type DiagnosisPhase,
 } from "../src/course/diagnosisFlow";
 import {
-  recommendLead,
+  recommendLead, recommendPlan,
   recommendLesson,
   recommendReason,
 } from "../src/course/recommend";
@@ -702,19 +702,51 @@ describe("結果の4画面", () => {
     expect(picked).toEqual([recommendLesson(values)]);
   });
 
-  it("その1本が合わない人の行き先も、押せば出る", async () => {
+  it("ほかの候補は、**開いているものだけ**", () => {
     /*
-      画面に3枚並べると「次に何をするか」をもう一度選ばせることに
-      なる。かといって消すと、画像をやりたくて来た人に1本だけ出して
-      終わる形になる。決めるのは上の1本、ここはその逃げ道。
+      「上の1本が合わなかった人の逃げ道」として、ほかの候補を
+      押すと出せるようにしてある。そこに準備中の教材を混ぜない
+      ——押した先で止まる道は、道ではない。
+
+      第1リリースでは開いているのが Day1 だけなので、逃げ道は
+      1本も無い。**入口ごと出さない**（押しても空の一枚が開くだけ
+      になるため）。教材を公開すれば自然に出てくる。
     */
-    const user = userEvent.setup();
     show("lesson");
 
-    await user.click(screen.getByTestId("diagnosis-also-open"));
-    expect(
-      screen.getByTestId("diagnosis-also").querySelectorAll("li"),
-    ).toHaveLength(2);
+    expect(recommendPlan(values).rest).toEqual([]);
+    expect(screen.queryByTestId("diagnosis-also-open")).toBeNull();
+  });
+
+  it("本来のおすすめが準備中なら、そう添える", () => {
+    /*
+      黙って Day1 へ差し替えない。答えから出た行き先が画面に出て
+      いないと、「自分に合わせて選ばれた」のか「1本しか無いから
+      そうなった」のかが分からない——診断が効いていないように見える。
+
+      ただし**開始ボタンは付けない**。押せる形にしてあるのに
+      押せないのは、見えているだけで届かない道になる。
+    */
+    const plan = recommendPlan({ ...values, want_to_do: "summarizing" });
+    if (!plan.waiting) return; // 全部公開したら、この画面は出なくなる
+
+    render(
+      <DiagnosisResult
+        values={{ ...values, want_to_do: "summarizing" }}
+        lessons={COURSE.lessons}
+        phase="lesson"
+        onPickLesson={() => {}}
+      />,
+    );
+
+    expect(screen.getByTestId("diagnosis-open-label")).toHaveTextContent(
+      "今受けられるおすすめ",
+    );
+    const waiting = screen.getByTestId("diagnosis-waiting");
+    expect(waiting).toHaveTextContent("あなたに合う次のLesson");
+    expect(waiting).toHaveTextContent("準備中");
+    // 押せるものは、この中に1つも無い
+    expect(waiting.querySelectorAll("button")).toHaveLength(0);
   });
 
   it("細かい点数を、どの画面にも出さない", () => {

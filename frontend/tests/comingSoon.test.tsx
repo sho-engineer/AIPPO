@@ -17,10 +17,9 @@ import type { Lesson } from "../src/course/types";
 /**
  * 近日公開の教材は、一覧に出すが始められないこと。
  *
- * 教材9本の中身が揃ったので、同梱データの既定は**全部が始められる**に
- * 変えた（catalog.ts の RELEASE_COMING_SOON は空）。
- * それでも止める仕組みは残す。未完成の教材を足すときや、問題が見つかって
- * 一時的に閉じるときに要る。
+ * 第1リリースで開くのは**診断と Day1 だけ**（catalog.ts の
+ * RELEASE_COMING_SOON）。中身も画面も出来ているが、リリース判定が
+ * 済んでいないものは「準備中」として一覧に出す。
  *
  * そこでこのテストは「どの教材が開いているか」ではなく、
  * **近日公開にしたら本当に止まるか**を見る。以前は
@@ -144,17 +143,33 @@ describe("近日公開の判定", () => {
 });
 
 describe("同梱データの既定", () => {
-  it("同梱の教材は、すべて始められる", () => {
+  it("第1リリースで開くのは、診断と Day1 だけ", () => {
     /*
-      中身が揃っているものだけを同梱している。閉じておくと、
-      画面には出ているのに押せない教材が並ぶだけになる。
+      **ここだけは本数を決め打ちにする。**
 
-      本数は決め打ちにしない。同梱はサーバーが届かないときの控えで、
-      カリキュラムの姿を決めるのはサーバー側（release_seeding.py）。
-      ここで本数を固定すると、コースを組み替えるたびに落ちる。
+      ふだん公開範囲を検査に書くのは避ける（教材が1本増えるたびに
+      落ちるだけで、止める仕組みが壊れても気づけない）。ただし
+      「第1リリースは Day1 のみ」はリリースの約束そのもので、
+      うっかり別の教材を開いたまま出すのがいちばん困る。
+
+      教材を公開するときは、`catalog.ts` の RELEASE_COMING_SOON から
+      id を1行消して、ここも一緒に直す——**2か所で済む**ように
+      してある。画面側は触らない。
     */
-    expect(COURSE.lessons.length).toBeGreaterThan(0);
-    expect(startableLessons(COURSE.lessons)).toHaveLength(COURSE.lessons.length);
+    const open = startableLessons(COURSE.lessons).map((one) => one.id);
+    expect(open).toEqual(["diagnosis", "rewrite_text"]);
+  });
+
+  it("準備中にしても、教材は消えない", () => {
+    /*
+      止めるのは開始だけ。中身も並びも残す——リリース判定が済んだ
+      教材から順に開けるようにするためで、そのとき本文を書き直す
+      ことにならないように。
+    */
+    expect(COURSE.lessons.length).toBeGreaterThan(2);
+    for (const lesson of COURSE.lessons) {
+      expect(lesson.steps.length, `${lesson.id} の中身が空`).toBeGreaterThan(0);
+    }
   });
 
   it("どの教材にも、進められる中身がある", () => {
@@ -201,11 +216,37 @@ describe("画面での見え方", () => {
     // 一覧からは消さない。何が来るのかは見せる
     const soon = await screen.findByTestId(`lesson-${GATED}`);
     expect(soon).toBeInTheDocument();
-    expect(soon).toBeDisabled();
     expect(soon).toHaveAttribute("data-availability", "coming_soon");
+    /*
+      **押せる形のまま残す。** `disabled` にしていたころは、押しても
+      何も起きないので、壊れているのか押し方が悪いのかが分からない
+      まま終わっていた。いまは押すと一言返る（下の検査）。
 
-    // 始められるものは押せる
-    expect(screen.getByTestId("lesson-rewrite_text")).toBeEnabled();
+      読み上げには「いまは押せない」と伝える。`aria-disabled` は
+      `disabled` と違って押下が届くので、両方を満たせる。
+    */
+    expect(soon).toHaveAttribute("aria-disabled", "true");
+
+    // 始められるものには、その印を付けない
+    expect(screen.getByTestId("lesson-rewrite_text")).toHaveAttribute(
+      "data-availability",
+      "available",
+    );
+  });
+
+  it("準備中の行を押すと、画面は変わらず、一言だけ返る", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await start(user);
+    await openCourse(user);
+
+    await user.click(await screen.findByTestId(`lesson-${GATED}`));
+
+    expect(await screen.findByTestId("toast")).toHaveTextContent(
+      "このLessonは現在準備中です。公開まで少しお待ちください。",
+    );
+    // 教材の画面へは入っていない
+    expect(screen.queryByTestId("lesson-header")).not.toBeInTheDocument();
   });
 
   it("近日公開の行には、公開予定が出る", async () => {

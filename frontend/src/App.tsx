@@ -29,6 +29,7 @@ import { isOverlayHistory } from "./components/course/BackStack";
 import { TopPage } from "./pages/TopPage";
 import { lookupLesson, useCourse, useCourses } from "./course/live";
 import { isStartable } from "./course/availability";
+import { COMING_SOON_TOAST, Toast } from "./components/Toast";
 import { loadPlace, savePlace } from "./app/session";
 import { takeReturn } from "./auth/returnTo";
 import { EVENTS, track } from "./lib/analytics";
@@ -154,6 +155,11 @@ export function App() {
     説明だけが出ていると、どのレッスンから来たのかが分からなくなる。
   */
   const [recipeId, setRecipeId] = useState<string | null>(initial.recipeId);
+  /*
+    画面の下に少しだけ出る一言。いまの用は1つ——準備中の教材を
+    押した人への返事（`openLesson`）。
+  */
+  const [toast, setToast] = useState<string | null>(null);
   const courses = useCourses();
   const completed = useCompletedLessons();
 
@@ -253,15 +259,25 @@ export function App() {
 
   const openLesson = (id: string, from: Screen) => {
     /*
-      近日公開の教材は開かない。
+      準備中の教材は開かない。**判定はここ1か所。**
 
-      画面側でボタンを押せなくしてあるが、ここでも止める。
+      教材の行・ホームの1本・目印の一覧・診断の結果——入口はいくつも
+      あるが、開く道は全部この関数を通る。画面ごとに書き写すと、
+      必ずどれかが古くなって、押せるボタンが1つ残る。
+
       覚えていた場所からの復元（session.ts）や、古いタブに残った
-      押しかけの状態からでも入れてしまうため。
+      押しかけの状態からでも入れてしまうので、画面側で押せなく
+      してあってもここで止める。
       最後の砦はサーバー（apps/catalog/access.py）。
+
+      **黙って無視しない。** 何も起きないと、壊れているのか押し方が
+      悪いのかが分からないまま終わる。準備中だと一言返す。
     */
     const lesson = lookupLesson(id);
-    if (lesson && !isStartable(lesson)) return;
+    if (lesson && !isStartable(lesson)) {
+      setToast(COMING_SOON_TOAST);
+      return;
+    }
 
     /*
       そのレッスンが属するコースも覚えておく。
@@ -478,6 +494,7 @@ export function App() {
         </div>
       )}
       {body}
+      {toast && <Toast message={toast} onDone={() => setToast(null)} />}
       {!NO_TAB_BAR[screen] && (
         <BottomTabBar
           current={tab}

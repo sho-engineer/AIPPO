@@ -186,8 +186,19 @@ function LessonStep({
     <li className="flex items-stretch">
       <button
         type="button"
+        /*
+          準備中の行も**押せるままにする。**
+
+          前は `disabled` にしていた。押しても何も起きないので、
+          壊れているのか押し方が悪いのかが分からないまま終わる。
+          いまは押すと「準備中です」と一言返る——行き先は変わらない。
+          止めるのは `App.tsx` の `openLesson` 1か所（そこが最後まで
+          「開かない」を持っている）。
+
+          `aria-disabled` は残す。読み上げには「いまは押せない」と
+          伝わったほうがよく、`disabled` と違って押下は届く。
+        */
         onClick={onSelect}
-        disabled={soon}
         aria-disabled={soon}
         data-testid={`lesson-${lesson.id}`}
         data-availability={soon ? "coming_soon" : "available"}
@@ -206,9 +217,8 @@ function LessonStep({
         */
         className={`grid w-full grid-cols-[3.5rem_1.5rem_minmax(0,1fr)] items-start
                     gap-x-3 rounded-card px-1 py-3 text-left transition
-                    disabled:cursor-not-allowed
                     ${current ? "bg-brand-soft/50" : ""}
-                    ${soon ? "" : "enabled:hover:bg-brand-soft/40 enabled:active:bg-brand-soft/70"}`}
+                    ${soon ? "" : "hover:bg-brand-soft/40 active:bg-brand-soft/70"}`}
       >
         {/*
           Day の列。幅を固定する。

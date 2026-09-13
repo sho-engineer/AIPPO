@@ -72,13 +72,20 @@ export function LessonRow({
       */}
       <button
         type="button"
+        /*
+          準備中の行も**押せるままにする**（`LessonTimeline` と同じ）。
+          押すと「準備中です」と一言返る。止めるのは `App.tsx` の
+          `openLesson` 1か所。
+
+          薄くしすぎない。`opacity-55` では文字が読めず、**読めない
+          ものが並んでいる画面**に見えていた。何が来るのかが分かる
+          ことがこの行の役目なので、区別は下の「準備中」の札に任せる。
+        */
         onClick={onSelect}
-        disabled={soon}
         aria-disabled={soon}
         data-testid={`${prefix}lesson-${lesson.id}`}
         data-availability={soon ? "coming_soon" : "available"}
-        className={`row row-tap items-baseline disabled:cursor-not-allowed
-                    ${soon ? "opacity-55" : ""}`}
+        className="row row-tap items-baseline"
       >
         {/*
           用途の印。番号だけの行が9つ並ぶと、どれも同じ重さに見えて

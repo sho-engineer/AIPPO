@@ -25,7 +25,6 @@ import { useEffect } from "react";
 import { Card } from "../AppShell";
 import { PoAvatar } from "../../po/PoAvatar";
 import { IconCheck } from "../Icons";
-import { startableLessons } from "../../course/availability";
 import { playSuccessSound } from "../../course/sound";
 import type { Course } from "../../course/types";
 
@@ -50,7 +49,19 @@ function outcomesSoFar(course: Course, completedIds: string[]): string[] {
   const done = new Set(completedIds);
   const found: string[] = [];
 
-  for (const lesson of startableLessons(course.lessons)) {
+  /*
+    **終えた教材は、あとから準備中に戻っても数える。**
+
+    前はここが `startableLessons` で、公開範囲を絞った日に
+    「終えたはずのことが、まとめから消える」状態になった。
+    リリース範囲はこちらの都合で、**やったことは本人のもの**。
+    教材の行が同じ考え方をしている（`LessonTimeline` の `statusOf`
+    ——終えた教材は準備中より先に「完了」を出す）ので、そちらと
+    揃えてある。
+
+    終えていない準備中の教材は、そもそも `done` に無いので入らない。
+  */
+  for (const lesson of course.lessons) {
     if (!done.has(lesson.id)) continue;
     for (const outcome of lesson.outcomes ?? []) {
       if (!found.includes(outcome)) found.push(outcome);

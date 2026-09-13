@@ -480,6 +480,29 @@ export function HomePage({
           先に見せるもの**ではなかった。開いた人が最初に触るものを、
           最初に置く。
         */}
+        {!nextLesson && doneCount > 0 && (
+          /*
+            始められる教材を全部終えた人。**空けない。**
+
+            前はここが `nextLesson && ...` だけで、次が無い人には
+            節ごと消えていた。第1リリースでは Day1 を終えた時点で
+            そうなる——終えた直後のホームが、いちばん何も無い画面に
+            なる。次が来ることだけは言う。
+          */
+          <div
+            className="mt-4 rounded-panel border border-brand-line bg-surface p-4
+                       shadow-card"
+            data-testid="next-coming-soon"
+          >
+            <p className="text-sm font-bold leading-6 text-brand-dark">
+              次のLessonは準備中です
+            </p>
+            <p className="mt-1 text-[0.8125rem] leading-5 text-ink-muted">
+              新しいLessonを順次公開予定です。
+            </p>
+          </div>
+        )}
+
         {nextLesson && (
           <div className="mt-4">
             <TodayCard

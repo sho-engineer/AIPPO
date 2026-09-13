@@ -132,14 +132,22 @@ describe("並びの見え方", () => {
   });
 
   it("いまの1本は、読み上げにも『ここ』と伝わる", () => {
-    // 色と大きさだけで現在地を示すと、見えない人には位置が分からない
-    renderTimeline([REWRITE, SUMMARIZE], { currentId: "summarize_text" });
+    /*
+      色と大きさだけで現在地を示すと、見えない人には位置が分からない。
 
-    expect(screen.getByTestId("lesson-summarize_text")).toHaveAttribute(
+      「ここ」に立てるのは**始められる教材だけ**。準備中のものは
+      `coming_soon` が先に決まるので、`currentId` を向けても
+      「ここ」にはならない（`statusOf`）——開けない場所を現在地と
+      言わない。第1リリースでは Day2 以降が全部そちら側なので、
+      ここは Day1 で見る。
+    */
+    renderTimeline([REWRITE, SUMMARIZE], { currentId: "rewrite_text" });
+
+    expect(screen.getByTestId("lesson-rewrite_text")).toHaveAttribute(
       "aria-current",
       "step",
     );
-    expect(screen.getByTestId("lesson-rewrite_text")).not.toHaveAttribute(
+    expect(screen.getByTestId("lesson-summarize_text")).not.toHaveAttribute(
       "aria-current",
     );
   });
@@ -167,25 +175,35 @@ describe("並びの見え方", () => {
 });
 
 describe("近日公開", () => {
-  it("押せない。公開予定は文字で出す", () => {
+  it("準備中だと分かる。公開予定は文字で出す", () => {
     renderTimeline([soonOf(SUMMARIZE)]);
 
     const row = screen.getByTestId("lesson-summarize_text");
-    expect(row).toBeDisabled();
     expect(row).toHaveAttribute("data-availability", "coming_soon");
     expect(row).toHaveTextContent("2026年9月1日");
+    /*
+      **`disabled` にはしない。** 押しても何も起きないと、壊れて
+      いるのか押し方が悪いのかが分からないまま終わる。押すと
+      「準備中です」と一言返る形にしてあり、行き先を止めるのは
+      `App.tsx` の `openLesson` 1か所。
+
+      読み上げには「いまは押せない」と伝える。`aria-disabled` は
+      `disabled` と違って押下が届くので、両方を満たせる。
+    */
+    expect(row).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("終えたあとに戻されても、押せない", () => {
+  it("終えたあとに戻されても、準備中のまま", () => {
     /*
       見た目は「完了」だが、開いた先には中身が無い。
-      表示の状態でボタンを開けると、押した先が行き止まりになる。
+      表示の状態で開けると、押した先が行き止まりになる。
     */
     renderTimeline([soonOf(REWRITE)], { completed: ["rewrite_text"] });
 
     const row = screen.getByTestId("lesson-rewrite_text");
     expect(row).toHaveTextContent("完了");
-    expect(row).toBeDisabled();
+    expect(row).toHaveAttribute("aria-disabled", "true");
+    expect(row).toHaveAttribute("data-availability", "coming_soon");
   });
 
   it("取っておく口は出さない", () => {

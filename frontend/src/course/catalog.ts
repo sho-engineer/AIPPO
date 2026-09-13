@@ -1530,22 +1530,42 @@ const FINAL: Lesson = {
 };
 
 /**
- * 同梱データの時点で「近日公開」にしておく教材。
+ * 「準備中」にしておく教材。**公開を決めるのは、ここ1か所。**
  *
- * 以前はここが逆で、始められるものを列挙していた
- * （第一リリースでは診断と文章改善の2本だけ）。教材9本の中身が
- * 揃った今、閉じておく理由はもう無いので空にしてある。
+ * 第1リリースで開けるのは、診断と Day1 だけ。ほかは中身も画面も
+ * 出来ているが、リリース判定が済んでいない。
  *
- * ここは**同梱データの初期値**でしかない。本来の持ち主はサーバーで、
- * 管理画面から `availability_status` を変えれば画面もそれに従う
- * （api/catalog.ts で受け取ったものが、こちらより優先される）。
+ * 教材を1本公開するには
+ * ---------------------
+ * ここから id を1行消す。それだけ。画面側は9か所（ホーム・コース・
+ * 教材の行・今日のつづき・次のおすすめ・診断の結果・完了画面・
+ * Lesson Player・URL直打ち）がこの1つを見ているので、
+ * **画面を触る必要は無い**（`course/availability.ts`）。
  *
- * 仕組みそのものは残す。未完成の教材を足すときは、ここに id を並べれば
- * 一覧には出したまま開始だけを止められる。
- * 最後の砦はサーバー（apps/catalog/access.py）で、ここは
- * 「押させない・見せ方を変える」ためのもの。
+ * サーバー側にも同じ集合がある
+ * （`backend/apps/catalog/release_seeding.py` の RELEASE_COMING_SOON）。
+ * **本物はあちら**で、ここは通信が届かないときの控え。API が渡した
+ * `availability` のほうが常に優先される（`api/catalog.ts`）。
+ * 2つ揃えるのは、圏外で見た人と繋がった人に別の並びを見せないため。
+ *
+ * 消していない
+ * ------------
+ * 教材データもステップも、実装済みの画面もそのまま。ここに id が
+ * ある教材は、一覧には「準備中」として出続ける——何が来るのかが
+ * 分かるほうが、いま1本しか無いことの説明にもなる。
+ *
+ * 最後の砦はサーバー（`apps/catalog/access.py`）。ここは
+ * 「押させない・見せ方を変える」ためのもので、守りの本体ではない。
  */
-const RELEASE_COMING_SOON = new Set<string>([]);
+const RELEASE_COMING_SOON = new Set<string>([
+  "summarize_text",
+  "explain_topic",
+  "brainstorm_ideas",
+  "compare_options",
+  "organize_information",
+  "image_generation",
+  "image_edit",
+]);
 
 /** 同梱データへ、利用可否の初期値を当てる。 */
 function withReleaseAvailability(lessons: Lesson[]): Lesson[] {

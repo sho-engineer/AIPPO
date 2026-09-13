@@ -126,6 +126,7 @@ export function DiagnosisResult({
         <LessonView
           lesson={first}
           lead={recommendLead(values)}
+          waiting={plan.waiting ? find(plan.waiting) : undefined}
           others={plan.rest.map(find).filter((one): one is Lesson => Boolean(one))}
           onPick={onPickLesson}
         />
@@ -416,11 +417,23 @@ function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
 function LessonView({
   lesson,
   lead,
+  waiting,
   others,
   onPick,
 }: {
   lesson: Lesson | undefined;
   lead: string;
+  /**
+   * 診断が本当に指していた1本。**まだ公開していないときだけ渡る。**
+   *
+   * 黙って Day1 へ差し替えない。答えから出た行き先が画面に出て
+   * いないと、「自分に合わせて選ばれた」のか「1本しか無いから
+   * そうなった」のかが分からない——診断が効いていないように見える。
+   *
+   * 開始ボタンは付けない（`onPick` を渡さない）。押せる形にして
+   * あるのに押せないのは、見えているだけで届かない道になる。
+   */
+  waiting?: Lesson;
   /**
    * その1本が刺さらなかった人の行き先。**名前は伏せて、押した人にだけ。**
    *
@@ -483,6 +496,22 @@ function LessonView({
 
   return (
     <div className="shrink-0">
+      {/*
+        いま開いている1本には、**そう名乗らせる。**
+
+        準備中の1本を下に添えるとき、上の札に見出しが無いと、
+        2つが同じ重さで並んでいるように見える。どちらが今日
+        始められるのかを、読む前に決めさせない。
+      */}
+      {waiting && (
+        <p
+          className="mb-1.5 text-xs font-bold leading-5 text-ink-muted"
+          data-testid="diagnosis-open-label"
+        >
+          今受けられるおすすめ
+        </p>
+      )}
+
       {onPick ? (
         <button
           type="button"
@@ -495,6 +524,40 @@ function LessonView({
       ) : (
         <div className={shape} data-testid="diagnosis-next-skill">
           {inside}
+        </div>
+      )}
+
+      {waiting && (
+        /*
+          本来のおすすめ。**押せない札として置く。**
+
+          `button` にしない——押せる見た目のものが押せないのが
+          いちばん悪い。ここは知らせであって、道ではない。
+        */
+        <div className="mt-3" data-testid="diagnosis-waiting">
+          <p className="text-xs font-bold leading-5 text-ink-muted">
+            あなたに合う次のLesson
+          </p>
+          <div
+            className="mt-1.5 flex items-center gap-3 rounded-card border border-line
+                       bg-surface px-3.5 py-2.5"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-[0.6875rem] font-bold leading-4 text-ink-muted">
+                Day {waiting.number}
+              </span>
+              <span className="block text-sm font-bold leading-5 text-ink">
+                {waiting.title}
+              </span>
+            </span>
+            <span
+              className="shrink-0 rounded-badge bg-brand-soft px-2 py-0.5
+                         text-[0.6875rem] font-bold leading-4 text-brand-dark"
+              data-testid="diagnosis-waiting-badge"
+            >
+              準備中
+            </span>
+          </div>
         </div>
       )}
 

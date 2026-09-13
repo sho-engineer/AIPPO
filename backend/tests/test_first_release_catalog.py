@@ -3,6 +3,7 @@ from django.core.management import call_command
 
 from apps.catalog.expand import course_to_dict, lesson_to_dict
 from apps.catalog.models import AvailabilityStatus, Course, Lesson, PublishStatus
+from apps.catalog.release_seeding import RELEASE_COMING_SOON
 from apps.rewards.models import LearningPath
 
 
@@ -84,6 +85,81 @@ class TestFirstReleaseCatalog:
             assert lesson.status == PublishStatus.PUBLISHED
             assert lesson.availability_status == AvailabilityStatus.COMING_SOON
             assert lesson.coming_soon_message
+
+    def test_the_first_release_opens_only_the_check_and_day1(self, released):
+        """第1リリースで開けるのは、診断と Day1 だけ。
+
+        **公開を決めるのは1か所**（`release_seeding.RELEASE_COMING_SOON`）。
+        教材を1本公開するときは、あの集合から slug を1行消す——
+        画面もこの並びも、ほかは何も触らない。
+
+        ここで開く範囲を決め打ちにしているのは、リリースの約束
+        そのものだから。うっかり別の教材を開いたまま出すのが
+        いちばん困る。
+        """
+        course = Course.objects.get(slug="first_step_7days")
+        assert list(
+            course.lessons.filter(
+                availability_status=AvailabilityStatus.AVAILABLE
+            )
+            .order_by("sort_order")
+            .values_list("slug", flat=True)
+        ) == ["diagnosis", "rewrite_text"]
+
+    def test_unopened_lessons_keep_their_content(self, released):
+        """準備中にしても、中身は消さない。
+
+        止めるのは開始だけ。リリース判定が済んだ教材から順に
+        開けるようにするためで、そのとき本文を書き直すことに
+        ならないように。
+        """
+        course = Course.objects.get(slug="first_step_7days")
+        waiting = course.lessons.filter(
+            availability_status=AvailabilityStatus.COMING_SOON
+        )
+        assert waiting.count() >= 5
+        for lesson in waiting:
+            assert lesson.status == PublishStatus.PUBLISHED, lesson.slug
+            assert lesson.title, lesson.slug
+
+    def test_the_two_release_gates_agree(self, released):
+        """画面側の控えと、サーバー側の本物が同じ姿であること。
+
+        同梱データ（`frontend/src/course/catalog.ts` の
+        RELEASE_COMING_SOON）は通信が届かないときの控え。片方だけ
+        直すと、**圏外で見た人と繋がった人に別の並びが出る**。
+
+        控えのほうは TypeScript なので、文字として読み出して
+        突き合わせる。ここが空振りしないよう、拾えた件数も見る。
+        """
+        import re
+        from pathlib import Path
+
+        source = (
+            Path(__file__).resolve().parents[2]
+            / "frontend"
+            / "src"
+            / "course"
+            / "catalog.ts"
+        ).read_text(encoding="utf-8")
+
+        block = re.search(
+            r"const RELEASE_COMING_SOON = new Set<string>\(\[(.*?)\]\)",
+            source,
+            re.DOTALL,
+        )
+        assert block, "控え側の RELEASE_COMING_SOON が見つからない"
+
+        #: コメントを先に落とす。
+        #:
+        #: 落とさずに文字列だけ拾うと、`// "explain_topic",` と
+        #: **コメントアウトした行まで数えて**しまう。公開したつもりの
+        #: 教材が控えでは閉じたまま、という食い違いを素通りする。
+        body = re.sub(r"//[^\n]*", "", block.group(1))
+        mirrored = set(re.findall(r'"([a-z_]+)"', body))
+
+        assert len(mirrored) >= 5, "控えから id を読み出せていない"
+        assert mirrored == set(RELEASE_COMING_SOON)
 
     def test_practical_course_marks_unfinished_lessons_coming_soon(self, released):
         course = Course.objects.get(slug="ai_practical")

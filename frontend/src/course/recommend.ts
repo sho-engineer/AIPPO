@@ -15,6 +15,7 @@
  */
 
 import { COURSE } from "./catalog";
+import { isStartable } from "./availability";
 import {
   AXIS_LABELS,
   NEXT_LEARNING,
@@ -204,15 +205,42 @@ function lessonExists(id: string): boolean {
  * 3枚並べるのとは意味が違う。
  */
 export interface Recommendation {
-  /** いちばん先に出す1本。 */
+  /** いちばん先に出す1本。**必ず、いま始められるもの。** */
   first: string;
-  /** そのあとに小さく添える2本。 */
+  /** そのあとに小さく添える2本。こちらも始められるものだけ。 */
   rest: string[];
+  /**
+   * 診断が本当に指していた1本。**まだ公開していないときだけ入る。**
+   *
+   * 黙って差し替えない。答えから出た行き先がここに出ていないと、
+   * 「Day1をすすめられた」のか「Day1しか無いからDay1だった」のかが
+   * 読んだ人に分からない——診断が効いていないように見える。
+   * 画面では「あなたに合う次のLesson」として、開始ボタンを付けずに
+   * 添える（`components/course/DiagnosisResult.tsx`）。
+   */
+  waiting?: string;
+}
+
+function startable(id: string): boolean {
+  const lesson = COURSE.lessons.find((one) => one.id === id);
+  return Boolean(lesson && isStartable(lesson));
 }
 
 export function recommendPlan(answers: Record<string, string>): Recommendation {
-  const first = recommendLesson(answers);
-  const rest = recommendLessons(answers)
+  /*
+    答えから出る、本来の1本。公開しているかどうかはまだ見ない。
+  */
+  const wanted = recommendLesson(answers);
+
+  /*
+    並べ替えたおすすめの列。ここから**始められるもの**を採る。
+
+    第1リリースでは Day1 しか開いていないので、たいていここは
+    1本になる。教材を公開していくにつれて自然に増える——
+    画面もこの関数も、そのとき何も直さなくてよい。
+  */
+  const ranked = [wanted]
+    .concat(recommendLessons(answers))
     .concat(DEFAULTS)
     .concat(COURSE.lessons.filter((lesson) => lesson.usesAi).map((one) => one.id))
     /*
@@ -220,12 +248,23 @@ export function recommendPlan(answers: Record<string, string>): Recommendation {
       まだ無い id が混じる。混じったまま渡すと、その1枚だけが
       黙って消えて、2枚並ぶはずの列が1枚になる（実際そうなった）。
     */
-    .filter(
-      (id, at, all) =>
-        id !== first && all.indexOf(id) === at && lessonExists(id),
-    )
-    .slice(0, 2);
-  return { first, rest };
+    .filter((id, at, all) => all.indexOf(id) === at && lessonExists(id));
+
+  const open = ranked.filter(startable);
+  /*
+    開いているものが1本も無いときだけ、本来の1本をそのまま返す。
+
+    起こらないはずだが（Day1 は必ず開いている）、ここで空を返すと
+    結果画面の主役が消える。押した先で止まるほうが、何も出ないより
+    まだ説明が付く。
+  */
+  const first = open[0] ?? wanted;
+
+  return {
+    first,
+    rest: open.filter((id) => id !== first).slice(0, 2),
+    waiting: startable(wanted) ? undefined : wanted,
+  };
 }
 
 /**

@@ -56,6 +56,32 @@ START_CURRICULUM: dict[str, tuple[int, str, str]] = {
     "image_edit": (8, "画像を修正する", "create"),
 }
 
+#: 第1リリースで、まだ開けない教材。
+#:
+#: **公開を決めるのはここ1か所。** 画面側にも同じ名前の集合があるが
+#: （frontend/src/course/catalog.ts）、あちらは通信が届かないときの
+#: 控えで、本物はこちら——API が渡すものが常に優先される。
+#:
+#: 開けるのは診断と Day1 だけ。中身も画面も**消していない**ので、
+#: リリース判定が終わった教材から、この集合の1行を消せば公開できる。
+#: 番号・題・並びは `START_CURRICULUM` が持ったままなので、
+#: 一覧には「準備中」として出続ける。
+#:
+#: 止まる場所は3つ（`apps/catalog/access.py`）——教材を配る API・
+#: 学習セッション作成・AI 実行。ここを `coming_soon` にすれば、
+#: URL を直接叩かれても始まらない。
+RELEASE_COMING_SOON: frozenset[str] = frozenset(
+    {
+        "summarize_text",
+        "explain_topic",
+        "brainstorm_ideas",
+        "compare_options",
+        "organize_information",
+        "image_generation",
+        "image_edit",
+    }
+)
+
 #: AIスタートコースから AI活用コースへ移すもの。slug → (番号, 題)。
 #:
 #: 本文は完成していて、実務向けの並びには収まる。行き先ごと消すと、
@@ -1427,6 +1453,17 @@ def seed_first_release(*, only_new: bool = False) -> tuple[Course, Course]:
             sort_order=number,
             stage_key=key,
             stage_title=stage_title,
+            #: 公開状態も、ここでまとめて当てる。
+            #:
+            #: `_upsert_lesson` は教材を1本ずつ書くときに
+            #: `AVAILABLE` を入れる。**そのままにすると全部が開く**
+            #: ので、並びと同じく最後に上書きする——カリキュラムの姿を
+            #: 決めるのは1か所、という上の決まりに公開状態も乗せる。
+            availability_status=(
+                AvailabilityStatus.COMING_SOON
+                if slug in RELEASE_COMING_SOON
+                else AvailabilityStatus.AVAILABLE
+            ),
         )
 
     # 第1リリースでは主役を2本に絞る。過去の予告コースは削除せず非表示にする。
