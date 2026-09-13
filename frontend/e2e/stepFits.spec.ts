@@ -216,7 +216,26 @@ test.describe("いちばん低い持ち方（iPhone の Safari、上下の帯あ
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
     await page.getByRole("button", { name: "はじめる" }).first().click();
-    await page.getByTestId("continue-lesson").click();
+
+    /*
+      導入の一枚を持っているのは**骨格の教材**（Day2 以降）。
+      Day1 は「このレッスンについて」をやめて、開いた先がもう
+      仕事の場面になっている（`course/day1Steps.ts`）。
+
+      第1リリースでは Day2 以降が準備中なので、この画面へ行く道が
+      無い。**消さずに飛ばす**——公開範囲が広がれば、ここは何も
+      直さずに動き出す。教材の行が押せるかどうかで判断する。
+    */
+    await page.getByRole("button", { name: "コース" }).first().click();
+    await page.getByTestId("current-course-open").click();
+    const flow = page.getByTestId("lesson-summarize_text");
+    await expect(flow).toBeVisible();
+    test.skip(
+      (await flow.getAttribute("data-availability")) === "coming_soon",
+      "導入の一枚を持つ教材が、まだ公開されていない",
+    );
+
+    await flow.click();
     // 開いた最初は段の頭の章扉。通り抜けると導入の一枚が浮かぶ
     await passSectionCover(page);
     await expect(page.getByTestId("lesson-intro")).toBeVisible();

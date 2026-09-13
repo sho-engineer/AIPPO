@@ -354,6 +354,22 @@ export default {
           to: { transform: "translateY(0)", opacity: "1" },
         },
         /*
+          章扉が出るとき。**段が変わったことだけを伝える。**
+
+          `fade-up` と同じ形（8px 上へ、薄いところから）だが、別名に
+          してある。あちらは一覧の行が順に現れるためのもので、遅れを
+          付けて重ねて使う。こちらは**1画面に1回だけ**。同じ名前に
+          すると、一覧の間合いを詰めた日に章扉まで一緒に動く。
+
+          動かすのは絵だけ。「つづける」は別の層に置いてあり、
+          最初から所定の位置に出る——押せるものが遅れて来ると、
+          出た瞬間に押した指が空振りする。
+        */
+        "section-intro": {
+          from: { transform: "translateY(8px)", opacity: "0" },
+          to: { transform: "translateY(0)", opacity: "1" },
+        },
+        /*
           選んだ札が、ひとつだけ跳ねる。
 
           押した「手ごたえ」を返すためだけの動き。色が変わるのは
@@ -386,6 +402,15 @@ export default {
         "drift-x": "drift-x 1.4s ease-in-out infinite",
         "slide-in": "slide-in 0.22s ease-out both",
         "fade-up": "fade-up 0.28s ease-out both",
+        /*
+          章扉。0.3 秒で終える。**進行を待たせない**ので、
+          出た瞬間から「つづける」を押せる（押せる層は動かない）。
+
+          `prefers-reduced-motion` のときは、`src/index.css` の共通
+          ルールが 0.01ms まで詰める。`both` と合わせて、終わった姿
+          （opacity 1 / ずれ 0）へそのまま落ちる。
+        */
+        "section-intro": "section-intro 0.3s ease-out both",
         "choice-pop": "choice-pop 0.24s ease-out",
         /*
           紙吹雪。**この行が要る。**

@@ -201,31 +201,72 @@ export function SectionTransition({
         置かない——置くと箱が縮み、そのぶん切る量が増える。
       */}
       <div className="relative min-h-0 w-full flex-1">
-        {image && (
-          <img
-            src={image.src}
-            alt={image.alt}
-            width={image.width}
-            height={image.height}
-            onLoad={() => setShown(true)}
-            /*
-              端まで届かせる。`contain` に戻すと切れなくなるが、
-              そのかわり左右か上下に余白が出て、絵の四角い縁が見える。
+        {/*
+          出るときだけ、短く動かす層。**ここに入れるのは絵だけ。**
 
-              切る位置を**下寄りにする**（`object-position`）。
-              まん中から切ると、いちばん低い持ち方（402×660）で上下を
-              6.9% ずつ落とすことになり、**AIPPO のロゴの上が切れた**。
+          段が変わったことを伝えるための 0.3 秒（`animate-section-intro`
+          ——8px 上へ、薄いところから）。絵の中の要素を1つずつ動かす
+          ことはしない。ポーも星も音符も絵に焼き込まれているので、
+          **1枚をまとめて出す**のがいちばん静かで、いちばん速い。
 
-              下は「つづける」が覆っている場所なので、多く切ってよい。
-              上下の差を 1:3 にすると、上は 3.5% で止まる——4枚のうち
-              いちばん余白の少ない章（上 5.4%）でも題に届かない。
-            */
-            style={{ objectPosition: "center 25%" }}
-            className={`absolute inset-0 h-full w-full object-cover
-                        transition-opacity duration-300
-                        ${shown ? "opacity-100" : "opacity-0"}`}
-          />
-        )}
+          押せるものは、この中に入れない
+          ------------------------------
+          「つづける」と、画面ぜんぶを覆うタップ層は外の兄弟にしてある。
+          中へ入れると押せるものが 8px 動きながら出てくることになり、
+          出た瞬間に押した指が空振りする。**下のボタンは最初から
+          所定の位置**に居て、動かない。
+
+          `absolute inset-0` で敷く。箱の高さは flex が決めているので、
+          絵の読み込みで高さは動かない（`transform` を持つので新しい
+          基準面になるが、中身は絵と受け皿の見出しだけ）。
+        */}
+        <div
+          className="absolute inset-0 animate-section-intro"
+          data-testid="section-intro-content"
+        >
+          {image && (
+            <img
+              src={image.src}
+              alt={image.alt}
+              width={image.width}
+              height={image.height}
+              onLoad={() => setShown(true)}
+              /*
+                端まで届かせる。`contain` に戻すと切れなくなるが、
+                そのかわり左右か上下に余白が出て、絵の四角い縁が見える。
+
+                切る位置を**下寄りにする**（`object-position`）。
+                まん中から切ると、いちばん低い持ち方（402×660）で上下を
+                6.9% ずつ落とすことになり、**AIPPO のロゴの上が切れた**。
+
+                下は「つづける」が覆っている場所なので、多く切ってよい。
+                上下の差を 1:3 にすると、上は 3.5% で止まる——4枚のうち
+                いちばん余白の少ない章（上 5.4%）でも題に届かない。
+              */
+              style={{ objectPosition: "center 25%" }}
+              className={`absolute inset-0 h-full w-full object-cover
+                          transition-opacity duration-300
+                          ${shown ? "opacity-100" : "opacity-0"}`}
+            />
+          )}
+
+          {/*
+            絵が出ないときの受け皿。
+
+            読み上げにはいつもここが読まれる（絵の `alt` は絵の説明で、
+            章の名前ではない）。見た目には、絵が出ていれば隠れる。
+          */}
+          <h1
+            id="section-transition-title"
+            className={
+              image && shown
+                ? "sr-only"
+                : "pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-2xl font-bold leading-relaxed"
+            }
+          >
+            {title}
+          </h1>
+        </div>
 
         {/*
           画面のどこを押しても進む。
@@ -245,23 +286,6 @@ export function SectionTransition({
           aria-label={`${title}（画面を押してつづける）`}
           className="absolute inset-0 h-full w-full cursor-pointer"
         />
-
-        {/*
-          絵が出ないときの受け皿。
-
-          読み上げにはいつもここが読まれる（絵の `alt` は絵の説明で、
-          章の名前ではない）。見た目には、絵が出ていれば隠れる。
-        */}
-        <h1
-          id="section-transition-title"
-          className={
-            image && shown
-              ? "sr-only"
-              : "pointer-events-none absolute inset-0 flex items-center justify-center px-6 text-center text-2xl font-bold leading-relaxed"
-          }
-        >
-          {title}
-        </h1>
 
         {/*
           「つづける」。**絵の下部中央へ、小さく重ねる。**

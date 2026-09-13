@@ -74,6 +74,43 @@ function sectionImage(step: Lesson["steps"][number]): SectionImage | null {
 }
 
 /**
+ * 次に来る章扉の絵を、1枚だけ先に取っておく。
+ *
+ * なぜ要るか
+ * ----------
+ * 章扉は絵が画面そのもの。届くまでは何も無い画面で、届いた瞬間に
+ * 0.3 秒かけて出る（`SectionTransition` の `shown`）。段の変わり目で
+ * **何も無い一拍**が入るのは、そこがいちばん静かに繋ぎたい場所なので
+ * いちばん目立つ。
+ *
+ * 1枚だけにする
+ * -------------
+ * 教材の絵を最初にまとめて取ると、**レッスンが始まるのが遅くなる**。
+ * いま居る場所より後ろにある章扉のうち、**いちばん近い1枚**だけを
+ * 取りに行く。押して進むあいだに間に合えばよく、間に合わなくても
+ * これまでと同じ（届いてから出る）。
+ *
+ * `new Image()` で取るのは、`<link rel=preload>` と違って**取り消し
+ * が要らない**から。画面を離れれば参照が切れて、あとはブラウザの
+ * 置き場に残るだけになる。
+ */
+function usePreloadNextSection(lesson: Lesson, stepId: string): void {
+  useEffect(() => {
+    const at = lesson.steps.findIndex((step) => step.id === stepId);
+    if (at < 0) return;
+
+    const next = lesson.steps
+      .slice(at + 1)
+      .find((step) => step.type === "section_transition" && sectionImage(step));
+    const src = next ? sectionImage(next)?.src : undefined;
+    if (!src) return;
+
+    const image = new Image();
+    image.src = src;
+  }, [lesson, stepId]);
+}
+
+/**
  * この教材が持っている例文。
  *
  * 置き場は最初の回（`quick_try`）の `meta.sampleText`。詰まった人へ
@@ -331,6 +368,8 @@ export function LessonRunner({
   backRef.current = goBackOne;
 
   const stepId = step.id;
+  /* 次の章扉の絵を、1枚だけ先に取っておく（上の `usePreloadNextSection`） */
+  usePreloadNextSection(lesson, stepId);
   useEffect(() => {
     if (!api.canBack || celebrating) return;
     /*

@@ -15,7 +15,7 @@
  *   4. 進み具合の帯が、章扉で見せた名前と同じ言葉を出すこと
  */
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -213,8 +213,17 @@ describe("章扉の画面", () => {
     const cta = screen.getByTestId("primary-action");
     const placed = cta.parentElement!;
 
-    // 絵と同じ面にあり、下部中央へ左右の余白を残して重なる
-    expect(main.parentElement).toBe(placed.parentElement);
+    /*
+      絵と同じ面にあり、下部中央へ左右の余白を残して重なる。
+
+      **親そのものは同じではない。** 絵は出るときに短く動く層
+      （`section-intro-content`）の中に入っていて、「つづける」は
+      その外の兄弟にしてある——押せるものを動かさないため。
+      重なって見えるかどうかは、その1つ上の面が同じかで決まる。
+    */
+    const surface = screen.getByTestId("section-intro-content").parentElement;
+    expect(main.closest("[data-testid='section-intro-content']")).not.toBeNull();
+    expect(placed.parentElement).toBe(surface);
     expect(placed.className).toContain("absolute");
     expect(placed.className).toContain("inset-x-");
     expect(placed.className).toContain("bottom-");
@@ -232,6 +241,60 @@ describe("章扉の画面", () => {
     expect(cta).toHaveTextContent("つづける");
     expect(cta.querySelectorAll("svg")).toHaveLength(1);
     expect(cta.querySelector("svg")?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("出るときに短く動くのは、絵の層だけ", () => {
+    /*
+      段が変わったことを伝えるための 0.3 秒。**絵の中の要素を1つずつ
+      動かさない**——ポーも星も音符も絵に焼き込まれているので、1枚を
+      まとめて出すのがいちばん静かで、いちばん速い。
+
+      ここで見張るのは**動かす範囲**のほう。押せるものが中に入ると、
+      8px 動きながら出てくることになり、出た瞬間に押した指が空振りする。
+    */
+    render(
+      <SectionTransition title="まずは試してみよう" image={IMAGE} onContinue={() => {}} />,
+    );
+
+    const moving = screen.getByTestId("section-intro-content");
+    expect(moving.className).toContain("animate-section-intro");
+
+    // 絵は中。押せるものは外
+    expect(moving.querySelector("img")).not.toBeNull();
+    expect(moving.querySelector("[data-testid='primary-action']")).toBeNull();
+    expect(moving.querySelector("[data-testid='section-transition-tap']")).toBeNull();
+    expect(moving.querySelectorAll("button")).toHaveLength(0);
+  });
+
+  it("動くのは1回だけ。繰り返さない", () => {
+    /*
+      章扉は「息を継ぐ」ための1枚で、見つめる画面ではない。繰り返す
+      動きを置くと、読んでいるあいだずっと視界の端で何かが動き続ける。
+    */
+    render(
+      <SectionTransition title="まずは試してみよう" image={IMAGE} onContinue={() => {}} />,
+    );
+
+    const moving = screen.getByTestId("section-intro-content");
+    expect(moving.className).not.toContain("infinite");
+    expect(moving.className).not.toMatch(/animate-(float|twinkle|halo|nudge|drift)/);
+  });
+
+  it("出た瞬間から「つづける」を押せる", () => {
+    /*
+      **アニメーションで進行を待たせない。** 押せるようになるまでの
+      間を作ると、テンポの区切りのつもりが足止めになる。
+    */
+    const onContinue = vi.fn();
+    render(
+      <SectionTransition title="まずは試してみよう" image={IMAGE} onContinue={onContinue} />,
+    );
+
+    const cta = screen.getByTestId("primary-action");
+    expect(cta).toBeEnabled();
+    fireEvent.click(cta);
+
+    expect(onContinue).toHaveBeenCalledTimes(1);
   });
 
   it("「つづける」は、絵より前に出ない", () => {
