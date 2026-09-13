@@ -28,9 +28,17 @@ export interface AxisBarsProps {
   axes: Record<Axis, number>;
   /** 次に伸ばすところ。1つだけ印を付ける。 */
   focus?: Axis;
+  /**
+   * 右端に「3 / 5」を添えるか。
+   *
+   * 表の画面には出さない。あちらの主役はひし形で、横棒そのものが
+   * 出ない。数で確かめたい人が開く「この結果になった理由」の中でだけ
+   * 出す——**細かい数字は、求めた人にだけ渡す。**
+   */
+  showScore?: boolean;
 }
 
-export function AxisBars({ axes, focus }: AxisBarsProps) {
+export function AxisBars({ axes, focus, showScore = false }: AxisBarsProps) {
   const [drawn, setDrawn] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setDrawn(true));
@@ -82,6 +90,22 @@ export function AxisBars({ axes, focus }: AxisBarsProps) {
               );
             })}
           </span>
+          {showScore && (
+            /*
+              段そのものを数で。**幅を決め打ちにする**——数字の桁は
+              変わらない（1〜5）が、右端を揃えておかないと、4行の
+              棒の終わりが行ごとに 1px ずつずれて見える。
+            */
+            <span
+              aria-hidden="true"
+              className={`w-7 shrink-0 text-right text-xs leading-4 tabular-nums ${
+                axis === focus ? "font-bold text-brand-dark" : "text-ink-muted"
+              }`}
+              data-testid="axis-score"
+            >
+              {axes[axis]} / 5
+            </span>
+          )}
         </li>
       ))}
     </ul>

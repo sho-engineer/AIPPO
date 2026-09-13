@@ -65,12 +65,6 @@ async function expectFits(page: Page, where: string): Promise<void> {
 /** いま出ている画面で答えて、次へ。答え終わっていれば false。 */
 async function answerOne(page: Page): Promise<boolean> {
   if (await page.getByTestId("completion-view").count()) return false;
-  /*
-    5問目のあとは分析中が挟まる（`diagnosis/Analyzing.tsx`）。ここも
-    「答え終わった」——押せるものが無いので、止めないと空振りを
-    繰り返す。
-  */
-  if (await page.getByTestId("diagnosis-analyzing").count()) return false;
 
   const parts = page.getByTestId("assemble-part");
   const count = await parts.count();
@@ -103,8 +97,7 @@ async function answerOne(page: Page): Promise<boolean> {
 /**
  * 5問に答えて、**結果の1画面目（現在地）**まで行く。
  *
- * 分析中を待ち切ること。待たずに次を触ると、まだボタンが押せない
- * 1.8 秒のあいだに空振りする。
+ * 途中に待ち画面は無い。5問目を押したら、そのまま現在地が出る。
  */
 async function toResult(page: Page): Promise<void> {
   await openDiagnosis(page);
@@ -138,8 +131,6 @@ test.describe("AI活用診断", () => {
     const asked: string[] = [];
     for (let guard = 0; guard < 12; guard += 1) {
       if (await page.getByTestId("completion-view").count()) break;
-      /* 分析中は問いではない。数えない（`diagnosis/Analyzing.tsx`） */
-      if (await page.getByTestId("diagnosis-analyzing").count()) break;
       asked.push((await page.locator("main h1").first().innerText()).trim());
       if (!(await answerOne(page))) break;
     }
@@ -265,47 +256,39 @@ test.describe("AI活用診断", () => {
     await expect(page.getByTestId("primary-action")).toHaveText(/Day \d+をはじめる/);
   });
 
-  test("答え終わってすぐは、結果ではなく分析中", async ({ page }) => {
+  test("答え終わったら、待たずに現在地が出る", async ({ page }) => {
     /*
-      押した／出た、の2コマしかないと、答えが読まれた実感が残らない
-      ——「アンケートのよう」と言われたのがそこ。足しているのは待ち
-      時間ではなく、**何を見て判断したか**。
+      **「回答を分析しています」の画面は無い。**
+
+      前は5問目のあとに、4つの観点が順に点く 1.8 秒を挟んでいた。
+      消した理由は2つある。
+
+      1つ目。採点は同期で終わる（`course/diagnosisScore.ts` は計算
+      だけで、AIもサーバーも呼ばない）。待つものが無いのに待たせて
+      いた。
+
+      2つ目のほうが重い。あの画面は4つの観点を**白い角丸カードに
+      丸い印**を付けて縦に並べ、順に青くしていた。直前まで答えて
+      いた選択肢と見分けが付かないので、**自分が押していない項目に
+      勝手にチェックが付いていく**ように見えていた。診断を信じて
+      もらうための画面が、逆のことをしていた。
     */
     await openDiagnosis(page);
     for (let guard = 0; guard < 8; guard += 1) {
       if (!(await answerOne(page))) break;
     }
 
-    const analyzing = page.getByTestId("diagnosis-analyzing");
-    await expect(analyzing).toBeVisible();
-    await expect(page.locator("main h1").first()).toHaveText("回答を分析しています");
-    // 4つの観点。結果の「4つの力」と同じ4つであること
-    await expect(page.getByTestId("analyzing-axis")).toHaveCount(4);
-    // ここで押せてしまうと、演出を飛ばして結果へ行ける
-    await expect(page.getByTestId("primary-action")).toHaveAttribute(
+    await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 4000 });
+    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
+
+    // かけらも残っていないこと
+    await expect(page.getByTestId("diagnosis-analyzing")).toHaveCount(0);
+    await expect(page.getByTestId("analyzing-axis")).toHaveCount(0);
+    // 押せないボタンを置いたまま待たせない
+    await expect(page.getByTestId("primary-action")).not.toHaveAttribute(
       "aria-disabled",
       "true",
     );
-
-    // 白い画面を挟まない。分析中から現在地へ、そのまま入れ替わる
-    await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 6000 });
-    await expect(analyzing).toHaveCount(0);
-  });
-
-  test("分析は、長すぎない", async ({ page }) => {
-    /*
-      待たせるのが目的ではない。4つ読んで終わる長さより延ばすと、
-      「固まった」に変わる。
-    */
-    await openDiagnosis(page);
-    for (let guard = 0; guard < 8; guard += 1) {
-      if (!(await answerOne(page))) break;
-    }
-    await expect(page.getByTestId("diagnosis-analyzing")).toBeVisible();
-
-    const started = Date.now();
-    await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 6000 });
-    expect(Date.now() - started).toBeLessThan(3500);
   });
 
   test("結果の4画面で、押す場所が動かない", async ({ page }, testInfo) => {
@@ -548,15 +531,16 @@ test.describe("AI活用診断", () => {
     );
   });
 
-  test("低い持ち方では、ひし形ではなく横棒で出す", async ({ page }) => {
+  test("どの持ち方でも、ひし形を出す", async ({ page }) => {
     /*
-      ひし形は正方形なので、幅を使えるだけ高さも要る。402×660 で
-      この画面に渡せるのは 200px ほどで、ひし形と下の3行の両方は
-      載らない。
+      **前は高さで出し分けていた。** 760px 以上ならひし形、それ未満
+      なら横棒（`AxisBars`）。いちばん低い持ち方に合わせた結果、
+      実機のほとんどで横棒しか出ていなかった。
 
-      **縮めて載せない。** 小さいひし形は4つの頂点が寄って、どこが
-      薄いのか読めない図になる——載っているだけで読めない図は、
-      場所を取るぶん無いほうがまし。同じ4つの段を横棒で言う。
+      横棒は同じ4つの段を数として言うが、4つの関係——どこが出ていて
+      どこがへこんでいるか——は一目にならない。ここの主役は形のほう
+      なので、どの高さでもひし形を出す。数で確かめたい人のために、
+      横棒は「この結果になった理由」の中へ移した。
     */
     await page.setViewportSize({ width: 402, height: 660 });
     await toResult(page);
@@ -564,24 +548,52 @@ test.describe("AI活用診断", () => {
     await page.waitForTimeout(500);
 
     await expect(page.locator("main h1").first()).toHaveText("4つの力のバランス");
-    /*
-      見るのは**見えているか**で、DOM にあるかではない。高さで
-      出し分けているので（`hidden` / `flex`）、両方とも要素としては
-      置かれている。
-    */
-    await expect(page.getByTestId("axis-bars")).toBeVisible();
-    await expect(page.getByTestId("radar-chart")).not.toBeVisible();
+    await expect(page.getByTestId("radar-chart")).toBeVisible();
+    // 表には横棒を出さない。同じ値を2通りで同時に見せない
+    await expect(page.getByTestId("axis-bars")).toHaveCount(0);
     await expectFits(page, "結果（4つの力・低い持ち方）");
   });
 
-  test("縦に余る端末では、ひし形で出す", async ({ page }) => {
-    await page.setViewportSize({ width: 430, height: 932 });
+  test("横棒と点数は、「この結果になった理由」の中にある", async ({ page }) => {
+    /*
+      表はひし形、一枚は数。役を分けてある。数で確かめたい人が
+      行き止まりにならないよう、**同じ値が必ずどこかにある**こと。
+    */
+    await page.setViewportSize({ width: 402, height: 660 });
     await toResult(page);
     await page.getByTestId("primary-action").click();
     await page.waitForTimeout(500);
 
-    await expect(page.getByTestId("radar-chart")).toBeVisible();
-    await expectFits(page, "結果（4つの力・高い端末）");
+    await page.getByTestId("diagnosis-reason-open").click();
+    const sheet = page.getByTestId("diagnosis-detail-sheet");
+    await expect(sheet).toBeVisible();
+
+    await expect(sheet.getByTestId("axis-bars")).toBeVisible();
+    await expect(sheet.getByTestId("axis-bar")).toHaveCount(4);
+    await expect(sheet.getByTestId("axis-score")).toHaveCount(4);
+
+    /*
+      ひし形と横棒が、**同じ値**を指していること。
+      別々に計算していたら、ここでずれる。
+    */
+    const fromBars = await sheet
+      .getByTestId("axis-bar")
+      .evaluateAll((rows) =>
+        rows.map((row) => ({
+          axis: (row as HTMLElement).dataset.axis,
+          value: Number((row as HTMLElement).dataset.value),
+        })),
+      );
+    const fromChart = await page
+      .getByTestId("radar-chart")
+      .locator("svg")
+      .getAttribute("aria-label");
+    for (const row of fromBars) {
+      expect(fromChart, `${row.axis} の値`).toContain(`のうち ${row.value}`);
+    }
+
+    // 答えと判定のつながりも、ここにある
+    await expect(sheet.getByTestId("diagnosis-answers")).toBeVisible();
   });
 
   test("その1本が合わない人の行き先は、押した人にだけ", async ({ page }) => {

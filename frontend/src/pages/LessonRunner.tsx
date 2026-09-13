@@ -286,9 +286,9 @@ export function LessonRunner({
     **画面の上と下で言うことがずれる。**
   */
   const isDiagnosisResult = lesson.id === "diagnosis" && step.type === "completion";
-  const [phase, setPhase] = useState<DiagnosisPhase>("analyzing");
+  const [phase, setPhase] = useState<DiagnosisPhase>("stage");
   /*
-    結果の画面を離れたら、分析中に戻す。
+    結果の画面を離れたら、先頭（現在地）に戻す。
 
     答えを直しに問いへ戻った人は、直したあともう一度ここへ来る。
     そのとき前回の続き（おすすめ）から始まると、**直した結果を
@@ -296,7 +296,7 @@ export function LessonRunner({
   */
   const atResult = isDiagnosisResult;
   useEffect(() => {
-    if (!atResult) setPhase("analyzing");
+    if (!atResult) setPhase("stage");
   }, [atResult]);
 
   /*
@@ -496,11 +496,10 @@ export function LessonRunner({
           : undefined
       }
       /*
-        結果の4画面。**上の見出しと下のボタンと同じ値を渡す。**
+        結果の3画面。**上の見出しと下のボタンと同じ値を渡す。**
         別々に持つと、画面の上と下で言うことがずれる。
       */
       diagnosisPhase={phase}
-      onAnalyzed={() => setPhase("stage")}
     />
   );
 
@@ -1067,15 +1066,7 @@ export function LessonRunner({
         */
         primaryDisabled={
           Boolean(blockingIssue) ||
-          (step.type === "observation" && !isAnswered(step, values)) ||
-          /*
-            分析している 1.8 秒は、押せない。
-
-            ボタンを消さずに残すのは、**次の画面でボタンが生えると
-            中身が上へ跳ねる**から。押す場所は4画面とも同じ高さに
-            しておく。
-          */
-          (isDiagnosisResult && phase === "analyzing")
+          (step.type === "observation" && !isAnswered(step, values))
         }
         hintNearButton={api.issue?.reason ?? null}
         error={api.error}

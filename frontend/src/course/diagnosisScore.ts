@@ -65,33 +65,100 @@ export interface Stage {
   summary: string;
 }
 
+/*
+  現在地の名前は、**次に伸ばす力から作る。**
+
+  ここで実際に何が起きていたか
+  ----------------------------
+  境目が2つあった。段が上がる境目は 3、「その力が身に付いた」と数える
+  境目は 4（下の `stageNumber` と `next`）。ずれているので、その
+  あいだに居る人——ときどき条件を足せるが、まだ手には入っていない人
+  ——に、同じ画面がこう出ていた：
+
+      あなたの現在地   条件を加えられる段階
+      次に伸ばす力     条件を加える力
+      回答から見えた特徴  ✓ 条件を加えるのはこれから
+
+  「加えられる」と「これから」が並ぶ。
+
+  **1件だけの話ではなかった。** 答えの組み合わせを総当たりで出すと、
+  同じ形の食い違いが5通りあった：
+
+      現在地                          同時に出ていた行
+      AIに頼める段階                  AIへの頼み方はこれから
+      条件を加え始めている段階        AIへの頼み方はこれから
+      条件を加えられる段階            条件を加えるのはこれから
+      目的に合わせて使い分けられる段階  条件を加えるのはこれから
+      仕事の流れに組み込めている段階    仕事の流れへの組み込みはこれから
+
+  名前を1つ直しても、残りは残る。**境目を1つにしないと消えない。**
+
+  どう直したか
+  ------------
+  名前の元を、段の番号から `weakest`（＝次に伸ばす力）へ移した。
+  `weakest` は「下から見て最初に 4 に届いていない軸」なので、そこを
+  名前に使えば、現在地と次の一歩は**同じ1つの判断から出る**——
+  食い違いようが無い。
+
+      次に伸ばす力      現在地
+      AIに頼む         AIを試し始めている段階
+      条件を加える      AIに頼める／条件を加え始めている段階（※）
+      目的に合わせる    目的に合わせて使い分け始めている段階
+      仕事で組み立てる  仕事の流れに組み込み始めている段階
+      （4つとも4以上）  仕事の流れに組み込めている段階
+
+  ※ 条件だけ2段に割ってある。ここが Day1 の受け持ちで、いちばん
+    人数が多く、しかも「まだ何もしていない」と「やり始めた」では
+    次に読ませたいものが違うため。割れ目は 3。
+*/
 export const STAGES: readonly Stage[] = [
   {
     number: 1,
-    name: "まず触ってみる段階",
+    name: "AIを試し始めている段階",
     summary: "これから使いはじめるところ。まず1回、送ってみるところから。",
   },
   {
     number: 2,
-    name: "AIにお願いできる段階",
-    summary: "してほしいことを言葉にして、AIに渡せています。",
+    name: "AIに頼める段階",
+    summary:
+      "してほしいことを言葉にして、AIに渡せています。誰向けかを足すと、返ってくるものが変わります。",
   },
   {
     number: 3,
-    name: "条件を加えられる段階",
-    summary: "誰向けか・どんな言い方かを足して、返ってくるものを変えられます。",
+    name: "条件を加え始めている段階",
+    summary:
+      "AIに頼むことには慣れています。誰向けか・どんな言い方かを加えると、回答をさらに使いやすくできます。",
   },
   {
     number: 4,
-    name: "目的に合わせて使える段階",
-    summary: "場面に応じて、AIの使い方そのものを選べています。",
+    name: "目的に合わせて使い分け始めている段階",
+    summary:
+      "誰向けか・どんな言い方かを伝えられています。場面ごとに使い方を選べると、迷う時間が減ります。",
   },
   {
     number: 5,
-    name: "仕事の目的に応じてAIの使い方を組み立てられる段階",
-    summary: "仕事の流れの中で、どこにAIを置くかを設計できています。",
+    name: "仕事の流れに組み込み始めている段階",
+    summary:
+      "場面に応じて、AIの使い方そのものを選べています。返ってくる形を決めると、そのまま仕事に載せられます。",
   },
 ] as const;
+
+/**
+ * 4つとも身に付いている人の現在地。
+ *
+ * 段の番号は5のまま——道（`GrowthTrack`）の点は5つしかなく、ここは
+ * その5つ目に立っている。違うのは**もう「これから」が無い**ことだけ
+ * なので、名前と説明だけを差し替える。
+ *
+ * 前はこの人にも「仕事の流れへの組み込みはこれから」と出ていた。
+ * `weakest` は必ず1つ返す作りなので、全部届いている人には
+ * いちばん最後の軸が返り、それが「まだのところ」として表示されていた。
+ */
+const COMPLETE: Stage = {
+  number: 5,
+  name: "仕事の流れに組み込めている段階",
+  summary: "仕事の流れの中で、どこにAIを置くかを設計できています。",
+};
 
 /* ------------------------------------------------------------------ 配点 */
 
@@ -192,6 +259,38 @@ const STRENGTH_LINES: Record<Axis, string> = {
   workflow: "仕事の流れで使える",
 };
 
+/**
+ * その答えが、どの力を動かしたか。
+ *
+ * なぜ要るか
+ * ----------
+ * 「この結果になった理由」の一枚には、答えた内容と4つの段が並ぶ。
+ * けれど**そのあいだが抜けていた**——自分の答えと、出てきた段の
+ * つながりが書いていないので、読んでも「そう出た」以上のことが
+ * 分からない。診断を信じてもらえるかどうかは、たいていここで決まる。
+ *
+ * 配点表から引く。**別に書かない。**
+ * ここを手で書くと、配点を直した日に説明だけが古いまま残る
+ * ——しかも読んだ人には、どちらが本当かを確かめる手段が無い。
+ */
+export function axesMovedBy(stepId: string, values: Record<string, string>): Axis[] {
+  const gains: Partial<Record<Axis, number>>[] = [];
+
+  if (stepId === "ai_usage") gains.push(Q1[values.ai_usage ?? ""] ?? {});
+  if (stepId === "ask_style") gains.push(Q2[values.ask_style ?? ""] ?? {});
+  if (stepId === "build_prompt") {
+    const [what, who, how] = (values.build_prompt ?? "").split("|");
+    gains.push(Q3.what[what] ?? {}, Q3.who[who] ?? {}, Q3.how[how] ?? {});
+  }
+  /*
+    場面と使い方の対応。表は「正解」だけを持っていて配点は呼ぶ側に
+    ある（`scoreDiagnosis`）ので、ここでは動く先だけを言う。
+  */
+  if (stepId === "match_purpose") gains.push({ purpose: 1 });
+
+  return AXES.filter((axis) => gains.some((one) => (one[axis] ?? 0) > 0));
+}
+
 /** 0〜1 を 1〜5 の段階へ。四捨五入ではなく、上へ届いた分だけ上げる。 */
 function toStep(ratio: number): number {
   return Math.min(5, Math.max(1, Math.round(ratio * 4) + 1));
@@ -262,20 +361,6 @@ export function scoreDiagnosis(values: Record<string, string>): DiagnosisResult 
     {} as Record<Axis, number>,
   );
 
-  /*
-    現在地は**積み上げで決める**。平均にしない。
-
-    平均だと、頼めないのに仕事で組み立てられる、という順番の
-    おかしい位置に出ることがある。下から順に「ここは越えた」を
-    数えるほうが、次の一歩と食い違わない。
-  */
-  let stageNumber = 1;
-  if (axes.ask >= 3) stageNumber = 2;
-  if (axes.ask >= 3 && axes.condition >= 3) stageNumber = 3;
-  if (axes.ask >= 4 && axes.condition >= 3 && axes.purpose >= 4) stageNumber = 4;
-  if (axes.ask >= 4 && axes.condition >= 4 && axes.purpose >= 4 && axes.workflow >= 4) {
-    stageNumber = 5;
-  }
 
   /*
     できていること。**2つだけ。**
@@ -301,11 +386,37 @@ export function scoreDiagnosis(values: Record<string, string>): DiagnosisResult 
     4つの軸は積み上げの順に並んでいる（頼む → 条件 → 目的 → 流れ）。
     下から見て**最初に届いていないところ**が、次にやることそのもの。
   */
-  const next = AXES.find((axis) => axes[axis] < 4) ?? AXES[AXES.length - 1];
+  const behind = AXES.find((axis) => axes[axis] < 4);
+  const next = behind ?? AXES[AXES.length - 1];
+
+  /*
+    現在地は、**次に伸ばすところから決める。**
+
+    前はここに別の積み上げ（`ask >= 3` から数える4行）が居て、段の
+    境目が 3、身に付いた境目が 4 という**2つの物差し**が同じ画面に
+    出ていた。そのあいだに居る人には、現在地と次の一歩が食い違って
+    見える——総当たりで5通り出た（表は `STAGES` の上に貼ってある）。
+
+    いまは1つ。届いていない軸そのものが現在地の名前になるので、
+    ずれようが無い。条件だけ2段に割ってあるのは、そこが Day1 の
+    受け持ちで、「まだ何もしていない」と「やり始めた」で次に
+    読ませたいものが違うため。
+  */
+  const stageNumber = !behind
+    ? 5
+    : behind === "ask"
+      ? 1
+      : behind === "condition"
+        ? axes.condition < 3
+          ? 2
+          : 3
+        : behind === "purpose"
+          ? 4
+          : 5;
 
   return {
     axes,
-    stage: STAGES[stageNumber - 1],
+    stage: behind ? STAGES[stageNumber - 1] : COMPLETE,
     strengths,
     weakest: next,
     strongest: ranked[0],
@@ -360,8 +471,8 @@ export function traitsOf(result: DiagnosisResult): string[] {
     ——しかも**下の3行のほうが具体的**なので、上の判定のほうが
     間違っていると読まれる。
 
-    現在地は下から順に「ここは越えた」を数えて決まる
-    （`scoreDiagnosis` の `stageNumber`）。ここも同じにする：
+    現在地は「最初に 4 に届いていない軸」から決まる
+    （`scoreDiagnosis`）。ここも同じにする：
     **頼む → 条件 → 目的 → 流れ の順に見て、最初に届いていない
     ところで止める。** 飛び越えた先は数えない。
 
@@ -377,8 +488,25 @@ export function traitsOf(result: DiagnosisResult): string[] {
   /* 出すのは**いちばん先まで来ている2つ**。土台の話は要らない */
   const done = cleared.slice(-2).map((axis) => TRAIT_DONE[axis]);
 
+  /*
+    4つとも届いている人には、「これから」を出さない。
+
+    `weakest` は必ず1つ返す（おすすめを引く先が要るので）。全部
+    届いている人にはいちばん最後の軸が返り、それがそのまま
+    「仕事の流れへの組み込みはこれから」として出ていた——現在地が
+    「仕事の流れに組み込めている段階」なのに、である。
+
+    ここだけは**まだのところが無い**ので、そう言う。
+  */
+  if (AXES.every((axis) => result.axes[axis] >= 4)) {
+    return [...AXES.slice(-2).map((axis) => TRAIT_DONE[axis]), ALL_ROUND];
+  }
+
   return [...done, TRAIT_NEXT[result.weakest]];
 }
+
+/** 4つとも届いている人の、3行目。 */
+const ALL_ROUND = "4つとも、ひととおり使えている";
 
 /**
  * 次に覚えること。**技の名前ではなく、やることで書く。**

@@ -18,7 +18,7 @@
  *   4. 職種・業界・使っているAIサービスを聞かないこと
  */
 
-import { act, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -28,7 +28,6 @@ import {
   type DiagnosisResultProps,
 } from "../src/components/course/DiagnosisResult";
 import { DiagnosisIntro } from "../src/components/course/diagnosis/DiagnosisIntro";
-import { ANALYZING_MS } from "../src/components/course/diagnosis/Analyzing";
 import { COURSE, getLesson } from "../src/course/catalog";
 import {
   AXES,
@@ -278,7 +277,7 @@ describe("採点（4つの軸と現在地）", () => {
       おかしい位置に出ることがある。
     */
     const beginner = scoreDiagnosis(answers());
-    expect(beginner.stage.name).toBe("まず触ってみる段階");
+    expect(beginner.stage.name).toBe("AIを試し始めている段階");
 
     const expert = scoreDiagnosis(
       answers({
@@ -469,43 +468,38 @@ describe("結果の4画面", () => {
         values={values}
         lessons={COURSE.lessons}
         phase={phase}
-        onAnalyzed={() => {}}
         {...extra}
       />,
     );
 
-  it("答え終わってすぐは、結果ではなく分析中", () => {
+  it("答え終わったら、待たずに現在地を出す", () => {
     /*
-      押した／出た、の2コマしかないと、答えが読まれた実感が残らない
-      ——「アンケートのよう」と言われたのがそこ。足しているのは待ち
-      時間ではなく、**何を見て判断したか**。
+      **「分析しています」の画面は無い。**
+
+      前は4つの観点が順に点く画面を 1.8 秒挟んでいた。消した理由は
+      2つある。
+
+      1つ目。採点は同期で終わる（`course/diagnosisScore.ts` は計算
+      だけで、AIもサーバーも呼ばない）。待つものが無いのに待たせて
+      いた。
+
+      2つ目のほうが重い。あの画面は4つの観点を**白い角丸カードに
+      丸い印**を付けて縦に並べ、順に青くしていた。直前まで答えて
+      いた選択肢と見分けが付かないので、**自分が押していない項目に
+      勝手にチェックが付いていく**ように見えていた。診断を信じて
+      もらうための画面が、逆のことをしていた。
+
+      ここで見張るのは「無いこと」。足し戻すと、この検査が止める。
     */
-    show("analyzing");
+    const first = DIAGNOSIS_PHASES[0];
+    expect(first, "結果は現在地から始まる").toBe("stage");
 
-    expect(screen.getByTestId("diagnosis-analyzing")).toBeInTheDocument();
-    // 4つの観点。結果の「4つの力」と同じ4つであること
-    expect(screen.getAllByTestId("analyzing-axis")).toHaveLength(AXES.length);
-    // まだ結果は1つも出さない
-    expect(screen.queryByTestId("growth-track")).toBeNull();
-    expect(screen.queryByTestId("diagnosis-next-skill")).toBeNull();
-  });
+    show(first);
 
-  it("分析が終わったら、待たずに次へ渡す", () => {
-    vi.useFakeTimers();
-    let done = 0;
-    render(
-      <DiagnosisResult
-        values={values}
-        lessons={COURSE.lessons}
-        phase="analyzing"
-        onAnalyzed={() => (done += 1)}
-      />,
-    );
-
-    expect(done).toBe(0);
-    act(() => void vi.advanceTimersByTime(ANALYZING_MS + 50));
-    expect(done).toBe(1);
-    vi.useRealTimers();
+    expect(screen.getByTestId("growth-track")).toBeInTheDocument();
+    // 分析中のかけらも残っていないこと
+    expect(screen.queryByTestId("diagnosis-analyzing")).toBeNull();
+    expect(screen.queryByTestId("analyzing-axis")).toBeNull();
   });
 
   it("①現在地では、まだ Lesson の話をしない", () => {
@@ -526,7 +520,7 @@ describe("結果の4画面", () => {
     /*
       実機で出た食い違い——
 
-          あなたの現在地  まず触ってみる段階
+          あなたの現在地  AIを試し始めている段階
           ✓ 条件を加えて結果を調整できる
           ✓ 目的に応じて使い方を選べる
 
@@ -562,7 +556,7 @@ describe("結果の4画面", () => {
 
             /*
               できている行の数は、**現在地が越えた段の数を超えない**。
-              現在地1（まず触ってみる）なら、できている行は0。
+              現在地1（AIを試し始めている）なら、できている行は0。
             */
             const doneLines = traits.filter(
               (line) => !line.endsWith("これから"),
@@ -572,9 +566,46 @@ describe("結果の4画面", () => {
               `現在地は「${result.stage.name}」なのに、できている行が ${doneLines}本 ${where}`,
             ).toBeLessThanOrEqual(result.stage.number - 1);
 
-            // 最後は必ず「これから」。次にやることが無い結果を出さない
-            expect(traits.at(-1), where).toMatch(/これから$/);
+            /*
+              最後の行は「これから」。ただし**4つとも届いている人だけは
+              別**——まだのところが無いので、そう言う。前はその人にも
+              「仕事の流れへの組み込みはこれから」と出ていた（現在地が
+              「仕事の流れに組み込めている段階」なのに、である）。
+            */
+            const done = AXES.every((axis) => result.axes[axis] >= 4);
+            expect(traits.at(-1), where).toMatch(done ? /使えている$/ : /これから$/);
             expect(traits.length, where).toBeLessThanOrEqual(3);
+
+            /*
+              **現在地の名前が、まだのところを「できる」と言わない。**
+
+              これが実機で見つかった食い違いそのもの。境目が2つ
+              （段は3、身に付いたは4）あったころは、総当たりで5通り
+              出ていた——「条件を加えられる段階」と「条件を加えるのは
+              これから」が同じ画面に並ぶ、という形で。
+
+              いまは現在地の名前を `weakest` から作っている
+              （`course/diagnosisScore.ts`）ので、構造として起きない。
+              ここは**そこへ戻っていないこと**を見る。
+
+              見方：その軸が「これから」なら、現在地の名前はその軸を
+              言い切らない（「〜できる」「〜られる」「〜ている」で
+              終わらない）こと。「〜し始めている」は途中なので可。
+            */
+            const CLAIMS: Record<string, RegExp> = {
+              ask: /AIに頼める/,
+              condition: /条件を加えられる/,
+              purpose: /使い分けられる/,
+              workflow: /組み込めている/,
+            };
+            const nextLine = traits.at(-1) ?? "";
+            if (nextLine.endsWith("これから")) {
+              expect(
+                result.stage.name,
+                `現在地「${result.stage.name}」が、まだの力を「できる」と言っている` +
+                  `（次に伸ばす力: ${result.weakest}）${where}`,
+              ).not.toMatch(CLAIMS[result.weakest]);
+            }
           }
         }
       }
@@ -769,7 +800,7 @@ describe("画面の上と下で、言うことがずれない", () => {
     出す。**2つのファイルにまたがる**ので、文言は1か所に持たせてある
     （`course/diagnosisFlow.ts`）。ここはその表そのものを見る。
   */
-  it("4画面とも、見出しと主ボタンを持っている", () => {
+  it("3画面とも、見出しと主ボタンを持っている", () => {
     for (const phase of DIAGNOSIS_PHASES) {
       const copy = PHASE_COPY[phase];
       expect(copy.title, phase).toBeTruthy();
@@ -779,18 +810,22 @@ describe("画面の上と下で、言うことがずれない", () => {
     }
   });
 
-  it("分析中には「診断結果」と書かない", () => {
-    // まだ出ていないものを、出たことにしない
-    expect(PHASE_COPY.analyzing.eyebrow).toBeUndefined();
-    for (const phase of ["stage", "axes", "lesson"] as const) {
+  it("3画面とも「診断結果」と名乗る", () => {
+    /*
+      前はここに「分析中には『診断結果』と書かない」があった。
+      まだ出ていないものを出たことにしない、という話だったが、
+      その画面自体を消したので、**残る3つは全部が結果**になった。
+    */
+    for (const phase of DIAGNOSIS_PHASES) {
       expect(PHASE_COPY[phase].eyebrow, phase).toBe("診断結果");
     }
   });
 
-  it("分析中へは戻さない", () => {
+  it("先頭から戻ると、教材のほうへ渡す", () => {
     /*
-      戻ったところで同じ 1.8 秒をもう一度待つだけで、戻る先として
-      意味を持たない。現在地から戻る人が行きたいのは最後の質問。
+      現在地から「戻る」を押した人が行きたいのは最後の質問
+      （＝答えを直せる場所）。`null` を受けた呼び出し側が、
+      教材のステップを1歩戻す（`LessonRunner`）。
     */
     expect(prevPhase("stage")).toBeNull();
     expect(prevPhase("axes")).toBe("stage");
@@ -798,7 +833,6 @@ describe("画面の上と下で、言うことがずれない", () => {
   });
 
   it("進む順は、現在地 → 4つの力 → おすすめ", () => {
-    expect(nextPhase("analyzing")).toBe("stage");
     expect(nextPhase("stage")).toBe("axes");
     expect(nextPhase("axes")).toBe("lesson");
     // 最後まで来たら、レッスンへ渡す（`LessonRunner`）

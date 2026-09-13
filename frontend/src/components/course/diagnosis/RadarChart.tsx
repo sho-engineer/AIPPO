@@ -22,11 +22,11 @@
  *
  * 動き
  * ----
- * 中心から広がる。0.4秒で、跳ねさせない。動きを止めている人には
- * 広がりきった形がそのまま出る。
+ * **無い。** 前は中心から 0.4 秒で広がっていたが、ここは結果の画面の
+ * 主役で、開いた瞬間に読む図。広がりきるまでのあいだ、いちばん見たい
+ * 「どこが薄いか」が読めない——診断結果に演出を足さない、という
+ * 決まりとも合わない。描いた形をそのまま出す。
  */
-
-import { useEffect, useState } from "react";
 
 import { AXES, AXIS_LABELS, type Axis } from "../../../course/diagnosisScore";
 
@@ -113,11 +113,6 @@ export interface RadarChartProps {
 
 export function RadarChart({ axes, focus, size = "fluid" }: RadarChartProps) {
   const { box, label: LABEL, dot, focusDot } = SHAPE[size];
-  const [drawn, setDrawn] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setDrawn(true));
-    return () => cancelAnimationFrame(id);
-  }, []);
 
   /*
     次に目指すところ。**いまより1つだけ上。**
@@ -172,14 +167,7 @@ export function RadarChart({ axes, focus, size = "fluid" }: RadarChartProps) {
             />
           ))}
 
-          <g
-            style={{
-              transform: drawn ? "scale(1)" : "scale(0.05)",
-              transformOrigin: `${CENTER}px ${CENTER}px`,
-              opacity: drawn ? 1 : 0,
-              transition: "transform 400ms cubic-bezier(0.2,0.8,0.2,1), opacity 250ms",
-            }}
-          >
+          <g>
             {/* 次に目指す形。破線なので、いまの形と取り違えない */}
             <polygon
               points={polygon(target)}

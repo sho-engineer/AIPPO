@@ -1,21 +1,28 @@
 /**
  * AI活用診断の結果。
  *
- * 1画面を、4つに割った
+ * 1画面を、3つに割った
  * --------------------
  * 前はここが1画面だった。図・できていること・次の一歩・おすすめが
  * 同時に並び、下のボタンは「ここから始める」。**読む前に次へ行く道が
  * 目に入る**ので、結果は読まれずに押される形になっていた。
  * 「あっさりしていて、診断してもらった感じが弱い」と言われたのがそこ。
  *
- *     分析中  … 4つの観点が順に点く（`diagnosis/Analyzing.tsx`）
  *     現在地  … 5段階のどこか。Lesson の話はまだしない
- *     4つの力 … 強み／次に伸ばす力／次に覚えること
- *     おすすめ … 上の3つを受けた1本。ここで初めて Lesson が出る
+ *     4つの力 … ひし形と、強み／次に伸ばす力／次に覚えること
+ *     おすすめ … 上の2つを受けた1本。ここで初めて Lesson が出る
  *
  * 順番と文言は `course/diagnosisFlow.ts` が持つ。見出しと下のボタンは
  * `LessonRunner` が出すので、**2つのファイルにまたがる**——片方だけ
  * 直すと画面の上と下で言うことがずれる。
+ *
+ * 「分析しています」は無い
+ * ------------------------
+ * 5問目のあとに4つの観点が順に点く画面があったが、消した。採点は
+ * 同期で終わる（`course/diagnosisScore.ts` は計算だけ）ので待つものが
+ * 無く、しかもあの画面は4つの観点を**白い角丸カードに丸い印**で縦に
+ * 並べていた——直前まで答えていた選択肢と見分けが付かず、
+ * **自分が押していない項目に勝手にチェックが付く**ように見えていた。
  *
  * 「いまの様子」の一枚をやめた
  * ----------------------------
@@ -45,13 +52,13 @@ import { useState } from "react";
 import { IconCheck, IconChevronRight } from "../Icons";
 import { MoreSheet } from "./MoreSheet";
 import { AxisBars } from "./diagnosis/AxisBars";
-import { Analyzing } from "./diagnosis/Analyzing";
 import { GrowthTrack } from "./diagnosis/GrowthTrack";
 import { RadarChart } from "./diagnosis/RadarChart";
 import {
   AXIS_LABELS,
   NEXT_LEARNING,
   NEXT_SKILL,
+  axesMovedBy,
   scoreDiagnosis,
   traitsOf,
 } from "../../course/diagnosisScore";
@@ -67,8 +74,6 @@ export interface DiagnosisResultProps {
   lessons: Lesson[];
   /** いま出している画面。決めているのは `LessonRunner`（下の帯と揃える）。 */
   phase: DiagnosisPhase;
-  /** 分析が終わったので、結果へ移る。 */
-  onAnalyzed: () => void;
   /**
    * 答えを直しに戻る。
    *
@@ -90,7 +95,6 @@ export function DiagnosisResult({
   values,
   lessons,
   phase,
-  onAnalyzed,
   onEditAnswer,
   onPickLesson,
 }: DiagnosisResultProps) {
@@ -102,8 +106,6 @@ export function DiagnosisResult({
   const skill = NEXT_SKILL[result.weakest];
   const find = (id: string) => lessons.find((one) => one.id === id);
   const first = find(plan.first);
-
-  if (phase === "analyzing") return <Analyzing onDone={onAnalyzed} />;
 
   return (
     /*
@@ -173,12 +175,15 @@ export function DiagnosisResult({
             4つの力の内訳。**結果の言い直しではなく、元の数。**
 
             画面に出ているのはひし形で、形は読めても1つずつの段は
-            読み取りにくい。数で確かめたい人はここに来る。
+            読み取りにくい。数で確かめたい人はここに来る——だから
+            横棒はここにしか無い。表の画面はひし形、この一枚は数、と
+            役を分けてある（同じ値を2通りで同時に見せると、どちらを
+            読めばよいのか決められなくなる）。
           */}
           <section className="mt-5 border-t border-line pt-4">
             <h3 className="text-xs font-bold text-ink-muted">4つの力の内訳</h3>
             <div className="mt-2">
-              <AxisBars axes={result.axes} focus={result.weakest} />
+              <AxisBars axes={result.axes} focus={result.weakest} showScore />
             </div>
             <p className="mt-2 text-[0.6875rem] leading-4 text-ink-muted">
               ※ 5段階で表示しています。
@@ -190,16 +195,36 @@ export function DiagnosisResult({
 
             結果を見てから「そこは違う」と気づく人がいる。気づいたのに
             直せないと、出た結果を信じるしかなくなる。
+
+            答えの下に、**その答えが動かした力**を並べる（`axesMovedBy`）。
+            答えと段のあいだが抜けていると、読んでも「そう出た」以上の
+            ことが分からない。
           */}
           <section className="mt-5 border-t border-line pt-4">
-            <h3 className="text-xs font-bold text-ink-muted">答えた内容</h3>
-            <ul className="mt-2 space-y-2" role="list">
+            <h3 className="text-xs font-bold text-ink-muted">答えた内容と、判定</h3>
+            <ul className="mt-2 space-y-3" role="list" data-testid="diagnosis-answers">
               {answerLines(values).map((entry) => (
                 <li
                   key={entry.stepId}
                   className="flex items-start justify-between gap-3 text-sm leading-6"
                 >
-                  <span className="min-w-0">{entry.text}</span>
+                  <span className="min-w-0">
+                    {entry.text}
+                    <span
+                      className="mt-1 flex flex-wrap gap-1"
+                      data-testid="diagnosis-answer-moves"
+                    >
+                      {axesMovedBy(entry.stepId, values).map((axis) => (
+                        <span
+                          key={axis}
+                          className="rounded-badge bg-brand-soft px-2 py-0.5
+                                     text-[0.6875rem] leading-4 text-brand-dark"
+                        >
+                          {AXIS_LABELS[axis]}
+                        </span>
+                      ))}
+                    </span>
+                  </span>
                   {onEditAnswer && (
                     <button
                       type="button"
@@ -295,25 +320,49 @@ function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
   ];
 
   return (
-    <div className="shrink-0">
+    /*
+      縦の flex。**余った高さは、ひし形だけに渡す。**
+
+      1行の説明と下の3行は自分の高さのまま動かず、図が置き場に
+      合わせて伸び縮みする（`RadarChart` の `fluid`）。ここを
+      `shrink-0` にしていたころは、中の `flex-1` が効かずに図が
+      下限（92px）のまま——縦に余裕のある端末でも小さいままだった。
+    */
+    <div className="flex min-h-0 flex-1 flex-col">
       {/*
-        図は、**置ける高さで選ぶ。**
+        短い1行。図の前に、何を見ればよいかを言う。
 
-        ひし形は正方形なので、幅を使えるだけ高さも要る。いちばん低い
-        持ち方（402×660）でこの画面に渡せるのは 200px ほどで、そこへ
-        ひし形と下の3行の両方は載らない。
-
-        縮めて載せない。小さいひし形は、4つの頂点が寄って**どこが
-        薄いのかが読めない図**になる——載っているだけで読めない図は、
-        場所を取るぶん無いほうがまし。代わりに横棒（`AxisBars`）を
-        出す。同じ4つの段を、高さ 110px で、しかも数として読める形で
-        言う。
+        いちばん低い持ち方（375×667）では出さない。そこで渡せる高さは
+        331px しかなく、24px を図から引くと**図が読めない大きさ**に
+        なる。この1行は図の読み方の念押しで、無くても図と下の3行で
+        通じる——削る順としては先に来る。
       */}
-      <div className="hidden h-[12rem] shrink-0 justify-center [@media(min-height:760px)]:flex">
+      <p className="hidden shrink-0 text-sm leading-6 text-ink-muted [@media(min-height:700px)]:block">
+        4つのうち、どこが薄いかを見ます。
+      </p>
+
+      {/*
+        ひし形。**この画面の主役はこれ。**
+
+        前は画面の高さで出し分けていた——760px 以上ならひし形、
+        それ未満なら横棒（`AxisBars`）。いちばん低い持ち方に合わせた
+        結果、**実機のほとんどで横棒しか出ていなかった**。横棒は同じ
+        4つの段を数として言うが、4つの関係（どこが出ていてどこが
+        へこんでいるか）は一目にならない。
+
+        いまは、どの高さでもひし形を出す。高さは置き場に任せてあり
+        （`fluid`。下限 92px・上限 220px）、低い端末では小さくなるが
+        **形は保たれる**。数で確かめたい人のために、横棒は
+        「この結果になった理由」の中へ移した——同じ値を、役の違う
+        2か所で出す。
+
+        左右にはみ出す軸の名前ぶん、横に 2rem 空ける。ひし形は
+        正方形の中に描かれ、「条件」「仕事」の名前はその外側へ
+        置かれるので（`RadarChart` の `place`）、ここを詰めると
+        カードの外で切れる。
+      */}
+      <div className="mt-3 flex min-h-[8.5rem] flex-1 justify-center px-8">
         <RadarChart axes={result.axes} focus={result.weakest} />
-      </div>
-      <div className="shrink-0 [@media(min-height:760px)]:hidden">
-        <AxisBars axes={result.axes} focus={result.weakest} />
       </div>
 
       {/*
@@ -330,7 +379,11 @@ function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
         {rows.map((row, at) => (
           <div
             key={row.label}
-            className={`flex items-baseline gap-3 py-2.5 ${
+            /*
+              低い端末では行を詰める。3行で 144px 取っていたのを
+              108px まで下げる——そのぶんが図へ渡る。
+            */
+            className={`flex items-baseline gap-3 py-1.5 [@media(min-height:700px)]:py-2.5 ${
               at === 0 ? "" : "border-t border-brand-line/60"
             }`}
           >

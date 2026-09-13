@@ -90,8 +90,6 @@ export interface StepRendererProps {
    * `LessonRunner` だから。**上と下で別々に持つと、言うことがずれる。**
    */
   diagnosisPhase?: DiagnosisPhase;
-  /** 分析中が終わったので、結果へ移る。 */
-  onAnalyzed?: () => void;
 }
 
 /**
@@ -129,7 +127,6 @@ export function StepRenderer({
   onOpenRecipe,
   onPickLesson,
   diagnosisPhase = "stage",
-  onAnalyzed = () => {},
 }: StepRendererProps) {
   const { step, values, runs } = api;
   const completedCount = completedIds.length;
@@ -891,7 +888,6 @@ export function StepRenderer({
             values={values}
             lessons={course.lessons}
             phase={diagnosisPhase}
-            onAnalyzed={onAnalyzed}
             onEditAnswer={api.goTo}
             onPickLesson={onPickLesson}
           />

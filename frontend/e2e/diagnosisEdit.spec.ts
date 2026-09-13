@@ -49,11 +49,8 @@ async function answerAll(page: Page): Promise<void> {
   // 最初の1枚は説明。そこから5問
   await page.getByTestId("primary-action").click();
   await answerRemaining(page);
-  /*
-    5問目のあとは分析中が 1.8 秒挟まる（`diagnosis/Analyzing.tsx`）。
-    既定の待ち（5秒）でも届くが、遅い環境で足りなくならないよう明示する。
-  */
-  await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 6000 });
+  /* 待ち画面は挟まない。5問目を押したら、そのまま現在地が出る */
+  await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 4000 });
 }
 
 /**
@@ -66,8 +63,6 @@ async function answerAll(page: Page): Promise<void> {
 async function answerRemaining(page: Page): Promise<void> {
   for (let guard = 0; guard < 12; guard += 1) {
     if (await page.getByTestId("completion-view").count()) return;
-    /* 分析中は答える画面ではない。押せるものが無いので、ここで止める */
-    if (await page.getByTestId("diagnosis-analyzing").count()) return;
 
     const parts = page.getByTestId("assemble-part");
     const count = await parts.count();
