@@ -1,63 +1,72 @@
 /**
  * AI技を受け取る場面。
  *
- * 並びは直してある（体験 → 変化 → 気づき → 名前）。ここで見るのは、
- * **名前を渡すところが画面にあるか**。解説カードは「〜とは」で
- * 始まるので、それだけだと読んだ人は「説明を読んだ」としか思わない。
+ * 3回から1回へ
+ * ------------
+ * 前は技を1つずつ、使った場所で受け取っていた。名前が付くのは使った
+ * 直後がよい——それは変えていない。変えたのは**祝う回数**のほうで、
+ * Day1 の中に受け取る画面が3回あり、そのたびに学習が止まっていた
+ * （ポーが中央へ出て、紙が散って、押して戻る、を3回）。
  *
- * 見張るのは3つ。
+ * いまは、使った場所では名前を言うだけ（解説カード）。受け取るのは
+ * 自分の文章を仕上げたあとの1回で、そこで3つそろって出る
+ * （`components/course/day1/SkillRecap.tsx`）。
  *
- *   1. 技の名前が、覚える回に出ること
+ * 見張るのは4つ。
+ *
+ *   1. その日の技3つが、名前つきで受け取れること
  *   2. 名前が AI分野で普通に使う言葉であること（造語にしない）
- *   3. 説明を並べただけの回では出さないこと
+ *   3. 受け取る画面が、**レッスンの中で1回だけ**であること
+ *   4. 名前を言う画面は、名前を言うだけで止まること（祝わない）
  */
 
 import { render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { SkillGet } from "../src/components/course/SkillGet";
-import { SkillStampCard } from "../src/components/course/SkillStampCard";
+import { SkillRecap } from "../src/components/course/day1/SkillRecap";
 import { LessonRunner } from "../src/pages/LessonRunner";
 import { getLesson } from "../src/course/catalog";
 import type { Lesson } from "../src/course/types";
 
 const DAY1 = getLesson("rewrite_text")!;
-const concepts = DAY1.steps.filter((step) => step.type === "concept_card");
 
-describe("技を受け取る帯", () => {
-  it("名前と、やさしい言い方を出す", () => {
-    render(<SkillGet name="ターゲット指定" summary="誰向けかを伝える" />);
+/** その日の技をまとめて渡す画面（`meta.recap` を持つ回）。 */
+const recapStep = DAY1.steps.find(
+  (step) => (step.meta as { recap?: unknown } | undefined)?.recap,
+)!;
 
-    expect(screen.getByTestId("skill-get-name")).toHaveTextContent("ターゲット指定");
-    expect(screen.getByTestId("skill-get")).toHaveTextContent("誰向けかを伝える");
+const recap = (recapStep.meta as { recap: { name: string; body: string }[] }).recap;
+
+describe("まとめて受け取る画面", () => {
+  it("数を先に出す。3つあることが、押す前に分かる", () => {
+    /*
+      1つずつ受け取っていたころは、最後まで来ても**何個取ったのかが
+      画面のどこにも出ていなかった**。「3 / 3」は、その日に持って帰る
+      ものの数そのもの。
+    */
+    render(<SkillRecap items={recap} />);
+
+    expect(screen.getByTestId("skill-recap-count")).toHaveTextContent("3 / 3");
+    expect(screen.getAllByTestId("skill-recap-item")).toHaveLength(3);
   });
 
-  it("読み上げにも届く", () => {
-    // 色と動きだけで伝えると、見えない人には何も起きていないのと同じ
-    render(<SkillGet name="トーン指定" />);
+  it("名前と、1行の説明を出す", () => {
+    render(<SkillRecap items={recap} />);
 
-    expect(screen.getByTestId("skill-get")).toHaveAttribute("role", "status");
-    expect(screen.getByTestId("skill-get")).toHaveTextContent("AI技 GET");
+    const card = screen.getByTestId("skill-recap");
+    expect(card).toHaveTextContent("プロンプト");
+    expect(card).toHaveTextContent("読者設定");
+    expect(card).toHaveTextContent("トーン設定");
   });
 });
 
 describe("Day1 の3つの技", () => {
-  it("解説の回すべてに、技の名前が付いている", () => {
+  it("その日おぼえる3つが、教材データと画面でそろっている", () => {
     /*
-      Day1 で渡すのはこの3つ。順に足していけば1本の筋になる
-      （何をしてほしい → 誰向け → どんな言い方）。
-
-      「反復（Iteration）」はここから外した。あれは「返ってきたものを
-      見て、また足す」という**進め方**の話で筋が違ううえ、3つを
-      覚える前に4つ目が並ぶと持ち帰るものが増えすぎる。
-      技そのものは Day3・Day7・Day8 で出る。
+      コース一覧や完了画面が出す名前（`learnedSkills`）と、受け取る
+      画面が出す名前が違うと、**同じものだと気づけない**。
     */
-    expect(concepts.map((step) => step.skill)).toEqual([
-      "プロンプト",
-      "ターゲット指定",
-      "トーン指定",
-    ]);
+    expect(recap.map((one) => one.name)).toEqual(DAY1.learnedSkills);
   });
 
   it("名前は、AI分野で普通に使う言葉にする", () => {
@@ -68,41 +77,63 @@ describe("Day1 の3つの技", () => {
     */
     const known = [
       "プロンプト",
+      "読者設定",
+      "トーン設定",
       "ターゲット指定",
       "トーン指定",
       "ロール指定",
       "コンテキスト",
       "出力形式の指定",
-      "例示（Few-shot）",
       "追加質問",
-      "反復（Iteration）",
       "比較",
-      "分解",
-      "自己評価",
-      "発散",
-      "評価基準",
-      "情報整理",
-      "分類",
     ];
-    for (const step of concepts) {
-      expect(known, `${step.id} の「${step.skill}」`).toContain(step.skill);
+    for (const one of recap) {
+      expect(known, `「${one.name}」`).toContain(one.name);
     }
   });
 
-  it("やさしい言い方は、名前とは別に持つ", () => {
+  it("説明は1行に収める", () => {
+    // 3つ並ぶので、1つが2行になると祝う画面が読み物になる
+    for (const one of recap) {
+      expect(one.body.length, `「${one.name}」の説明が長い`).toBeLessThanOrEqual(24);
+    }
+  });
+
+  it("名前を言う画面は、使った場所にある", () => {
     /*
-      名前だけ見せても何のことか分からず、やさしい言い方だけでは
-      他所で通じない。両方を持って、名前を先に出す。
+      受け取るのは最後だが、**名前が付くのは使った直後**。そこは
+      変えていない。解説カードが `meta.silentSkill` で名前を持つ。
+
+      並びも見る。プロンプトは1回目を送った直後、読者設定は読む人を
+      足して結果を見た直後、トーン設定は伝え方で結果を見た直後。
     */
-    const targeting = concepts.find((step) => step.skill === "ターゲット指定")!;
-    expect(targeting.card?.title).toBe("誰向けかを伝える");
+    const named = DAY1.steps
+      .filter((step) => (step.meta as { silentSkill?: string } | undefined)?.silentSkill)
+      .map((step) => (step.meta as { silentSkill: string }).silentSkill);
+
+    expect(named).toEqual(["プロンプト", "読者設定", "トーン設定"]);
+  });
+
+  it("受け取る画面は、最後に1つだけ", () => {
+    /*
+      **ここが今回いちばん直したかったところ。** 増やすと、そのたびに
+      学習が止まる画面が戻ってくる。
+    */
+    const recaps = DAY1.steps.filter(
+      (step) => (step.meta as { recap?: unknown } | undefined)?.recap,
+    );
+
+    expect(recaps).toHaveLength(1);
+    // 自分の文章を仕上げたあと。完了画面の直前
+    const order = DAY1.steps.map((step) => step.id);
+    expect(order.indexOf(recaps[0].id)).toBe(order.length - 2);
   });
 });
 
 describe("レッスンの中で、実際に出る", () => {
   /*
     部品が正しくても、画面が描いていなければ何も起きない。
-    解説の回を開いて、帯がそこに在ることを見る。
+    その回を開いて、そこに在ることを見る。
   */
   const openAt = (stepId: string) => {
     const index = DAY1.steps.findIndex((step) => step.id === stepId);
@@ -112,141 +143,32 @@ describe("レッスンの中で、実際に出る", () => {
 
   beforeEach(() => window.localStorage.clear());
 
-  it("技を覚える回では、名前を渡す", () => {
-    // Day1 の解説は3枚。ターゲット指定は2枚目（1枚目はプロンプト）
-    openAt("concept_2");
+  it("最後の画面で、3つまとめて受け取る", () => {
+    openAt(recapStep.id);
 
-    expect(screen.getByTestId("skill-get-name")).toHaveTextContent("ターゲット指定");
-    // やさしい言い方は、名前の下に添える
-    expect(screen.getByTestId("skill-get")).toHaveTextContent("誰向けかを伝える");
+    expect(screen.getByTestId("skill-recap-count")).toHaveTextContent("3 / 3");
   });
 
-  it("技の名前が付いていない回では出さない", () => {
-    // 説明を並べただけの回で「覚えました」と言うと、言葉が安くなる
-    openAt("compare_results");
-
-    expect(screen.queryByTestId("skill-get")).not.toBeInTheDocument();
-  });
-
-  it("ポーは中央に立って、まわりに紙が散る", () => {
+  it("名前を言う画面では、受け取る演出を出さない", () => {
     /*
-      前は右端に寄っていた。技の名前も説明も中央にあるのに、祝って
-      いる当人だけが端に立っている形で、**左に大きな空白**ができて
-      画面の重心が右へずれていた。
-
-      置き場所を決めるのは `course/poPresence.ts`。画面ごとに条件を
-      書き始めると、また画面の都合でポーが動く。
+      名前は言うが、祝わない。祝うのは最後の1回だけ——3回あると、
+      そのたびに学習が止まる。
     */
-    openAt("concept_2");
+    openAt("concept_prompt");
 
-    expect(screen.getByTestId("po-hero")).toHaveAttribute("data-po-align", "center");
-    expect(screen.getByTestId("po-burst")).toBeInTheDocument();
+    expect(screen.queryByTestId("skill-recap")).not.toBeInTheDocument();
+    // 名前そのものは、ちゃんと画面にある
+    expect(screen.getByText("プロンプト")).toBeInTheDocument();
   });
 
-  it("ふだんの画面では、ポーは端のまま", () => {
-    // 中央に立つのは祝う画面だけ。ふだんは日本語の読む向きに合わせる
-    openAt("add_condition");
-
-    expect(screen.getByTestId("po-hero")).toHaveAttribute("data-po-align", "start");
-    expect(screen.queryByTestId("po-burst")).not.toBeInTheDocument();
-  });
-});
-
-describe("スタンプ台紙", () => {
-  const openAt = (stepId: string) => {
-    const index = DAY1.steps.findIndex((step) => step.id === stepId);
-    const lesson: Lesson = { ...DAY1, steps: DAY1.steps.slice(index) };
-    render(<LessonRunner lesson={lesson} onExit={() => {}} onOpenCourse={() => {}} />);
-  };
-
-  beforeEach(() => window.localStorage.clear());
-
-  it("「覚えた」を押すと、その日の何個目かが出る", async () => {
+  it("スタンプ台紙は、もう出てこない", () => {
     /*
-      技を受け取る画面は**1つぶんの出来事**しか言わない。「覚えた」で
-      すぐ次へ行くと、その日の何個目なのか、あと何個で揃うのかが
-      どこにも出ない。閉じれば進むが、そのあいだだけ台紙を見せる。
+      「覚えた」を押すと1枚挟まる台紙があった。技を1つずつ受け取る
+      作りの部品なので、まとめて受け取る形にした時点で出番が無い。
+      **部品ごと消してある**——教材のどこからも出なくなった画面を
+      残すと、次に触る人が「どこから出るのか」を探すことになる。
     */
-    const user = userEvent.setup();
-    openAt("concept_1");
-
-    await user.click(screen.getByTestId("primary-action"));
-
-    const card = await screen.findByTestId("skill-stamp-card");
-    // プロンプトは Day1 の1つ目。技は3つ
-    expect(screen.getByTestId("skill-stamp-count")).toHaveTextContent("1 / 3 GET");
-    expect(screen.getByTestId("skill-stamp-note")).toHaveTextContent(
-      "あと2つで Day 1 コンプリート",
-    );
-
-    /*
-      枠は3つとも出す。**まだ取っていないものも名前ごと出す**
-      ——この日に何を覚えるのかが見えているほうが、集まっていく形が
-      分かる。押されたのはいま取った1つだけ。
-    */
-    const slots = screen.getAllByTestId("skill-stamp-slot");
-    expect(slots).toHaveLength(3);
-    expect(slots.map((slot) => slot.getAttribute("data-state"))).toEqual([
-      "new",
-      "empty",
-      "empty",
-    ]);
-    expect(card).toHaveTextContent("ターゲット指定");
-    expect(card).toHaveTextContent("トーン指定");
-  });
-
-  it("閉じると、次の画面へ進む", async () => {
-    // 台紙は寄り道。**行き止まりにしない**
-    const user = userEvent.setup();
-    openAt("concept_1");
-
-    await user.click(screen.getByTestId("primary-action"));
-    await user.click(await screen.findByTestId("skill-stamp-continue"));
-
-    expect(screen.queryByTestId("skill-stamp-card")).not.toBeInTheDocument();
-    // プロンプトの次は章扉②「相手を決めよう」
-    expect(await screen.findByTestId("section-transition")).toBeInTheDocument();
-  });
-
-  /*
-    最後の1つは、部品のほうで見る。
-
-    ここの `openAt` は教材を途中で切って渡すので、切った先には技が
-    1つしか残らない（`skillOrder` は渡された教材から数える）。
-    3つ目まで通すには、レッスンを頭から歩かせることになる——
-    出したいのは「揃ったときの言い方」だけなので、部品へ直接渡す。
-  */
-  it("最後の1つを取ったら、揃ったことを言う", () => {
-    // 「あと0つ」とは言わない。揃った日はねぎらいに変える
-    render(
-      <SkillStampCard
-        skills={["プロンプト", "ターゲット指定", "トーン指定"]}
-        earnedIndex={2}
-        lessonNumber={1}
-        onClose={() => {}}
-      />,
-    );
-
-    expect(screen.getByTestId("skill-stamp-count")).toHaveTextContent("3 / 3 GET");
-    expect(screen.getByTestId("skill-stamp-note")).toHaveTextContent(
-      "Day 1 のAI技が全部そろいました",
-    );
-    expect(screen.getByTestId("skill-stamp-note")).not.toHaveTextContent("あと");
-    // 3つとも押されている
-    expect(
-      screen.getAllByTestId("skill-stamp-slot").map((s) => s.getAttribute("data-state")),
-    ).toEqual(["done", "done", "new"]);
-  });
-
-  it("解説を飛ばした人には出さない", async () => {
-    /*
-      台紙は「覚えた」を押した人への返事。飛ばした人に出すと、
-      読まずに進んだのに祝われることになる。
-    */
-    const user = userEvent.setup();
-    openAt("concept_1");
-
-    await user.click(screen.getByRole("button", { name: "解説を飛ばす" }));
+    openAt("concept_prompt");
 
     expect(screen.queryByTestId("skill-stamp-card")).not.toBeInTheDocument();
   });

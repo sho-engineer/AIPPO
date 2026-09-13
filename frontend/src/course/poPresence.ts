@@ -331,6 +331,26 @@ export function poAppearance(where: PoSituation): PoAppearance | null {
     return null;
   }
 
+  /*
+    Day1 の1画面目。**ここだけは案内役が要る。**
+
+    Day1 は「このレッスンについて」を廃したので、開く＝いきなり
+    仕事の場面に立っている状態から始まる（`quick_try`。専門用語の
+    多い文章と「新人に読んでもらいます」という状況が出る）。
+    ほかの教材にある「今日つくるもの」の画面が無い。
+
+    ポーを出す3場面のうちの**状況説明**がこれ。ここを黙らせると、
+    Day1 だけ誰にも迎えられずに始まり、次にポーが出るのは待ち時間
+    の顔になる。
+
+    `quick_try` を表側（`BY_STEP`）で `start` にはしない——ほかの
+    教材では直前に「今日つくるもの」（`outcome_preview` = `start`）
+    が居るので、2画面続けてポーが立つ。
+  */
+  if (where.lessonId === "rewrite_text" && where.stepType === "quick_try") {
+    return { scene: "start", speaks: true };
+  }
+
   const scene = BY_STEP[where.stepType];
   return scene ? { scene, speaks: true } : null;
 }

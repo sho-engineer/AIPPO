@@ -50,7 +50,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 const SLACK = 8;
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
@@ -186,7 +186,6 @@ async function overlaps(page: Page): Promise<Overlap[]> {
 }
 
 async function advance(page: Page): Promise<boolean> {
-  if (await passSkillStamp(page)) return true;
   const primary = page.getByTestId("primary-action").first();
   if (!(await primary.count())) return false;
   const blocked = async () =>

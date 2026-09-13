@@ -25,7 +25,6 @@ import { Changes } from "./day1/Changes";
 import { Instruction } from "./day1/Instruction";
 import { SkillRecap } from "./day1/SkillRecap";
 import type { DiagnosisPhase } from "../../course/diagnosisFlow";
-import { SkillGet } from "./SkillGet";
 import { StepDone } from "./StepDone";
 import {
   AskPreview,
@@ -341,33 +340,6 @@ export function StepRenderer({
       if (meta.recap) return <SkillRecap items={meta.recap} />;
 
       if (!step.card) return null;
-
-      /*
-        技の名前を受け取る回は、**その1つだけの画面**にする。
-
-        前はここで細い帯（`SkillGet`）を解説カードの上に積んでいた。
-        取った瞬間が説明の前置きになっていて、名前を受け取った感じが
-        残らない。解説の本文はもともと1行なので、取った瞬間の下へ
-        そのまま添えれば足りる（絵は畳んだままにする）。
-
-        骨格が最初に出す解説（concept_1〜3）は同じ場面を言い換えた
-        ものなので、名前を渡すのは**技として名前が付いている回**だけ。
-        見分けは教材データの `skill` が持っている。
-      */
-      if (step.skill) {
-        return (
-          <SkillGet
-            name={step.skill}
-            /*
-              やさしい言い方は、カードの見出しが持っている
-              （「ターゲット指定」＋「誰向けかを伝える」）。
-              技の名前と同じ文字のときは繰り返さない。
-            */
-            summary={step.card.title === step.skill ? undefined : step.card.title}
-            detail={step.card.body}
-          />
-        );
-      }
 
       /*
         見出しはステップ側で既に出ている。カードの中でもう一度書くと、

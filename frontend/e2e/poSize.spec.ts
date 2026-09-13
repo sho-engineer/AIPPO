@@ -35,7 +35,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /** 台紙に対する neutral の背丈（`PO_BOX.neutral.height`）。 */
 const VISIBLE_RATIO = 0.723;
@@ -145,7 +145,6 @@ test.describe("ポーの大きさ", () => {
         閉じずに下のボタンを押そうとすると、背景（閉じるための面）が
         受け取ってしまう。
       */
-      if (await passSkillStamp(page)) continue;
 
       const primary = page.getByTestId("primary-action").first();
       if (!(await primary.count())) break;

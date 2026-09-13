@@ -26,7 +26,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /** 台紙に対する neutral の幅（`PO_BOX.neutral.width`）。 */
 const VISIBLE_WIDTH_RATIO = 0.59;
@@ -130,7 +130,6 @@ test.describe("ポーと吹き出し", () => {
         閉じずに下のボタンを押そうとすると、背景（閉じるための面）が
         受け取ってしまう。
       */
-      if (await passSkillStamp(page)) continue;
 
       if (await page.getByTestId("po-hero-message").first().count()) {
         seen.push(await gapToBody(page));

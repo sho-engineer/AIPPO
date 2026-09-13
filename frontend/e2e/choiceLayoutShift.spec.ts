@@ -16,7 +16,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 
 async function openDiagnosisQuestion(page: Page): Promise<void> {
@@ -54,7 +54,6 @@ async function openConditionTiles(page: Page): Promise<void> {
       閉じずに下のボタンを押そうとすると、背景（閉じるための面）が
       受け取ってしまう。
     */
-    if (await passSkillStamp(page)) continue;
 
     if (await page.getByTestId("choice-tiles").isVisible().catch(() => false)) return;
 

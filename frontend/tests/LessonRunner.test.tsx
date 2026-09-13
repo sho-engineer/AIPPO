@@ -17,7 +17,7 @@ import type { Lesson } from "../src/course/types";
  */
 describe("自分の課題のステップ", () => {
   const lesson = getLesson("rewrite_text") as Lesson;
-  const realTaskIndex = lesson.steps.findIndex((step) => step.id === "real_task");
+  const realTaskIndex = lesson.steps.findIndex((step) => step.type === "real_task");
 
   /** real_task の画面までは、教材データを削って一足飛びに開く。 */
   const lessonFromRealTask: Lesson = {
@@ -54,7 +54,7 @@ describe("自分の課題のステップ", () => {
     */
     // 見出しは画面の上と本文の中に2つ出る。ここでは移ったことだけ見る
     expect(
-      await screen.findAllByRole("heading", { name: "伝え方を確認" }),
+      await screen.findAllByRole("heading", { name: "AIへの指示" }),
     ).not.toHaveLength(0);
 
     // ここでは AI を呼ばない。送るのは prompt_preview のあと
@@ -234,7 +234,7 @@ describe("答えた回へ戻ったとき", () => {
  */
 describe("自分の文章に秘密が混ざったとき", () => {
   const lesson = getLesson("rewrite_text") as Lesson;
-  const realTaskIndex = lesson.steps.findIndex((step) => step.id === "real_task");
+  const realTaskIndex = lesson.steps.findIndex((step) => step.type === "real_task");
   const fromRealTask: Lesson = { ...lesson, steps: lesson.steps.slice(realTaskIndex) };
 
   beforeEach(() => {

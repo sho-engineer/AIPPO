@@ -24,7 +24,6 @@ import {
   SectionTransition,
   type SectionImage,
 } from "../components/course/SectionTransition";
-import { SkillStampCard } from "../components/course/SkillStampCard";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
 import { useAuth } from "../auth/AuthContext";
@@ -158,40 +157,12 @@ export function LessonRunner({
   const [celebrating, setCelebrating] = useState(false);
 
   /*
-    スタンプ台紙を出しているか。
-
-    「覚えた」を押した直後に1枚だけ挟む。**進む先は変わらない**
-    ——閉じれば次の画面へ行く。ここで止めるのは、集まっていく形を
-    見せる 1〜2 秒ぶんだけ。
-
-    値は「いま押す技が、そのレッスンの何個目か」。`null` は出さない。
-    番号を持つのは、閉じたあとに次の技を取ったとき**別の台紙として
-    描き直す**ため（同じ値のままだと、押す動きが再生されない）。
-  */
-  const [stamping, setStamping] = useState<number | null>(null);
-
-  /*
     診断を途中でやめようとしているか。
 
     「×」を押しただけでは消さない。ここまでの答えは端末に残るので、
     **消えるのは画面だけ**——それを言ってから決めてもらう。
   */
   const [leaving, setLeaving] = useState(false);
-
-  /*
-    そのレッスンで覚える技を、出てくる順に。
-
-    **教材データから数える。** サーバーには聞かない——通信が失敗
-    しても、覚えたこと自体は変わらないし、台紙に出すのは「このレッスン
-    の中で何個目か」だけなので、手元のデータで足りる。
-
-    AI技図鑑（`skillDex`）が持っているのは**通算で覚えた技**で、
-    別の話。あちらを使うと、2回目に開いたレッスンで最初から全部
-    押されている台紙が出る。
-  */
-  const skillOrder = lesson.steps
-    .filter((each) => each.type === "concept_card" && each.skill)
-    .map((each) => each.skill as string);
 
   /*
     完了画面で使う、コース全体の進み具合と次の行き先。
@@ -559,22 +530,16 @@ export function LessonRunner({
         return;
       case "concept_card":
         /*
-          技を受け取る回だけ、進む前に台紙を1枚挟む。
+          解説の回は、そのまま次へ。
 
-          「覚えた」で画面がすぐ切り替わると、取ったものが**次の画面
-          に押し流される**。その日の何個目なのか、あと何個で揃うのかも
-          どこにも出ない。台紙はそこだけを見せて、閉じれば進む。
+          前はここで技を1つずつ受け取らせ、進む前にスタンプ台紙を
+          1枚挟んでいた。**受け取る演出が Day1 の中に3回**あり、
+          そのたびに学習が止まる。名前は使った場所で言い、受け取るのは
+          自分の文章を仕上げたあとに1度だけ（`day1/SkillRecap.tsx`）。
 
-          解説を並べただけの回（`skill` が無い）は素通り。あそこは
-          読み物で、取るものが無い。
+          台紙そのものも消した。教材のどこからも出なくなった画面を
+          残すと、次に触る人が「どこから出るのか」を探すことになる。
         */
-        if (step.skill) {
-          const at = skillOrder.indexOf(step.skill);
-          if (at >= 0) {
-            setStamping(at);
-            return;
-          }
-        }
         setRevealed(false);
         api.goNext();
         return;
@@ -1294,26 +1259,6 @@ export function LessonRunner({
         </MoreSheet>
       )}
 
-      {/*
-        スタンプ台紙。「覚えた」を押した直後の1枚。
-
-        `key` に番号を入れて、技ごとに**別の台紙として作り直す**。
-        同じ部品を使い回すと、2つ目を取ったときに押す動きが再生
-        されない（React は同じものが残っていると見なす）。
-      */}
-      {stamping !== null && (
-        <SkillStampCard
-          key={stamping}
-          skills={skillOrder}
-          earnedIndex={stamping}
-          lessonNumber={lesson.number}
-          onClose={() => {
-            setStamping(null);
-            setRevealed(false);
-            api.goNext();
-          }}
-        />
-      )}
         </>
       )}
       </BackStackProvider>

@@ -88,17 +88,22 @@ describe("画面の行き来", () => {
   };
 
   /**
-   * レッスンを開くと、まず導入の一枚が中央に浮かぶ。
+   * レッスンの1画面目まで開く。
    *
    * ここで見たいのは**後ろの画面までたどり着けたか**なので、
-   * 一枚を閉じてから見る。導入の一枚は、後ろの画面の見出しと
-   * ポーをもう一度出す（読み上げは `aria-modal` で一枚の中だけを
-   * 読むが、検査からは両方見える）。
+   * 前に挟まるものは通り抜ける。挟まるものは教材によって違う——
+   * 章扉はどの教材にもあり、導入の一枚（「このレッスンについて」）は
+   * 骨格の教材にだけある。Day1 は開いた先がもう仕事の場面なので
+   * 出ない（`course/day1Steps.ts`）。
+   *
+   * **出ていたら閉じる、という形にしてある。** 決め打ちにすると、
+   * 導入を持たない教材を開いた検査が「閉じるものが無い」で落ちる。
    */
   const closeLessonIntro = async (user: ReturnType<typeof userEvent.setup>) => {
     // 段の頭の章扉。絵1枚だけなので、通り抜けてから一枚を閉じる
     await passSections(user);
-    await user.click(await screen.findByTestId("lesson-intro-close"));
+    const intro = screen.queryByTestId("lesson-intro-close");
+    if (intro) await user.click(intro);
   };
 
   it("タイトルから始まる", () => {
@@ -132,13 +137,25 @@ describe("画面の行き来", () => {
     await user.click(await screen.findByTestId("continue-lesson"));
     await closeLessonIntro(user);
 
-    // レッスンの最初の画面は、レッスンそのものの名前を見出しにする
+    /*
+      Day1 の1画面目に着いたこと。
+
+      前はここで教材の `outcomeTitle`（「専門的で難しい文章を、誰にでも
+      伝わる文章に変える」）を探していた。あれは「今日つくるもの」の
+      画面の見出しで、Day1 はその画面をやめている——開いた先はもう
+      仕事の場面で、見出しは「まずはAIに頼んでみよう」。
+    */
     expect(
-      await screen.findByRole("heading", {
-        name: COURSE.lessons.find((l) => l.id === "rewrite_text")!.outcomeTitle,
-      }),
+      await screen.findByRole("heading", { name: "まずはAIに頼んでみよう" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Lesson 1")).toBeInTheDocument();
+    /*
+      どの教材を開いているかは、上の帯が出しっぱなしで持っている。
+      「Lesson 1」の札は「今日つくるもの」の画面のものだったので、
+      Day1 には出ない——代わりに、帯の教材名を見る。
+    */
+    expect(
+      screen.getByText(COURSE.lessons.find((l) => l.id === "rewrite_text")!.title),
+    ).toBeInTheDocument();
   });
 
   it("教材を薦める節をホームに並べない", async () => {
@@ -245,13 +262,25 @@ describe("画面の行き来", () => {
     await user.click(await screen.findByTestId("lesson-rewrite_text"));
     await closeLessonIntro(user);
 
-    // レッスンの最初の画面は、レッスンそのものの名前を見出しにする
+    /*
+      Day1 の1画面目に着いたこと。
+
+      前はここで教材の `outcomeTitle`（「専門的で難しい文章を、誰にでも
+      伝わる文章に変える」）を探していた。あれは「今日つくるもの」の
+      画面の見出しで、Day1 はその画面をやめている——開いた先はもう
+      仕事の場面で、見出しは「まずはAIに頼んでみよう」。
+    */
     expect(
-      await screen.findByRole("heading", {
-        name: COURSE.lessons.find((l) => l.id === "rewrite_text")!.outcomeTitle,
-      }),
+      await screen.findByRole("heading", { name: "まずはAIに頼んでみよう" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Lesson 1")).toBeInTheDocument();
+    /*
+      どの教材を開いているかは、上の帯が出しっぱなしで持っている。
+      「Lesson 1」の札は「今日つくるもの」の画面のものだったので、
+      Day1 には出ない——代わりに、帯の教材名を見る。
+    */
+    expect(
+      screen.getByText(COURSE.lessons.find((l) => l.id === "rewrite_text")!.title),
+    ).toBeInTheDocument();
   });
 
   it("レッスンの終了ボタンで、実際に開いた1つ前の画面へ戻る", async () => {

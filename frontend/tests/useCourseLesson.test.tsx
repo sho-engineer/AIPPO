@@ -4,10 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LessonRunner } from "../src/pages/LessonRunner";
 import { passSections } from "./support/sections";
-import { passSkillStamp } from "./support/skills";
 import { PrivacyDialog } from "../src/components/course/PrivacyDialog";
 import { getLesson } from "../src/course/catalog";
 import { loadDraft } from "../src/lib/draft";
+import type { Lesson } from "../src/course/types";
 
 /**
  * レッスンを進めるところ。
@@ -15,9 +15,25 @@ import { loadDraft } from "../src/lib/draft";
  * 通信はすべて差し替える。ここで確かめたいのは
  * 「入力が消えないこと」「二重に送らないこと」「失敗しても続けられること」で、
  * サーバーの都合ではない。
+ *
+ * 教材が2種類ある
+ * ---------------
+ * Day1（`rewrite_text`）だけが**独自の並び**を持つ。4つの章に分かれ、
+ * 開いた最初の画面がもう仕事の場面で、「今日つくるもの」も
+ * 「このレッスンについて」も無い（`course/day1Steps.ts`）。
+ *
+ * ほかの教材は共通の骨格（`course/shared.ts` の `buildLessonFlow`）で
+ * できている——完成イメージ → 1つ選ぶ → 送る → 観察 → 条件を足す →
+ * 比べる → 解説 → 自分の課題。
+ *
+ * **両方を通す。** 片方だけにすると、骨格を触ったときに Day1 が、
+ * Day1 を触ったときに骨格が、それぞれ誰にも見られないまま壊れる。
+ * 送る・失敗する・待つといった共通の振る舞いは Day1（いちばん多くの人が
+ * 通る道）で、骨格そのものの形は Day2 で見る。
  */
 
-const REWRITE = getLesson("rewrite_text")!;
+const DAY1 = getLesson("rewrite_text")!;
+const FLOW = getLesson("summarize_text")!;
 
 let generate: ReturnType<typeof vi.fn>;
 
@@ -50,69 +66,82 @@ function okResponse(result = "書き直した文章です。") {
   };
 }
 
-function renderLesson(lessonId = "rewrite_text") {
-  const lesson = getLesson(lessonId)!;
+/** Day1 を開く。 */
+function renderLesson(lesson: Lesson = DAY1) {
   return render(
     <LessonRunner lesson={lesson} onExit={vi.fn()} onOpenCourse={vi.fn()} />,
   );
 }
 
+/** 骨格でできている教材（Day2）を開く。 */
+function renderFlow(lesson: Lesson = FLOW) {
+  return renderLesson(lesson);
+}
+
+type User = ReturnType<typeof userEvent.setup>;
+
 /**
- * 完成イメージ → 最初の1回で選ぶものを選ぶ、まで進める。
+ * Day1 を、送れる画面まで開く。
  *
- * Day1 の1回目で選ぶのは**どこから直すか**（「専門用語を減らす」）。
- * 誰向けかは選ばない——1回目を条件なしで送り、2回目に
- * 「AI初心者向けに」を足したときの差で見せる教材なので
- * （src/course/catalog.ts の LESSON_1）。
+ * **ここでは何も選ばない。** Day1 の1画面目は章扉、2画面目が
+ * 「まずはAIに頼んでみよう」で、そこに出るのは読む相手の状況と
+ * 元の文章の頭だけ。押すボタンは1つ（「分かりやすくしてもらう」）。
+ *
+ * 前はここで「どこから分かりやすくする？」の3択を押していた。
+ * 選ぶ手応えはあったが、**選んだものが何をしたのかは1回目の結果からは
+ * 分からない**（比べる相手がまだ無い）ので、選ばせるのをやめた。
  */
-async function toQuickTry(user: ReturnType<typeof userEvent.setup>) {
-  // 段の頭に入る章扉。絵1枚だけなので、押して通り抜ける
+async function toDay1Ask(user: User) {
+  // 章扉①。絵1枚だけなので、押して通り抜ける
+  await passSections(user);
+}
+
+/** Day1 の最初の結果が出るところまで。 */
+async function toFirstResult(user: User) {
+  await toDay1Ask(user);
+  await user.click(screen.getByTestId("primary-action")); // 送信へ（自動送信）
+  await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+}
+
+/**
+ * 骨格（Day2）で、最初の1回に選ぶものを選ぶところまで。
+ *
+ * 完成イメージ → 「何のためにまとめますか？」の3択。
+ */
+async function toFlowQuickTry(user: User) {
   await passSections(user);
   // 開いた最初に出る導入の一枚。ここでは下の画面から進めたいので閉じる
   const intro = screen.queryByTestId("lesson-intro-close");
   if (intro) await user.click(intro);
   await user.click(screen.getByTestId("primary-action")); // 完成イメージ
   /*
-    札の名前は、言葉だけで探さない。
-
-    3つの選択肢はどれも `note`（「むずかしい言葉を、やさしい言葉に
-    言いかえる」）を持っていて、しかも10字あるので**行で並ぶ**——
-    補足は札の中に入るので、読み上げの名前は「専門用語を減らす
-    むずかしい言葉を、…」になる。行かタイルか札かは言葉の長さで
-    決まるものなので、ここで並べ方まで縛らない。
+    札の名前は、言葉だけで探さない。補足を持つ札では読み上げの名前に
+    そちらも混ざる。行かタイルか札かは言葉の長さで決まるものなので、
+    ここで並べ方まで縛らない。
   */
-  await user.click(
-    await screen.findByRole("button", { name: /専門用語を減らす/ }),
-  );
+  await user.click(await screen.findByRole("button", { name: /人に共有する/ }));
 }
 
-/** 最初の結果が出るところまで進める。 */
-async function toFirstResult(user: ReturnType<typeof userEvent.setup>) {
-  await toQuickTry(user);
+/** 骨格の最初の結果まで。 */
+async function toFlowResult(user: User) {
+  await toFlowQuickTry(user);
   await user.click(screen.getByTestId("primary-action")); // 送信へ（自動送信）
   await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
 }
 
 /**
- * 解説（AI技の名前）が出るところまで進める。
+ * 骨格で、解説（AI技の名前）が出るところまで進める。
  *
  * 解説は**比べたあと**に出る。観察 → 条件を足す → 再実行 → 比べる、
  * を通らないと辿り着かない。歩数を数えるより、通る画面を名前で
  * 書いたほうが、また並びが変わったときに直しやすい。
  */
-async function toConceptCard(
-  user: ReturnType<typeof userEvent.setup>,
-  observation = "分かりやすくなった",
-) {
-  await toFirstResult(user);
+async function toConceptCard(user: User, observation = "短くなった") {
+  await toFlowResult(user);
   await user.click(await screen.findByRole("button", { name: observation }));
-  // 観察 → プロンプトの解説 →〈スタンプ台紙〉→〈章扉②〉→ 条件を足す
-  await user.click(screen.getByTestId("primary-action"));
-  await user.click(await screen.findByTestId("primary-action")); // 覚えた
-  await passSkillStamp(user);
-  await passSections(user);
+  await user.click(screen.getByTestId("primary-action")); // 観察 → 条件を足す
 
-  await user.click(await screen.findByRole("button", { name: "AI初心者向けに" }));
+  await user.click(await screen.findByRole("button", { name: "もっと短く" }));
   await user.click(screen.getByTestId("primary-action")); // 再実行（自動送信）
   await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
 
@@ -126,7 +155,7 @@ beforeEach(() => {
 
 afterEach(() => vi.clearAllMocks());
 
-describe("成果物ファースト", () => {
+describe("成果物ファースト（骨格）", () => {
   it("最初の画面は、絵と「はじめる」だけ", async () => {
     /*
       絵の上下に長い説明を積まない。積むと、絵を見る前に読み下す
@@ -137,7 +166,7 @@ describe("成果物ファースト", () => {
       広げておくのは別のこと。いまは画面いっぱいの一枚へ移してある。
     */
     const user = userEvent.setup();
-    renderLesson();
+    renderFlow();
 
     // 段の頭の章扉。絵1枚だけなので通り抜ける
     await passSections(user);
@@ -169,7 +198,7 @@ describe("成果物ファースト", () => {
   it("コースの一覧から移した詳しい話が、ここに揃っている", async () => {
     // 消したのではなく、持ち主のところへ戻した
     const user = userEvent.setup();
-    renderLesson();
+    renderFlow();
     await passSections(user);
     await user.click(screen.getByTestId("lesson-intro-detail"));
 
@@ -186,35 +215,45 @@ describe("成果物ファースト", () => {
 
   it("最初に選ばせるのは1つだけ", async () => {
     const user = userEvent.setup();
-    renderLesson();
+    renderFlow();
     await passSections(user);
     await user.click(screen.getByTestId("primary-action"));
 
     expect(
-      await screen.findByRole("heading", { name: "どこから分かりやすくする？" }),
+      await screen.findByRole("heading", { name: "何のためにまとめますか？" }),
     ).toBeInTheDocument();
-    // 誰向けか・口調はまだ聞かない
-    expect(screen.queryByRole("button", { name: "ていねいに" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "AI初心者向けに" })).toBeNull();
+    // 形も長さも、まだ聞かない（自分の文章のところで聞く）
+    expect(screen.queryByRole("button", { name: "3行で" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "重要な点を3つ" })).toBeNull();
     // 何を送るのかは見えている（例文が入っている）
     expect(screen.getByText(/AIにはこう伝えます/)).toBeInTheDocument();
   });
+});
 
-  it("頼みかたを選ぶだけで最初の結果まで届く", async () => {
+describe("Day1 の最初の1回", () => {
+  it("押すだけで最初の結果まで届く", async () => {
+    /*
+      **選ばせない。** Day1 の開始画面にある操作は1つだけで、
+      指示は教材が持っている（`day1Steps.ts` の `FIRST_INSTRUCTION`）。
+
+      ここを「選んでから送る」に戻すと、1回目の結果を見たときに
+      「自分が選んだせいで変わった」のか「AIがやったこと」なのかが
+      混ざる。比べる相手が無い1回目に、条件は足さない。
+    */
     const user = userEvent.setup();
     renderLesson();
     await toFirstResult(user);
 
     const input = generate.mock.calls[0][0].input;
-    expect(input.instruction).toBe("専門用語を減らす");
+    expect(input.instruction).toBe("分かりやすく書き直してください");
     expect(input.original_text.length).toBeGreaterThan(0);
   });
 
   it("1回目には、誰向けも口調も長さも混ぜない", async () => {
     /*
       この教材のねらいは「足すと変わる」を見せること。1回目に既定値を
-      黙って混ぜると、2回目に「AI初心者向けに」を足しても、変わったのが
-      そのせいだと分からない。
+      黙って混ぜると、2回目に読む人を足しても、変わったのがそのせいだと
+      分からない。
 
       とくに長さ。前は `length: "3行くらい"` を黙って渡していた。
       新しい題材（専門的な解説文）でそれをやると、専門文が3行に
@@ -232,37 +271,81 @@ describe("成果物ファースト", () => {
   });
 });
 
+/**
+ * 「うまくいかなかった理由」を聞ける形にした教材。
+ *
+ * 骨格は `observeReasons` という差し込み口を持っていて、観察の回で
+ * 「まだ…」を選んだ人にだけ理由の3択を出す（`course/shared.ts`）。
+ *
+ * **いま、これを使っている教材は1本も無い。** 前は Day1 が
+ * 「分かりやすくなった？／まだ難しい」で使っていたが、Day1 の問いは
+ * 感想ではなく変化を見つける操作（「一番大きく変わったのは？」）へ
+ * 変わり、そこには「まだ」が無い。
+ *
+ * それでも差し込み口は残してある——`observeTitle` や
+ * `observePrimaryLabel` と同じで、教材を書く側の選択肢だから。
+ * ただし**誰も通らない道は黙って壊れる**ので、ここで1本だけ通す。
+ * 次に使う教材が出たとき、動かないものを渡さないため。
+ */
+const WITH_REASONS: Lesson = {
+  ...FLOW,
+  steps: FLOW.steps.map((step) =>
+    step.id === "observe_result"
+      ? {
+          ...step,
+          options: [
+            ...(step.options ?? []),
+            { value: "まだ長い", label: "まだ長い" },
+          ],
+          meta: {
+            ...step.meta,
+            reasons: [
+              { value: "どこを削ったか分からない", label: "どこを削ったか分からない" },
+              { value: "大事なところが消えた", label: "大事なところが消えた" },
+            ],
+          },
+        }
+      : step,
+  ),
+};
+
 describe("観察してから解説する", () => {
   it("結果のあとは、解説ではなく観察が出る", async () => {
+    /*
+      Day1 で見る。結果の直後に来るのは**変化を見つける問い**で、
+      解説（「これがプロンプトです」）はそのあと。名前より先に、
+      何が起きたのかを自分の目で見る。
+    */
     const user = userEvent.setup();
     renderLesson();
     await toFirstResult(user);
 
     expect(
-      await screen.findByRole("heading", { name: "分かりやすくなった？" }),
+      await screen.findByRole("heading", { name: "何が変わった？" }),
     ).toBeInTheDocument();
     expect(screen.queryByTestId("concept-card")).toBeNull();
   });
 
-  it("「まだ難しい」でも進める", async () => {
+  it("見当違いを選んでも、止めない", async () => {
+    /*
+      Day1 の3択には「内容が追加された」——実際には起きていないこと
+      ——が混ざっている。気づけなかった人をここで止めると、
+      **間違えた人だけがレッスンを終えられない**。
+
+      合っているかどうかは、次の解説とこの後の章が受け持つ。
+    */
     const user = userEvent.setup();
     renderLesson();
     await toFirstResult(user);
 
-    /*
-      うまくいかなかった人を止めない。**理由は任意**で、選ばなくても
-      次へ進める。ここで止めると、答えられない人が行き止まりになる。
-    */
-    await user.click(await screen.findByRole("button", { name: "まだ難しい" }));
-    // 観察 → プロンプトの解説 →〈スタンプ台紙〉→〈章扉②〉→ 条件を足す
+    await user.click(
+      await screen.findByRole("button", { name: "内容が追加された" }),
+    );
     await user.click(screen.getByTestId("primary-action"));
-    await user.click(await screen.findByTestId("primary-action")); // 覚えた
-    await passSkillStamp(user);
-    await passSections(user);
 
-    // 気づけなくても止めない。次（条件を足す）へ進めること
+    // 次（「これがプロンプトです」）へ進めること
     expect(
-      await screen.findByRole("button", { name: "AI初心者向けに" }),
+      await screen.findByRole("heading", { name: "これがプロンプトです" }),
     ).toBeInTheDocument();
   });
 
@@ -273,14 +356,14 @@ describe("観察してから解説する", () => {
       困っている人にだけ出す。
     */
     const user = userEvent.setup();
-    renderLesson();
-    await toFirstResult(user);
+    renderFlow(WITH_REASONS);
+    await toFlowResult(user);
 
     // うまくいった人には出さない
-    await user.click(await screen.findByRole("button", { name: "分かりやすくなった" }));
+    await user.click(await screen.findByRole("button", { name: "短くなった" }));
     expect(screen.queryByTestId("observation-reason")).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "まだ難しい" }));
+    await user.click(screen.getByRole("button", { name: "まだ長い" }));
 
     expect(await screen.findByTestId("observation-reason")).toBeInTheDocument();
   });
@@ -288,10 +371,10 @@ describe("観察してから解説する", () => {
   it("理由を選ばなくても進める", async () => {
     // 答えられない人を行き止まりにしない
     const user = userEvent.setup();
-    renderLesson();
-    await toFirstResult(user);
+    renderFlow(WITH_REASONS);
+    await toFlowResult(user);
 
-    await user.click(await screen.findByRole("button", { name: "まだ難しい" }));
+    await user.click(await screen.findByRole("button", { name: "まだ長い" }));
     await screen.findByTestId("observation-reason");
 
     expect(screen.getByTestId("primary-action")).toBeEnabled();
@@ -300,7 +383,7 @@ describe("観察してから解説する", () => {
   it("解説カードは飛ばせる", async () => {
     const user = userEvent.setup();
     const { sendLearningEvent } = await import("../src/api/lesson");
-    renderLesson();
+    renderFlow();
     await toConceptCard(user);
 
     await user.click(await screen.findByRole("button", { name: "解説を飛ばす" }));
@@ -319,23 +402,19 @@ describe("条件を一つ足す", () => {
       .mockResolvedValueOnce(okResponse("1回目の結果です。"))
       .mockResolvedValue(okResponse("短くした結果です。"));
 
-    renderLesson();
-    await toFirstResult(user);
-    await user.click(await screen.findByRole("button", { name: "分かりやすくなった" }));
-    // 観察 → プロンプトの解説 →〈スタンプ台紙〉→〈章扉②〉→ 条件を足す
-    await user.click(screen.getByTestId("primary-action"));
-    await user.click(await screen.findByTestId("primary-action")); // 覚えた
-    await passSkillStamp(user);
-    await passSections(user);
+    renderFlow();
+    await toFlowResult(user);
+    await user.click(await screen.findByRole("button", { name: "短くなった" }));
+    await user.click(screen.getByTestId("primary-action")); // 観察 → 条件を足す
 
-    // ターゲット指定の解説はこの後（比べたあと）に出るので、ここでは通らない
-    await user.click(await screen.findByRole("button", { name: "AI初心者向けに" }));
+    // 解説はこの後（比べたあと）に出るので、ここでは通らない
+    await user.click(await screen.findByRole("button", { name: "もっと短く" }));
     await user.click(screen.getByTestId("primary-action"));
     await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
 
     // 直前の結果を対象にしている（元へ戻していない）
     expect(generate.mock.calls[1][0].input.original_text).toBe("1回目の結果です。");
-    expect(generate.mock.calls[1][0].input.improvement).toBe("AI初心者向けに");
+    expect(generate.mock.calls[1][0].input.improvement).toBe("もっと短く");
 
     /*
       1回目と改善後が、タブで見比べられる。
@@ -368,36 +447,40 @@ describe("条件を一つ足す", () => {
 });
 
 describe("入力を失わない", () => {
+  /*
+    選んだものが消えないこと。**選ぶ回のある教材で見る。**
+    Day1 の開始画面は押すだけなので、ここでは骨格（Day2）を通す。
+  */
   it("戻っても消えない", async () => {
     const user = userEvent.setup();
-    renderLesson();
+    renderFlow();
 
-    await toQuickTry(user);
+    await toFlowQuickTry(user);
     // 戻るはヘッダーの「←」。画面下から移した（戻る道を1本にするため）
     await user.click(screen.getByTestId("lesson-back"));
     await user.click(screen.getByTestId("primary-action"));
 
     expect(
-      await screen.findByRole("button", { name: /専門用語を減らす/ }),
+      await screen.findByRole("button", { name: /人に共有する/ }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("自動保存され、読み込み直しても続きから始まる", async () => {
     const user = userEvent.setup();
-    const view = renderLesson();
+    const view = renderFlow();
 
-    await toQuickTry(user);
+    await toFlowQuickTry(user);
 
     await waitFor(() => {
-      expect(loadDraft("rewrite_text")?.values.instruction).toBe("専門用語を減らす");
+      expect(loadDraft(FLOW.id)?.values.purpose).toBe("人に共有するため");
     });
 
     view.unmount();
-    renderLesson();
+    renderFlow();
 
     // 途中のステップから再開する
     expect(
-      await screen.findByRole("button", { name: /専門用語を減らす/ }),
+      await screen.findByRole("button", { name: /人に共有する/ }),
     ).toHaveAttribute("aria-pressed", "true");
   });
 });
@@ -417,7 +500,7 @@ describe("送信のしかた", () => {
     generate = vi.fn(() => new Promise((resolve) => (release = resolve)));
 
     renderLesson();
-    await toQuickTry(user);
+    await toDay1Ask(user);
     await user.click(screen.getByTestId("primary-action")); // 送信へ
 
     const button = await screen.findByTestId("primary-action");
@@ -439,7 +522,7 @@ describe("失敗しても続けられる", () => {
       .mockResolvedValue(okResponse());
 
     renderLesson();
-    await toQuickTry(user);
+    await toDay1Ask(user);
     await user.click(screen.getByTestId("primary-action"));
 
     /*
@@ -471,7 +554,7 @@ describe("失敗しても続けられる", () => {
       );
 
     renderLesson();
-    await toQuickTry(user);
+    await toDay1Ask(user);
     await user.click(screen.getByTestId("primary-action"));
 
     const rescue = await screen.findByTestId("failure-rescue");
@@ -498,7 +581,7 @@ describe("失敗しても続けられる", () => {
       );
 
     renderLesson();
-    await toQuickTry(user);
+    await toDay1Ask(user);
     await user.click(screen.getByTestId("primary-action"));
 
     const rescue = await screen.findByTestId("failure-rescue");
@@ -540,7 +623,7 @@ describe("今日の上限に達したとき", () => {
       );
 
     renderLesson();
-    await toQuickTry(user);
+    await toDay1Ask(user);
     await user.click(screen.getByTestId("primary-action")); // 送信へ（自動送信・失敗）
 
     expect(await screen.findByTestId("lesson-paused")).toHaveTextContent(
@@ -569,7 +652,7 @@ describe("今日の上限に達したとき", () => {
     const lesson = getLesson("rewrite_text")!;
 
     render(<LessonRunner lesson={lesson} onExit={onExit} onOpenCourse={vi.fn()} />);
-    await toQuickTry(user);
+    await toDay1Ask(user);
     await user.click(screen.getByTestId("primary-action"));
     await screen.findByTestId("lesson-paused");
 
@@ -602,7 +685,7 @@ describe("今日の上限に達したとき", () => {
       .mockRejectedValue(new AiRequestError("混み合っています。", "limit"));
 
     renderLesson();
-    await toQuickTry(user);
+    await toDay1Ask(user);
     await user.click(screen.getByTestId("primary-action"));
 
     expect(await screen.findByText("いま混み合っています")).toBeInTheDocument();
@@ -626,7 +709,7 @@ describe("今日の上限に達したとき", () => {
       .mockRejectedValue(new AiRequestError("うまく届かなかったようです。", "failed"));
 
     renderLesson();
-    await toQuickTry(user);
+    await toDay1Ask(user);
     await user.click(screen.getByTestId("primary-action"));
 
     await screen.findByTestId("failure-rescue");
@@ -686,16 +769,22 @@ describe("送信前の確認（機密チェック）", () => {
 
 describe("自分の課題", () => {
   it("スキップしたことを記録する", async () => {
+    /*
+      Day1 で見る。自分の文章の回は、どの教材でも飛ばせる
+      （`LessonRunner` が `real_task` の回に必ず置く逃げ道）。
+
+      **回の id は教材ごとに違う**ので、種類で探す——Day1 では
+      `own_text`、骨格の教材では `real_task`。ここを id で書くと、
+      見つからないまま `slice(-1)` が最後の1枚を返し、
+      「押すものが無い」という別の失敗に化ける。
+    */
     const user = userEvent.setup();
     const { sendLearningEvent } = await import("../src/api/lesson");
+    const at = DAY1.steps.findIndex((step) => step.type === "real_task");
 
     render(
       <LessonRunner
-        lesson={{
-          ...REWRITE,
-          // 自分の課題のステップから始める
-          steps: REWRITE.steps.slice(REWRITE.steps.findIndex((s) => s.id === "real_task")),
-        }}
+        lesson={{ ...DAY1, steps: DAY1.steps.slice(at) }}
         onExit={vi.fn()} onOpenCourse={vi.fn()}
       />,
     );
@@ -720,28 +809,34 @@ describe("ポーの状態", () => {
     */
     const user = userEvent.setup();
     renderLesson();
-    await passSections(user);
-    // 導入の一枚にもポーが居る。下の画面のほうを見たいので、先に閉じる
-    await user.click(screen.getByTestId("lesson-intro-close"));
+    await toDay1Ask(user);
 
     /*
-      教材の1枚目（`outcome_preview`）の表情。`steps[0]` は章扉なので、
-      そこを見ると通り抜けた先と食い違う。
+      Day1 で迎えるのは、章扉の次の「まずはAIに頼んでみよう」。
+      **ここを黙らせない。** Day1 には「今日つくるもの」の画面が
+      無いので、ここが黙ると、誰にも迎えられないまま仕事の場面から
+      始まることになる（`course/poPresence.ts`）。
     */
     expect(screen.getByTestId("po-avatar")).toHaveAttribute(
       "data-emotion",
-      REWRITE.steps.find((step) => step.id === "outcome_preview")!.poEmotion,
+      DAY1.steps.find((step) => step.id === "ask_first")!.poEmotion,
     );
     expect(screen.getByTestId("po-hero")).toHaveAttribute(
       "data-po-scene",
       "start",
     );
 
-    // 次は「どんな相手に送りますか」。聞いているのは画面の中身なので、下がる
+    /*
+      そのあと結果を読む画面（「何が変わった？」）では引っこむ。
+      聞いているのは画面の中身で、横から同じことを言わない。
+    */
     await user.click(screen.getByTestId("primary-action"));
-    await waitFor(() =>
-      expect(screen.queryByTestId("po-avatar")).not.toBeInTheDocument(),
-    );
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(1));
+
+    expect(
+      await screen.findByRole("heading", { name: "何が変わった？" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("po-avatar")).not.toBeInTheDocument();
   });
 
   it("AIへ送っている間だけ、考えている顔で戻ってくる", async () => {
@@ -755,7 +850,7 @@ describe("ポーの状態", () => {
     );
 
     renderLesson();
-    await toQuickTry(user);
+    await toDay1Ask(user);
     await user.click(screen.getByTestId("primary-action"));
 
     await waitFor(() =>
@@ -785,7 +880,7 @@ describe("ポーの状態", () => {
       .mockRejectedValue(new AiRequestError("うまく届かなかったようです。", "failed"));
 
     renderLesson();
-    await toQuickTry(user);
+    await toDay1Ask(user);
     await user.click(screen.getByTestId("primary-action"));
 
     const rescue = await screen.findByTestId("failure-rescue");

@@ -301,13 +301,13 @@
       "afterExample": "AIは、文章の中で言葉どうしがどう関係しているかを見て、どの言葉を重視するかを決めます。\nさらに、複数の見方を使って、言葉どうしの関係を同時に捉えます。",
       "learnedSkills": [
         "プロンプト",
-        "ターゲット指定",
-        "トーン指定"
+        "読者設定",
+        "トーン設定"
       ],
       "outcomes": [
-        "むずかしい文章を、意味を変えずに分かりやすくできる",
-        "読む相手を伝えて、説明のしかたを変えられる",
-        "言い方を指定して、伝わり方を整えられる"
+        "AIにしてほしいことを伝えられる",
+        "読む人に合わせて言葉を変えられる",
+        "伝え方の雰囲気を指定できる"
       ],
       "tags": [
         "writing"
@@ -319,12 +319,12 @@
           "id": "section_1",
           "type": "section_transition",
           "phase": "try",
-          "title": "まずは試してみよう",
+          "title": "まずはAIに頼んでみる",
           "poMessage": "まずは、そのまま送ってみよう！",
           "poEmotion": "celebrate",
           "meta": {
             "sectionNumber": 1,
-            "sectionLabel": "試す",
+            "sectionLabel": "頼む",
             "image": {
               "src": "/assets/teaching/day1_section_01.webp",
               "alt": "ポーが、読みにくい文章の吹き出しからAIへ向かう矢印を指し示している絵。",
@@ -334,56 +334,28 @@
           }
         },
         {
-          "id": "outcome_preview",
-          "type": "outcome_preview",
-          "phase": "try",
-          "title": "今日つくるもの",
-          "poMessage": "まず、できあがりを見てみよう！",
-          "poEmotion": "neutral"
-        },
-        {
-          "id": "quick_try",
+          "id": "ask_first",
           "type": "quick_try",
           "phase": "try",
-          "title": "どこから分かりやすくする？",
-          "instruction": "目的に合わせて、書き直しの方向を選びましょう。",
-          "poMessage": "選んでみよう！",
-          "poEmotion": "question",
-          "key": "instruction",
-          "required": true,
-          "options": [
-            {
-              "value": "専門用語を減らす",
-              "label": "専門用語を減らす",
-              "note": "むずかしい言葉を、やさしい言葉に言いかえる",
-              "icon": "document"
-            },
-            {
-              "value": "かみくだいて説明する",
-              "label": "かみくだいて説明する",
-              "note": "ひとつずつ、かんたんな言い方に直す",
-              "icon": "chat"
-            },
-            {
-              "value": "要点から先に伝える",
-              "label": "要点から先に伝える",
-              "note": "大事なポイントを最初に伝える",
-              "icon": "list-bullet"
-            }
-          ],
+          "title": "まずはAIに頼んでみよう",
+          "instruction": "新人にこの文章を読んでもらいます。でも、専門用語が多く、このままでは伝わりにくそうです。",
+          "poMessage": "そのまま送ってみよう！",
+          "poEmotion": "neutral",
+          "primaryLabel": "分かりやすくしてもらう",
           "aiAction": {
             "action": "rewrite",
+            "fixed": {
+              "instruction": "分かりやすく書き直してください"
+            },
             "inputs": {
               "source_text": "original_text",
-              "instruction": "instruction",
               "audience": "audience",
-              "tone": "tone",
-              "length": "length"
+              "tone": "tone"
             }
           },
           "meta": {
             "sampleText": "Transformer型言語モデルにおける自己注意機構では、各トークンから生成されたQueryとKeyの内積をスケーリングし、Softmax関数によって正規化したAttention WeightをValueに適用することで、系列内のトークン間依存関係を動的に表現する。さらに、多層化されたMulti-Head Attentionにより異なる表現部分空間における依存関係を並列的に学習することが可能となる。",
-            "defaults": {}
+            "sourcePreview": true
           }
         },
         {
@@ -391,77 +363,64 @@
           "type": "ai_generate",
           "phase": "try",
           "title": "書き直しています",
-          "poMessage": "もう少し！",
+          "poMessage": "いま読んでいるところ！",
           "poEmotion": "thinking",
           "aiAction": {
             "action": "rewrite",
+            "fixed": {
+              "instruction": "分かりやすく書き直してください"
+            },
             "inputs": {
               "source_text": "original_text",
-              "instruction": "instruction",
               "audience": "audience",
-              "tone": "tone",
-              "length": "length"
+              "tone": "tone"
             }
+          },
+          "meta": {
+            "waiting": "むずかしい言葉を、やさしい言葉に置きかえています…"
           }
         },
         {
-          "id": "observe_result",
+          "id": "find_change",
           "type": "observation",
           "phase": "try",
-          "title": "分かりやすくなった？",
-          "primaryLabel": "次へ",
-          "poMessage": "どうだった？",
+          "title": "何が変わった？",
+          "poMessage": "どこが変わったか、見てみよう！",
           "poEmotion": "question",
+          "primaryLabel": "次へ",
           "key": "observation",
+          "required": true,
           "options": [
             {
-              "value": "分かりやすくなった",
-              "label": "分かりやすくなった"
+              "value": "専門用語が言い換えられた",
+              "label": "専門用語が言い換えられた"
             },
             {
-              "value": "まだ難しい",
-              "label": "まだ難しい"
+              "value": "文の順番が入れ替わった",
+              "label": "文の順番が入れ替わった"
+            },
+            {
+              "value": "内容が追加された",
+              "label": "内容が追加された"
             }
           ],
           "meta": {
-            "reviewPoints": [
-              "元の意味が変わっていないか",
-              "読む相手に合った説明になっているか",
-              "むずかしい言葉が残っていないか"
-            ],
-            "factCheck": false,
-            "reasons": [
-              {
-                "value": "まだ専門用語がある",
-                "label": "まだ専門用語がある"
-              },
-              {
-                "value": "意味が変わった",
-                "label": "意味が変わった"
-              },
-              {
-                "value": "説明が足りない",
-                "label": "説明が足りない"
-              },
-              {
-                "value": "かたい",
-                "label": "かたい"
-              }
-            ]
+            "question": "一番大きく変わったのは？",
+            "changesOnly": true
           }
         },
         {
-          "id": "concept_1",
+          "id": "concept_prompt",
           "type": "concept_card",
           "phase": "try",
-          "title": "プロンプト",
-          "poMessage": "AIに「何をしてほしいか」を伝える言葉。さっき送ったお願いが、そのままプロンプトです。",
+          "title": "これがプロンプトです",
+          "poMessage": "いま送ったのが、これ。",
           "poEmotion": "neutral",
+          "primaryLabel": "読む人を決める",
           "skippable": true,
-          "skill": "プロンプト",
           "card": {
             "title": "プロンプト",
-            "body": "AIに「何をしてほしいか」を伝える言葉。さっき送ったお願いが、そのままプロンプトです。",
+            "body": "AIにしてほしいことを伝える指示を「プロンプト」といいます。",
             "visual": "three_points",
             "points": [
               "何をしてほしい？",
@@ -472,22 +431,25 @@
               "body": "この3つを足していくと、返ってくるものが変わります。",
               "points": [
                 "分かりやすくして",
-                "AI初心者向けに",
-                "やさしい口調で"
+                "新入社員向けに",
+                "やさしく丁寧に"
               ]
             }
+          },
+          "meta": {
+            "silentSkill": "プロンプト"
           }
         },
         {
           "id": "section_2",
           "type": "section_transition",
           "phase": "compare",
-          "title": "相手を決めよう",
+          "title": "誰に伝えるか決める",
           "poMessage": "誰が読むかを、足してみよう！",
           "poEmotion": "celebrate",
           "meta": {
             "sectionNumber": 2,
-            "sectionLabel": "相手",
+            "sectionLabel": "読む人",
             "image": {
               "src": "/assets/teaching/day1_section_02.webp",
               "alt": "ポーが、AI初心者とくわしい人の2枚のカードを指し示している絵。",
@@ -497,119 +459,13 @@
           }
         },
         {
-          "id": "add_condition",
-          "type": "condition_choice",
-          "phase": "compare",
-          "title": "条件をひとつ足そう",
-          "poMessage": "どれにする？",
-          "poEmotion": "hint",
-          "key": "condition",
-          "required": true,
-          "options": [
-            {
-              "value": "AI初心者向けに",
-              "label": "AI初心者向けに",
-              "icon": "person"
-            },
-            {
-              "value": "新入社員向けに",
-              "label": "新入社員向けに",
-              "icon": "people"
-            },
-            {
-              "value": "お客様向けに",
-              "label": "お客様向けに",
-              "icon": "building"
-            },
-            {
-              "value": "",
-              "label": "自分で条件を追加",
-              "free": true,
-              "icon": "plus"
-            }
-          ],
-          "aiAction": {
-            "action": "improve",
-            "inputs": {}
-          }
-        },
-        {
-          "id": "generate_improved",
-          "type": "ai_generate",
-          "phase": "compare",
-          "title": "直しています",
-          "poMessage": "もう少し！",
-          "poEmotion": "thinking",
-          "aiAction": {
-            "action": "improve",
-            "inputs": {}
-          }
-        },
-        {
-          "id": "compare_results",
-          "type": "result_compare",
-          "phase": "compare",
-          "title": "こんなに変わった",
-          "poMessage": "変わった！",
-          "poEmotion": "celebrate",
-          "meta": {
-            "reviewPoints": [
-              "元の意味が変わっていないか",
-              "読む相手に合った説明になっているか",
-              "むずかしい言葉が残っていないか"
-            ],
-            "factCheck": false,
-            "threeWay": true
-          }
-        },
-        {
-          "id": "concept_2",
-          "type": "concept_card",
-          "phase": "compare",
-          "title": "誰向けかを伝える",
-          "poMessage": "「誰向けか」を伝えると、説明のしかたが変わる。",
-          "poEmotion": "neutral",
-          "skippable": true,
-          "skill": "ターゲット指定",
-          "card": {
-            "title": "誰向けかを伝える",
-            "body": "「誰向けか」を伝えると、説明のしかたが変わる。",
-            "visual": "before_after",
-            "before": "Attention WeightをValueに適用する。",
-            "after": "どの言葉が関係しているかを決めて、それを使って読み取る。",
-            "reviewExample": {
-              "body": "相手が変われば、どこまでかみくだくかも変わります。",
-              "before": "多層化されたMulti-Head Attention",
-              "after": "同じ読み取りを、何通りもの見方で同時にやる仕組み"
-            }
-          }
-        },
-        {
-          "id": "section_3",
-          "type": "section_transition",
-          "phase": "deepen",
-          "title": "トーンを変えよう",
-          "poMessage": "こんどは、言い方を変えてみよう！",
-          "poEmotion": "celebrate",
-          "meta": {
-            "sectionNumber": 3,
-            "sectionLabel": "言い方",
-            "image": {
-              "src": "/assets/teaching/day1_section_03.webp",
-              "alt": "ポーが、やさしく・丁寧に・短くの3つが並ぶつまみを指し示している絵。",
-              "width": 941,
-              "height": 1672
-            }
-          }
-        },
-        {
-          "id": "real_audience",
+          "id": "pick_audience",
           "type": "single_choice",
-          "phase": "deepen",
-          "primaryLabel": "誰向けか決めた",
-          "title": "誰が読みますか",
-          "poMessage": "読む相手を伝えると、説明のしかたが変わります。",
+          "phase": "compare",
+          "title": "誰に伝えますか？",
+          "poMessage": "読む人で、説明のしかたが変わります。",
           "poEmotion": "question",
+          "primaryLabel": "この相手で書き直す",
           "key": "audience",
           "required": true,
           "placeholder": "例）取引先の担当者",
@@ -627,34 +483,195 @@
               "label": "お客様"
             },
             {
-              "value": "くわしい人",
-              "label": "くわしい人"
+              "value": "詳しい人",
+              "label": "詳しい人"
             },
             {
               "value": "",
               "label": "自分で指定する",
               "free": true
             }
-          ]
+          ],
+          "meta": {
+            "showInstruction": true,
+            "purpose": "文章を分かりやすくする"
+          }
+        },
+        {
+          "id": "generate_audience",
+          "type": "ai_generate",
+          "phase": "compare",
+          "title": "書き直しています",
+          "poMessage": "読む人に合わせているところ！",
+          "poEmotion": "thinking",
+          "aiAction": {
+            "action": "rewrite",
+            "fixed": {
+              "instruction": "分かりやすく書き直してください"
+            },
+            "inputs": {
+              "source_text": "original_text",
+              "audience": "audience",
+              "tone": "tone"
+            }
+          },
+          "meta": {
+            "waiting": "読む人に合わせて、説明のしかたを変えています…"
+          }
+        },
+        {
+          "id": "see_audience",
+          "type": "result_compare",
+          "phase": "compare",
+          "title": "読む人で変わった",
+          "poMessage": "同じ内容でも、言葉が変わりました。",
+          "poEmotion": "celebrate",
+          "primaryLabel": "次へ",
+          "meta": {
+            "changesOnly": true,
+            "changedLabel": "読む人",
+            "changedNote": "初めて読む人でも想像しやすい言葉になった"
+          }
+        },
+        {
+          "id": "concept_audience",
+          "type": "concept_card",
+          "phase": "compare",
+          "title": "これが読者設定です",
+          "poMessage": "誰に読んでほしいかを伝えました。",
+          "poEmotion": "neutral",
+          "primaryLabel": "伝え方を決める",
+          "skippable": true,
+          "card": {
+            "title": "読者設定",
+            "body": "誰に読んでほしいかを指定すると、使う言葉や説明の細かさを調整できます。",
+            "visual": "before_after",
+            "before": "重要な情報へ注意を向ける仕組みです。",
+            "after": "文章を読むときに、大事な部分へ目印を付けるような仕組みです。",
+            "reviewExample": {
+              "body": "相手が変われば、どこまでかみくだくかも変わります。",
+              "before": "多層化されたMulti-Head Attention",
+              "after": "同じ読み取りを、何通りもの見方で同時にやる仕組み"
+            }
+          },
+          "meta": {
+            "silentSkill": "読者設定"
+          }
+        },
+        {
+          "id": "section_3",
+          "type": "section_transition",
+          "phase": "deepen",
+          "title": "伝え方を決める",
+          "poMessage": "こんどは、言い方を足してみよう！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "sectionNumber": 3,
+            "sectionLabel": "伝え方",
+            "image": {
+              "src": "/assets/teaching/day1_section_03.webp",
+              "alt": "ポーが、やさしく・丁寧に・短くの3つが並ぶつまみを指し示している絵。",
+              "width": 941,
+              "height": 1672
+            }
+          }
+        },
+        {
+          "id": "pick_tone",
+          "type": "single_choice",
+          "phase": "deepen",
+          "title": "どんな伝え方にしますか？",
+          "poMessage": "同じ内容でも、印象が変わります。",
+          "poEmotion": "question",
+          "primaryLabel": "この伝え方で書き直す",
+          "key": "tone",
+          "required": true,
+          "placeholder": "例）現場の人にも伝わる言い方で",
+          "options": [
+            {
+              "value": "やさしく丁寧に",
+              "label": "やさしく丁寧に",
+              "note": "むずかしい言葉を避けて、やわらかく説明します。"
+            },
+            {
+              "value": "落ち着いた口調で",
+              "label": "落ち着いた口調で",
+              "note": "感情をおさえて、淡々と伝えます。"
+            },
+            {
+              "value": "親しみやすく",
+              "label": "親しみやすく",
+              "note": "話しかけるような言い方にします。"
+            },
+            {
+              "value": "ビジネス向けに",
+              "label": "ビジネス向けに",
+              "note": "仕事の場に合う、落ち着いた言い方にします。"
+            },
+            {
+              "value": "",
+              "label": "自分で指定する",
+              "free": true
+            }
+          ],
+          "meta": {
+            "showInstruction": true,
+            "purpose": "文章を分かりやすくする"
+          }
+        },
+        {
+          "id": "generate_tone",
+          "type": "ai_generate",
+          "phase": "deepen",
+          "title": "書き直しています",
+          "poMessage": "言い方を整えているところ！",
+          "poEmotion": "thinking",
+          "aiAction": {
+            "action": "rewrite",
+            "fixed": {
+              "instruction": "分かりやすく書き直してください"
+            },
+            "inputs": {
+              "source_text": "original_text",
+              "audience": "audience",
+              "tone": "tone"
+            }
+          },
+          "meta": {
+            "waiting": "伝え方に合わせて、言い回しを整えています…"
+          }
+        },
+        {
+          "id": "see_tone",
+          "type": "result_compare",
+          "phase": "deepen",
+          "title": "伝え方で変わった",
+          "poMessage": "受け取る印象が変わりました。",
+          "poEmotion": "celebrate",
+          "primaryLabel": "次へ",
+          "meta": {
+            "changesOnly": true,
+            "changedLabel": "伝え方",
+            "changedNote": "断定的な表現が、相手に寄り添う説明へ変わった"
+          }
         },
         {
           "id": "concept_tone",
           "type": "concept_card",
           "phase": "deepen",
-          "primaryLabel": "トーンを選ぶ",
-          "skill": "トーン指定",
-          "title": "トーン指定",
-          "poMessage": "同じ内容でも、言い方は変えられます。",
+          "title": "これがトーン設定です",
+          "poMessage": "どんな雰囲気で伝えるかを決めました。",
           "poEmotion": "neutral",
+          "primaryLabel": "自分の文章で使う",
           "skippable": true,
           "card": {
-            "title": "トーン指定",
-            "body": "内容はそのままでも、口調を変えると受け取る感じが変わります。",
+            "title": "トーン設定",
+            "body": "どんな雰囲気で伝えるかを指定すると、同じ内容でも受け取る印象を変えられます。",
             "visual": "three_points",
             "points": [
-              "丁寧",
-              "やわらかい",
-              "カジュアル"
+              "やさしく",
+              "端的に",
+              "親しみやすく"
             ],
             "reviewExample": {
               "body": "言い方は、口調でも、たとえの有無でも指定できます。",
@@ -664,53 +681,17 @@
                 "結論から"
               ]
             }
+          },
+          "meta": {
+            "silentSkill": "トーン設定"
           }
-        },
-        {
-          "id": "real_tone",
-          "type": "single_choice",
-          "phase": "deepen",
-          "primaryLabel": "この言い方で書く",
-          "title": "どんな口調にしますか",
-          "poMessage": "これで最後の質問です。",
-          "poEmotion": "question",
-          "key": "tone",
-          "required": true,
-          "placeholder": "例）現場の人にも伝わる言い方で",
-          "options": [
-            {
-              "value": "やさしい口調で",
-              "label": "やさしい口調で",
-              "note": "むずかしい言葉を避けて、やわらかく説明します。"
-            },
-            {
-              "value": "ていねいに",
-              "label": "ていねいに",
-              "note": "落ち着いた丁寧な言い方で説明します。"
-            },
-            {
-              "value": "きっぱりと",
-              "label": "きっぱりと",
-              "note": "結論をはっきり伝える言い方にします。"
-            },
-            {
-              "value": "たとえを使って",
-              "label": "たとえを使って",
-              "note": "身近なものにたとえて説明します。"
-            },
-            {
-              "value": "",
-              "label": "自分で指定する",
-              "free": true
-            }
-          ]
         },
         {
           "id": "section_4",
           "type": "section_transition",
           "phase": "own",
-          "title": "自分で仕上げよう",
-          "poMessage": "覚えた3つを、いっしょに使ってみよう！",
+          "title": "自分の仕事で使う",
+          "poMessage": "組み上げた3つを、自分の文章に！",
           "poEmotion": "celebrate",
           "meta": {
             "sectionNumber": 4,
@@ -724,116 +705,167 @@
           }
         },
         {
-          "id": "real_task_intro",
-          "type": "safety_check",
+          "id": "own_text",
+          "type": "real_task",
           "phase": "own",
-          "title": "自分の文章でも試す？",
-          "poMessage": "自分の仕事でも試してみる？",
-          "poEmotion": "hint",
-          "key": "real_task_choice",
+          "title": "自分の文章で仕上げよう",
+          "instruction": "分かりやすくしたい文章を、ひとつ入れてみましょう。",
+          "poMessage": "仕事で使っている文章でどうぞ。",
+          "poEmotion": "question",
+          "primaryLabel": "この文章でいく",
+          "key": "real_task_text",
+          "required": true,
+          "placeholder": "分かりやすくしたい文章を入れてください",
+          "hints": [
+            "短くても大丈夫。2〜3文あれば、変わったところが分かります。",
+            "社内のお知らせやメールの下書きが、いちばん試しやすいです。",
+            "思いつかなければ、下の例文から選べます。"
+          ],
+          "meta": {
+            "samples": [
+              {
+                "label": "社内のお知らせ",
+                "value": "社内のお知らせ"
+              },
+              {
+                "label": "お客様へのメール",
+                "value": "お客様へのメール"
+              },
+              {
+                "label": "会議後の共有",
+                "value": "会議後の共有"
+              },
+              {
+                "label": "新人向けの説明",
+                "value": "新人向けの説明"
+              }
+            ],
+            "reuseSource": "Transformer型言語モデルにおける自己注意機構では、各トークンから生成されたQueryとKeyの内積をスケーリングし、Softmax関数によって正規化したAttention WeightをValueに適用することで、系列内のトークン間依存関係を動的に表現する。さらに、多層化されたMulti-Head Attentionにより異なる表現部分空間における依存関係を並列的に学習することが可能となる。"
+          }
+        },
+        {
+          "id": "confirm_prompt",
+          "type": "prompt_preview",
+          "phase": "own",
+          "title": "AIへの指示",
+          "poMessage": "自分で組み立てた指示です。",
+          "poEmotion": "neutral",
+          "primaryLabel": "この条件で書き直す",
+          "aiAction": {
+            "action": "rewrite",
+            "fixed": {
+              "instruction": "分かりやすく書き直してください"
+            },
+            "inputs": {
+              "real_task_text": "original_text",
+              "audience": "audience",
+              "tone": "tone"
+            }
+          },
+          "meta": {
+            "purpose": "文章を分かりやすくする"
+          }
+        },
+        {
+          "id": "generate_own",
+          "type": "ai_generate",
+          "phase": "own",
+          "title": "書き直しています",
+          "poMessage": "3つの条件で書き直しているところ！",
+          "poEmotion": "thinking",
+          "aiAction": {
+            "action": "rewrite",
+            "fixed": {
+              "instruction": "分かりやすく書き直してください"
+            },
+            "inputs": {
+              "real_task_text": "original_text",
+              "audience": "audience",
+              "tone": "tone"
+            }
+          },
+          "meta": {
+            "waiting": "読む人と伝え方に合わせて、書き直しています…"
+          }
+        },
+        {
+          "id": "own_result",
+          "type": "result_compare",
+          "phase": "own",
+          "title": "この条件で変わりました",
+          "poMessage": "自分の文章でもできました！",
+          "poEmotion": "celebrate",
+          "primaryLabel": "次へ",
+          "meta": {
+            "changesOnly": true,
+            "showConditions": true
+          }
+        },
+        {
+          "id": "next_use",
+          "type": "single_choice",
+          "phase": "own",
+          "title": "次に自分で使うなら？",
+          "instruction": "何を指定しますか？",
+          "poMessage": "明日、同じことをするなら。",
+          "poEmotion": "question",
+          "primaryLabel": "決めた",
+          "key": "next_use",
+          "required": true,
           "options": [
             {
-              "value": "自分で入力する",
-              "label": "自分の文章で試す"
+              "value": "読む人",
+              "label": "読む人"
             },
             {
-              "value": "別のサンプルを試す",
-              "label": "別の例で試す"
+              "value": "伝え方",
+              "label": "伝え方"
+            },
+            {
+              "value": "両方",
+              "label": "両方"
+            },
+            {
+              "value": "まだ分からない",
+              "label": "まだ分からない"
             }
           ]
         },
         {
-          "id": "real_task",
-          "type": "real_task",
+          "id": "skills_recap",
+          "type": "concept_card",
           "phase": "own",
-          "primaryLabel": "内容を確認する",
-          "title": "自分の文章",
-          "instruction": "いま実際に分かりやすくしたい文章を、ひとつ入れてみましょう。",
-          "poMessage": "自分の仕事でも試してみる？",
-          "poEmotion": "hint",
-          "key": "real_task_text",
-          "placeholder": "分かりやすくしたい文章を入れてください",
-          "hints": [
-            "誰に読んでもらう文章か、AIに伝えてみると変わるかも！",
-            "「たとえを使って」のように、説明のしかたをひとつだけ足してみましょう。",
-            "2〜3文くらいあると、変わったところが分かりやすいよ！"
-          ],
-          "required": true,
-          "validationRules": {
-            "suggestLength": 20,
-            "maxLength": 5000
-          }
-        },
-        {
-          "id": "prompt_preview",
-          "type": "prompt_preview",
-          "phase": "own",
-          "title": "伝え方を確認",
-          "instruction": "送る前に、どんなお願いになっているか見てみましょう。",
-          "poMessage": "これでお願いするね！",
-          "poEmotion": "talking",
-          "aiAction": {
-            "action": "rewrite",
-            "inputs": {
-              "source_text": "original_text",
-              "instruction": "instruction",
-              "audience": "audience",
-              "tone": "tone",
-              "length": "length"
-            }
-          }
-        },
-        {
-          "id": "generate_real",
-          "type": "ai_generate",
-          "phase": "own",
-          "title": "書き直しています",
-          "poMessage": "もう少し！",
-          "poEmotion": "thinking",
-          "aiAction": {
-            "action": "rewrite",
-            "inputs": {
-              "source_text": "original_text",
-              "instruction": "instruction",
-              "audience": "audience",
-              "tone": "tone",
-              "length": "length"
-            }
-          }
-        },
-        {
-          "id": "real_task_result",
-          "type": "result_compare",
-          "phase": "own",
-          "title": "自分の文章の結果",
-          "instruction": "そのまま使える形になっているか見てみましょう。",
-          "poMessage": "そのまま使えそう？",
+          "title": "Day1のAI技",
+          "poMessage": "3つとも、もう使えます！",
           "poEmotion": "celebrate",
+          "primaryLabel": "できるようになったことを見る",
           "meta": {
-            "reviewPoints": [
-              "元の意味が変わっていないか",
-              "読む相手に合った説明になっているか",
-              "むずかしい言葉が残っていないか"
-            ],
-            "factCheck": false
+            "recap": [
+              {
+                "name": "プロンプト",
+                "body": "AIにしてほしいことを伝える指示"
+              },
+              {
+                "name": "読者設定",
+                "body": "誰に伝えるかを指定する方法"
+              },
+              {
+                "name": "トーン設定",
+                "body": "どんな雰囲気で伝えるかを指定する方法"
+              }
+            ]
           }
-        },
-        {
-          "id": "reflection",
-          "type": "reflection",
-          "phase": "own",
-          "title": "ふりかえり",
-          "instruction": "今日おぼえたことを確認しましょう。",
-          "poMessage": "誰向けかと言い方を伝えると、同じ内容でも伝わり方が変わることを確かめられましたね。",
-          "poEmotion": "neutral"
         },
         {
           "id": "completion",
           "type": "completion",
           "phase": "own",
-          "title": "できるようになりました",
-          "poMessage": "次は「長い文章を短くまとめる」も試してみましょう。",
-          "poEmotion": "celebrate"
+          "title": "文章を相手に合わせて変えられるようになりました",
+          "poMessage": "おつかれさま！",
+          "poEmotion": "celebrate",
+          "meta": {
+            "reusablePrompt": "分かりやすくしてください。\n読む人は〇〇です。\n〇〇な伝え方にしてください。"
+          }
         }
       ]
     },

@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import { SafetyNote } from "../src/components/SafetyNote";
 import { SAFETY } from "../src/content/ui";
 import { COURSE } from "../src/course/catalog";
+import { LessonRunner } from "../src/pages/LessonRunner";
 
 /**
  * 安全上の注意（AIPPO 開発概要 §15）。
@@ -30,16 +31,47 @@ describe("安全上の注意", () => {
     expect(note).toHaveTextContent(SAFETY.expertAdvice);
   });
 
-  it("AIを使うレッスンには、自分の課題の前に確認のステップがある", () => {
-    // サンプルだけで終わらせず、自分の文章を入れる直前に必ず1枚挟む
+  it("AIを使うレッスンには、自分の文章を書く場所がある", () => {
+    /*
+      注意が届くのは「自分で書く画面」（`real_task`）。そこで
+      `StepRenderer` が `SafetyNote placement="input"` を必ず出す。
+
+      **以前はここで `safety_check` の回を数えていた。** あれは
+      「自分の文章でも試す？」と降りる道を出す**分岐の画面**で、
+      注意文は出していない（その回自身の註にもそう書いてある）。
+      Day1 は自分で書く回が必須になり、例文・貼り付け・前の文章が
+      同じ画面の中にあるので、降りるための1枚が要らなくなった。
+
+      数えるものを、分岐の有無から**書く場所の有無**へ戻す。
+      書く場所が消えれば注意の出どころも消えるので、§15 を守る
+      という意味ではこちらが本体。
+    */
     for (const lesson of COURSE.lessons.filter((entry) => entry.usesAi)) {
       const kinds = lesson.steps.map((step) => step.type);
-      expect(kinds, `${lesson.title} に確認のステップが無い`).toContain(
-        "safety_check",
-      );
-      expect(kinds.indexOf("safety_check")).toBeLessThan(
-        kinds.indexOf("real_task"),
+      expect(kinds, `${lesson.title} に自分で書く回が無い`).toContain(
+        "real_task",
       );
     }
+  });
+
+  it("自分で書く画面に、注意がいっしょに出ている", () => {
+    /*
+      教材データを数えるだけでは、**画面に出ていること**までは
+      分からない。Day1 の書く回をそのまま描いて、注意文が同じ画面に
+      あることを見る（§15 の「消さない」はここで落ちる）。
+    */
+    const day1 = COURSE.lessons.find((one) => one.id === "rewrite_text")!;
+    const at = day1.steps.findIndex((step) => step.type === "real_task");
+    expect(at, "Day1 に自分で書く回が無い").toBeGreaterThanOrEqual(0);
+
+    render(
+      <LessonRunner
+        lesson={{ ...day1, steps: day1.steps.slice(at) }}
+        onExit={() => {}}
+        onOpenCourse={() => {}}
+      />,
+    );
+
+    expect(screen.getByText(SAFETY.beforeInput)).toBeInTheDocument();
   });
 });

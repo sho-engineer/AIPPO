@@ -424,8 +424,8 @@
               "label": "専門用語が言い換えられた"
             },
             {
-              "value": "文章が短くなった",
-              "label": "文章が短くなった"
+              "value": "文の順番が入れ替わった",
+              "label": "文の順番が入れ替わった"
             },
             {
               "value": "内容が追加された",
@@ -444,7 +444,7 @@
           "title": "これがプロンプトです",
           "poMessage": "いま送ったのが、これ。",
           "poEmotion": "neutral",
-          "primaryLabel": "次へ",
+          "primaryLabel": "読む人を決める",
           "skippable": true,
           "card": {
             "title": "プロンプト",
@@ -568,7 +568,7 @@
           "title": "これが読者設定です",
           "poMessage": "誰に読んでほしいかを伝えました。",
           "poEmotion": "neutral",
-          "primaryLabel": "次へ",
+          "primaryLabel": "伝え方を決める",
           "skippable": true,
           "card": {
             "title": "読者設定",
@@ -622,9 +622,9 @@
               "note": "むずかしい言葉を避けて、やわらかく説明します。"
             },
             {
-              "value": "短く端的に",
-              "label": "短く端的に",
-              "note": "要点だけを、はっきり伝えます。"
+              "value": "落ち着いた口調で",
+              "label": "落ち着いた口調で",
+              "note": "感情をおさえて、淡々と伝えます。"
             },
             {
               "value": "親しみやすく",
@@ -690,7 +690,7 @@
           "title": "これがトーン設定です",
           "poMessage": "どんな雰囲気で伝えるかを決めました。",
           "poEmotion": "neutral",
-          "primaryLabel": "次へ",
+          "primaryLabel": "自分の文章で使う",
           "skippable": true,
           "card": {
             "title": "トーン設定",

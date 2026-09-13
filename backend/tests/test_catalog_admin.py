@@ -137,15 +137,24 @@ class TestReleaseCheck:
         assert any("並び順" in p for p in validate_for_release(lesson))
 
     def test_flow_lesson_without_a_sample_is_caught(self, seeded):
-        """例文が無いと、学習者は空欄から始めることになる。"""
-        lesson = Lesson.objects.get(slug="rewrite_text")
+        """骨格型の検査なので、**骨格のままの教材**で見る。
+
+        Day1（rewrite_text）は骨格を離れて手書きの並びになったので、
+        ここの検査は素通りする（骨格を持たない教材には効かない）。
+        Day2 に付け替えてある——見たいのは「骨格型で、例文やAIの
+        頼み方が抜けていたら止まること」で、どの教材かではない。
+
+        例文が無いと、学習者は空欄から始めることになる。
+        """
+        lesson = Lesson.objects.get(slug="summarize_text")
         lesson.sample_text = ""
         lesson.save()
 
         assert any("例文" in problem for problem in validate_for_release(lesson))
 
     def test_flow_lesson_without_an_ai_action_is_caught(self, seeded):
-        lesson = Lesson.objects.get(slug="rewrite_text")
+        """ここも骨格型の検査（すぐ上と同じ理由で Day2 を使う）。"""
+        lesson = Lesson.objects.get(slug="summarize_text")
         lesson.ai_action = {}
         lesson.save()
 
@@ -295,10 +304,15 @@ class TestAdminEditsReachTheScreen:
         assert lessons["rewrite_text"]["title"] == "管理画面から直した見出し"
 
     def test_overriding_a_generated_step_shows_up(self, seeded):
-        """骨格が作ったステップを、行で上書きできること。"""
+        """骨格が作ったステップを、行で上書きできること。
+
+        骨格のままの教材で見る。Day1 は骨格を離れたので、そこで
+        `quick_try` を上書きしても、比べる相手（骨格が作ったぶん）が
+        無い。
+        """
         from apps.catalog.expand import lesson_to_dict
 
-        lesson = Lesson.objects.get(slug="rewrite_text")
+        lesson = Lesson.objects.get(slug="summarize_text")
         LessonStep.objects.create(
             lesson=lesson,
             placement=StepPlacement.OVERRIDE,

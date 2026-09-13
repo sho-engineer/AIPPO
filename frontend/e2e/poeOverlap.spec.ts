@@ -29,7 +29,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /** iPhone の幅。ここを最優先にする。 */
 const PHONE = { width: 390, height: 844 };
@@ -104,7 +104,6 @@ async function runToEnd(page: Page, limit = 40): Promise<void> {
       閉じずに下のボタンを押そうとすると、背景（閉じるための面）が
       受け取ってしまう。
     */
-    if (await passSkillStamp(page)) continue;
 
     if (await page.getByTestId("completion-view").isVisible().catch(() => false)) return;
 

@@ -52,8 +52,14 @@ def _event_names() -> set[str]:
     if table:
         names |= set(re.findall(r':\s*"([a-z_]+)"', table.group(1)))
 
-    # `STEP_EVENT[...] ?? "step_viewed"` のような受け皿も送られる
-    names |= set(re.findall(r'\?\?\s*"([a-z_]+)"', source))
+    # `STEP_EVENT[...] ?? "step_viewed"` のような受け皿も送られる。
+    #
+    # **`?? "..."` だけを見ない。** ファイルの中には送信と関係のない
+    # 既定値（`step?.poEmotion ?? "neutral"` など）もあり、そちらまで
+    # 拾うと「画面がイベント `neutral` を送っている」ことにされて、
+    # サーバー側に足しようのない名前で落ちる。拾うのは `STEP_EVENT`
+    # から引いた値の受け皿だけ。
+    names |= set(re.findall(r'STEP_EVENT\[[^\]]*\]\s*\?\?\s*"([a-z_]+)"', source))
 
     return names
 

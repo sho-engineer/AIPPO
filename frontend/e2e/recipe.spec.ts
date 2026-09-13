@@ -21,7 +21,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { openRecord } from "./support/openRecord";
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 const SAMPLE = "来週の打ち合わせの件、資料の確認をお願いします。";
 
@@ -45,7 +45,6 @@ async function runToCompletion(page: Page): Promise<void> {
       閉じずに下のボタンを押そうとすると、背景（閉じるための面）が
       受け取ってしまう。
     */
-    if (await passSkillStamp(page)) continue;
 
     /*
       `return` にしない。**この輪の後ろにある一手が実行されなくなる**

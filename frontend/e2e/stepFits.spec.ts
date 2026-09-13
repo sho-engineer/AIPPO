@@ -38,7 +38,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro, passSectionCover, passSkillStamp } from "./support/lessonIntro";
+import { dismissLessonIntro, passSectionCover } from "./support/lessonIntro";
 
 /** 丸めのぶれ。影や余白の端数で数 px は動く。 */
 const SLACK = 8;
@@ -85,7 +85,6 @@ async function advance(p: Page): Promise<boolean> {
     技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
     閉じずに下のボタンを押そうとすると、背景が受け取ってしまう。
   */
-  if (await passSkillStamp(p)) return true;
 
   const primary = p.getByTestId("primary-action").first();
   if (!(await primary.count())) return false;

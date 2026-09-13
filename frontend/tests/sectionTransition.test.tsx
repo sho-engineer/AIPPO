@@ -54,10 +54,10 @@ const IMAGE = {
 describe("Day1 の段の分かれ方", () => {
   it("4つの段の頭に、それぞれ章扉が1枚ある", () => {
     expect(covers.map((step) => step.title)).toEqual([
-      "まずは試してみよう",
-      "相手を決めよう",
-      "トーンを変えよう",
-      "自分で仕上げよう",
+      "まずはAIに頼んでみる",
+      "誰に伝えるか決める",
+      "伝え方を決める",
+      "自分の仕事で使う",
     ]);
   });
 
@@ -66,18 +66,21 @@ describe("Day1 の段の分かれ方", () => {
       並びが依頼どおりであること。**章扉が飾りにならない**ように、
       次に来る画面まで含めて見る。
 
-        ① 試す        → 完成イメージ
-        ② 相手を決める → 条件をひとつ足す
-        ③ 言い方       → 誰が読みますか
-        ④ 自分で使う   → 自分の文章でも試す？
+      **どの段も、操作から始まる。** 読ませてから選ばせると、選ぶのは
+      読んだことの確認になる（`course/day1Steps.ts`）。
+
+        ① まずはAIに頼んでみる → 開始画面（元の文章を見て、送る）
+        ② 誰に伝えるか決める   → 読む人を選ぶ
+        ③ 伝え方を決める       → 伝え方を選ぶ
+        ④ 自分の仕事で使う     → 自分の文章を入れる
     */
     const order = DAY1.steps.map((step) => step.id);
     const after = (id: string) => order[order.indexOf(id) + 1];
 
-    expect(after("section_1")).toBe("outcome_preview");
-    expect(after("section_2")).toBe("add_condition");
-    expect(after("section_3")).toBe("real_audience");
-    expect(after("section_4")).toBe("real_task_intro");
+    expect(after("section_1")).toBe("ask_first");
+    expect(after("section_2")).toBe("pick_audience");
+    expect(after("section_3")).toBe("pick_tone");
+    expect(after("section_4")).toBe("own_text");
   });
 
   it("進み具合の帯が、章扉で見せた名前と同じ言葉を出す", () => {
@@ -91,9 +94,9 @@ describe("Day1 の段の分かれ方", () => {
 
     expect(missions).toHaveLength(4);
     expect(missions.map((mission) => mission.label)).toEqual([
-      "試す",
-      "相手",
-      "言い方",
+      "頼む",
+      "読む人",
+      "伝え方",
       "自分で",
     ]);
   });

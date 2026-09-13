@@ -56,7 +56,7 @@ describe("続きから", () => {
     */
     saveDraft({
       lessonId: LESSON.id,
-      stepId: "compare_results",
+      stepId: "see_audience",
       values: {},
     });
 
@@ -67,14 +67,14 @@ describe("続きから", () => {
     );
     /*
       Day1 の2つ目の段の名前。章扉で見せた名前をそのまま使うので、
-      共通の言い方（「変える」）ではなく「相手」になる。
+      共通の言い方（「変える」）ではなく「読む人」になる。
     */
-    expect(screen.getByTestId("course-resume-state")).toHaveTextContent("相手");
+    expect(screen.getByTestId("course-resume-state")).toHaveTextContent("読む人");
   });
 
   it("途中なら、残りの時間を言う", async () => {
     // 半分終えた人に「約8分」と出すと、進んだぶんが消える
-    saveDraft({ lessonId: LESSON.id, stepId: "reflection", values: {} });
+    saveDraft({ lessonId: LESSON.id, stepId: "next_use", values: {} });
 
     render(<CourseResume lesson={LESSON} onStart={() => {}} />);
 

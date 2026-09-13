@@ -314,14 +314,15 @@ describe("答えの2択", () => {
 
 describe("答えるまで、次へ行けない", () => {
   const lesson = getLesson("rewrite_text") as Lesson;
-  const at = lesson.steps.findIndex((step) => step.id === "observe_result");
+  /* 結果を見て答える回。Day1 では「何が変わった？」（`day1Steps.ts`） */
+  const at = lesson.steps.findIndex((step) => step.id === "find_change");
   const fromObserve: Lesson = { ...lesson, steps: lesson.steps.slice(at) };
 
   beforeEach(() => {
     window.localStorage.clear();
   });
 
-  it("選ぶ前の「条件を足してみる」は、押せない形で出す", async () => {
+  it("選ぶ前の「次へ」は、押せない形で出す", async () => {
     /*
       前は押せた。押すと**答えの入っていないまま**次の回へ進むので、
       何に答えたつもりだったのかが誰にも残らない。

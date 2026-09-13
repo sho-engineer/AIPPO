@@ -18,7 +18,7 @@ import { expect, test, type Page, type Locator } from "@playwright/test";
 
 import { openRecord } from "./support/openRecord";
 import { stubApi } from "./support/stubApi";
-import { dismissLessonIntro, passSkillStamp } from "./support/lessonIntro";
+import { dismissLessonIntro } from "./support/lessonIntro";
 
 /**
  * 進めない状態か。
@@ -233,7 +233,6 @@ test.describe("登録していない人", () => {
         閉じずに下のボタンを押そうとすると、背景（閉じるための面）が
         受け取ってしまう。
       */
-      if (await passSkillStamp(page)) continue;
 
       if (await page.getByTestId("completion-view").isVisible().catch(() => false)) break;
       if (await blocked(primary)) {

@@ -121,7 +121,11 @@ class TestParity:
         flow_lessons = Lesson.objects.filter(
             template=LessonTemplate.OUTCOME_FIRST, slug__in=legacy_slugs
         )
-        assert flow_lessons.count() == 7
+        # 7 から 6 へ。Day1（rewrite_text）が骨格を離れ、手書きの並びに
+        # なった——骨格は「できあがりを見せて、まねして、深める」形で、
+        # Day1 のねらい（自分で条件を組み立てると結果が変わる）は
+        # その中では脇に置かれる。骨格そのものは Day2〜5 のまま。
+        assert flow_lessons.count() == 6
 
         for lesson in flow_lessons:
             generated = {step["id"] for step in build_lesson_flow(_flow_options(lesson))}

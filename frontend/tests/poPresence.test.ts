@@ -134,7 +134,8 @@ describe("レッスン全体で見たとき", () => {
     for (const lesson of COURSE.lessons) {
       if (lesson.steps.length === 0) continue;
       const shown = lesson.steps.filter(
-        (step) => poAppearance({ stepType: step.type }) !== null,
+        (step) =>
+          poAppearance({ stepType: step.type, lessonId: lesson.id }) !== null,
       ).length;
       expect(
         shown * 2,
@@ -144,13 +145,30 @@ describe("レッスン全体で見たとき", () => {
   });
 
   it("どのレッスンにも、はじまりとおわりのポーは居る", () => {
+    /*
+      **教材ごとに聞く。** 出すか出さないかは、ステップの種類だけで
+      決まるとは限らない（Day1 は結果と問いの画面で黙らせてある）ので、
+      `lessonId` を渡さずに数えると、画面に出ていないポーを数える。
+
+      「はじまり」は**開ける最初の数画面**で見る。1画面目ちょうどに
+      するとDay1が落ちるが、それは不在ではなく——Day1 は章扉から
+      始まり、迎えるのは次の状況説明の画面だから。迎えられずに
+      始まっていないことが分かればよい。
+    */
+    const OPENING = 2;
+
     for (const lesson of COURSE.lessons) {
       if (lesson.steps.length === 0) continue;
-      const scenes = lesson.steps
-        .map((step) => poAppearance({ stepType: step.type })?.scene)
-        .filter(Boolean);
-      expect(scenes, `${lesson.id} のはじまり`).toContain("start");
-      expect(scenes, `${lesson.id} のおわり`).toContain("celebrate");
+      const sceneOf = (step: (typeof lesson.steps)[number]) =>
+        poAppearance({ stepType: step.type, lessonId: lesson.id })?.scene;
+
+      const opening = lesson.steps.slice(0, OPENING).map(sceneOf).filter(Boolean);
+      expect(opening, `${lesson.id} のはじまり`).toContain("start");
+
+      expect(
+        lesson.steps.map(sceneOf).filter(Boolean),
+        `${lesson.id} のおわり`,
+      ).toContain("celebrate");
     }
   });
 });

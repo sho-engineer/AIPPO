@@ -134,8 +134,8 @@ export const LESSON_PLANS: Record<string, LessonPlan> = {
       ないほうが、2文字ぶんの読みやすさより高くつく。
     */
     additions: [
-      { label: "誰向け？", value: "AI初心者向けに" },
-      { label: "どんな言い方？", value: "やさしい口調で" },
+      { label: "誰向け？", value: "新入社員" },
+      { label: "どんな言い方？", value: "やさしく丁寧に" },
     ],
     /*
       言いかえ先は、**日常語だけで書く**。

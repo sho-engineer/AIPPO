@@ -169,8 +169,20 @@ const STEP_EVENT: Record<string, string> = {
  */
 const REAL_TASK_STEPS = new Set(["real_task", "prompt_preview", "generate_real"]);
 
-function poOf(step: LessonStep): PoMessage {
-  return { message: step.poMessage, emotion: step.poEmotion, action: "wait" };
+/**
+ * その回のポーの言葉。
+ *
+ * 回が無いときも**落ちない**。教材は必ず1枚以上あるはずだが、
+ * サーバーから届く教材が空で来ることはあり得るし、検査で1枚だけ
+ * 取り出すときに取り違えても空になる。ここで落とすと画面が
+ * 真っ白になり、**何が起きたのかを誰も見られない**。
+ */
+function poOf(step: LessonStep | undefined): PoMessage {
+  return {
+    message: step?.poMessage ?? "",
+    emotion: step?.poEmotion ?? "neutral",
+    action: "wait",
+  };
 }
 
 /**

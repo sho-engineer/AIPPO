@@ -44,7 +44,11 @@ const lesson = COURSE.lessons.find((entry) => entry.id === "rewrite_text")!;
  */
 const fromPreview: Lesson = {
   ...lesson,
-  steps: lesson.steps.filter((step) => step.id === "prompt_preview"),
+  /*
+    回の id は教材ごとに違う（Day1 は `confirm_prompt`）ので、**種類で
+    探す**。id で書くと空の教材ができ、開いた瞬間に白い画面になる。
+  */
+  steps: lesson.steps.filter((step) => step.type === "prompt_preview"),
 };
 
 const openPreview = () =>

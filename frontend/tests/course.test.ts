@@ -16,6 +16,28 @@ import { CARD_VISUALS, PO_EMOTIONS, STEP_TYPES } from "../src/course/types";
 import type { LessonStep } from "../src/course/types";
 
 const REWRITE = getLesson("rewrite_text")!;
+/* 骨格のままの教材。Day1 が骨格を離れたので、骨格の話はこちらで見る */
+const SUMMARIZE = getLesson("summarize_text")!;
+
+/**
+ * 骨格（`course/shared.ts` の `buildLessonFlow`）から組み立てている教材。
+ *
+ * Day1（rewrite_text）はここに入らない。骨格は「できあがりを見せて、
+ * まねして、深める」形で、Day1 のねらい（自分で条件を組み立てると結果が
+ * 変わる）はその中では脇に置かれる——完成例を先に見せる画面が最初に来て、
+ * 1回目の結果に驚きが無くなっていた。手書きの並びへ移してある
+ * （`course/day1Steps.ts`）。
+ *
+ * 最終課題も骨格を使っていない（自分の困りごとを先に聞く）。
+ *
+ * **骨格の形を見る検査は、骨格を使っている教材にだけ当てる。** 当てて
+ * いない教材まで見ると、検査が通らないのではなく**意味を持たない**
+ * ——「完成イメージから始まっているか」は、始めない教材には問えない。
+ */
+const FLOW_LESSONS = COURSE.lessons.filter(
+  (entry) =>
+    entry.usesAi && entry.id !== "final_challenge" && entry.id !== "rewrite_text",
+);
 
 describe("教材データ", () => {
   it("現在地チェックは Day として数えない", () => {
@@ -142,9 +164,7 @@ describe("教材データ", () => {
     //
     // Final Challenge だけは外す。自分の困りごとを先に聞かないと
     // 見せる完成イメージが決まらないため。
-    for (const lesson of COURSE.lessons.filter(
-      (entry) => entry.usesAi && entry.id !== "final_challenge",
-    )) {
+    for (const lesson of FLOW_LESSONS) {
       /*
         章扉は数えない。**あれは教材ではなく、段の名前を出す1枚**で、
         押せば必ず次へ進む（選ぶことも書くことも無い）。
@@ -198,10 +218,23 @@ describe("教材データ", () => {
     */
     const reading = new Set(["concept_card", "reflection", "completion"]);
 
+    /*
+      技をまとめて受け取る画面は、**解説ではない**。
+
+      型は `concept_card` だが、そこに説明は無い——その日おぼえた3つを
+      並べて「3 / 3」と出すだけの、受け取る画面（`day1/SkillRecap.tsx`）。
+      読ませる画面として数えると、そのあとが完了画面なのを
+      「読む画面が続いている」と読んでしまう。受け取って終わるのは、
+      むしろ正しい並び。
+    */
+    const isRecap = (step: { meta?: Record<string, unknown> }) =>
+      Boolean(step.meta?.recap);
+
     for (const lesson of COURSE.lessons) {
       const kinds = lesson.steps.map((step) => step.type);
       for (let index = 0; index < kinds.length; index += 1) {
         if (kinds[index] !== "concept_card") continue;
+        if (isRecap(lesson.steps[index])) continue;
         if (kinds[index + 1] === "concept_card") continue; // まだ連続の途中
 
         const next = kinds[index + 1];
@@ -239,7 +272,7 @@ describe("教材データ", () => {
 
   it("最初の1回で選ばせるのは1つだけ", () => {
     // ここを増やすと、最初の結果に届く前に手が止まる
-    for (const lesson of COURSE.lessons.filter((entry) => entry.usesAi)) {
+    for (const lesson of FLOW_LESSONS) {
       const quick = lesson.steps.find((step) => step.type === "quick_try")!;
       expect(quick.key, `${lesson.title}`).toBeTruthy();
       expect(quick.options?.length ?? 0).toBeGreaterThan(1);
@@ -273,7 +306,10 @@ describe("教材データ", () => {
 
   it("解説カードは3枚まで、短く保つ", () => {
     for (const lesson of COURSE.lessons) {
-      const cards = lesson.steps.filter((step) => step.type === "concept_card");
+      /* 受け取る画面（`meta.recap`）は解説ではない。すぐ上と同じ理由 */
+      const cards = lesson.steps.filter(
+        (step) => step.type === "concept_card" && !step.meta?.recap,
+      );
       expect(cards.length, `${lesson.title} の解説が多い`).toBeLessThanOrEqual(3);
 
       for (const step of cards) {
@@ -319,15 +355,21 @@ describe("教材データ", () => {
       プロンプトです」と名前を渡すのが仕事なので、そこで名前を
       伏せると、渡すものが無くなる。
 
-      見分けるのは `skill`——その回で受け取る技の名前。名前を
-      渡していない回で同じ言葉を使えば、これまでどおり落ちる。
+      見分けるのは2つ。`skill`（その回で受け取る技の名前）と、
+      `meta.silentSkill`。後者は Day1 で足した——**名前は言うが、
+      受け取る演出は出さない**回のこと。3つの技をそれぞれの場所で
+      祝うと、そのたびに学習が止まるので、受け取るのは最後に1度だけ
+      にした（`course/day1Steps.ts`）。名前を渡す仕事は変わらない。
+
+      名前を渡していない回で同じ言葉を使えば、これまでどおり落ちる。
     */
     const banned = ["プロンプト", "トークン", "パラメータ", "モデル", "API"];
     for (const lesson of COURSE.lessons) {
       for (const step of lesson.steps) {
         const text = [step.title, step.instruction ?? "", step.poMessage].join(" ");
+        const teaches = step.skill ?? (step.meta?.silentSkill as string | undefined);
         for (const word of banned) {
-          if (step.skill === word) continue;
+          if (teaches === word) continue;
           expect(text, `${lesson.title}/${step.id} に「${word}」が出ている`).not.toContain(
             word,
           );
@@ -339,7 +381,8 @@ describe("教材データ", () => {
 
 describe("進み方", () => {
   it("並び順の次へ進む", () => {
-    expect(nextStepId(REWRITE, "outcome_preview")).toBe("quick_try");
+    /* Day1 は完成イメージから始まらない。章扉のあとが開始画面 */
+    expect(nextStepId(REWRITE, "section_1")).toBe("ask_first");
   });
 
   it("知らない id を渡されても現在地に留まる", () => {
@@ -359,9 +402,23 @@ describe("進み方", () => {
   it("進み具合を数えられる", () => {
     const progress = progressOf(REWRITE, REWRITE.steps[0].id);
     expect(progress.current).toBe(1);
-    // 分母は主導線のぶん。任意の回は入っていない（下の2件が理由）
-    expect(progress.total).toBeLessThan(REWRITE.steps.length);
     expect(progress.total).toBeGreaterThan(1);
+  });
+
+  it("分母に、任意の回は入れない", () => {
+    /*
+      任意の回を分母に入れると、主導線をやり切った人が「9 / 19」で
+      終わる——最後まで来たのに途中でやめたように見える。
+
+      **Day1 では見られない。** あそこは自分の文章を書くところが
+      任意ではなくなった（この回でいちばん大事な画面なので、
+      やるかどうかを聞く画面ごと外した）。任意の回を持っている
+      Day2 で見る。
+    */
+    const total = progressOf(SUMMARIZE, SUMMARIZE.steps[0].id).total;
+
+    expect(total).toBeLessThan(SUMMARIZE.steps.length);
+    expect(total).toBeGreaterThan(1);
   });
 
   it("**主導線だけで終えた人が「途中」に見えない**", () => {
@@ -380,11 +437,12 @@ describe("進み方", () => {
       入った以上は道のりの一部。隠すと今度は
       「進んでいるのに増えない」になる。
     */
-    const main = progressOf(REWRITE, "real_task_intro");
-    const inside = progressOf(REWRITE, "real_task");
+    /* Day1 は任意の回を持たなくなったので、持っている Day2 で見る */
+    const main = progressOf(SUMMARIZE, "real_task_intro");
+    const inside = progressOf(SUMMARIZE, "real_task");
 
     expect(inside.total).toBeGreaterThan(main.total);
-    expect(inside.total).toBe(REWRITE.steps.length);
+    expect(inside.total).toBe(SUMMARIZE.steps.length);
   });
 });
 
@@ -423,7 +481,7 @@ describe("入力の確認", () => {
 });
 
 describe("その他（自由入力）", () => {
-  const step = REWRITE.steps.find((entry) => entry.id === "real_audience")!;
+  const step = REWRITE.steps.find((entry) => entry.id === "pick_audience")!;
 
   it("選択肢を持つステップには「そのほか」がある", () => {
     expect(hasFreeOption(step)).toBe(true);
@@ -441,45 +499,42 @@ describe("AI へ渡す値", () => {
     const step = REWRITE.steps.find((entry) => entry.id === "generate_first")!;
     const input = buildAiInput(step, {
       source_text: "もとの文章",
-      instruction: "専門用語を減らす",
       audience: "新入社員",
-      tone: "やさしい口調で",
-      length: "3行くらい",
+      tone: "やさしく丁寧に",
     });
 
+    /*
+      `instruction` は教材が決め打ちで渡す（`fixed`）。Day1 で学習者が
+      選ぶのは読む人と伝え方の2つで、**書き直す目的は動かない**
+      ——1回目から頼みかたを選ばせると、そのあと読む人を足しても、
+      変わったのがどちらのせいなのか分からない。
+    */
     expect(input).toEqual({
       original_text: "もとの文章",
-      instruction: "専門用語を減らす",
+      instruction: "分かりやすく書き直してください",
       audience: "新入社員",
-      tone: "やさしい口調で",
-      length: "3行くらい",
+      tone: "やさしく丁寧に",
     });
   });
 
   it("まだ答えていない条件は、空のまま渡す", () => {
     /*
-      Day1 の1回目がこの形。頼みかたしか選んでいないので、
-      誰向けも口調も空で送る（サーバー側で行ごと落ちる）。
-      ここで既定値が混ざると、2回目に足した条件の効きめが見えなくなる。
+      Day1 の1回目がこの形。読む人も伝え方もまだ選んでいないので、
+      空で送る（サーバー側で行ごと落ちる）。ここで既定値が混ざると、
+      2回目に足した条件の効きめが見えなくなる。
     */
     const step = REWRITE.steps.find((entry) => entry.id === "generate_first")!;
 
-    expect(
-      buildAiInput(step, {
-        source_text: "もとの文章",
-        instruction: "専門用語を減らす",
-      }),
-    ).toEqual({
+    expect(buildAiInput(step, { source_text: "もとの文章" })).toEqual({
       original_text: "もとの文章",
-      instruction: "専門用語を減らす",
+      instruction: "分かりやすく書き直してください",
       audience: "",
       tone: "",
-      length: "",
     });
   });
 
   it("AI を呼ばないステップからは何も作らない", () => {
-    const step = REWRITE.steps.find((entry) => entry.id === "outcome_preview")!;
+    const step = REWRITE.steps.find((entry) => entry.id === "find_change")!;
     expect(buildAiInput(step, { source_text: "x" })).toEqual({});
   });
 });
@@ -487,28 +542,21 @@ describe("AI へ渡す値", () => {
 describe("入力済みのまとめ", () => {
   it("現在地より前の、答えた分だけを出す", () => {
     /*
-      `real_tone`（言い方を選ぶ回）に居るときの持ち物。
+      `pick_tone`（伝え方を選ぶ回）に居るときの持ち物。
 
-      自分の文章は**まだ書いていない**。条件と解説を自分の文章より
-      前へ移したので、ここに来る時点では手元にあるのは
-      「お試しで選んだ頼みかた」「足した条件」「誰向けか」の3つだけ。
+      自分の文章は**まだ書いていない**。読む人と伝え方は自分の文章より
+      前で決めるので、ここに来る時点で手元にあるのは「読む人」だけ。
       渡しても出ないことを見張る——出てしまうと、書いていない文章を
       「答えた」ことにしてしまう。
     */
-    const summary = summaryOf(REWRITE, "real_tone", {
-      instruction: "専門用語を減らす",
-      condition: "AI初心者向けに",
+    const summary = summaryOf(REWRITE, "pick_tone", {
       audience: "新入社員",
       real_task_text: "自分の文章",
       // まだ答えていない
       tone: "",
     });
 
-    expect(summary.map((entry) => entry.value)).toEqual([
-      "専門用語を減らす",
-      "AI初心者向けに",
-      "新入社員",
-    ]);
+    expect(summary.map((entry) => entry.value)).toEqual(["新入社員"]);
   });
 
   it("選んだ札の言葉を出す。教材の中の記号は出さない", () => {
@@ -542,7 +590,7 @@ describe("入力済みのまとめ", () => {
   it("自分で書いた言葉は、そのまま出す", () => {
     // 選択肢のどれにも一致しない。書いた文字が答えそのもの。
     // 見るのは書いた**あと**の回（送る内容を確かめるところ）
-    const summary = summaryOf(REWRITE, "prompt_preview", {
+    const summary = summaryOf(REWRITE, "confirm_prompt", {
       real_task_text: "来週の打ち合わせの件です",
     });
 

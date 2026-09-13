@@ -105,7 +105,10 @@ describe("出し方", () => {
       ここは飾りではなく中身。見えない人に「何の図か」が
       伝わらないと、そのぶんだけ教材が欠ける。
     */
-    for (const [, entry] of Object.entries({ a: teachingImage(DAY1, "concept_2") })) {
+    /* Day1 から絵を外したので、絵を持っている教材で見る（Day2） */
+    for (const [, entry] of Object.entries({
+      a: teachingImage("summarize_text", "concept_1"),
+    })) {
       expect(entry?.alt.length ?? 0).toBeGreaterThan(10);
     }
   });
@@ -231,12 +234,18 @@ describe("必ず見せるものと、見たい人に見せるもの", () => {
       技の名前を受け取る場面なので、大きな絵で埋めると
       名前より絵が主役になる。本文の1行で用は足りている。
     */
-    const card = getLesson(DAY1)!.steps.find((step) => step.id === "concept_tone")!
-      .card!;
+    /*
+      Day1 から解説の絵を外したので、絵を持っている教材で見る（Day2）。
+      見たいのは「技の絵は閉じた状態で置く」という決まりのほうで、
+      どの教材かではない。
+    */
+    const card = getLesson("summarize_text")!.steps.find(
+      (step) => step.id === "concept_1",
+    )!.card!;
     render(
       <ConceptCardView
         card={card}
-        image={teachingImage(DAY1, "concept_tone")}
+        image={teachingImage("summarize_text", "concept_1")}
         headingShown
       />,
     );
@@ -246,141 +255,59 @@ describe("必ず見せるものと、見たい人に見せるもの", () => {
   });
 });
 
-describe("Day1 のどこに出るか", () => {
+describe("Day1 には、レッスンの中の絵を置かない", () => {
+  /*
+    3枚あった（ターゲット指定・トーン指定・比べる図）。外したのは、
+    **どれも画面の中の比較と同じことを言っていた**から。
+
+      ・解説の絵は「新入社員向けならやさしく／専門家向けなら専門的に」
+        という一般論で、そのすぐ上には**自分の文章で実際にそうなった
+        結果**が出ている。一般論のほうが後から来ると、自分の結果が
+        例示の1つに見える
+      ・比べる図も同じで、隣に本物の Before / After がある
+
+    絵は 235px を取り、その分だけ本物の比較が下へ押し出されていた。
+    理解を速めない絵は、置かないほうが速い。
+
+    **置き直すと、また同じ画面に戻る。** ここで止める。
+  */
   const lesson = getLesson(DAY1)!;
-  const order = lesson.steps.map((step) => step.id);
-  const at = (stepId: string) => order.indexOf(stepId);
 
-  it("教材の絵3枚が、それぞれの画面に割り当たっている", () => {
-    /*
-      章扉はここに入らない。**1つの章について言うことは1か所に
-      まとめる**と決めたので、絵も教材データ（`catalog.ts` の
-      `sections`）が持っている（`tests/sectionTransition.test.tsx`）。
+  it("本文のあいだに挟まる絵が、1枚も無い", () => {
+    const placed = lesson.steps
+      .map((step) => step.id)
+      .filter((id) => teachingImage(DAY1, id) !== null);
 
-      ここが見るのは、本文のあいだに挟まる図のほう。
-
-        完成イメージ → 比べる図 → ターゲット指定 → トーン指定
-
-      「プロンプト」には絵を置いていない。あの画面で見せたいのは
-      **自分が送った言葉**で、図を足すとそちらが大きくなる。
-    */
-    const placed = order.filter((id) => teachingImage(DAY1, id) !== null);
-
-    expect(placed).toEqual([
-      "outcome_preview",
-      "compare_results",
-      "concept_2",
-      "concept_tone",
-    ]);
+    expect(placed).toEqual([]);
   });
 
-  it("章扉の絵を、こちらの表にも重ねて置かない", () => {
+  it("全体図は表に残す。ただしレッスンの中では使わない", () => {
     /*
-      2か所にあると、差し替えたときに**どちらが効くのか決まらない**。
-      章扉の絵は教材データが持つ、と決めた側に寄せきる。
+      完成例を先に見せない形にしたので、Day1 の画面には出てこない。
+      コース一覧の「できあがり」で使うので、表からは消さない。
     */
-    for (const id of order) {
-      if (!id.startsWith("section_")) continue;
-      expect(teachingImage(DAY1, id), `${id} が両方にある`).toBeNull();
-    }
+    expect(teachingImage(DAY1, "outcome_preview")?.visualType).toBe(
+      "lesson_overview",
+    );
+    expect(lesson.steps.some((step) => step.id === "outcome_preview")).toBe(false);
   });
 
-  it("比べる図は、一度試して条件を足したあとに出る", () => {
+  it("絵だけの画面は、章扉だけ", () => {
     /*
-      先に出すと、答えを見てから確かめる作業になる。
-      **必ず** 試す → 条件を足す → 送る、のあとに来ること。
+      章扉の絵は教材データが持つ（`course/day1Steps.ts` の `meta.image`）。
+      **1つの章について言うことは1か所にまとめる**と決めた側に寄せきる。
     */
-    expect(at("compare_results")).toBeGreaterThan(at("quick_try"));
-    expect(at("compare_results")).toBeGreaterThan(at("add_condition"));
-    expect(at("compare_results")).toBeGreaterThan(at("generate_improved"));
-  });
-
-  it("解説の絵は、比べた直後に出る", () => {
-    /*
-      AI技の名前は、**使って、違いを見たあと**に出す。
-      あいだに1画面でも挟むと「さっきの話」になってしまう。
-    */
-    expect(at("concept_2") - at("compare_results")).toBe(1);
-  });
-
-  it("解説の絵を続けて2枚出さない", () => {
-    /*
-      見張るのは**解説どうし**が続くこと。読み下す画面が2つ続くと
-      手が止まる。
-
-      「比べる図 → 解説の絵」だけは続いてよい。あれは2つの教材では
-      なく、**見比べて、その名前を知る**というひとつながりの流れで、
-      あいだに何か挟むほうが切れてしまう。
-    */
-    const slides = order
-      .map((id, index) => ({ id, index, type: teachingImage(DAY1, id)?.visualType }))
-      .filter((entry) => entry.type === "skill_concept");
-
-    for (let i = 0; i < slides.length - 1; i += 1) {
-      expect(
-        slides[i + 1].index - slides[i].index,
-        `${slides[i].id} と ${slides[i + 1].id} が隣り合っている`,
-      ).toBeGreaterThan(1);
-    }
-  });
-
-  it("トーン指定は、トーンを選ぶ直前に出る", () => {
-    // 技は、使う直前に出す
-    expect(at("real_tone") - at("concept_tone")).toBe(1);
-  });
-
-  it("「反復」は、Day1 のどこにも出ない", () => {
-    /*
-      Day1 で渡すのは3つ——プロンプト・ターゲット指定・トーン指定。
-      どれも「AIへの伝え方」の話で、順に足していけば1本の筋になる。
-      反復は「返ってきたものを見て、また足す」という**進め方**の話で、
-      筋が違ううえ、3つを覚える前に4つ目が並ぶと持ち帰るものが増えすぎる。
-
-      技そのものを消したのではない（Day3・Day7・Day8 では出る）ので、
-      **Day1 に無いこと**を見る。
-    */
-    expect(at("concept_iteration")).toBe(-1);
-
-    for (const id of order) {
-      const image = teachingImage(DAY1, id);
-      expect(image?.src ?? "", `${id} が反復の絵を出している`).not.toContain(
-        "iteration",
-      );
-    }
-
-    const shown = lesson.steps.flatMap((step) => [
-      step.title,
-      step.skill ?? "",
-      step.card?.title ?? "",
-      step.card?.body ?? "",
-    ]);
-    for (const text of shown) {
-      expect(text, `Day1 の画面に「${text}」がある`).not.toMatch(/反復|Iteration/);
-    }
-  });
-
-  it("画像だけの画面は、章扉だけ", () => {
-    /*
-      教材の絵は、既にある画面に添える。**絵のために画面を足さない。**
-
-      章扉はその例外で、絵そのものが画面になっている。ただし4枚とも
-      「段が変わった」ことだけを言う1枚で、教材の中身は載っていない。
-    */
-    const imageOnly = lesson.steps.filter(
+    const covers = lesson.steps.filter(
       (step) => step.type === "section_transition",
     );
-    expect(imageOnly.map((step) => step.id)).toEqual([
-      "section_1",
-      "section_2",
-      "section_3",
-      "section_4",
-    ]);
 
-    for (const id of ["outcome_preview", "compare_results"]) {
-      expect(order).toContain(id);
+    expect(covers).toHaveLength(4);
+    for (const cover of covers) {
+      const image = (cover.meta as { image?: { src: string } }).image;
+      expect(image?.src, `${cover.id} に絵が無い`).toBeTruthy();
+      // こちらの表には重ねて置かない（差し替えたときにどちらが効くか決まらない）
+      expect(teachingImage(DAY1, cover.id)).toBeNull();
     }
-    // 教材の画面は19のまま。増えたのは章扉の4枚だけ
-    expect(order).toHaveLength(19 + 4);
   });
 });
 
@@ -621,11 +548,16 @@ describe("Day3 のどこに出るか", () => {
       ——2つ目の技として数えられてしまう。
     */
     /*
-      Day1 では2枚目（`concept_2`）。1枚目が「プロンプト」になり、
-      解説の番号がひとつずれた。**絵は同じ1枚**であることを見る。
+      Day1 から解説の絵を外したので、比べる相手は Day2 の
+      「出力形式の指定」…ではなく、**同じ技を使っている教材どうし**で
+      見る。ターゲット指定を絵で出しているのは、いまは Day3 だけ。
+
+      置き場所が1つになったので、ここで見るのは「その1枚が
+      置いてあること」になる。同じ技に別の絵が増えたら、
+      `ALL_TEACHING_IMAGES` の重複として下の検査が拾う。
     */
     expect(teachingImage(DAY3, "concept_1")?.src).toBe(
-      teachingImage(DAY1, "concept_2")?.src,
+      "/assets/teaching/skill_01_targeting.webp",
     );
   });
 
@@ -706,7 +638,14 @@ describe("Day3 のどこに出るか", () => {
 });
 
 describe("本文と重ねない", () => {
-  const card = getLesson(DAY1)!.steps.find((step) => step.id === "concept_tone")!.card!;
+  /*
+    Day1 から解説の絵を外したので、絵を持っている教材で見る（Day2）。
+    見たいのは「絵があるときは、同じことを図でもう一度出さない」と
+    いう決まりのほうで、どの教材かではない。
+  */
+  const card = getLesson(DAY2)!.steps.find(
+    (step) => step.id === "concept_output_format",
+  )!.card!;
   const day2Card = getLesson(DAY2)!.steps.find(
     (step) => step.id === "concept_context",
   )!.card!;
@@ -729,21 +668,21 @@ describe("本文と重ねない", () => {
     render(
       <ConceptCardView
         card={card}
-        image={teachingImage(DAY1, "concept_tone")}
+        image={teachingImage(DAY2, "concept_output_format")}
         headingShown
       />,
     );
 
-    // 絵の中に「丁寧・やわらかい・カジュアル」が入っている
+    // 絵の中に「3行で・箇条書きで・表で」が入っている
     expect(screen.getByTestId("teaching-image")).toBeInTheDocument();
-    expect(screen.queryByText("やわらかい")).not.toBeInTheDocument();
+    expect(screen.queryByText("箇条書きで")).not.toBeInTheDocument();
   });
 
   it("絵が無い回は、これまでどおり図を出す", () => {
     render(<ConceptCardView card={card} headingShown />);
 
     expect(screen.queryByTestId("teaching-image")).not.toBeInTheDocument();
-    expect(screen.getByText("やわらかい")).toBeInTheDocument();
+    expect(screen.getByText("箇条書きで")).toBeInTheDocument();
   });
 
   it("本文の1行だけは、絵があっても残す", () => {
@@ -751,7 +690,7 @@ describe("本文と重ねない", () => {
     render(
       <ConceptCardView
         card={card}
-        image={teachingImage(DAY1, "concept_tone")}
+        image={teachingImage(DAY2, "concept_output_format")}
         headingShown
       />,
     );
