@@ -1,0 +1,113 @@
+# Day2｜長い文章を短くまとめる
+#
+# **まだ公開しない。** 第1リリースで開けるのは診断と Day1 だけ
+# （`backend/apps/catalog/release_seeding.py` の RELEASE_COMING_SOON）。
+#
+# 実装はもうある
+# --------------
+# 画面も教材データも出来ていて、骨格（`course/shared.ts` の
+# `buildLessonFlow`）から19画面が組み上がる。止めているのはリリース
+# 判定が済んでいないからで、作りかけだからではない。
+#
+# だからここは**作り直しの設計書ではなく、いまある実装の写し**。
+# 公開するときは、この Spec を見ながら Release Gate
+# （`docs/aippo/lesson-release-gates.md`）を1つずつ潰す。
+#
+# 章立てについて
+# --------------
+# Day1 は4章に分かれているが、Day2 は骨格そのままで**章扉を持たない**
+# （`section_transition` が0）。SOP の「原則3〜4章」に届いていない
+# ——公開前に埋める宿題として、下の `release.release_notes` に
+# 書き出してある。Validator は章数を **Warning** で報せる
+# （Error にすると、いま動いているものが赤くなるだけで直らない）。
+
+id: day-2
+day: 2
+implementation_id: summarize_text
+slug: summarize-long-text
+title: 長い文章を短くまとめる
+
+#: 一覧には出すが、始められない
+status: coming_soon
+version: 1
+
+learning_goal: 長い文章から、あとで使う情報を残して短くまとめられる
+target_user: AI初心者の会社員
+estimated_minutes: 3
+
+ai_skills:
+  - id: summarization
+    usage: new
+  - id: purpose-setting
+    usage: new
+  - id: output-format
+    usage: new
+
+sections:
+  - id: section-1
+    name: まず短くしてみる
+    type: practice
+    user_goal: 何のためにまとめるのかを選んで、1回送ってみる
+    user_action: 「人に共有する」など、まとめる目的を3択から1つ選ぶ
+    ai_action: 会議メモから、選ばれた目的に合う情報を残して短くする
+    expected_output: 元の会議メモが、目的に沿って短くなったもの
+    user_notices: 全部を削るのではなく、残すものが選ばれていること
+    learning_takeaway: 何のためにまとめるかで、残す情報が変わる
+    next_action: 条件を1つ足す
+
+  - id: section-2
+    name: 条件を足して比べる
+    type: practice
+    user_goal: 条件を1つ足して、同じ文章がどう変わるかを見る
+    user_action: 「もっと短く」など、条件を1つ選ぶ
+    ai_action: 直前の結果を対象に、足された条件を反映して作り直す
+    expected_output: 1回目より短く、または形の変わったまとめ
+    user_notices: 元へ戻すのではなく、直前の結果に足されていること
+    learning_takeaway: 要約は、必要な情報を残して短くすること
+    next_action: 自分の文章で使う
+
+  - id: section-3
+    name: 自分の文章で使う
+    type: own
+    user_goal: 手元の長い文章を、自分の欲しい形でまとめる
+    user_action: 自分の文章を入れ、形と目的を指定して送る
+    ai_action: 指定された形と目的で、入力された文章をまとめる
+    expected_output: 学習者自身の文章が、そのまま貼って使える形になったもの
+    user_notices: 形を指定すると、直す手間が減ること
+    learning_takeaway: 返してほしい形を言うと、そのまま仕事に載せられる
+    next_action: Homeに戻る
+
+prompts:
+  - id: summarize
+    version: 1
+    user_input: まとめたい長い文章（教材の会議メモ、または学習者の文章）
+    system_instruction: >-
+      元の文章から、指定された目的に必要な情報を残してまとめる。
+      元に無い内容を足さない。作業宣言を付けない。
+    conditions:
+      - まとめる目的（人に共有する／自分の作業を知る／内容をつかむ）
+      - 出力の形（3行で／重要な点を3つ／次にやることを抽出）
+    output_format: まとめた文章のみ。前置きも後書きも付けない
+    expected_behavior: >-
+      目的を変えると、残る情報が変わる。形を変えると、同じ情報が
+      違う並びで出る。どちらも元に無い話を足さない。
+    failure_handling: >-
+      入力と選んだ条件を保持したまま、同じ画面で押し直せる。
+
+assets:
+  lesson_overview: null
+  #: 章扉はまだ無い。章立てを入れるときに、必要かどうかを判断する
+  section_intros: []
+  concept_visuals: []
+  compare_visuals: []
+  completion_visual: null
+
+release:
+  qa_status: not_started
+  reviewed_by: null
+  reviewed_at: null
+  release_notes: >-
+    公開前の宿題: (1) 章立てが骨格のままで章扉を持たない——SOP の
+    3〜4章に合わせるか、Day2 は骨格のままでよいと判断して SOP 側に
+    例外を書くかを決める。(2) 実寸での完走QAが未実施。
+    (3) Release Gate の各項目が未確認。

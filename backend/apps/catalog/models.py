@@ -66,6 +66,16 @@ class AvailabilityStatus(models.TextChoices):
 
     AVAILABLE = "available", "利用できる"
     COMING_SOON = "coming_soon", "近日公開"
+    #: 公開したあとの緊急停止。
+    #:
+    #: `COMING_SOON` と画面上の振る舞いは同じ（一覧には出すが始められない）
+    #: が、**意味が違う**——あちらは「まだ」、こちらは「いったん止めた」。
+    #: 分けてあるのは、戻すときの判断が変わるため。近日公開はリリース
+    #: 判定が済めば開くが、停止は原因を直すまで開かない。
+    #:
+    #: 始められるかどうかは `Lesson.is_startable` が `AVAILABLE` だけを
+    #: 通すので、止める側の実装は要らない（`apps/catalog/access.py`）。
+    PAUSED = "paused", "一時停止"
 
 
 class AccessType(models.TextChoices):

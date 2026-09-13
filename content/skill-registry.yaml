@@ -1,0 +1,101 @@
+# AI技の台帳。**全Lesson共通の正本。**
+#
+# なぜ1か所に集めるか
+# -------------------
+# 技はLessonをまたいで積み上がる。Day1で「読者設定」を渡し、Day3で
+# もう一度使うとき、**同じものだと分かること**が積み上がりの条件になる。
+# Lessonごとに名前を決めていると、同じ技に別の名前が付き、学習者には
+# 別々の技が2つあるように見える。
+#
+# 決まり
+# ------
+#   * `label` は**実在する一般的な言葉**にする。AIPPO だけの造語にしない
+#     ——ここで覚えた言葉が外の記事や同僚との会話で通じないと、
+#     このアプリの中でしか使えない知識になる
+#   * `id` は英小文字とハイフン。Lesson Spec から参照する鍵
+#   * `first_introduced` は**最初に渡すLesson**。あとのLessonでは
+#     Spec 側で `review` か `application` と書く
+#   * 意味の近い技を別IDで二重登録しない。近さの判定は機械には
+#     決められないので、Validator は**警告**までにして、
+#     最終判断は人に残してある
+#
+# 足すとき
+# --------
+# Lesson Spec で `new` として使う前に、ここへ1行足す。Validator は
+# 台帳に無い id を **Error** にする（`npm run validate:lessons`）。
+
+version: 1
+
+skills:
+  # ---------------------------------------------------------- Day 1
+  - id: prompt-basics
+    label: プロンプト
+    description: AIにしてほしいことを文章で伝える指示のこと。
+    first_introduced: day-1
+
+  - id: audience-setting
+    label: 読者設定
+    description: 誰に向けた文章かをAIに伝えて、言葉の選び方を変える方法。
+    first_introduced: day-1
+
+  - id: tone-setting
+    label: トーン設定
+    description: どんな雰囲気で伝えるかをAIに指定する方法。
+    first_introduced: day-1
+
+  # ---------------------------------------------------------- Day 2
+  - id: summarization
+    label: 要約
+    description: 長い文章から必要な情報を残して短くする方法。
+    first_introduced: day-2
+
+  - id: purpose-setting
+    label: 目的の指定
+    description: 何のために使うのかをAIに伝えて、残す情報を変える方法。
+    first_introduced: day-2
+
+  - id: output-format
+    label: 出力形式の指定
+    description: 箇条書き・表・3行など、返してほしい形を指定する方法。
+    first_introduced: day-2
+
+  # ---------------------------------------------------------- Day 3
+  - id: explain-for-audience
+    label: 説明相手の指定
+    description: 誰に説明するのかを伝えて、説明の深さを変える方法。
+    first_introduced: day-3
+
+  - id: ask-for-examples
+    label: 具体例の要求
+    description: 例えや具体例を出すようAIに頼む方法。
+    first_introduced: day-3
+
+  # ---------------------------------------------------------- Day 5
+  - id: comparison
+    label: 比較
+    description: 複数の選択肢を同じ観点で並べて見比べられるようにする方法。
+    first_introduced: day-5
+
+  - id: criteria-setting
+    label: 評価基準の指定
+    description: 何を基準に比べるのかをAIに伝える方法。
+    first_introduced: day-5
+
+  # ---------------------------------------------- まだLessonが無い技
+  #
+  # 先に名前だけ決めておくと、Lessonを作るときに名前で迷わない。
+  # `first_introduced` は、そのLessonを作った日に埋める。
+  - id: length-control
+    label: 長さ指定
+    description: 1文・3行など、欲しい長さをAIに伝える方法。
+    first_introduced: null
+
+  - id: role-setting
+    label: 役割の指定
+    description: どんな立場の人として答えてほしいかをAIに伝える方法。
+    first_introduced: null
+
+  - id: context-setting
+    label: コンテキスト
+    description: 前提や背景をAIに渡して、答えを場面に合わせる方法。
+    first_introduced: null

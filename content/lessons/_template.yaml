@@ -1,0 +1,99 @@
+# Lesson Spec のひな形。**新しいLessonはここを写して書く。**
+#
+# これは何か
+# ----------
+# Lesson を作るときの**設計書**であり、**検査の対象**。
+# 実装の正本ではない——実装の正本は
+#
+#     frontend/src/course/catalog.ts  →  backend/apps/catalog/seed_catalog.json  →  DB
+#
+# の3層のまま（`docs/aippo/lesson-spec-schema.md`）。Spec を4層目の
+# 正本にすると、同じ内容を3か所へ書くことになる。
+#
+# ここに書くのは「どう作るか」と「作ったものが決まりを満たしているか」。
+# Validator が Spec ↔ catalog.ts ↔ Skill Registry の食い違いを見る。
+#
+#     npm run validate:lessons
+#
+# 埋め方
+# ------
+# 空文字は「まだ書いていない」。Validator は必須項目が空だと Error に
+# する。`null` は「意図的に無し」——画像を作らないと決めたときなど。
+
+# ---------------------------------------------------------------- 基本
+#: day-<番号>。Spec ファイル名とそろえる
+id: day-0
+#: 画面に出る「Day n」。診断は 0
+day: 0
+#: 実装側の id（`catalog.ts` の `Lesson.id`）。ハイフンではなく下線
+implementation_id: ""
+slug: ""
+title: ""
+
+#: draft / review / coming_soon / published / paused
+#: 意味と遷移は docs/aippo/lesson-status-rule.md
+#: **AI も CI も published にしない。** 人の承認が要る
+status: draft
+version: 1
+
+# ------------------------------------------------------------ ねらい
+#: **1つだけ。** 「終わったとき、何が1つできるようになるか」
+#: 2つ書きたくなったら、Lesson を2本に分ける合図
+learning_goal: ""
+target_user: AI初心者の会社員
+#: 実測の目安。catalog.ts の estimatedMinutes とそろえる
+estimated_minutes: 3
+
+# -------------------------------------------------------------- AI技
+#: 原則2〜3個。id は content/skill-registry.yaml にあるもの
+#: usage: new（初めて渡す） / review（復習） / application（応用）
+ai_skills:
+  - id: ""
+    usage: new
+
+# ------------------------------------------------------------ 章立て
+#: 原則3〜4章。各章に8項目すべてが要る
+sections:
+  - id: section-1
+    name: ""
+    #: practice（手を動かす） / concept（名前を付ける） / own（自分の仕事で使う）
+    type: practice
+    user_goal: ""
+    user_action: ""
+    ai_action: ""
+    expected_output: ""
+    user_notices: ""
+    learning_takeaway: ""
+    next_action: ""
+
+# ---------------------------------------------------------- AIへの指示
+#: 決まりは docs/aippo/ai-generation-policy.md
+#: **作業宣言を書かせない**（「承知しました」「以下のように〜」）
+prompts:
+  - id: prompt-1
+    version: 1
+    user_input: ""
+    system_instruction: ""
+    conditions: []
+    output_format: ""
+    expected_behavior: ""
+    failure_handling: ""
+
+# ------------------------------------------------------------ 画像
+#: **作らない判断も記録する。** `null` は「作らないと決めた」。
+#: 決まりは docs/aippo/ui-content-rules.md の画像ルール
+assets:
+  lesson_overview: null
+  section_intros: []
+  concept_visuals: []
+  compare_visuals: []
+  completion_visual: null
+
+# ------------------------------------------------------------ リリース
+#: published にするには qa_status: passed と reviewed_by / reviewed_at が要る
+#: （`npm run validate:lessons` が見る）
+release:
+  qa_status: not_started
+  reviewed_by: null
+  reviewed_at: null
+  release_notes: null

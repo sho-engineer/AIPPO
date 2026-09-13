@@ -1,0 +1,118 @@
+# Day1｜文章を分かりやすくする
+#
+# **すでに公開して動いている Lesson の Spec。**
+#
+# 先に実装があり、あとから Spec を起こした。だからここは「これから
+# 作るもの」ではなく、**動いているものを写し取ったもの**——
+# Validator を通す最初の1本（Dry Run）であり、新しい Lesson を書く
+# ときの実例でもある。
+#
+# 実装は `frontend/src/course/day1Steps.ts`（23画面の手書き）。
+# Day2 以降が使う骨格（`course/shared.ts`）は使っていない。
+
+id: day-1
+day: 1
+implementation_id: rewrite_text
+slug: rewrite-text
+title: 文章を分かりやすくする
+
+status: published
+version: 1
+
+learning_goal: 同じ内容の文章を、読む相手と伝え方に合わせて書き直せる
+target_user: AI初心者の会社員
+estimated_minutes: 3
+
+ai_skills:
+  - id: prompt-basics
+    usage: new
+  - id: audience-setting
+    usage: new
+  - id: tone-setting
+    usage: new
+
+sections:
+  - id: section-1
+    name: まずはAIに頼んでみる
+    type: practice
+    user_goal: 条件を付けずに1回送って、AIが何をするのかを見る
+    user_action: 専門用語の多い文章を、そのまま「分かりやすくしてもらう」で送る
+    ai_action: 元の意味を変えずに、専門用語を日常語へ言い換えて書き直す
+    expected_output: 元の2文と同じ内容で、専門用語が言い換えられた文章
+    user_notices: 頼んだだけで言い換えが起きること。ただし読む相手は指定していない
+    learning_takeaway: AIにしてほしいことを文章で伝えるのがプロンプト
+    next_action: 読む人を決める
+
+  - id: section-2
+    name: 誰に伝えるか決める
+    type: practice
+    user_goal: 読む相手を1つ足すと、返ってくるものが変わることを見る
+    user_action: 「その分野を知らない人」など、読む相手を5択から1つ選ぶ
+    ai_action: 選ばれた相手に合わせて、説明の深さと言葉を変えて書き直す
+    expected_output: 1回目と同じ内容で、選んだ相手向けに語彙と補足が変わった文章
+    user_notices: 足したのは1行なのに、言葉の選び方が変わること
+    learning_takeaway: 誰に読んでほしいかを指定するのが読者設定
+    next_action: 伝え方を決める
+
+  - id: section-3
+    name: 伝え方を決める
+    type: practice
+    user_goal: 伝え方をもう1つ足して、指示が積み上がるのを見る
+    user_action: 「やさしく丁寧に」など、伝え方を5択から1つ選ぶ
+    ai_action: 読む相手はそのままに、言い回しの雰囲気だけを変えて書き直す
+    expected_output: 内容と相手は同じで、口調と語尾が変わった文章
+    user_notices: 条件が3行に増え、そのぶん結果が自分の意図へ近づくこと
+    learning_takeaway: どんな雰囲気で伝えるかを指定するのがトーン設定
+    next_action: 自分の文章で使う
+
+  - id: section-4
+    name: 自分の仕事で使う
+    type: own
+    user_goal: 覚えた3つを、自分の手元の文章へまとめて使う
+    user_action: 自分の文章を入れ、送る前に目的・読む人・伝え方を確認して送る
+    ai_action: 3つの条件をすべて反映して、入力された文章を書き直す
+    expected_output: 学習者自身の文章が、選んだ条件どおりに書き直されたもの
+    user_notices: 自分の題材でも同じことが起きること。明日そのまま使える形が残ること
+    learning_takeaway: 目的・読む人・伝え方の3つを伝えると、仕事の文章に使える
+    next_action: Homeに戻る
+
+prompts:
+  - id: rewrite
+    version: 1
+    user_input: 書き直したい文章（教材の専門文、または学習者が入れた自分の文章）
+    system_instruction: >-
+      元の文章を、指定された読む人と伝え方に合わせて書き直す。
+      元の意味を変えない。事実を足さない。作業宣言を付けない。
+    conditions:
+      - 書き直す目的（文章を分かりやすくする）
+      - 読む人（section-2 で選んだもの。1回目は無し）
+      - 伝え方（section-3 で選んだもの。1〜2回目は無し）
+    output_format: 書き直した文章のみ。前置きも後書きも付けない
+    expected_behavior: >-
+      1回目は条件なしで言い換えだけが起きる。2回目は読む人のぶんだけ、
+      3回目は伝え方のぶんだけが変わり、変化の出どころが1つに絞れる。
+    failure_handling: >-
+      入力と選んだ条件を保持したまま、同じ画面で押し直せる。
+      詰まったときの行き先は `course/rescue.ts` が出す。
+
+assets:
+  #: 開始前に完成例を見せないので、全体図は使わない
+  lesson_overview: null
+  section_intros:
+    - /assets/teaching/day1_section_01.webp
+    - /assets/teaching/day1_section_02.webp
+    - /assets/teaching/day1_section_03.webp
+    - /assets/teaching/day1_section_04.webp
+  #: 技の名前は UI のカードで足りる。絵は作らないと決めた
+  concept_visuals: []
+  #: 変化は「代表的な変化2つ」を UI で出すので、比較画像は要らない
+  compare_visuals: []
+  completion_visual: null
+
+release:
+  qa_status: passed
+  reviewed_by: sho-engineer
+  reviewed_at: "2026-09-13"
+  release_notes: >-
+    第1リリースで公開する唯一の Lesson。4章・AI生成4回。
+    実寸（390×844 / 402×660）で完走を確認済み。

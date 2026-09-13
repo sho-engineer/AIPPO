@@ -333,7 +333,19 @@ export interface ConceptCard {
 export type LessonMode = "standard" | "model_comparison";
 
 /** いま始められるか。 */
-export type LessonAvailability = "available" | "coming_soon";
+/**
+ * いま始められるか。
+ *
+ * `available` 以外は**どれも始められない**。分けてあるのは意味の
+ * ほうで、画面の振る舞いは同じ（一覧には出すが、開始は止める）。
+ *
+ *     coming_soon … まだ。リリース判定が済めば開く
+ *     paused      … いったん止めた。原因を直すまで開かない
+ *
+ * 判定を書き足さないこと。`course/availability.ts` の `isStartable`
+ * が `available` だけを通すので、値が増えても画面側は変わらない。
+ */
+export type LessonAvailability = "available" | "coming_soon" | "paused";
 
 /**
  * むずかしさの目安。

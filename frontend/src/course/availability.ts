@@ -11,14 +11,33 @@
 
 import type { Course, Lesson } from "./types";
 
-export function isComingSoon(lesson: Lesson): boolean {
-  // 省略は available とみなす。同梱データで動かすときに
-  // 全部が近日公開になると、何も始められなくなる
-  return lesson.availability === "coming_soon";
+/**
+ * いま始められるか。**`available` だけを通す。**
+ *
+ * 前はここが `!isComingSoon` だった。「近日公開でなければ始められる」
+ * という書き方だと、**状態が1つ増えるたびに穴が開く**——実際、
+ * 一時停止（`paused`）を足した時点で、止めたはずの教材が始められる
+ * 状態になっていた。
+ *
+ * 通す側を数えれば、増えた値は黙って止まる。
+ *
+ * 省略は `available` とみなす。同梱データで動かすとき（サーバーに
+ * 届かないとき）に全部が閉じると、何も始められない画面になる。
+ */
+export function isStartable(lesson: Lesson): boolean {
+  return (lesson.availability ?? "available") === "available";
 }
 
-export function isStartable(lesson: Lesson): boolean {
-  return !isComingSoon(lesson);
+/**
+ * 一覧には出すが、始められない教材か。
+ *
+ * 「準備中」の札を出すかどうかの判定。`coming_soon` と `paused` の
+ * どちらもここに入る——学習者から見ると、どちらも「いまは開けない」
+ * で同じだから。違うのは**こちら側の事情**（まだ／いったん止めた）で、
+ * それは `docs/aippo/lesson-status-rule.md` が持つ。
+ */
+export function isComingSoon(lesson: Lesson): boolean {
+  return !isStartable(lesson);
 }
 
 /** 近日公開の教材に添える一言。日付は決まっているときだけ出す。 */

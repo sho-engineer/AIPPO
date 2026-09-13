@@ -910,8 +910,9 @@
       "beforeExample": "本日の定例会議では、まず先月の売上について報告がありました。前年同月比で110%となり、特に新規顧客からの受注が伸びています。一方で既存顧客の解約が3件あり、原因は納期の遅れとの分析でした。",
       "afterExample": "・先月の売上は前年比110%。新規顧客が伸びた\n・既存顧客の解約が3件。原因は納期の遅れ\n・次は納期の改善を検討する",
       "learnedSkills": [
-        "何のためのまとめかを伝える",
-        "出力の形を指定する"
+        "要約",
+        "目的の指定",
+        "出力形式の指定"
       ],
       "outcomes": [
         "何のためのまとめかを伝えられる",
@@ -1358,7 +1359,7 @@
         }
       ],
       "stageKey": "ask",
-      "availability": "available"
+      "availability": "coming_soon"
     },
     {
       "id": "explain_topic",
@@ -1845,7 +1846,7 @@
         }
       ],
       "stageKey": "ask",
-      "availability": "available"
+      "availability": "coming_soon"
     },
     {
       "id": "compare_options",
@@ -2286,7 +2287,7 @@
         }
       ],
       "stageKey": "think",
-      "availability": "available"
+      "availability": "coming_soon"
     }
   ]
 }

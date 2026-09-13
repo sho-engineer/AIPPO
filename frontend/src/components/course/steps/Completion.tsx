@@ -323,8 +323,20 @@ export function CompletionView({
             分かる。中身は「このレッスンの記録」の一枚にもある。
           */}
           <p
+            /*
+              境目は 900px。
+
+              **760px では足りなかった。** 390×844（iPhone のふつうの
+              持ち方）で、この3行が 96px を取り、完了画面が 80px
+              あふれていた——幅が狭いほど折り返しが増えるので、
+              高さだけで決めると足りない。
+
+              上の見出しとコピーの行（40px）は 780px から出る。
+              持ち帰れるものがあることはそこで分かるので、本文は
+              縦に余裕のある端末だけでよい。
+            */
             className="mt-1 hidden whitespace-pre-wrap break-words text-sm leading-6
-                       text-brand-dark [@media(min-height:760px)]:block"
+                       text-brand-dark [@media(min-height:900px)]:block"
           >
             {reusablePrompt}
           </p>

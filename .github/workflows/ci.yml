@@ -65,6 +65,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # 教材そのものの検査。型より先に置く——Spec と実装が食い違って
+      # いるのは、型が通っていても「教材として壊れている」ことなので、
+      # いちばん早く知りたい。決まりは docs/aippo/lesson-spec-schema.md
+      - name: Validate lesson specs
+        run: npm run validate:lessons
+
       - name: Typecheck
         run: npx tsc --noEmit
 
