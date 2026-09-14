@@ -219,8 +219,15 @@ export function LessonRunner({
     と決めてある画面なので、その前提が崩れる。
   */
   const auth = useAuth();
-  const send = async (label?: string) => {
-    const outcome = await api.run({ label });
+  /**
+   * AIへ送って、返ってきたら次の回へ。
+   *
+   * `reuse` を渡した呼びは、**直前と同じ内容なら送らない**（`run`）。
+   * 戻ってもう一度「次へ」を押しただけの人に、同じ生成をやり直させない
+   * ——待たされるうえ、費用も倍になる。「もう一度」は渡さない。
+   */
+  const send = async (label?: string, options: { reuse?: boolean } = {}) => {
+    const outcome = await api.run({ label, reuse: options.reuse });
     if (outcome === "sent") api.goNext();
   };
 
@@ -271,7 +278,14 @@ export function LessonRunner({
     if (autoRan.current === step.id) return;
     autoRan.current = step.id;
 
-    void send(runs.length === 0 ? "1回目" : undefined);
+    /*
+      戻ってきた人には、**同じものを送り直させない**（`run` の `reuse`）。
+
+      この効果は「送信のステップに入ったら送る」なので、帯の「←」で
+      結果から1歩戻り、もう一度進んだ人もここを通る。直前と同じ内容
+      なら、待たせも費用もかけずに次へ渡す。
+    */
+    void send(runs.length === 0 ? "1回目" : undefined, { reuse: true });
     // send は毎回作り直されるので、依存に入れると送り続ける
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step.id, step.type, api.isSubmitting, api.error, api.findings.length]);
@@ -572,10 +586,10 @@ export function LessonRunner({
         api.goNext();
         return;
       case "ai_generate":
-        void send(runs.length === 0 ? "1回目" : undefined);
+        void send(runs.length === 0 ? "1回目" : undefined, { reuse: true });
         return;
       case "improvement_choice":
-        void send(values.improvement || "もう一度");
+        void send(values.improvement || "もう一度", { reuse: true });
         return;
       case "concept_card":
         /*

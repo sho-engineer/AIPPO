@@ -50,6 +50,13 @@ import type { Lesson, LessonStep, PoMessage, StepValues } from "./types";
 export interface RunRecord {
   sequence: number;
   stepId: string;
+  /**
+   * この回の合言葉（どの回・どの頼み方・何の文章）。
+   *
+   * 同じものをもう一度送らずに済ませるのに使う——**戻って進み直した
+   * だけ**の人に、同じ生成をやり直させない（`run` の `reuse`）。
+   */
+  key: string;
   /** 何をした回か。「1回目」「もっと短く」「自分の文章」。 */
   label: string;
   inputText: string;
@@ -107,6 +114,14 @@ export interface CourseLessonApi {
      * 反映されないので、同じ呼び出しの中で送ると**古い本文**が飛ぶ。
      */
     body?: string;
+    /**
+     * 直前と同じ内容なら、送らずに次へ進む。
+     *
+     * 戻ってもう一度「次へ」を押しただけの人に、同じ生成をやり直させ
+     * ない（要件 §8）。「もう一度」には渡さない——あちらは同じ内容で
+     * **新しい結果**が欲しい操作。
+     */
+    reuse?: boolean;
   }) => Promise<SubmitOutcome>;
   /**
    * 用意された例文を入れて、そのまま送る。
@@ -252,10 +267,16 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
 
         `usage` は覚えていないので、控えから戻した回には空を入れる。
         画面はこれを出さないので、無くても困らない。
+
+        合言葉（`key`）も控えには無い。開き直した直後に「次へ」を
+        押した人は、同じ内容でももう一度送ることになる——**控えの
+        時点と同じ条件かどうかを確かめる手立てが無い**ので、
+        そこは送るほうを選ぶ。
       */
       setRuns(
         (draft.runs ?? []).map((run) => ({
           ...run,
+          key: "",
           usage: {
             provider: "",
             model: "",
@@ -485,7 +506,23 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
 
   const run = useCallback(
     async (
-      options: { force?: boolean; label?: string; body?: string } = {},
+      options: {
+        force?: boolean;
+        label?: string;
+        body?: string;
+        /**
+         * 直前と同じ内容なら、送らずに次へ進む。
+         *
+         * 戻ってもう一度「次へ」を押しただけの人に、同じ生成を
+         * やり直させない（要件 §8／費用も倍になる）。**直前の回と
+         * 同じときだけ**にする——それより前の回に当てにいくと、
+         * 結果の画面が指す「いちばん新しい回」と食い違う。
+         *
+         * 「もう一度」は別。あちらは同じ内容で**新しい結果**が
+         * 欲しい操作なので、この印を渡さない。
+         */
+        reuse?: boolean;
+      } = {},
     ) => {
       if (inFlight.current) return "busy" as const;
 
@@ -538,10 +575,6 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
         });
       }
 
-      inFlight.current = true;
-      generation.current += 1;
-      const mine = generation.current;
-
       /*
         この送りの合言葉を決める。
 
@@ -553,6 +586,22 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
         押した人には**新しい結果**が返る。
       */
       const key = `${step.id}|${action}|${JSON.stringify(input)}`;
+
+      /*
+        直前と同じものなら、**送らずに進んだことにする。**
+
+        ここは `inFlight` を上げる**前**に置く。上げてから抜けると
+        旗が立ったまま残り、そのあとの送信がぜんぶ「送信中」で
+        弾かれる。
+      */
+      if (options.reuse && runs[runs.length - 1]?.key === key) {
+        return "sent" as const;
+      }
+
+      inFlight.current = true;
+      generation.current += 1;
+      const mine = generation.current;
+
       if (pendingRequest.current?.key !== key) {
         pendingRequest.current = { key, id: newRequestId() };
       }
@@ -619,6 +668,7 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
           {
             sequence: current.length + 1,
             stepId: step.id,
+            key,
             label: options.label ?? (current.length === 0 ? "1回目" : `${current.length + 1}回目`),
             /*
               送った**本文**を残す。

@@ -317,6 +317,24 @@ test.describe("やり直せる", () => {
     // さっき選んだものが、選ばれたまま残っている
     await expect(page.locator("[aria-pressed='true']").first()).toBeVisible();
 
+    /*
+      条件を**変えて**から進む。
+
+      変えずに押し切ったときは、同じ内容をもう一度送らない
+      （`useCourseLesson` の `reuse`）——待たされるうえ、費用も倍に
+      なる。ここで見たいのは「直した条件で、同じ文章がもう一度
+      まとまる」ほうなので、1つ選び直す。
+    */
+    const choices = page.locator("main [aria-pressed]");
+    const at = await choices.count();
+    for (let index = 0; index < at; index += 1) {
+      if ((await choices.nth(index).getAttribute("aria-pressed")) === "false") {
+        await choices.nth(index).click();
+        break;
+      }
+    }
+    await page.waitForTimeout(200);
+
     await step(page);
     await step(page);
     await step(page);

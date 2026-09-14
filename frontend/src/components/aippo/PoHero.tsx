@@ -79,6 +79,25 @@ export interface PoHeroProps {
   align?: "start" | "center";
   /** ポーのまわりに紙とキラキラを散らすか。 */
   burst?: boolean;
+  /**
+   * 画面が低いとき、ポーを引っ込めるか。
+   *
+   * 何のためか
+   * ----------
+   * **ソフトキーボード。** iPhone で入力欄に触れると、見える高さが
+   * 216〜302px 減る。320×568 では 352px しか残らず、柱の上（進み具合・
+   * 見出し・ポー）で 231px を使っていたので、下の「次へ」が画面から
+   * 28px はみ出していた（実測）。入力欄とボタンが同時に見えることは、
+   * 書く画面でいちばん大事な条件（要件 §6.11）。
+   *
+   * 引っ込めるのはポーだけにする。見出しも説明も、そこで何を聞かれて
+   * いるかそのものなので消さない。ポーは案内役で、**書いている最中に
+   * いちばん要らない**もの。
+   *
+   * JS では見ない。高さの条件はCSSに任せる——キーボードは出たり入ったり
+   * するので、描き直しを挟むと1拍遅れて跳ねる。
+   */
+  hideWhenShort?: boolean;
 }
 
 export function PoHero({
@@ -93,6 +112,7 @@ export function PoHero({
   scene,
   align = "start",
   burst = false,
+  hideWhenShort = false,
 }: PoHeroProps) {
   const centered = align === "center";
 
@@ -137,7 +157,10 @@ export function PoHero({
         別々に置ける形になっていたから。
       */}
       {showPo && (
-        <div className="mt-4">
+        <div
+          className={`mt-4 ${hideWhenShort ? "[@media(max-height:560px)]:hidden" : ""}`}
+          data-po-hide-when-short={hideWhenShort ? "yes" : undefined}
+        >
           <PoSpeech
             emotion={emotion}
             message={message}

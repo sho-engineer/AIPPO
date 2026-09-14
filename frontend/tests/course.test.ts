@@ -431,6 +431,26 @@ describe("進み方", () => {
     expect(previousStepId(REWRITE, first)).toBe(first);
   });
 
+  it("戻る先に、送っている最中の回を選ばない", () => {
+    /*
+      `ai_generate` は「入ったら送る」だけの通過点で、入った瞬間に
+      次へ進む（`LessonRunner` の自動送り）。そこへ戻すと、戻った人は
+      もう一度前へ押し出される——**結果から戻れない**のと同じ。
+
+      教材名は書かない。**送る回を持つ教材を、並びから探す。**
+    */
+    for (const lesson of COURSE.lessons) {
+      const at = lesson.steps.findIndex((step) => step.type === "ai_generate");
+      if (at <= 0 || at + 1 >= lesson.steps.length) continue;
+      const after = lesson.steps[at + 1].id;
+      const back = previousStepId(lesson, after);
+      const landed = lesson.steps.find((step) => step.id === back);
+      expect(landed?.type, `${lesson.id}: ${after} から戻った先`).not.toBe(
+        "ai_generate",
+      );
+    }
+  });
+
   it("進み具合を数えられる", () => {
     const progress = progressOf(REWRITE, REWRITE.steps[0].id);
     expect(progress.current).toBe(1);

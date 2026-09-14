@@ -45,10 +45,26 @@ export function nextStepId(lesson: Lesson, currentId: string): string {
 }
 
 /** ひとつ前。入力は消さないので、戻っても失われない（要件 §6.6）。 */
+/**
+ * 1つ前の回。**送っている最中の画面は飛ばす。**
+ *
+ * `ai_generate` は行き先ではない
+ * ------------------------------
+ * あの回は「入ったら送る」だけの通過点で、入った瞬間に次へ進む
+ * （`LessonRunner` の自動送り）。そこへ戻すと、戻った人はもう一度
+ * 前へ押し出される——**結果から戻れない**のと同じことになる。
+ * 実際、戻る向きの動きが出たそばから進む向きに上書きされていた
+ * （`e2e/motion.spec.ts` が捕まえた）。
+ *
+ * 戻る先は「その人が何かを決められる画面」にする。
+ */
 export function previousStepId(lesson: Lesson, currentId: string): string {
   const index = stepIndex(lesson, currentId);
   if (index <= 0) return currentId;
-  return lesson.steps[index - 1].id;
+  for (let at = index - 1; at >= 0; at -= 1) {
+    if (lesson.steps[at].type !== "ai_generate") return lesson.steps[at].id;
+  }
+  return lesson.steps[0].id;
 }
 
 export function canGoBack(lesson: Lesson, currentId: string): boolean {
