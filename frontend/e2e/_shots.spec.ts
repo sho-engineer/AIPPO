@@ -86,7 +86,7 @@ test.describe("代表画面", () => {
       if (await page.getByTestId("completion-view").count()) break;
       await forward(page);
     }
-    await shot(page, "02-diagnosis-stage");
+    await shot(page, "02-diagnosis-reading");
     for (let at = 0; at < 4; at += 1) {
       const title = await page.locator("main h1").first().innerText();
       if (title.includes("おすすめ")) break;

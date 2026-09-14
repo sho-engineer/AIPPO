@@ -55,6 +55,7 @@ import { useState } from "react";
 
 import { IconCheck, IconChevronRight } from "../Icons";
 import { MoreSheet } from "./MoreSheet";
+import { AxisBars } from "./diagnosis/AxisBars";
 import { GrowthTrack } from "./diagnosis/GrowthTrack";
 import { RadarChart } from "./diagnosis/RadarChart";
 import {
@@ -121,6 +122,7 @@ export function DiagnosisResult({
       data-testid="completion-view"
       data-phase={phase}
     >
+      {phase === "reading" && <ReadingView result={result} />}
       {phase === "stage" && <StageView result={result} />}
       {phase === "traits" && (
         <TraitsView result={result} values={values} onEditAnswer={onEditAnswer} />
@@ -139,7 +141,44 @@ export function DiagnosisResult({
   );
 }
 
-// ------------------------------------------------------------ ①現在地
+// ------------------------------------------------------- ①読み取り
+
+/**
+ * 答えから出した、4つの段。
+ *
+ * ここで出すのは**計算の結果そのもの**で、途中経過の演出ではない。
+ * 横棒は左から順に伸びる（`AxisBars`）——4行が同時に埋まると、
+ * 増えたのか最初からそうだったのかが分からない。
+ *
+ * 待たせない。押せばすぐ次へ行ける（下の帯のボタンは止めていない）。
+ * 動きを減らす設定では、伸びる動きごと一瞬で終わる（`index.css`）。
+ *
+ * 段はこの画面で受け取り、4つの関係はあとのひし形で見る——同じ値を
+ * 2通りで**同時に**見せない、という決まりは守ったまま、役だけ分ける。
+ */
+function ReadingView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
+  return (
+    <div className="shrink-0">
+      <div
+        className="rounded-card border border-line bg-surface px-4 py-4"
+        data-testid="diagnosis-reading"
+      >
+        {/*
+          数（「3 / 5」）は添えない。**棒の長さで足りる。**
+
+          5問から出した段に、数字で並べて比べるほどの精度は無い。
+          読み上げには段が渡る（`AxisBars` の `aria-label`）。
+        */}
+        <AxisBars axes={result.axes} focus={result.weakest} />
+      </div>
+      <p className="mt-3 text-[0.6875rem] leading-4 text-ink-muted">
+        ※ 5段階で表示しています。外部のAIには送っていません。
+      </p>
+    </div>
+  );
+}
+
+// ------------------------------------------------------------ ②現在地
 
 /**
  * いまどこにいるか。**ここでは Lesson の話をしない。**
@@ -160,7 +199,7 @@ function StageView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
   );
 }
 
-// ------------------------------------------------- ②回答から見えた特徴
+// ------------------------------------------------- ③回答から見えた特徴
 
 /**
  * 回答から見えた特徴と、**その元になった自分の答え**。
@@ -265,7 +304,7 @@ function TraitsView({
   );
 }
 
-// --------------------------------------------------------- ②4つの力
+// --------------------------------------------------------- ④4つの力
 
 /**
  * 4つの力。**図だけで終わらせない。**
@@ -370,7 +409,7 @@ function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
   );
 }
 
-// ------------------------------------------------------- ③おすすめ
+// ------------------------------------------------------- ⑤おすすめ
 
 /**
  * おすすめの1本。**結果を読み終えてから出す。**

@@ -29,6 +29,7 @@ import { StepShell } from "../components/course/StepShell";
 import { useAuth } from "../auth/AuthContext";
 import { useCourse } from "../course/live";
 import {
+  DIAGNOSIS_PHASES,
   PHASE_COPY,
   nextPhase,
   prevPhase,
@@ -136,12 +137,15 @@ export interface LessonRunnerProps {
    */
   onExit: () => void;
   /**
-   * このレッスンが入っているコースの中身をひらく。
+   * ホームへ返す。
    *
-   * Day 完了の「ホームに戻る」。`onExit`（来た道を1つ戻る）とは
-   * 分ける——コースから開いた人は `onExit` だとコースへ帰るので、
-   * **ボタンに「ホームに戻る」と書いてあるのにコースへ着く**。
-   * 行き先を約束していないのと同じになる。
+   * Day 完了の「ホームに戻る」と、診断をやめるときの「メインへ戻る」。
+   * `onExit`（来た道を1つ戻る）とは分ける——コースから開いた人は
+   * `onExit` だとコースへ帰るので、**ボタンに書いてある行き先と、
+   * 着く場所が食い違う**。
+   *
+   * 名前が `onOpenCourse` なのは、以前この道がコースの中身へ
+   * 向いていたころの名残（`App.tsx` はホームへ繋いでいる）。
    */
   onOpenCourse: () => void;
   /** 完了画面から次のレッスンへ直接移る。行き止まりにしないため。 */
@@ -348,7 +352,7 @@ export function LessonRunner({
     **画面の上と下で言うことがずれる。**
   */
   const isDiagnosisResult = lesson.id === "diagnosis" && step.type === "completion";
-  const [phase, setPhase] = useState<DiagnosisPhase>("stage");
+  const [phase, setPhase] = useState<DiagnosisPhase>(DIAGNOSIS_PHASES[0]);
   /*
     結果の画面を離れたら、先頭（現在地）に戻す。
 
@@ -358,7 +362,7 @@ export function LessonRunner({
   */
   const atResult = isDiagnosisResult;
   useEffect(() => {
-    if (!atResult) setPhase("stage");
+    if (!atResult) setPhase(DIAGNOSIS_PHASES[0]);
   }, [atResult]);
 
   /*
@@ -1190,10 +1194,11 @@ export function LessonRunner({
               ? /*
                   結果の画面の、細い1行。**画面ごとに行き先が違う。**
 
-                    分析中  … 置かない（まだ何も出ていない）
-                    現在地  … 置かない。ここは進むだけ
-                    4つの力 … 現在地に戻る
-                    おすすめ … 診断結果をもう一度見る（現在地へ）
+                    読み取り … 置かない。ここは進むだけ
+                    現在地   … 置かない。ここは進むだけ
+                    特徴     … 現在地に戻る
+                    4つの力  … 答えから見えたことに戻る
+                    おすすめ … 診断結果をもう一度見る（先頭へ）
 
                   前はここが「Day1から確認する」だった。おすすめが
                   Day2 以降だった人のための道だが、**結果を読み終える
@@ -1205,14 +1210,16 @@ export function LessonRunner({
                 ? {
                     label: PHASE_COPY[phase].secondary as string,
                     /*
-                      おすすめから戻る先は**現在地**にする。1つ前
+                      おすすめから戻る先は**結果の先頭**にする。1つ前
                       （4つの力）ではない——ここに書いてあるのは
-                      「診断結果をもう一度見る」で、結果は現在地から
+                      「診断結果をもう一度見る」で、結果は読み取りから
                       始まる。1歩だけ戻したい人は帯の「←」を押す。
                     */
                     onClick: () =>
                       setPhase(
-                        phase === "lesson" ? "stage" : (prevPhase(phase) ?? "stage"),
+                        phase === "lesson"
+                          ? DIAGNOSIS_PHASES[0]
+                          : (prevPhase(phase) ?? DIAGNOSIS_PHASES[0]),
                       ),
                   }
                 : undefined
@@ -1313,9 +1320,21 @@ export function LessonRunner({
           <div className="mt-5 space-y-2">
             <PrimaryButton
               testId="diagnosis-leave-confirm"
+              /*
+                **ホームへ返す。**`onExit` ではない。
+
+                あちらは「来た道を1つ戻る」で、コースから診断を開いた人
+                （＝ほぼ全員）はコースの中身に着く。ボタンには
+                「メインへ戻る」と書いてあるのに、出るのは1つ手前の画面
+                ——**押しても何も起きていないように見える**と報告された。
+                実際に押して確かめると、着く先は「AIスタートコース」だった。
+
+                行き先を約束している側に合わせる（`onOpenCourse` は
+                `App.tsx` でホームへ繋いである）。
+              */
               onClick={() => {
                 setLeaving(false);
-                onExit();
+                onOpenCourse();
               }}
             >
               メインへ戻る

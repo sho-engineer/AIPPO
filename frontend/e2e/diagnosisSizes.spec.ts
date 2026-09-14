@@ -132,7 +132,9 @@ for (const size of SIZES) {
         「回答を分析しています」を挟まない（`course/diagnosisFlow.ts`）。
       */
       await expect(page.getByTestId("diagnosis-analyzing")).toHaveCount(0);
-      await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
+      await expect(page.locator("main h1").first()).toHaveText(
+        "5つの答えを読み取りました",
+      );
 
       /*
         結果の画面を、おすすめまで押していく。**何画面あるかは

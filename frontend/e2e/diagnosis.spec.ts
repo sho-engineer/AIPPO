@@ -122,7 +122,7 @@ async function toResult(
     if (!(await answerOne(page))) break;
   }
   await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 6000 });
-  await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
+  await expect(page.locator("main h1").first()).toHaveText("5つの答えを読み取りました");
 }
 
 /** 結果の最後（おすすめ）まで行く。 */
@@ -253,7 +253,7 @@ test.describe("AI活用診断", () => {
     }
   });
 
-  test("結果は、4画面に分かれて出る", async ({ page }) => {
+  test("結果は、5画面に分かれて出る", async ({ page }) => {
     /*
       前は1画面だった。図・できていること・次の一歩・おすすめが同時に
       並び、下のボタンは最初から「ここから始める」。**読む前に次へ行く
@@ -261,7 +261,18 @@ test.describe("AI活用診断", () => {
     */
     await toResult(page);
 
-    // ①現在地。ここではまだ Lesson の話をしない
+    // ①読み取り。答えから出した4つの段を、そのまま出す
+    await expect(page.locator("main h1").first()).toHaveText(
+      "5つの答えを読み取りました",
+    );
+    await expect(page.getByTestId("axis-bars")).toBeVisible();
+    await expect(page.getByTestId("axis-bar")).toHaveCount(4);
+    // やっていないことは書かない
+    await expect(page.getByTestId("completion-view")).not.toContainText("分析");
+
+    // ②現在地。ここではまだ Lesson の話をしない
+    await page.getByTestId("primary-action").click();
+    await page.waitForTimeout(500);
     await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
     await expect(page.getByTestId("growth-track")).toBeVisible();
     await expect(page.getByTestId("growth-node")).toHaveCount(5);
@@ -273,7 +284,7 @@ test.describe("AI活用診断", () => {
       /答えから見えたことを見る/,
     );
 
-    // ②回答から見えた特徴。判断と、その元になった答えが同じ画面にある
+    // ③回答から見えた特徴。判断と、その元になった答えが同じ画面にある
     await page.getByTestId("primary-action").click();
     await page.waitForTimeout(500);
     await expect(page.locator("main h1").first()).toHaveText("回答から見えた特徴");
@@ -285,7 +296,7 @@ test.describe("AI活用診断", () => {
       /4つの力のバランスを見る/,
     );
 
-    // ③4つの力
+    // ④4つの力
     await page.getByTestId("primary-action").click();
     await page.waitForTimeout(500);
     await expect(page.locator("main h1").first()).toHaveText("4つの力のバランス");
@@ -300,7 +311,7 @@ test.describe("AI活用診断", () => {
       /おすすめLessonを見る/,
     );
 
-    // ④おすすめ。ここで初めて Lesson が出る
+    // ⑤おすすめ。ここで初めて Lesson が出る
     await page.getByTestId("primary-action").click();
     await page.waitForTimeout(500);
     await expect(page.locator("main h1").first()).toHaveText("今のあなたにおすすめ");
@@ -333,7 +344,9 @@ test.describe("AI活用診断", () => {
     }
 
     await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 4000 });
-    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
+    await expect(page.locator("main h1").first()).toHaveText(
+      "5つの答えを読み取りました",
+    );
 
     // かけらも残っていないこと
     await expect(page.getByTestId("diagnosis-analyzing")).toHaveCount(0);
@@ -392,7 +405,7 @@ test.describe("AI活用診断", () => {
       内訳が入っていて、**いまはそれが画面そのもの**になっている。
 
       後者も同じ道をたどった。答えた内容とそこからの判断は、いまは
-      特徴の画面（②）そのもの。一枚のままだと判断と根拠が離れて
+      特徴の画面（③）そのもの。一枚のままだと判断と根拠が離れて
       置かれ、しかもどの画面からも開けるので**同じものが何度も載る**
       ——押さない人には、根拠が1つも見えなかった。
     */
@@ -403,8 +416,11 @@ test.describe("AI活用診断", () => {
     await expect(page.getByTestId("diagnosis-reason-sheet")).toHaveCount(0);
 
     // 根拠は、特徴の画面に出ている
-    await page.getByTestId("primary-action").click();
-    await page.waitForTimeout(400);
+    for (let guard = 0; guard < 6; guard += 1) {
+      if (await page.getByTestId("diagnosis-traits").count()) break;
+      await page.getByTestId("primary-action").click();
+      await page.waitForTimeout(400);
+    }
     await expect(page.getByTestId("diagnosis-trait-from").first()).toContainText(
       /と答えた|AI|3つの場面/,
     );
@@ -710,6 +726,8 @@ test.describe("AI活用診断", () => {
     await expect(heading()).toHaveText("回答から見えた特徴");
     await back();
     await expect(heading()).toHaveText("あなたの現在地");
+    await back();
+    await expect(heading()).toHaveText("5つの答えを読み取りました");
 
     // ここから先は教材の問い。1問ずつ戻る
     for (const expected of ["5 / 5", "4 / 5"]) {
@@ -777,6 +795,29 @@ test.describe("AI活用診断", () => {
     await expect(page.getByTestId("lesson-header")).toBeVisible();
   });
 
+  test("「メインへ戻る」は、ホームまで返す", async ({ page }) => {
+    /*
+      **押しても何も起きない、と報告された。**
+
+      実際に押して確かめると、着く先は「AIスタートコース」——診断を
+      開いた1つ手前の画面だった。コースから診断へ入った人（ほぼ全員）
+      には、押す前と後で似た画面が並ぶので、反応していないように見える。
+
+      ボタンに書いてある行き先と、着く場所を合わせる。
+    */
+    await openDiagnosis(page);
+    await answerOne(page);
+
+    await page.getByTestId("lesson-exit").click();
+    await expect(page.getByTestId("diagnosis-leave-sheet")).toBeVisible();
+    await page.getByTestId("diagnosis-leave-confirm").click();
+
+    // ホームに居ること。レッスンの帯は消え、下タブが出ている
+    await expect(page.getByTestId("lesson-header")).toHaveCount(0);
+    await expect(page.getByTestId("tab-bar")).toBeVisible();
+    await expect(page.getByTestId("home-greeting")).toBeVisible();
+  });
+
   test("結果まで着いても、←と×は消えない", async ({ page }) => {
     /*
       帯は診断のあいだじゅう出しておく。**結果の3画面でも。**
@@ -813,7 +854,9 @@ test.describe("AI活用診断", () => {
 
     // 「診断結果をもう一度見る」は、結果の先頭へ戻す
     await page.getByRole("button", { name: "診断結果をもう一度見る" }).click();
-    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
+    await expect(page.locator("main h1").first()).toHaveText(
+      "5つの答えを読み取りました",
+    );
   });
 
   test("開始画面も、送らずに全部見える", async ({ page }) => {

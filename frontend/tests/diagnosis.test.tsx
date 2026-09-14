@@ -444,7 +444,7 @@ describe("次の一歩と、おすすめの1本", () => {
 });
 
 
-describe("結果の4画面", () => {
+describe("結果の5画面", () => {
   /*
     前は結果が1画面だった。図・できていること・次の一歩・おすすめが
     同時に並び、下のボタンは最初から「ここから始める」。**読む前に
@@ -472,7 +472,7 @@ describe("結果の4画面", () => {
       />,
     );
 
-  it("答え終わったら、待たずに現在地を出す", () => {
+  it("答え終わったら、待たせずに読み取った中身を出す", () => {
     /*
       **「分析しています」の画面は無い。**
 
@@ -489,14 +489,24 @@ describe("結果の4画面", () => {
       勝手にチェックが付いていく**ように見えていた。診断を信じて
       もらうための画面が、逆のことをしていた。
 
-      ここで見張るのは「無いこと」。足し戻すと、この検査が止める。
+      いまの1枚目はそのどちらでもない。出すのは**結果そのもの**
+      （4つの段）で、形は横棒——選択肢の札とは似ていない。
+      ここで見張るのは「やっていないことを書いていない」ことと、
+      「分析中のかけらが戻っていない」こと。
     */
     const first = DIAGNOSIS_PHASES[0];
-    expect(first, "結果は現在地から始まる").toBe("stage");
+    expect(first, "結果は読み取りから始まる").toBe("reading");
 
     show(first);
 
-    expect(screen.getByTestId("growth-track")).toBeInTheDocument();
+    // 出しているのは、答えから出した4つの段そのもの
+    expect(screen.getByTestId("axis-bars")).toBeInTheDocument();
+    expect(screen.getAllByTestId("axis-bar")).toHaveLength(4);
+
+    // やっていないことは書かない
+    const shown = screen.getByTestId("completion-view").textContent ?? "";
+    expect(shown).not.toContain("分析");
+
     // 分析中のかけらも残っていないこと
     expect(screen.queryByTestId("diagnosis-analyzing")).toBeNull();
     expect(screen.queryByTestId("analyzing-axis")).toBeNull();
@@ -913,13 +923,15 @@ describe("画面の上と下で、言うことがずれない", () => {
       （＝答えを直せる場所）。`null` を受けた呼び出し側が、
       教材のステップを1歩戻す（`LessonRunner`）。
     */
-    expect(prevPhase("stage")).toBeNull();
+    expect(prevPhase("reading")).toBeNull();
+    expect(prevPhase("stage")).toBe("reading");
     expect(prevPhase("traits")).toBe("stage");
     expect(prevPhase("axes")).toBe("traits");
     expect(prevPhase("lesson")).toBe("axes");
   });
 
-  it("進む順は、現在地 → 特徴 → 4つの力 → おすすめ", () => {
+  it("進む順は、読み取り → 現在地 → 特徴 → 4つの力 → おすすめ", () => {
+    expect(nextPhase("reading")).toBe("stage");
     expect(nextPhase("stage")).toBe("traits");
     expect(nextPhase("traits")).toBe("axes");
     expect(nextPhase("axes")).toBe("lesson");

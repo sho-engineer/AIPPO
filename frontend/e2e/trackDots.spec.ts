@@ -113,6 +113,16 @@ test.describe("道の丸", () => {
     test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
     await toResult(page);
 
+    /*
+      道が出るのは結果の**2枚目**（現在地）。1枚目は読み取りで、
+      そこには横棒しか無い。何画面目かは数で書かない——出るまで押す。
+    */
+    for (let guard = 0; guard < 6; guard += 1) {
+      if (await page.getByTestId("growth-track").count()) break;
+      await page.getByTestId("primary-action").click();
+      await page.waitForTimeout(400);
+    }
+
     const rows = await drift(page);
     expect(rows.length, "道の丸が見つからない").toBe(5);
     for (const one of rows) {
