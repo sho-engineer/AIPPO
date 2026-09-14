@@ -208,6 +208,22 @@ test.describe("続きから始める", () => {
       return text;
     };
 
+    /*
+      **比べる相手が、画面に居ること。**
+
+      代表的な対が取れないとき（丸ごと書き直されたとき）、前はここが
+      「全文を見るで確かめられます」の1行だけになっていた。見出しは
+      「◯◯で変わった」なのに、変わった結果が画面に1文字も出ない
+      ——実機で撮ると、見出しの下から気づきの行まで丸ごと空白だった。
+    */
+    const panel = page.getByTestId("day1-changes");
+    const pairs = panel.getByTestId("change-pair");
+    const preview = panel.getByTestId("result-preview");
+    const shown =
+      (await pairs.count()) > 0 ? pairs.first() : preview.first();
+    await expect(shown, "変わった結果が画面に出ていない").toBeVisible();
+    expect(flat(await shown.innerText()).length).toBeGreaterThan(0);
+
     const before = await readResult();
     expect(before.length).toBeGreaterThan(0);
 

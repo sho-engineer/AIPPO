@@ -176,18 +176,30 @@ export function Changes({
           </ul>
         ) : (
           /*
-            対が取れないときは、黙って空にしない。
+            対が取れないときは、**結果そのものを出す。**
 
             丸ごと書き直されたときに無理やり組を作ると、対応していない
             2文が「ここが変わりました」として並ぶ（`changePairs`）。
-            そのときは、測って分かることだけを言う。
+            かといって「全文を見るで確かめられます」の1行だけにすると、
+            **変わった結果がこの画面に1文字も出ない**——実機で撮ると、
+            見出しの下から気づきの行まで丸ごと空白だった。
+            比べる画面で、比べる相手が画面に居ないことになる。
+
+            組が取れないときは、返ってきた文章の頭を出す。続きは
+            これまでどおり「全文を見る」の一枚で。
           */
-          <p
-            className="text-sm leading-6 text-ink-muted"
-            data-testid="change-pairs-empty"
-          >
-            全体が書き直されました。下の「全文を見る」で確かめられます。
-          </p>
+          <div data-testid="change-pairs-empty">
+            <p className="text-sm leading-6 text-ink-muted">
+              全体が書き直されました。返ってきた文章です。
+            </p>
+            <p
+              className="mt-2 line-clamp-4 rounded-card border border-line bg-surface
+                         px-3 py-2.5 text-sm leading-6"
+              data-testid="result-preview"
+            >
+              {to}
+            </p>
+          </div>
         )}
       </div>
 
