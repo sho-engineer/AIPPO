@@ -189,12 +189,20 @@ export function Changes({
             これまでどおり「全文を見る」の一枚で。
           */
           <div data-testid="change-pairs-empty">
-            <p className="text-sm leading-6 text-ink-muted">
-              全体が書き直されました。返ってきた文章です。
-            </p>
             <p
-              className="mt-2 line-clamp-4 rounded-card border border-line bg-surface
-                         px-3 py-2.5 text-sm leading-6"
+              /*
+                返ってきた文章そのもの。**面で囲わない。**
+
+                角丸と余白を付けたところ、この画面が 375×667 で 17px、
+                402×660 で 40px はみ出した（実測）。ここで足してよい
+                高さは、置き換えた1行ぶんしか無い。縦に太らない印
+                （左の縦線）で「AIの返事」だと分かるようにする。
+
+                低い持ち方では2行まで。続きは「全文を見る」の一枚に
+                ある——頭の2行でも、どんな文章が返ってきたかは伝わる。
+              */
+              className="line-clamp-2 border-l-2 border-brand-line pl-3 text-sm leading-6
+                         [@media(min-height:760px)]:line-clamp-4"
               data-testid="result-preview"
             >
               {to}
