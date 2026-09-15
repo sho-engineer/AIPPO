@@ -406,7 +406,19 @@ export function CompletionView({
             理由を返す（先に消すと、そういう場所があること自体が伝わらない）。
           */}
           <div className="flex shrink-0 items-center justify-between gap-2">
-            <p className="min-w-0 truncate text-xs font-bold text-ink-muted">
+            {/*
+              名札は**折り返す**。切り詰めない。
+
+              例文で進んだ人の名札は「書き直した文章（練習）」で 143px。
+              持ち出す2つを引いた残りは 128〜131px しか無く、
+              「書き直した文章（練…」と切れていた（実機の 390〜393px で
+              実測）。**「（練習）」が消えると、これが自分の文章なのか
+              例文なのかが読めなくなる**——持ち帰るものの名札で、
+              そこがいちばん大事なところ。
+
+              折り返して増えるのは1行（16px）だけ。切るより安い。
+            */}
+            <p className="min-w-0 text-xs font-bold leading-4 text-ink-muted">
               {outcomeLabel}
             </p>
             <div className="flex shrink-0 items-center gap-2">
