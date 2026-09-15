@@ -49,7 +49,12 @@ export function PromptPreview({ cards, detail, onOpenDetail }: PreviewProps) {
         魔法の記号が要る場面ではない。
       */}
       {/*
-        面は**中身より縮めない**（`min-h-fit`）。
+        面は**中身より縮めず、伸ばしもしない**。
+
+        `flex-1` を付けていたころ、条件が少ない日は残りの高さを全部
+        吸って、下の「くわしく見る」とのあいだに 58〜106px の空白が
+        できていた（実機の 393×659 / 393×727 で実測）。ここは項目を
+        並べるだけの面なので、中身の高さのまま置く。
 
         `min-h-0 flex-1` にしていたころ、320×568 では面が中身より
         26px 低く潰れ、`Card` の `overflow-hidden` が最後の条件を
@@ -58,7 +63,7 @@ export function PromptPreview({ cards, detail, onOpenDetail }: PreviewProps) {
 
         入り切らない日は、枠のほうが送れる（`step-stage`）。
       */}
-      <Card className="flex min-h-fit flex-1 flex-col">
+      <Card className="flex min-h-fit shrink-0 flex-col">
         {/*
           項目名と中身を左右に並べる。
           カードを縦に積むより、何を何に決めたのかが一覧で追える。

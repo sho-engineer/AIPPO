@@ -41,7 +41,18 @@ export function CourseStampRow({ course, done, total }: CourseStampsProps) {
 
   return (
     <div
-      className="flex items-center gap-1.5 overflow-x-auto py-0.5"
+      /*
+        折り返す。**横に送れる箱にしない。**
+
+        `overflow-x-auto` にしていたころ、これは入れ子の送り枠だった
+        （要件 §4 が禁じている形）。しかも卓上の Chromium では
+        帯のぶんの高さが予約され、親の箱から 11px はみ出して見えた
+        （`e2e/stepFits.spec.ts` が捕まえた）。
+
+        数が増えたら2段になるだけでよい。押す場所ではないので、
+        折り返して困るものが無い。
+      */
+      className="flex flex-wrap items-center gap-1.5 py-0.5"
       role="img"
       aria-label={`${total}個中${done}個のスタンプが埋まっています`}
       data-testid="course-stamp-row"

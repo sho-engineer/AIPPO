@@ -8,6 +8,8 @@
 
 import { describe, expect, it } from "vitest";
 
+import { COURSE } from "../src/course/catalog";
+
 import { canAutoAdvance, isAnswered } from "../src/course/autoAdvance";
 import type { Lesson, LessonStep } from "../src/course/types";
 
@@ -116,6 +118,45 @@ describe("自動で進めてはいけない回", () => {
     ]);
 
     expect(canAutoAdvance(course, course.steps[0])).toBe(false);
+  });
+
+  it("答え合わせを出す回は、進めない", () => {
+    /*
+      選んだ瞬間に「こたえ」と理由が出る回（`QuizStep`）。自動で送ると、
+      **出た答えを読む前に画面が変わる**——確かめるために置いた1問が、
+      押すだけの1問になる。
+    */
+    const course = lesson([
+      step({
+        id: "check",
+        type: "single_choice",
+        key: "check",
+        options: [
+          { value: "reader", label: "読者設定" },
+          { value: "tone", label: "トーン設定" },
+        ],
+        meta: { answer: ["reader"], explanation: "読む人を決めています。" },
+      }),
+      step({ id: "b", type: "concept_card" }),
+    ]);
+
+    expect(canAutoAdvance(course, course.steps[0])).toBe(false);
+  });
+
+  it("教材の中の確認は、どれも自動で送らない", () => {
+    /*
+      教材名を書かない。**答えを持つ回を、並びから探す。**
+      1本でも自動送りのままなら、そこで答えが読まれずに流れる。
+    */
+    for (const one of COURSE.lessons) {
+      for (const target of one.steps) {
+        if (!(target.meta as { answer?: unknown } | undefined)?.answer) continue;
+        expect(
+          canAutoAdvance(one, target),
+          `${one.id} の ${target.id} が自動で送られる`,
+        ).toBe(false);
+      }
+    }
   });
 
   it("最後の回では進めない", () => {

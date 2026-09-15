@@ -85,7 +85,11 @@ sections:
     expected_output: 学習者の文章が、指定した読む人・目的・形式でまとまったもの
     user_notices: 同じ型を調査資料・会議メモ・メールなどに応用できる
     learning_takeaway: 文章＋読む人＋目的＋形式をセットで伝える
-    next_action: Skill GetとCompletionへ進む
+    next_action: Skill Get → ひとつだけ確認 → Completion へ進む
+
+    # 確認は1問だけ。点数も不合格も出さない。選んだその場で理由つきの
+    # 答えを出し、読んでから次へ進む（自動送りはしない）。
+    # 実装は `frontend/src/course/day2Steps.ts` の `check`。
 
 prompts:
   - id: summarize

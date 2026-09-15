@@ -124,9 +124,15 @@ describe("Day1 の3つの技", () => {
     );
 
     expect(recaps).toHaveLength(1);
-    // 自分の文章を仕上げたあと。完了画面の直前
+    /*
+      自分の文章を仕上げたあと、**完了画面より前**。何番目かは数で
+      書かない——確認の1問のような短い回を後ろに足した日に、ここだけ
+      古い数で止まる。
+    */
     const order = DAY1.steps.map((step) => step.id);
-    expect(order.indexOf(recaps[0].id)).toBe(order.length - 2);
+    const at = order.indexOf(recaps[0].id);
+    expect(at).toBeGreaterThan(order.indexOf("own_result"));
+    expect(at).toBeLessThan(order.indexOf("completion"));
   });
 });
 

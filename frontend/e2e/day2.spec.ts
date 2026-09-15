@@ -92,6 +92,20 @@ async function step(page: Page, fill?: () => Promise<void>) {
 const heading = (page: Page) => page.locator("main h1").first();
 
 /**
+ * 完了画面まで押し切る。
+ *
+ * **何画面あるかを数で書かない。** 確認の1問のような短い回を後ろへ
+ * 足した日に、ここだけ古い数で止まる。
+ */
+async function toCompletion(page: Page) {
+  for (let guard = 0; guard < 8; guard += 1) {
+    if (await page.getByTestId("completion-view").count()) return;
+    await step(page);
+  }
+  await expect(page.getByTestId("completion-view")).toBeVisible();
+}
+
+/**
  * その見出しの画面まで、押す先を1つだけ追って進む。
  *
  * **履歴で戻らない。** 戻ってから確かめると、見ているのは「戻った
@@ -160,7 +174,7 @@ test.describe("Day2 の通し", () => {
     await step(page); // 3つのAI技をGET！
     await expect(page.getByTestId("skill-recap-count")).toHaveText("3 / 3");
 
-    await step(page); // 完了画面
+    await toCompletion(page);
     await expect(page.getByTestId("completion-view")).toBeVisible();
     expect(api.calls).toHaveLength(4);
   });
@@ -176,8 +190,7 @@ test.describe("Day2 の通し", () => {
     // 送ったのは自分の文章。例文に差し替わっていない
     expect(api.calls[3].input.original_text).toBe(MY_TEXT);
 
-    await step(page);
-    await step(page);
+    await toCompletion(page);
     await expect(page.getByTestId("completion-view")).toBeVisible();
   });
 
@@ -365,7 +378,7 @@ test.describe("やり直せる", () => {
     // 技を受け取るところへ出る。途中の条件も送信も挟まらない
     await expect(heading(page)).toHaveText("3つのAI技をGET！");
 
-    await step(page);
+    await toCompletion(page);
     await expect(page.getByTestId("completion-view")).toBeVisible();
     expect(api.calls, "飛ばしたのに送っている").toHaveLength(before);
   });
@@ -405,7 +418,7 @@ test.describe("終わり方", () => {
     await expect(page.getByTestId("skill-recap")).toContainText("出力形式の指定");
     await expect(page.getByTestId("skill-recap")).toContainText("コンテキスト");
 
-    await step(page);
+    await toCompletion(page);
     await expect(page.getByTestId("completion-view")).toBeVisible();
 
     await page.getByTestId("primary-action").first().click();

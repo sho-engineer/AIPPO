@@ -1224,8 +1224,16 @@ export function LessonRunner({
                   }
                 : undefined
               : step.type === "completion"
-              ? // 同じレッスンをもう一度。身についたか確かめたい人の逃げ道
-                { label: "もう一度試す", onClick: api.restart }
+              ? /*
+                  同じレッスンをもう一度。身についたか確かめたい人の逃げ道。
+
+                  **「もう一度試す」から1語削った。** 完了画面では
+                  「完了する」と横に並ぶので、1つあたり 160px ほど。
+                  6字だと入り切らず「もう一度…」と切れていた（実機の
+                  393px で実測）——押す先が読めないボタンは、押す先が
+                  無いのと同じ。
+                */
+                { label: "もう一度", onClick: api.restart }
               : step.skippable
                 ? { label: "解説を飛ばす", onClick: api.skipConcept }
                 : undefined

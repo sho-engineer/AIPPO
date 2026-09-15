@@ -50,7 +50,7 @@ import type { LessonAward } from "../../../api/lesson";
  *
  *   1. 何ができるようになったか（身についたこと）
  *   2. 持ち帰れるもの（今回の成果物。押せば手元に写せる）
- *   3. 全体のどこまで来たか（スタンプラリー）
+ *   3. 全体のどこまで来たか（スタンプの埋まり具合）
  *   4. これで何ができるか（応用例・組み合わせ。AppliedTips）
  *   5. 次の行き先
  *   6. コースを完走した回だけ、特別な締めくくり
@@ -208,7 +208,16 @@ export function CompletionView({
     */
     <div
       data-testid="completion-view"
-      className="relative flex min-h-0 flex-1 flex-col"
+      /*
+        中身より縮まない（`min-h-fit`）。
+
+        `min-h-0` のままだと、渡された高さに合わせて箱だけが縮み、
+        中の節（どれも縮まない）が**箱の外へ描かれる**。読めなくは
+        ないが、枠と中身の位置が食い違うので、測っても直っているのか
+        分からなくなる。まとめの画面は送れるようにしてあるので、
+        箱のほうを中身に合わせる。
+      */
+      className="relative flex min-h-fit flex-1 flex-col"
     >
       <LessonCelebration />
 
@@ -421,6 +430,37 @@ export function CompletionView({
           </div>
         </div>
       )}
+
+      {/*
+        スタンプ。**画面に戻す。**
+
+        一度、進み具合の節ごと「このレッスンの記録」の一枚へ移した。
+        画面を3つに絞るための整理だったが、**押さない人には1個も
+        見えない**——集める仕組みは、集まったことが目に入って初めて
+        働く。「スタンプが無くなった」と報告されたのがそこ。
+
+        出すのは**埋まり具合だけ**にする。節目の一覧（何個で何が
+        もらえるか）は一枚のまま——あちらは「まだ使えない特典の予告」
+        で、終えた直後にいちばん読ませたいものではない。
+      */}
+      {/*
+        1行に収める。**見出しの行を別に置かない。**
+
+        節の名前と数と丸を3段に積むと 67px。終えた画面でそこまで
+        取ると、持ち帰るもの（成果物・仕事で使う形）が下へ押し出される。
+        丸の列と「1 / 5」を同じ行に並べれば、読めるまま 40px で済む。
+        何の数かは読み上げが持っている（`CourseStampRow` の `aria-label`）。
+      */}
+      <section
+        className="mt-2 flex shrink-0 items-center justify-between gap-3
+                   border-t border-line pt-2 [@media(min-height:700px)]:mt-3"
+        data-testid="completion-stamps"
+      >
+        <CourseStampRow course={course} done={done} total={total} />
+        <span className="shrink-0 text-sm font-bold leading-5 tabular-nums">
+          {done} / {total}
+        </span>
+      </section>
 
       <div className="mt-1 shrink-0 [@media(min-height:700px)]:mt-2">
         <MoreButton testId="completion-more" onClick={() => setRecordOpen(true)}>

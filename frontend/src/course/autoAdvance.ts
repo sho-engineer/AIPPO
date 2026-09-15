@@ -67,6 +67,18 @@ export function canAutoAdvance(lesson: Lesson, step: LessonStep): boolean {
 
   if (!CHOICE_ONLY.has(step.type)) return false;
 
+  /*
+    答え合わせを出す回（`meta.answer` を持つ回）は送らない。
+
+    選んだ瞬間に「こたえ」と理由が出る回（`steps/Inputs.tsx` の
+    `QuizStep`）。自動で送ると、**出た答えを読む前に画面が変わる**
+    ——確かめるために置いた1問が、押すだけの1問になる。
+
+    教材の名前では判断しない。「答えを持っている回かどうか」は
+    教材データに書いてあるので、そこから引く。
+  */
+  if ((step.meta as { answer?: unknown } | undefined)?.answer) return false;
+
   // 「その他（自分で書く）」を持つ回は、書いている途中で送らない
   if (step.options?.some((option) => option.free)) return false;
 

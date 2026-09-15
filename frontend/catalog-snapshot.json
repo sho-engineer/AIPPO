@@ -867,7 +867,7 @@
           "title": "Day1のAI技",
           "poMessage": "3つとも、もう使えます！",
           "poEmotion": "celebrate",
-          "primaryLabel": "できるようになったことを見る",
+          "primaryLabel": "ひとつ確認する",
           "meta": {
             "recap": [
               {
@@ -883,6 +883,38 @@
                 "body": "どんな雰囲気で伝えるかを指定する方法"
               }
             ]
+          }
+        },
+        {
+          "id": "check",
+          "type": "single_choice",
+          "phase": "own",
+          "title": "ひとつだけ確認",
+          "instruction": "「新入社員にも伝わるように」と足すのは、どのAI技？",
+          "poMessage": "さっき使ったのは、どれだったかな？",
+          "poEmotion": "question",
+          "primaryLabel": "できるようになったことを見る",
+          "key": "check",
+          "required": true,
+          "options": [
+            {
+              "value": "reader",
+              "label": "読者設定"
+            },
+            {
+              "value": "tone",
+              "label": "トーン設定"
+            },
+            {
+              "value": "prompt",
+              "label": "プロンプト"
+            }
+          ],
+          "meta": {
+            "answer": [
+              "reader"
+            ],
+            "explanation": "「新入社員にも」は“誰が読むか”を決めているので、読者設定です。トーン設定は言い方（やさしく・丁寧に）、プロンプトは指示そのものを指します。"
           }
         },
         {
@@ -1460,7 +1492,7 @@
           "instruction": "誰が何のために読むかを伝えると、使いやすい要約になります。",
           "poMessage": "3つとも、もう使えます！",
           "poEmotion": "celebrate",
-          "primaryLabel": "今日の成果を見る",
+          "primaryLabel": "ひとつ確認する",
           "meta": {
             "recap": [
               {
@@ -1476,6 +1508,38 @@
                 "body": "読む人と目的を伝える方法"
               }
             ]
+          }
+        },
+        {
+          "id": "check",
+          "type": "single_choice",
+          "phase": "own",
+          "title": "ひとつだけ確認",
+          "instruction": "「3つの箇条書きで」と伝えるのは、どのAI技？",
+          "poMessage": "さっき足したのは、どれだったかな？",
+          "poEmotion": "question",
+          "primaryLabel": "今日の成果を見る",
+          "key": "check",
+          "required": true,
+          "options": [
+            {
+              "value": "format",
+              "label": "出力形式の指定"
+            },
+            {
+              "value": "context",
+              "label": "コンテキスト"
+            },
+            {
+              "value": "summarize",
+              "label": "要約"
+            }
+          ],
+          "meta": {
+            "answer": [
+              "format"
+            ],
+            "explanation": "「3つの箇条書きで」は“返ってくる形”を決めているので、出力形式の指定です。読む人や目的を伝えるのがコンテキスト、短くまとめること自体が要約です。"
           }
         },
         {
@@ -1762,6 +1826,9 @@
           "validationRules": {
             "suggestLength": 20,
             "maxLength": 5000
+          },
+          "meta": {
+            "skipTo": "reflection"
           }
         },
         {
@@ -2240,6 +2307,9 @@
           "validationRules": {
             "suggestLength": 20,
             "maxLength": 5000
+          },
+          "meta": {
+            "skipTo": "reflection"
           }
         },
         {

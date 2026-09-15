@@ -46,6 +46,8 @@ async function overflow(page: Page) {
       page: document.documentElement.scrollHeight - window.innerHeight,
       wide: document.documentElement.scrollWidth - window.innerWidth,
       card: stage ? stage.scrollHeight - stage.clientHeight : 0,
+      /* まとめの画面（完了）か。ここだけ、中身の送りを許す */
+      summary: Boolean(document.querySelector("[data-testid='completion-view']")),
     };
   });
 }
@@ -109,7 +111,17 @@ for (const size of SIZES) {
         screens += 1;
         if (seen.wide > 0) wide.push(`${seen.title} +${seen.wide}px`);
         if (seen.page > SLACK) scrolled.push(`${seen.title} +${seen.page}px`);
-        if (seen.card > SLACK) cards.push(`${seen.title} +${seen.card}px`);
+        /*
+          中身の送り。**まとめの画面だけは数えない。**
+
+          完了画面には持ち帰るものとコースのスタンプが載る。スタンプを
+          一枚の中へ隠していたころ「無くなった」と報告されたので戻した
+          ——全部を1画面へ収めるには、どれかをまた隠すことになる。
+          隠すより、まとめの画面を送れるほうを取る（要件 §4）。
+        */
+        if (seen.card > SLACK && !seen.summary) {
+          cards.push(`${seen.title} +${seen.card}px`);
+        }
 
         if (!(await advance(page))) break;
       }

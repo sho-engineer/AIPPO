@@ -7,7 +7,7 @@
 # Validator を通す最初の1本（Dry Run）であり、新しい Lesson を書く
 # ときの実例でもある。
 #
-# 実装は `frontend/src/course/day1Steps.ts`（23画面の手書き）。
+# 実装は `frontend/src/course/day1Steps.ts`（24画面の手書き）。
 # Day2 以降が使う骨格（`course/shared.ts`）は使っていない。
 
 id: day-1

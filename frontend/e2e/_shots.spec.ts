@@ -12,7 +12,7 @@ import { dismissLessonIntro } from "./support/lessonIntro";
 import { stubApi } from "./support/stubApi";
 
 const DIR = process.env.SHOT_DIR ?? "shots/after";
-const SIZE = { width: 390, height: 844 };
+const SIZE = { width: 393, height: 659 };
 const SMALL = { width: 320, height: 568 };
 
 const MY_TEXT =
@@ -108,6 +108,20 @@ test.describe("代表画面", () => {
       await forward(page);
     }
     await shot(page, "04-day1-compare");
+    for (let at = 0; at < 26; at += 1) {
+      const title = (await page.locator("h1").first().innerText().catch(() => "")).replace(
+        /\s+/g,
+        "",
+      );
+      if (title.startsWith("ひとつだけ確認")) break;
+      await forward(page);
+    }
+    // 選ぶ前と、選んだあと（こたえが出る）
+    await shot(page, "12-day1-check");
+    await page.locator("main [aria-pressed]").first().click();
+    await page.waitForTimeout(400);
+    await shot(page, "13-day1-check-answered");
+
     for (let at = 0; at < 26; at += 1) {
       if (await page.getByTestId("completion-view").count()) break;
       await forward(page);

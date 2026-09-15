@@ -598,13 +598,42 @@ export const DAY2_STEPS: LessonStep[] = [
     instruction: "誰が何のために読むかを伝えると、使いやすい要約になります。",
     poMessage: "3つとも、もう使えます！",
     poEmotion: "celebrate",
-    primaryLabel: "今日の成果を見る",
+    primaryLabel: "ひとつ確認する",
     meta: {
       recap: [
         { name: "要約", body: "重要な内容を残して短くする方法" },
         { name: "出力形式の指定", body: "返してほしい形を指定する方法" },
         { name: "コンテキスト", body: "読む人と目的を伝える方法" },
       ],
+    },
+  },
+  {
+    /*
+      軽い確認。**1問だけ。**
+
+      Day1 と同じ置き方（`day1Steps.ts` の `check`）。点数も不合格も
+      出さない。聞くのは、この回で実際に足した条件そのもの。
+    */
+    id: "check",
+    type: "single_choice",
+    phase: "own",
+    title: "ひとつだけ確認",
+    instruction: "「3つの箇条書きで」と伝えるのは、どのAI技？",
+    poMessage: "さっき足したのは、どれだったかな？",
+    poEmotion: "question",
+    primaryLabel: "今日の成果を見る",
+    key: "check",
+    required: true,
+    options: [
+      { value: "format", label: "出力形式の指定" },
+      { value: "context", label: "コンテキスト" },
+      { value: "summarize", label: "要約" },
+    ],
+    meta: {
+      answer: ["format"],
+      explanation:
+        "「3つの箇条書きで」は“返ってくる形”を決めているので、出力形式の指定です。" +
+        "読む人や目的を伝えるのがコンテキスト、短くまとめること自体が要約です。",
     },
   },
   {

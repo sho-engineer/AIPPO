@@ -45,6 +45,8 @@ const SLACK = 8;
 
 interface Fit {
   title: string;
+  /** まとめの画面（完了）か。ここだけ、中身の送りを許す。 */
+  summary: boolean;
   /** ページそのもののはみ出し（px）。 */
   page: number;
   /** 中身の枠のはみ出し（px）。 */
@@ -61,6 +63,7 @@ async function fit(p: Page): Promise<Fit> {
     );
     return {
       title: (heading?.textContent ?? "").trim().slice(0, 24),
+      summary: Boolean(document.querySelector("[data-testid='completion-view']")),
       page: document.documentElement.scrollHeight - window.innerHeight,
       body: region ? region.scrollHeight - region.clientHeight : 0,
       box: region
@@ -155,14 +158,38 @@ function assertFits(seen: Fit[], where: string) {
       screen.page,
       `${where}「${screen.title}」ページが ${screen.page}px 送れる`,
     ).toBeLessThanOrEqual(1);
-    expect(
-      screen.body,
-      `${where}「${screen.title}」中身が ${screen.body}px 送れる`,
-    ).toBeLessThanOrEqual(SLACK);
-    expect(
-      screen.box,
-      `${where}「${screen.title}」枠から ${screen.box}px 食み出した箱がある`,
-    ).toBeLessThanOrEqual(SLACK);
+    /*
+      中身が送れないこと。**まとめの画面だけは別。**
+
+      完了画面には、持ち帰るもの（成果物・仕事で使う形）とコースの
+      スタンプが載る。スタンプは一度この画面から外して一枚の中へ
+      移したが、**押さない人には1個も見えず**「無くなった」と
+      報告されたので戻した。全部を1画面へ収めるには、どれかを
+      また隠すことになる——隠すより、まとめの画面を送れるほうを取る
+      （要件 §4 は、結果の画面にページ全体の縦送りを許している）。
+
+      押す場所は送りの外にあるので、下の帯は動かない
+      （「完了画面でも、次にやることは画面に残る」で別に見ている）。
+    */
+    if (!screen.summary) {
+      expect(
+        screen.body,
+        `${where}「${screen.title}」中身が ${screen.body}px 送れる`,
+      ).toBeLessThanOrEqual(SLACK);
+    }
+    /*
+      枠から食み出した箱が無いこと。**まとめの画面だけは別。**
+
+      あそこは中身のほうを送れるようにしてある（すぐ上）。送れる枠の
+      中では、外側の箱が中身より低いこと自体は害が無い——切られても
+      隠されてもおらず、送れば出てくる。
+    */
+    if (!screen.summary) {
+      expect(
+        screen.box,
+        `${where}「${screen.title}」枠から ${screen.box}px 食み出した箱がある`,
+      ).toBeLessThanOrEqual(SLACK);
+    }
   }
 }
 
