@@ -35,6 +35,16 @@ SOURCE = (
     "あるため、本日中に可能であれば見ていただけますでしょうか。"
 )
 
+#: Day1 の題材。専門語だらけで、そのままでは読み下せない
+#: （`frontend/src/course/day1Steps.ts` の `DAY1_SOURCE`）。
+JARGON_SOURCE = (
+    "Transformer型言語モデルにおける自己注意機構では、各トークンから生成された"
+    "QueryとKeyの内積をスケーリングし、Softmax関数によって正規化した"
+    "Attention WeightをValueに適用することで、系列内のトークン間依存関係を"
+    "動的に表現する。さらに、多層化されたMulti-Head Attentionにより異なる"
+    "表現部分空間における依存関係を並列的に学習することが可能となる。"
+)
+
 
 def _values(**over) -> dict:
     body = {
@@ -149,12 +159,105 @@ class TestWhatWeCatch:
         assert not verdict.ok
         assert verdict.reason == "too_many_lines"
 
+    def test_the_jargon_surviving_with_a_gloss_bolted_on(self):
+        """用語がそのまま並び、カッコ書きだけが増えた返り。
+
+        **実機の Day1 で出ていた形。** 「分かりやすく」と頼んだのに、
+        読む側の負担はほとんど減っていない。形としては書き直しなので
+        他の検査は全部すり抜ける。
+        """
+        verdict = quality.inspect(
+            "rewrite",
+            _values(original_text=JARGON_SOURCE),
+            "Transformer（変換する仕組み）の自己注意機構では、"
+            "Query（問い合わせ）とKey（鍵）からAttention Weight（注目の重み）"
+            "を求め、それをValue（値）に適用します。"
+            "さらにMulti-Head Attentionで並列に学習します。",
+        )
+
+        assert not verdict.ok
+        assert verdict.reason == "jargon_kept"
+
 
 class TestWhatWeMustNotCatch:
     """**まともな結果を弾かない。** こちらのほうが重い。
 
     弾くたびに作り直しの費用がかかる。誤検知は、見逃しより高くつく。
     """
+
+    def test_a_rewrite_that_actually_drops_the_jargon(self):
+        """専門語を捨てて、普通の言葉で書き直した返り。**これが合格。**"""
+        verdict = quality.inspect(
+            "rewrite",
+            _values(original_text=JARGON_SOURCE),
+            "この仕組みは、文章の中の言葉どうしのつながりを見ます。\n"
+            "どの言葉を強く見るかを、そのつど決めます。\n"
+            "見方をいくつも同時に使うので、いろいろなつながりに気づけます。",
+        )
+
+        assert verdict.ok
+
+    def test_keeping_one_or_two_terms_is_allowed(self):
+        """1つ2つ残るのは通す。**ゆるい側へ倒してある。**
+
+        言いかえると別のものを指してしまう語は、残すほうが正しい
+        （system_prompt の「多くて2つ」）。そこで弾くと、正しく
+        答えているものを作り直させることになる。
+        """
+        verdict = quality.inspect(
+            "rewrite",
+            _values(original_text=JARGON_SOURCE),
+            "Transformer という仕組みは、文章の中の言葉どうしのつながりを見ます。\n"
+            "どの言葉を強く見るかを、そのつど決めます。\n"
+            "この見方は Attention と呼ばれ、いくつも同時に使えます。",
+        )
+
+        assert verdict.ok
+
+    def test_product_names_are_not_jargon(self):
+        """製品名が並ぶ仕事の文章を、巻き込まない。
+
+        Excel を「表計算ソフト」に書き直せとは言っていない。数えると、
+        **直しようのない理由で**まともな結果が弾かれる。
+        """
+        source = (
+            "Excel の集計表を Slack で共有し、Zoom の会議で説明したうえで、"
+            "Outlook から関係者へ送付する運用に変更します。"
+        )
+        verdict = quality.inspect(
+            "rewrite",
+            _values(original_text=source),
+            "集計表は Excel で作り、Slack で共有します。\n"
+            "会議は Zoom で行い、そこで説明します。\n"
+            "そのあと Outlook から関係者へ送ります。",
+        )
+
+        assert verdict.ok
+
+    def test_a_source_with_only_a_few_terms_is_not_checked(self):
+        """元に専門語が少ないときは、何も言わない。
+
+        4語に満たない文章は「専門語だらけ」ではない。そこで残って
+        いても、言いかえに失敗したとは言い切れない。
+        """
+        source = "API の仕様を確認してから、Webhook の設定を見直してください。"
+        verdict = quality.inspect("rewrite", _values(original_text=source), source + "\n以上です。")
+
+        assert verdict.ok
+
+    def test_summarising_may_keep_the_terms(self):
+        """要約には掛けない。**別の頼みごと。**
+
+        用語を残したまま短くするのは、まとめとして正しい。
+        """
+        verdict = quality.inspect(
+            "summarize",
+            {"original_text": JARGON_SOURCE},
+            "Transformer の自己注意機構は、Query と Key から Attention Weight を"
+            "求めて Value に適用し、Multi-Head Attention で並列に学習する。",
+        )
+
+        assert verdict.ok
 
     def test_a_normal_rewrite(self):
         verdict = quality.inspect(
@@ -382,6 +485,7 @@ class TestTheErrorItself:
             "work_declaration",
             "commentary",
             "json_leak",
+            "jargon_kept",
         ]
         for reason in reasons:
             assert reason in quality.RETRY_HINT, reason

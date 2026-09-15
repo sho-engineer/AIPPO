@@ -334,6 +334,102 @@ def no_work_declaration(values: dict, text: str) -> Verdict:
     return Verdict.passed()
 
 
+#: ラテン文字の語。3文字以下は数えない（AI・PC・URL・PDF・KPI…）。
+#: 中の `-` は語の一部として拾う（Multi-Head → multi-head）。
+_LATIN_WORD = re.compile(r"[A-Za-z][A-Za-z-]{3,}")
+
+#: 日本語の文章にそのまま出てよいラテン文字語。**製品名と固有名詞だけ。**
+#:
+#: 「言いかえられるのに残っている」ことを見る検査なので、言いかえ先が
+#: 無いものを数えてはいけない。Excel を「表計算ソフト」と書き直せとは
+#: 言っていない——それは分かりやすさではなく、別のものを指す言葉になる。
+_EVERYDAY_LATIN = frozenset(
+    {
+        "excel",
+        "word",
+        "powerpoint",
+        "outlook",
+        "teams",
+        "slack",
+        "zoom",
+        "line",
+        "google",
+        "microsoft",
+        "windows",
+        "chrome",
+        "safari",
+        "iphone",
+        "ipad",
+        "android",
+        "gmail",
+        "chatgpt",
+        "claude",
+        "gemini",
+        "wifi",
+        "web",
+        "mail",
+    }
+)
+
+
+def _jargon(text: str) -> set[str]:
+    """言いかえの対象になるラテン文字語を拾う。"""
+    found = {
+        word.lower().strip("-")
+        for word in _LATIN_WORD.findall(unicodedata.normalize("NFKC", text or ""))
+    }
+    return {word for word in found if word and word not in _EVERYDAY_LATIN}
+
+
+#: 元の文章にこれだけ専門語があるときだけ見る。1つ2つでは「専門語だらけ」
+#: ではなく、残っていても言いかえに失敗したとは言えない。
+_JARGON_SOURCE_MIN = 4
+
+#: 残ってよい数。system_prompt は「多くて2つ」と言っているが、
+#: ここは**ゆるい側**（このファイルの決まり）。2つ超えたくらいでは弾かない。
+_JARGON_KEPT_MAX = 3
+
+
+def plain_enough(values: dict, text: str) -> Verdict:
+    """専門語が、そのままの形でごっそり残っていないか。
+
+    実機で出た壊れ方
+    ----------------
+    Day1 の題材（専門用語だらけの 202字）を「分かりやすく」と頼むと、
+    用語はそのまま並び、うしろにカッコ書きの言いかえが付いただけの
+    文章が返ってきた。形は書き直しだが、読む側の負担はほとんど
+    減っていない——**このレッスンが約束したことが起きていない**。
+
+    何を数えるか
+    ------------
+    ラテン文字の語だけ。カタカナは数えない——「メール」「スケジュール」
+    「プロジェクト」は日常語で、残っていて正しい。カタカナの長さで
+    切ると、ふつうの仕事の文章を巻き込む（このファイルの「誤検知の
+    ほうが高くつく」）。漢語の専門語（「内積」「正規化」）は文字だけ
+    では日常語と見分けられないので、こちらも数えない。
+
+    取りこぼす側に倒してある。ラテン文字が1つも無い専門文は、
+    この検査を素通りする。止める本体は system_prompt 側で、
+    ここはその取りこぼしを拾う網でしかない。
+
+    誤検知を避けるための二重の条件
+    ------------------------------
+    1. 元の文章に4語以上あること（専門語だらけの文章だけを見る）
+    2. そのうち4語以上が、そのままの形で残っていること
+
+    製品名（Excel・Slack・Zoom）は数から外してある。数えると、
+    それらが並ぶ仕事のメールが、直しようのない理由で弾かれる。
+    """
+    source = _jargon(values.get("original_text", ""))
+    if len(source) < _JARGON_SOURCE_MIN:
+        return Verdict.passed()
+
+    kept = source & _jargon(text)
+    if len(kept) > _JARGON_KEPT_MAX:
+        return Verdict.failed("jargon_kept")
+    return Verdict.passed()
+
+
 def no_json_leak(values: dict, text: str) -> Verdict:
     """入れ物ごと本文へ漏れていないか。
 
@@ -361,7 +457,11 @@ BY_ACTION: dict[str, tuple[Check, ...]] = {
     # 作業の宣言は rewrite にだけ掛ける。目印にしている言葉（「〜向けに」
     # 「元の文章を」）は書き直しの依頼を指すもので、他の頼みごとでは
     # 本文にふつうに出る。共通に上げると、そちらで誤検知が増える。
-    "rewrite": (follows_length, no_work_declaration),
+    # やさしさの線（`plain_enough`）も rewrite にだけ掛ける。書き直しは
+    # 「読む人が分かる形にする」ことが頼みごとそのもので、専門語が
+    # そのまま残っているのは、それが起きていないということ。要約
+    # （summarize）は別の頼みごとで、用語を残したまま短くするのは正しい。
+    "rewrite": (follows_length, no_work_declaration, plain_enough),
     "improve": (follows_length, follows_format),
     # Day2。**形と個数まで頼む**教材なので、そこが起きたかを見る。
     #
@@ -406,6 +506,11 @@ RETRY_HINT: dict[str, str] = {
         "書き直した文章そのものから、1文目を始めてください。"
     ),
     "commentary": "解説や注釈を混ぜず、成果物の文章だけを返してください。",
+    "jargon_kept": (
+        "元の文章の専門用語が、そのままの形で残っています。"
+        "用語を並べてカッコで言いかえを添えるのではなく、"
+        "その言葉を使わずに、何をしているのかを普通の言葉だけで書いてください。"
+    ),
     "json_leak": "JSON をそのまま文字列に入れず、文章だけを result に入れてください。",
 }
 
