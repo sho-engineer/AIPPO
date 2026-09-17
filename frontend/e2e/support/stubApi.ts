@@ -48,7 +48,33 @@ export interface StubOptions {
   skillDex?: unknown;
   /** 取っておいた成果物。既定は「ゲストなので使えない」。 */
   saved?: unknown;
+  /**
+   * ホームの「まずは診断を」の案内を、出すかどうか。既定は**出さない**。
+   *
+   * なぜ既定で黙らせるか
+   * --------------------
+   * あの案内は「初めて来たゲスト」に出る。検査はどれも
+   * `localStorage.clear()` から始めるので、**ほぼ全部の検査が初めての
+   * ゲスト**になる——ホームを通る道が案内で塞がれ、確かめたい先へ
+   * 進めない。
+   *
+   * 案内そのものを見に来た検査（`e2e/diagnosisNudge.spec.ts`）だけが
+   * `true` を渡す。黙らせ方は本物と同じ道（端末に「見た」を残す）で、
+   * 画面側に検査用の抜け道は作っていない。
+   */
+  diagnosisNudge?: boolean;
+  /**
+   * ログインしたばかりで、まだ何もしていない人として振る舞う。
+   *
+   * 既定のログイン利用者は途中まで進んでいる（`in_progress: 1`）ので、
+   * **登録した初日**の画面はそのままでは作れない。診断の案内が
+   * ログイン利用者にも出ることを確かめるのに要る。
+   */
+  freshAccount?: boolean;
 }
+
+/** ゲストの「案内を見た」を覚えておく場所（`course/diagnosisNudge.ts`）。 */
+const NUDGE_KEY = "aippo:diagnosis-nudge";
 
 export interface TutorBody {
   message: string;
@@ -96,6 +122,23 @@ export async function stubApi(
   };
   let callCount = 0;
   let signedIn = options.signedIn ?? false;
+
+  /*
+    案内を黙らせる。**読み込みのたびに、アプリより先に**立てる。
+
+    検査は `localStorage.clear()` してから読み込み直すので、1回書いた
+    だけでは消える。`addInitScript` はどの読み込みでも先に走るので、
+    消されても次の読み込みで立ち直る。
+  */
+  if (!options.diagnosisNudge) {
+    await page.addInitScript((key) => {
+      try {
+        window.localStorage.setItem(key, "1");
+      } catch {
+        /* 保存が使えない環境。そのときは案内が出るが、検査では使わない */
+      }
+    }, NUDGE_KEY);
+  }
 
   await page.route("**/api/v1/ai/generate/", async (route: Route) => {
     if (route.request().method() === "OPTIONS") {
@@ -185,8 +228,16 @@ export async function stubApi(
                 email_verified: false,
                 terms_version: "2026-08-03",
                 joined_at: "2026-08-01T00:00:00+09:00",
+                /*
+                  ホームの診断の案内を、もう見せたか。登録したばかりの
+                  人は「まだ」。既定は「見た」——検査のほとんどは案内を
+                  見に来ていないので、そちらを既定にしておく。
+                */
+                diagnosis_nudge_seen: !options.freshAccount,
               },
-              progress: { completed: 0, in_progress: 1, devices: 1 },
+              progress: options.freshAccount
+                ? { completed: 0, in_progress: 0, devices: 1 }
+                : { completed: 0, in_progress: 1, devices: 1 },
             }
           : { authenticated: false },
       ),

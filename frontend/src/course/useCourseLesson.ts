@@ -211,7 +211,24 @@ function resolveAction(lesson: Lesson, step: LessonStep, values: StepValues): st
   return values.kind || declared;
 }
 
-export function useCourseLesson(lesson: Lesson): CourseLessonApi {
+export interface CourseLessonOptions {
+  /**
+   * 下書きが無いときに、始める回。
+   *
+   * ホームの診断の案内から入った人だけが持って来る——案内で読んだ
+   * ことを、教材の開始説明でもう一度読ませないため。
+   *
+   * **続きのほうが強い。** 下書きが残っていれば、そちらから始める
+   * （途中まで答えた人を、1問目へ戻さない）。知らない id は無視する
+   * ——教材が入れ替わった日に、古い id で真っ白にしない。
+   */
+  startAtStepId?: string;
+}
+
+export function useCourseLesson(
+  lesson: Lesson,
+  options: CourseLessonOptions = {},
+): CourseLessonApi {
   const [stepId, setStepId] = useState(() => firstStepId(lesson));
   const [values, setValues] = useState<StepValues>({});
   const [runs, setRuns] = useState<RunRecord[]>([]);
@@ -250,6 +267,14 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
     () => findStep(lesson, stepId) ?? lesson.steps[0],
     [lesson, stepId],
   );
+
+  /*
+    始める場所の指定は、**開いた1回ぶんだけ**見る。
+
+    箱越しに読むので、親が描き直されて同じ値を渡し直しても、下の
+    `useEffect` は動かない（見張りは `lesson` だけ）。
+  */
+  const startAt = useRef(options.startAtStepId);
 
   // -- 読み込み直しても続きから（要件 §6.6） ---------------------------
   useEffect(() => {
@@ -295,6 +320,15 @@ export function useCourseLesson(lesson: Lesson): CourseLessonApi {
       if (draft.stepId !== firstStepId(lesson)) {
         void sendLearningEvent({ lessonId: lesson.id, eventType: "lesson_resumed" });
       }
+    } else if (startAt.current && findStep(lesson, startAt.current)) {
+      /*
+        下書きが無い人だけ、言われた回から始める。
+
+        続きがある人には効かせない——「1問目から」と言われても、
+        3問目まで答えた人を頭へ戻すのは**進んだ分を捨てる**ことになる。
+      */
+      setStepId(startAt.current);
+      setPo(poOf(findStep(lesson, startAt.current) as LessonStep));
     }
     setRestored(true);
     void sendLearningEvent({ lessonId: lesson.id, eventType: "lesson_started" });

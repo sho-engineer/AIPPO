@@ -386,6 +386,16 @@ class ProfileView(APIView):
         if "remind_study" in data:
             profile.remind_study = data["remind_study"]
             changed.append("remind_study")
+        """診断の案内は、立てるだけ。
+
+        `False` が送られても下ろさない。案内は1人に1度でよく、下ろす道を
+        開けておくと、**閉じたはずの案内が戻る**経路がひとつ増える
+        （古いタブが持っている値で上書きする、など）。戻したいときは
+        管理画面から。
+        """
+        if data.get("diagnosis_nudge_seen"):
+            profile.diagnosis_nudge_seen = True
+            changed.append("diagnosis_nudge_seen")
 
         profile.save(update_fields=changed)
 

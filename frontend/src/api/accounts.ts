@@ -21,6 +21,14 @@ export interface AccountUser {
   joined_at: string;
   /** 学習リマインダーを受け取るか。送るのはサーバーなので、正はこちら。 */
   remind_study: boolean;
+  /**
+   * ホームの「まずは診断を」の案内を、もう見せたか。
+   *
+   * 端末ではなくサーバーに持つ。会社のPCで閉じた人に、帰りの電車で
+   * もう一度出さないため。古いサーバーは返してこないので任意にしてある
+   * ——**読めないときは「見た」に倒す**（`course/diagnosisNudge.ts`）。
+   */
+  diagnosis_nudge_seen?: boolean;
 }
 
 export interface Progress {
@@ -172,4 +180,14 @@ export function fetchSocialProviders(
  */
 export function updateReminders(remindStudy: boolean): Promise<{ user: AccountUser }> {
   return sendJson(`${BASE}/profile/`, { remind_study: remindStudy }, "PATCH");
+}
+
+/**
+ * ホームの診断の案内を「見た」ことにする。
+ *
+ * 立てるだけで、下ろす道は無い（サーバー側も `False` を受け取らない）。
+ * 案内は1人に1度でよく、下ろせると**閉じたはずの案内が戻る**経路が増える。
+ */
+export function markDiagnosisNudgeSeen(): Promise<{ user: AccountUser }> {
+  return sendJson(`${BASE}/profile/`, { diagnosis_nudge_seen: true }, "PATCH");
 }

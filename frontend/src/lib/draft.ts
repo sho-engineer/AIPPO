@@ -122,6 +122,30 @@ export function clearDraft(lessonId: string): void {
   storage()?.removeItem(keyOf(lessonId));
 }
 
+/**
+ * どれか1本でも、途中まで進めた跡が残っているか。
+ *
+ * ゲストに「もう使っている人かどうか」を聞く手立てのひとつ
+ * （`course/diagnosisNudge.ts`）。サーバーはゲストの進み具合を
+ * `me` では返さないので、端末に残っているものから見るしかない。
+ *
+ * 1本ずつ `loadDraft` を呼ばない。**教材の一覧を知らなくても答えられる**
+ * ようにしておくと、教材が増えた日にここを直さずに済む。
+ */
+export function hasAnyDraft(): boolean {
+  const store = storage();
+  if (!store) return false;
+
+  try {
+    for (let at = 0; at < store.length; at += 1) {
+      if (store.key(at)?.startsWith(PREFIX)) return true;
+    }
+  } catch {
+    /* 読めないなら「跡は無い」でよい。ここで画面を止めない */
+  }
+  return false;
+}
+
 /** 完了したレッスン。進捗画面で使う。 */
 const DONE_KEY = "aippo:completed";
 
@@ -226,6 +250,22 @@ export function touchStreak(): Streak {
   };
   writeStreak(next);
   return next;
+}
+
+/**
+ * 今日より前に、この端末でひらいたことがあるか。
+ *
+ * 「もう使っている人」を見分けるのに使う（`course/diagnosisNudge.ts`）。
+ * 連続日数（`days`）では見分けられない——`touchStreak()` は今日の分を
+ * その場で 1 にするので、**初めて来た人も 1 になる**。
+ *
+ * だから日付そのものを見て、今日以外の日が混じっているかを聞く。
+ * ホームは開いた直後に `touchStreak()` を呼ぶので、ここが true なのは
+ * 「前にも来ていた」ときだけになる。
+ */
+export function openedBefore(): boolean {
+  const now = today();
+  return (readStreak().openDays ?? []).some((day) => day !== now);
 }
 
 /**

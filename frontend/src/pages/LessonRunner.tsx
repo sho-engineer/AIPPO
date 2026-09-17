@@ -154,6 +154,13 @@ export interface LessonRunnerProps {
   onOpenCourseCatalog?: () => void;
   /** 「やり方をくわしく見る」を押したとき。 */
   onOpenRecipe?: (tipId: string) => void;
+  /**
+   * 下書きが無いときに、始める回。
+   *
+   * ホームの診断の案内から入った人だけが持って来る（開始説明を
+   * 飛ばして1問目へ）。続きがある人には効かない。
+   */
+  startAtStepId?: string;
 }
 
 export function LessonRunner({
@@ -163,8 +170,9 @@ export function LessonRunner({
   onSelectLesson,
   onOpenCourseCatalog,
   onOpenRecipe,
+  startAtStepId,
 }: LessonRunnerProps) {
-  const api = useCourseLesson(lesson);
+  const api = useCourseLesson(lesson, { startAtStepId });
   /*
     「←」で戻る先を、画面ではなく**直前の状態**にするための積み場。
 

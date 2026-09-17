@@ -115,6 +115,26 @@ class UserProfile(models.Model):
         ),
     )
 
+    #: ホームで「まずは診断を」の案内を、もう見せたか。
+    #:
+    #: 端末ではなくここに持つ
+    #: --------------------
+    #: 案内は**1人に1度**でよい。端末（localStorage）にだけ置くと、
+    #: 会社のPCで閉じた人に、帰りの電車でもう一度出る。
+    #:
+    #: 診断そのものの状態とは別に持つ
+    #: ------------------------------
+    #: 「診断をまだ受けていない」と「案内をまだ見ていない」は違う。
+    #: 前者だけで出し分けると、**あとで**を押した人に毎回出る。
+    #:
+    #: 既定は False（＝まだ見ていない）。**すでに居る人には True を
+    #: 入れて配る**（`0008_...` の移行）——今日いきなり機能が増えた
+    #: ことを理由に、使い慣れた人のホームへ案内を出さないため。
+    diagnosis_nudge_seen = models.BooleanField(
+        default=False,
+        verbose_name="診断の案内を見た",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

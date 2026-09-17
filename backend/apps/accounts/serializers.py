@@ -79,6 +79,12 @@ class ProfileUpdateSerializer(serializers.Serializer):
     #: 学習リマインダーを受け取るか。
     #: 送るのはサーバーなので、端末側にだけ持たせると「切ったのに届く」。
     remind_study = serializers.BooleanField(required=False)
+    #: ホームの「まずは診断を」の案内を、もう見せたか。
+    #:
+    #: 画面から立てるだけで、下ろす道は置いていない。「もう一度見たい」
+    #: 案内ではないので、下ろせると**消したはずの案内が戻る**経路が
+    #: 増えるだけになる。試すときは管理画面から戻す。
+    diagnosis_nudge_seen = serializers.BooleanField(required=False)
 
     def validate(self, attrs: dict) -> dict:
         if not attrs:
@@ -136,6 +142,13 @@ def describe_user(user) -> dict[str, object]:
         "joined_at": user.date_joined.isoformat(),
         # 知らせを受け取る設定。画面のつまみは、これを見て state を決める
         "remind_study": bool(getattr(profile, "remind_study", True)),
+        # ホームの診断の案内を、もう見せたか。
+        #
+        # 無いときは True（＝見た扱い）に倒す。profile がまだ無い、
+        # 古いサーバーの応答、といった**分からない場面で案内を出さない**
+        # ため。出しそこねても押せる場所はホームに常設してあるが、
+        # 二度目を出すと「閉じたのに戻ってきた」になる。
+        "diagnosis_nudge_seen": bool(getattr(profile, "diagnosis_nudge_seen", True)),
     }
 
 

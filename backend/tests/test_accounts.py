@@ -490,6 +490,113 @@ class TestProfile:
 
 
 @pytest.mark.django_db
+class TestDiagnosisNudge:
+    """ホームの「まずは診断を」の案内を、もう見せたか。
+
+    端末ではなくサーバーに持つ理由は `UserProfile` 側に書いた——
+    会社のPCで閉じた人に、帰りの電車でもう一度出さないため。
+    """
+
+    def test_a_new_account_has_not_seen_it(self, client):
+        client.post(SIGNUP, GOOD, content_type="application/json")
+
+        assert client.get(ME).json()["user"]["diagnosis_nudge_seen"] is False
+
+    def test_it_can_be_marked_as_seen(self, client):
+        client.post(SIGNUP, GOOD, content_type="application/json")
+
+        response = client.patch(
+            "/api/v1/accounts/profile/",
+            {"diagnosis_nudge_seen": True},
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["user"]["diagnosis_nudge_seen"] is True
+        # 別の端末から聞いても、同じ答えが返る
+        assert client.get(ME).json()["user"]["diagnosis_nudge_seen"] is True
+
+    def test_marking_it_does_not_touch_the_other_settings(self, client):
+        """触っていない設定を、既定値で黙って上書きしない。
+
+        表示名と知らせの設定は別の画面から届く。案内を閉じただけで
+        名前が消えると、直した覚えのないものが戻る。
+        """
+        client.post(SIGNUP, GOOD, content_type="application/json")
+        client.patch(
+            "/api/v1/accounts/profile/",
+            {"display_name": "はなこ", "remind_study": False},
+            content_type="application/json",
+        )
+
+        client.patch(
+            "/api/v1/accounts/profile/",
+            {"diagnosis_nudge_seen": True},
+            content_type="application/json",
+        )
+
+        user = client.get(ME).json()["user"]
+        assert user["display_name"] == "はなこ"
+        assert user["remind_study"] is False
+
+    def test_it_cannot_be_taken_back_down(self, client):
+        """立てるだけ。**下ろす道は開けていない。**
+
+        古いタブが持っている値で上書きされると、閉じたはずの案内が
+        戻る。戻したいときは管理画面から。
+        """
+        client.post(SIGNUP, GOOD, content_type="application/json")
+        client.patch(
+            "/api/v1/accounts/profile/",
+            {"diagnosis_nudge_seen": True},
+            content_type="application/json",
+        )
+
+        response = client.patch(
+            "/api/v1/accounts/profile/",
+            {"diagnosis_nudge_seen": False},
+            content_type="application/json",
+        )
+
+        assert response.status_code == 200
+        assert response.json()["user"]["diagnosis_nudge_seen"] is True
+
+    def test_signed_out_visitors_cannot_change_it(self, client):
+        response = client.patch(
+            "/api/v1/accounts/profile/",
+            {"diagnosis_nudge_seen": True},
+            content_type="application/json",
+        )
+
+        assert response.status_code in (401, 403)
+
+    def test_people_who_were_already_here_are_treated_as_having_seen_it(self, client):
+        """すでに居る人へ、機能が増えた日にいきなり出さない。
+
+        列の既定は False（まだ見ていない）なので、足しただけでは
+        **昨日まで普通に使っていた全員**のホームに案内が出る。移行で
+        埋める側を、その移行が持っている関数ごと確かめる。
+        """
+        import importlib
+
+        from django.apps import apps as django_apps
+
+        from apps.accounts.models import UserProfile
+
+        # 数字で始まる名前は import 文に書けない
+        migration = importlib.import_module(
+            "apps.accounts.migrations.0008_userprofile_diagnosis_nudge_seen"
+        )
+
+        client.post(SIGNUP, GOOD, content_type="application/json")
+        assert UserProfile.objects.filter(diagnosis_nudge_seen=False).exists()
+
+        migration.mark_existing_as_seen(django_apps, None)
+
+        assert not UserProfile.objects.filter(diagnosis_nudge_seen=False).exists()
+
+
+@pytest.mark.django_db
 class TestCsrf:
     """よそのサイトから、ログイン中の人の代わりに書き込めないこと。
 

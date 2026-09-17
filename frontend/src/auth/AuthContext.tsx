@@ -83,6 +83,14 @@ export interface AuthActions {
   /** サーバーへ聞き直す。進み具合の表示を更新したいときに使う。 */
   refresh: () => Promise<void>;
   dismissMigrationNotice: () => void;
+  /**
+   * ホームの診断の案内を「見た」ことにする。
+   *
+   * 画面の写しを**先に**立てる。サーバーの返事を待ってから消すと、
+   * 待っているあいだに描き直しが入った拍子にもう一度出る。
+   * 送るのに失敗しても、この端末のこの回では出し直さない。
+   */
+  markDiagnosisNudgeSeen: () => void;
 }
 
 export type Auth = AuthState & AuthActions;
@@ -229,6 +237,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       dismissMigrationNotice() {
         setState((current) => ({ ...current, lastMigration: null }));
       },
+
+      markDiagnosisNudgeSeen() {
+        setState((current) =>
+          current.user
+            ? { ...current, user: { ...current.user, diagnosis_nudge_seen: true } }
+            : current,
+        );
+        /*
+          サーバーにも残す。**返事は待たない。**
+
+          案内を閉じるのは一瞬の操作で、そこに通信の待ちを挟む理由が
+          無い。届かなかったときに損なのは「別の端末でもう一度出る」
+          ことだけで、閉じた操作そのものは効いている。
+        */
+        void api.markDiagnosisNudgeSeen().catch(() => {});
+      },
     }),
     [refresh],
   );
@@ -265,5 +289,6 @@ export function useAuth(): Auth {
     setDisplayName: async () => {},
     refresh: async () => {},
     dismissMigrationNotice: () => {},
+    markDiagnosisNudgeSeen: () => {},
   };
 }

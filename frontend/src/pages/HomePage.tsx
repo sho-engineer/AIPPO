@@ -60,6 +60,11 @@
 import { useEffect, useState } from "react";
 
 import { AppHeader, IconMark } from "../components/AppShell";
+import { DiagnosisNudgeDialog } from "../components/aippo/DiagnosisNudge";
+import {
+  DIAGNOSIS_LESSON_ID,
+  useDiagnosisNudge,
+} from "../course/diagnosisNudge";
 import { PoFace } from "../po/PoAvatar";
 import { PrimaryButton } from "../components/aippo/PrimaryButton";
 import { ReviewPrompt } from "../components/ReviewPrompt";
@@ -93,6 +98,14 @@ export interface HomePageProps {
   /** 身についたことの一覧へ。 */
   onOpenSkills: () => void;
   onOpenAccount: () => void;
+  /**
+   * 案内から診断を始める。**開始説明を飛ばして1問目へ。**
+   *
+   * 常設の入口（`open-diagnosis`）は `onSelectLesson` を通る——
+   * あちらを押した人は案内を読んでいないので、開始説明がその人に
+   * とっての最初の説明になる。
+   */
+  onStartDiagnosis: () => void;
 }
 
 // ---------------------------------------------------------- おかえりなさい
@@ -407,6 +420,7 @@ export function HomePage({
   onOpenRecord,
   onOpenSkills,
   onOpenAccount,
+  onStartDiagnosis,
 }: HomePageProps) {
   /*
     終わったレッスンは、端末とサーバーの両方から取る。
@@ -454,6 +468,23 @@ export function HomePage({
   const doneCount = learnable.filter((lesson) =>
     completed.includes(lesson.id),
   ).length;
+
+  /*
+    初めて来た人へ、1度だけ出す「まずは診断を」。
+
+    出す・出さないの条件は `course/diagnosisNudge.ts` が全部持っている。
+    終えたレッスンはここから渡す——同じ `progress` を1画面で何度も
+    取りに行かないため。
+  */
+  const nudge = useDiagnosisNudge(completed);
+  /*
+    診断を受けていない人には、常設の入口を残す。
+
+    案内を「あとで」で閉じた人が、あとから自分で始められるように。
+    受けた人には出さない——受けるのは1回で、毎日ひらく場所に
+    済んだものを置き続ける理由が無い。
+  */
+  const showDiagnosisLink = !completed.includes(DIAGNOSIS_LESSON_ID);
 
   return (
     <>
@@ -648,6 +679,30 @@ export function HomePage({
           同じものを2画面が持つことになる。行1本だけ置いて、見たい人が
           そこから入れるようにする。
         */}
+        {/*
+          診断の常設の入口。**細い1行で、道のりの入口の隣に置く。**
+
+          面にしない。ホームで面を立ててよいのは今日の1本だけと決めて
+          あり（このファイルの冒頭）、診断を面で出すと主役が2つになる。
+          ここは「ほかの入口」の並びなので、行の形をそろえる。
+
+          押した先は、いつもの開始説明から。**案内から始めた人だけが
+          1問目へ直行する**（`onStartDiagnosis`）——こちらを押した人は
+          案内を読んでいないので、説明を飛ばすと何も知らずに1問目に着く。
+        */}
+        {showDiagnosisLink && (
+          <button
+            type="button"
+            onClick={() => onSelectLesson(DIAGNOSIS_LESSON_ID)}
+            data-testid="open-diagnosis"
+            className="mt-3 flex min-h-[2.75rem] w-full items-center justify-center gap-1
+                       py-2 text-xs font-bold text-brand transition hover:text-brand-dark"
+          >
+            AI活用診断をやってみる
+            <IconChevronRight className="h-3.5 w-3.5" />
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => onOpenPath(course.id)}
@@ -665,6 +720,23 @@ export function HomePage({
           <IconChevronRight className="h-3.5 w-3.5" />
         </button>
       </main>
+
+      {/*
+        初めての人への案内。**ホームの中身より後ろに置く。**
+
+        一枚そのものは body へ出る（`MoreSheet` の portal）ので、
+        ここでの位置は描く順番だけの話だが、ホームの並びを読むときに
+        主役の前へ差し込まれていないほうが読みやすい。
+      */}
+      {nudge.open && (
+        <DiagnosisNudgeDialog
+          onStart={() => {
+            nudge.close();
+            onStartDiagnosis();
+          }}
+          onClose={nudge.close}
+        />
+      )}
     </>
   );
 }

@@ -39,6 +39,10 @@ import { GoHomeProvider } from "./app/navigation";
 import { RecordPage } from "./pages/RecordPage";
 import { RecipePage } from "./pages/RecipePage";
 import { appliedTipById } from "./course/appliedTips";
+import {
+  DIAGNOSIS_FIRST_QUESTION_ID,
+  DIAGNOSIS_LESSON_ID,
+} from "./course/diagnosisNudge";
 import { useCompletedLessons } from "./course/progress";
 import { SavedPage } from "./pages/SavedPage";
 import { SkillDexPage } from "./pages/SkillDexPage";
@@ -82,6 +86,17 @@ interface AippoHistoryState {
   lessonId: string;
   courseId: string;
   recipeId: string | null;
+  /**
+   * レッスンを、この回から始める。
+   *
+   * ホームの診断の案内から入ったときだけ入る（開始説明を飛ばして
+   * 1問目へ）。**1回きり**で、次にどこかへ移った時点で消える
+   * ——持ち回すと、あとで普通に開いた診断まで説明を飛ばす。
+   *
+   * 覚えていた場所（`savePlace`）には入れない。読み込み直したときは
+   * 教材の頭から始めればよく、そこまでに進んだぶんは下書きが持っている。
+   */
+  startStepId: string | null;
 }
 
 function isAippoHistoryState(value: unknown): value is AippoHistoryState {
@@ -135,6 +150,7 @@ export function App() {
       lessonId: restored?.lessonId ?? course.lessons[0].id,
       courseId: restored?.courseId ?? course.id,
       recipeId: null,
+      startStepId: null,
     };
   });
   const [screen, setScreen] = useState<Screen>(initial.screen);
@@ -156,6 +172,13 @@ export function App() {
   */
   const [recipeId, setRecipeId] = useState<string | null>(initial.recipeId);
   /*
+    レッスンを途中の回から始めるための、1回きりの指定。
+    いまの用は1つ——ホームの診断の案内から、開始説明を飛ばして1問目へ。
+  */
+  const [startStepId, setStartStepId] = useState<string | null>(
+    initial.startStepId,
+  );
+  /*
     画面の下に少しだけ出る一言。いまの用は1つ——準備中の教材を
     押した人への返事（`openLesson`）。
   */
@@ -175,6 +198,7 @@ export function App() {
         lessonId?: string;
         courseId?: string;
         recipeId?: string | null;
+        startStepId?: string;
       } = {},
     ) => {
       const state: AippoHistoryState = {
@@ -186,11 +210,21 @@ export function App() {
         lessonId: values.lessonId ?? lessonId,
         courseId: values.courseId ?? detailCourseId,
         recipeId: values.recipeId === undefined ? recipeId : values.recipeId,
+        /*
+          持ち回さない。**渡された回だけ効く。**
+
+          言われなければ null。ここを「前の値を引き継ぐ」形にすると、
+          診断の案内から入ったあと、別のレッスンを開いてもその id が
+          付いて回る——知らない回から始まるか、無視されるかのどちらかで、
+          どちらも読めない。
+        */
+        startStepId: values.startStepId ?? null,
       };
       window.history.pushState(state, "");
       setLessonId(state.lessonId);
       setDetailCourseId(state.courseId);
       setRecipeId(state.recipeId);
+      setStartStepId(state.startStepId);
       setScreen(state.screen);
     },
     [detailCourseId, lessonId, recipeId],
@@ -227,6 +261,7 @@ export function App() {
       lessonId,
       courseId: detailCourseId,
       recipeId,
+      startStepId,
     };
     if (!isAippoHistoryState(window.history.state)) {
       if (screen === "TOP") {
@@ -246,6 +281,7 @@ export function App() {
       setLessonId(event.state.lessonId);
       setDetailCourseId(event.state.courseId);
       setRecipeId(event.state.recipeId);
+      setStartStepId(event.state.startStepId ?? null);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -257,7 +293,7 @@ export function App() {
     navigate(nextScreen(from, "OPEN_COURSE_DETAIL"), { courseId: id });
   };
 
-  const openLesson = (id: string, from: Screen) => {
+  const openLesson = (id: string, from: Screen, startAt?: string) => {
     /*
       準備中の教材は開かない。**判定はここ1か所。**
 
@@ -290,6 +326,7 @@ export function App() {
     navigate(nextScreen(from, "SELECT_LESSON"), {
       lessonId: id,
       courseId: owner?.id,
+      startStepId: startAt,
     });
   };
 
@@ -318,6 +355,16 @@ export function App() {
             onOpenRecord={() => navigate(nextScreen("HOME", "OPEN_RECORD"))}
             onOpenSkills={() => navigate(nextScreen("HOME", "OPEN_SKILLS"))}
             onOpenAccount={() => navigate(nextScreen("HOME", "OPEN_SETTINGS"))}
+            /*
+              初回の案内から診断へ。**開始説明を飛ばして1問目へ。**
+
+              入口は `openLesson` のまま。公開状態の判定はそこ1か所と
+              決めてあるので（近日公開に戻された日でも、押した先が
+              行き止まりにならない）、案内だけ別の道を通らせない。
+            */
+            onStartDiagnosis={() =>
+              openLesson(DIAGNOSIS_LESSON_ID, "HOME", DIAGNOSIS_FIRST_QUESTION_ID)
+            }
           />
         );
 
@@ -435,6 +482,9 @@ export function App() {
               onOpenRecord={() => navigate("RECORD")}
               onOpenSkills={() => navigate("SKILLS")}
               onOpenAccount={() => navigate("SETTINGS")}
+              onStartDiagnosis={() =>
+                openLesson(DIAGNOSIS_LESSON_ID, "HOME", DIAGNOSIS_FIRST_QUESTION_ID)
+              }
             />
           );
         }
@@ -443,6 +493,11 @@ export function App() {
           <LessonRunner
             key={lesson.id}
             lesson={lesson}
+            /*
+              案内から入った回だけ、始める場所が指定されている。
+              下書きが残っている人には効かない（続きのほうが強い）。
+            */
+            startAtStepId={startStepId ?? undefined}
             /*
               帯の「×」の行き先。そのレッスンが入っているコースの中身。
             */

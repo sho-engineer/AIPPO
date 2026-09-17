@@ -81,6 +81,43 @@ export interface MoreSheetProps {
    */
   placement?: "sheet" | "center" | "full";
   /**
+   * 背景を押したら閉じるか。既定は閉じる。
+   *
+   * `false` にするのは、**閉じたつもりのない取りこぼし**を作りたくない
+   * 場面だけ。ホームの診断の案内がそれで、指が少し外れただけで消える
+   * と、読む前に無くなった人には二度と出ない（1人に1度の案内なので）。
+   *
+   * 閉じ方が減るわけではない。×・「あとで」・Esc の3つは残っている。
+   */
+  dismissOnScrim?: boolean;
+  /**
+   * 上の帯（見出しの行）を出すか。
+   *
+   * `false` にすると、見出しは読み上げにだけ残り、×は中身の右上へ
+   * 浮かぶ。**見出しを中身の側でデザインしたい一枚**のため——帯に
+   * 出すと、同じ言葉が帯と中身で2回並ぶ。
+   */
+  chromeless?: boolean;
+  /**
+   * 説明文の id。読み上げが、名前のあとに続けて読む。
+   *
+   * 名前（見出し）だけだと、開いた瞬間に読まれるのは一枚の題だけ。
+   * 何を聞かれているのかは中身を辿らないと分からない。判断に要る1文が
+   * あるなら、開いた時点で一緒に読めるようにする。
+   */
+  describedBy?: string;
+  /**
+   * 見出しの id。**画面に出ている見出しを、そのまま名前にする。**
+   *
+   * `chromeless` の一枚は見出しを中身の側でデザインする。そこへ
+   * 読み上げ用の見出しをもう1つ足すと、**同じ言葉の見出しが2つ**並ぶ
+   * ——目で読む人には1つ、読み上げには2つ、という形になる。
+   *
+   * 渡されたときは、こちらが見出しを作らない。`title` は読み上げには
+   * 出ず、検査や記録のための名前として残る。
+   */
+  labelledBy?: string;
+  /**
    * 検査の手がかり。
    *
    * 既定は `more-sheet`。同じ画面で2枚以上開くところ（レッスンの導入と
@@ -105,6 +142,16 @@ export interface MoreSheetProps {
  * **自分がいちばん後ろか**だけ分かればよい。
  */
 const stack: symbol[] = [];
+
+/**
+ * Tab で止まれるもの。
+ *
+ * `tabindex="-1"`（枠そのもの）は入れない。焦点を置くことはできるが、
+ * Tab の順番には並ばないので、折り返しの端として数えると1つずれる。
+ */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]),' +
+  ' textarea:not([disabled]), summary, [tabindex]:not([tabindex="-1"])';
 
 /**
  * 開いているあいだ、後ろのページを動かさない。
@@ -132,12 +179,21 @@ function unlockPage(): void {
   document.body.style.overflow = unlockedOverflow;
 }
 
+/** いま、一枚が開いているか。**重ねて出さない**ための問い合わせ口。 */
+export function isSheetOpen(): boolean {
+  return stack.length > 0;
+}
+
 export function MoreSheet({
   title,
   onClose,
   elevated = false,
   bleed = false,
   placement = "sheet",
+  dismissOnScrim = true,
+  chromeless = false,
+  describedBy,
+  labelledBy,
   testId,
   children,
 }: MoreSheetProps) {
@@ -160,7 +216,9 @@ export function MoreSheet({
     並ぶ。`aria-labelledby` は最初の1つを拾うので、上に開いた一枚が
     下の一枚の名前で読み上げられる。
   */
-  const titleId = useId();
+  const ownTitleId = useId();
+  /* 画面に出ている見出しを名前にできるなら、そちらを指す */
+  const titleId = labelledBy ?? ownTitleId;
   /*
     ×と背景の目印も、一枚ごとに変える。2枚開いているときに
     「閉じるを押す」と書けなくなるため（どちらの×か決められない）。
@@ -194,13 +252,59 @@ export function MoreSheet({
     const me = Symbol("more-sheet");
     stack.push(me);
     lockPage();
+    /*
+      開く前に焦点があった場所を控える。閉じたらそこへ返す。
+
+      返さないと、閉じたあとの焦点は body に落ちる。キーボードだけで
+      使っている人は、**押したボタンの続きからではなく、ページの頭から**
+      たどり直すことになる。読み上げでも同じで、閉じた瞬間に現在地が
+      分からなくなる。
+    */
+    const opener = document.activeElement as HTMLElement | null;
     panel.current?.focus();
 
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      // 上に別の一枚が開いていれば、そちらが閉じる番
+      // 上に別の一枚が開いていれば、そちらの番
       if (stack[stack.length - 1] !== me) return;
-      latestClose.current();
+
+      if (event.key === "Escape") {
+        latestClose.current();
+        return;
+      }
+
+      /*
+        Tab を、この一枚の中で回す。
+
+        一枚は body の上に浮いているだけで、**後ろのページも同じ順番の
+        中に居る**。閉じずに Tab を押し続けると、見えていない後ろの
+        ボタンへ焦点が移っていく——押した本人からは、焦点がどこかへ
+        消えたようにしか見えない（そのまま Enter を押せば、見えない
+        ボタンが動く）。
+
+        端で折り返すだけにしてある。中の並び順そのものは触らない。
+      */
+      if (event.key !== "Tab") return;
+      const box = panel.current;
+      if (!box) return;
+      const stops = [...box.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+        (one) => one.offsetParent !== null || one === box,
+      );
+      if (stops.length === 0) {
+        // 止まれる場所が無い一枚（読み物だけ）。枠そのものに留める
+        event.preventDefault();
+        box.focus();
+        return;
+      }
+      const first = stops[0];
+      const last = stops[stops.length - 1];
+      const here = document.activeElement;
+      if (!event.shiftKey && here === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (event.shiftKey && (here === first || here === box)) {
+        event.preventDefault();
+        last.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => {
@@ -208,6 +312,12 @@ export function MoreSheet({
       const at = stack.indexOf(me);
       if (at >= 0) stack.splice(at, 1);
       unlockPage();
+      /*
+        まだ画面に残っているときだけ返す。開いているあいだに元のボタンが
+        消えることがある（一枚を閉じると同時に下の画面が入れ替わる）。
+        消えた要素へ `focus()` しても何も起きず、焦点は body に落ちる。
+      */
+      if (opener && document.contains(opener)) opener.focus();
     };
   }, []);
 
@@ -223,24 +333,38 @@ export function MoreSheet({
         下の画面を沈める。**消さない。**
         何の上に開いているのかが見えていないと、閉じた先が分からない。
       */}
-      <button
-        type="button"
-        aria-label="閉じる"
-        data-testid={`${hook}-scrim`}
-        onClick={onClose}
-        /*
-          中央に浮かべるときは、少し濃くする。下から出る一枚は画面の
-          端に触れていて「上に載っている」ことが形で分かるが、中央に
-          浮かぶ面は、地が薄いと**元の画面と同じ層**に見える。
-        */
-        className={`absolute inset-0 ${centered ? "bg-ink/55" : "bg-ink/45"}`}
-      />
+      {/*
+        中央に浮かべるときは、少し濃くする。下から出る一枚は画面の
+        端に触れていて「上に載っている」ことが形で分かるが、中央に
+        浮かぶ面は、地が薄いと**元の画面と同じ層**に見える。
+
+        `dismissOnScrim` が false のときは、押せない面にする。
+        **見た目は同じで、押しても何も起きない。** 「閉じる」という
+        名前を持ったまま押せなくすると、読み上げでは押せるものとして
+        読まれて、押しても閉じない場所になる。
+      */}
+      {dismissOnScrim ? (
+        <button
+          type="button"
+          aria-label="閉じる"
+          data-testid={`${hook}-scrim`}
+          onClick={onClose}
+          className={`absolute inset-0 ${centered ? "bg-ink/55" : "bg-ink/45"}`}
+        />
+      ) : (
+        <div
+          aria-hidden="true"
+          data-testid={`${hook}-scrim`}
+          className={`absolute inset-0 ${centered ? "bg-ink/55" : "bg-ink/45"}`}
+        />
+      )}
 
       <div
         ref={panel}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        aria-describedby={describedBy}
         tabIndex={-1}
         /*
           スマホでは下から。指の届く側から出るほうが、閉じるのも近い。
@@ -265,41 +389,77 @@ export function MoreSheet({
                           : "animate-slide-in max-h-[80dvh] max-w-md rounded-t-panel sm:max-h-[80vh] sm:rounded-panel"
                     }`}
       >
-        <div
-          className={`flex shrink-0 items-center gap-3 border-b border-line px-5 ${
-            centered ? "py-4" : "py-3.5"
-          }`}
-        >
-          <h2
-            id={titleId}
-            /*
-              見出しと本文の段差を付ける。中央に浮かべる一枚は、本文
-              （17px）と見出し（15px）が近すぎると、見出しが本文の
-              1行目に見える。
-            */
-            className={`min-w-0 flex-1 font-bold ${centered ? "text-base" : "text-sm"}`}
+        {chromeless ? (
+          /*
+            帯を出さない一枚。見出しは読み上げにだけ残し、×を中身の
+            右上へ浮かべる。
+
+            当たり判定は 44px。見た目の丸（36px）より大きく取る——
+            画面のいちばん端に近いボタンなので、小さいと指が外れる。
+          */
+          <>
+            {!labelledBy && (
+              <h2 id={titleId} className="sr-only">
+                {title}
+              </h2>
+            )}
+            <button
+              type="button"
+              aria-label="閉じる"
+              data-testid={`${hook}-close`}
+              onClick={onClose}
+              className="absolute right-1.5 top-1.5 z-10 flex h-11 w-11 items-center
+                         justify-center rounded-full text-ink-muted transition
+                         hover:bg-brand-soft"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-6 w-6">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </>
+        ) : (
+          <div
+            className={`flex shrink-0 items-center gap-3 border-b border-line px-5 ${
+              centered ? "py-4" : "py-3.5"
+            }`}
           >
-            {title}
-          </h2>
-          <button
-            type="button"
-            aria-label="閉じる"
-            data-testid={`${hook}-close`}
-            onClick={onClose}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
-                       text-ink-muted transition hover:bg-brand-soft"
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
-              <path
-                d="M6 6l12 12M18 6L6 18"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-        </div>
+            <h2
+              id={titleId}
+              /*
+                見出しと本文の段差を付ける。中央に浮かべる一枚は、本文
+                （17px）と見出し（15px）が近すぎると、見出しが本文の
+                1行目に見える。
+              */
+              className={`min-w-0 flex-1 font-bold ${centered ? "text-base" : "text-sm"}`}
+            >
+              {title}
+            </h2>
+            <button
+              type="button"
+              aria-label="閉じる"
+              data-testid={`${hook}-close`}
+              onClick={onClose}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
+                         text-ink-muted transition hover:bg-brand-soft"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-5 w-5">
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
 
         {/*
           ここだけ送れる。`min-h-0` が無いと縦に伸びて画面から出る。
