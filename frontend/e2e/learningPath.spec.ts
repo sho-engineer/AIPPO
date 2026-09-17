@@ -34,7 +34,15 @@ async function seedCompleted(page: Page, lessonIds: string[]): Promise<void> {
 
 async function openPath(page: Page): Promise<void> {
   await expect(page.getByTestId("next-up")).toBeVisible();
-  await page.getByTestId("open-path").click();
+  /*
+    コース → いま学んでいるコースの中身。
+
+    ホームの「学習の道のりを見る」は外した（1画面に収めるため、コースの
+    画面へ返した）。**道のりを持っているのは、いまもこの画面**なので、
+    行き先は変わっていない——押す場所が下タブへ移っただけ。
+  */
+  await page.getByRole("button", { name: "コース" }).first().click();
+  await page.getByTestId("current-course-open").click();
   await expect(page.getByTestId("course-outline")).toBeVisible();
 }
 

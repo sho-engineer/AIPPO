@@ -43,7 +43,15 @@ async function openHome(page: Page): Promise<void> {
 
 async function openCourseDetail(page: Page): Promise<void> {
   await openHome(page);
-  await page.getByTestId("open-path").click();
+  /*
+    コース → いま学んでいるコースの中身。
+
+    ホームの「学習の道のりを見る」は外した（1画面に収めるため、コースの
+    画面へ返した）。**道のりを持っているのは、いまもこの画面**なので、
+    行き先は変わっていない——押す場所が下タブへ移っただけ。
+  */
+  await page.getByRole("button", { name: "コース" }).first().click();
+  await page.getByTestId("current-course-open").click();
   await expect(page.getByTestId("course-outline")).toBeVisible();
 }
 
@@ -55,8 +63,9 @@ test.describe("レッスンの絵", () => {
 
   test("縦横比 4:3 のまま出る（引き伸ばさない）", async ({ page }) => {
     await openHome(page);
-    // 探した結果にも絵が出る。ホームと合わせて両方見る
-    await page.getByTestId("open-path").click();
+    // 探した結果にも絵が出る
+    await page.getByRole("button", { name: "コース" }).first().click();
+    await page.getByTestId("current-course-open").click();
     await page.getByTestId("lesson-search").fill("文章");
 
     const thumbs = page.getByTestId("lesson-thumbnail");

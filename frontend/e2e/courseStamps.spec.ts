@@ -124,7 +124,9 @@ test.describe("道のりのスタンプ", () => {
       数えられる側を1本置く。
     */
     await seedCompleted(page, ["rewrite_text"]);
-    await page.getByTestId("open-path").click();
+    // 道のりはコースの画面が持つ（ホームの1行は外した）
+    await page.getByRole("button", { name: "コース" }).first().click();
+    await page.getByTestId("current-course-open").click();
 
     /*
       本数は決め打ちにしない。ここは通信を差し替えて動かすので、

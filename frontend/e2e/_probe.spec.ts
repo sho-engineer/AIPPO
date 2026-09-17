@@ -42,7 +42,7 @@ test("ホームの横はみ出し", async ({ page }) => {
   console.error("===== ホーム 320 =====");
   console.error(JSON.stringify(await widest(page), null, 1));
   const chain = await page.evaluate(() => {
-    const first = document.querySelector("[data-testid='skill-summary']");
+    const first = document.querySelector("[data-testid='stat-skills']");
     const rows: string[] = [];
     for (const el of first ? [first, ...first.querySelectorAll("*")] : []) {
       const box = el.getBoundingClientRect();
@@ -53,7 +53,7 @@ test("ホームの横はみ出し", async ({ page }) => {
           ` 最小${style.minWidth} flex=${style.flex} 表示=${style.display}`,
       );
     }
-    const el = document.querySelector("[data-testid='week-summary']");
+    const el = document.querySelector("[data-testid='stat-week']");
     for (let at: Element | null = el; at; at = at.parentElement) {
       const box = at.getBoundingClientRect();
       const style = getComputedStyle(at);

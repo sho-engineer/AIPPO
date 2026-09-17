@@ -122,7 +122,7 @@ test.describe("AI技図鑑", () => {
     await stubApi(page);
     await toHome(page);
 
-    const card = page.getByTestId("skill-summary");
+    const card = page.getByTestId("stat-skills");
     await expect(card).toBeVisible();
     await expect(card).toContainText("身についたこと");
     await expect(card).not.toContainText("AI技");
@@ -146,7 +146,7 @@ test.describe("AI技図鑑", () => {
     );
     await toHome(page);
 
-    await page.getByTestId("skill-summary").click();
+    await page.getByTestId("stat-skills").click();
 
     await expect(page.getByTestId("skill-count")).toBeVisible();
   });
