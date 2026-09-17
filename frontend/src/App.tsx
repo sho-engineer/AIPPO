@@ -17,7 +17,7 @@
  * 途中だから、抜け道を並べると気が散る（戻る道は画面の中に用意してある）。
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BottomTabBar, type TabKey } from "./components/AppShell";
 import { CoursePage } from "./pages/CoursePage";
@@ -26,12 +26,27 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { HomePage } from "./pages/HomePage";
 import { LessonRunner } from "./pages/LessonRunner";
 import { isOverlayHistory } from "./components/course/BackStack";
-import { TopPage } from "./pages/TopPage";
 import { lookupLesson, useCourse, useCourses } from "./course/live";
 import { isStartable } from "./course/availability";
 import { COMING_SOON_TOAST, Toast } from "./components/Toast";
 import { loadPlace, savePlace } from "./app/session";
 import { takeReturn } from "./auth/returnTo";
+import { useAuth } from "./auth/AuthContext";
+import { decideEntry } from "./app/entry";
+import { WelcomePage } from "./pages/WelcomePage";
+import { DiagnosisIntroPage } from "./pages/DiagnosisIntroPage";
+import {
+  accountGuideSeen,
+  markGuestSeen,
+  DIAGNOSIS_FIRST_QUESTION_ID,
+  DIAGNOSIS_LESSON_ID,
+} from "./course/diagnosisNudge";
+import {
+  hasAnyDraft,
+  hasGuestStarted,
+  listCompleted,
+  markGuestStarted,
+} from "./lib/draft";
 import { EVENTS, track } from "./lib/analytics";
 import { useSocialResult } from "./auth/useSocialResult";
 import { nextScreen, type Screen } from "./app/screens";
@@ -39,10 +54,6 @@ import { GoHomeProvider } from "./app/navigation";
 import { RecordPage } from "./pages/RecordPage";
 import { RecipePage } from "./pages/RecipePage";
 import { appliedTipById } from "./course/appliedTips";
-import {
-  DIAGNOSIS_FIRST_QUESTION_ID,
-  DIAGNOSIS_LESSON_ID,
-} from "./course/diagnosisNudge";
 import { useCompletedLessons } from "./course/progress";
 import { SavedPage } from "./pages/SavedPage";
 import { SkillDexPage } from "./pages/SkillDexPage";
@@ -55,7 +66,12 @@ import { WorksPage } from "./pages/WorksPage";
  * （戻る道は画面の中にある）。これ以外では必ず出す——下タブに無い画面
  * でも、帯ごと消すと戻る道まで消える。
  */
-const NO_TAB_BAR: Partial<Record<Screen, true>> = { TOP: true, LESSON: true };
+const NO_TAB_BAR: Partial<Record<Screen, true>> = {
+  // まだ「アプリの中」ではない。行き先を5つ並べても選びようがない
+  WELCOME: true,
+  DIAGNOSIS_INTRO: true,
+  LESSON: true,
+};
 
 /** 下タブのどれが光っているか。無い画面ではどれも光らせない。 */
 const TAB_OF: Partial<Record<Screen, TabKey>> = {
@@ -105,9 +121,21 @@ function isAippoHistoryState(value: unknown): value is AippoHistoryState {
   return state.aippo === true && typeof state.screen === "string";
 }
 
+/**
+ * 1度だけ通る入口か。
+ *
+ * ここに来る道は `app/entry.ts` が決める。履歴からも、覚えていた場所
+ * からも復元しない——復元すると、通り抜けたはずの入口へ戻ってしまう。
+ */
+function isEntryScreen(screen: Screen): boolean {
+  return screen === "WELCOME" || screen === "DIAGNOSIS_INTRO";
+}
+
 const BACK_FALLBACK: Record<Screen, Screen> = {
-  TOP: "TOP",
-  HOME: "TOP",
+  WELCOME: "WELCOME",
+  // 案内から戻る先はホーム。ようこそへ返すと、始め方をもう一度選ばせる
+  DIAGNOSIS_INTRO: "HOME",
+  HOME: "HOME",
   COURSE: "HOME",
   COURSE_DETAIL: "COURSE",
   LESSON: "COURSE_DETAIL",
@@ -122,9 +150,29 @@ const BACK_FALLBACK: Record<Screen, Screen> = {
 export function App() {
   // 教材はサーバーから届いたら差し替わる。届くまでは同梱の分で動く
   const course = useCourse();
+  const auth = useAuth();
   const [initial] = useState(() => {
     const browser = window.history.state;
-    if (isAippoHistoryState(browser)) return browser;
+    /*
+      同じ回の中で進んだ・戻った。**入口の判断はやり直さない。**
+
+      画面の中を動いているだけなので、そこで「初めての人か」を
+      決め直すと、押した先が別の画面になる。
+
+      ただし**入口の2枚だけは別**。あの2枚は1度だけ通るところなので、
+      履歴に残った状態から復元してはいけない。
+
+      実際に踏んだ穴
+      --------------
+      入口に居るあいだも、履歴にはその画面の状態が入る。読み込み直すと
+      `window.history.state` はそのまま残っているので、**決め直さずに
+      ようこそを描き続ける**——端末には「ゲストで始めた」印があるのに、
+      何度読み込んでもようこそから出られない状態になっていた
+      （検査でつかまえた。storage を消したタブを読み込み直すと必ず出る）。
+    */
+    if (isAippoHistoryState(browser) && !isEntryScreen(browser.screen)) {
+      return { ...browser, decided: true };
+    }
     /*
       外部サービス（Google）から戻ってきた回。
 
@@ -146,13 +194,28 @@ export function App() {
     return {
       aippo: true as const,
       depth: 0,
-      screen: restored?.screen ?? "TOP",
+      /*
+        外から帰ってきた回（Google の認証など）は、控えた場所がそのまま
+        行き先になる。**入口の判断を挟まない**——挟むと、押す前に居た
+        画面ではなく「初めての人向けの1枚」へ着く。有効な行き先を持って
+        帰ってきた人を、一律でホームへ流さないための道。
+      */
+      screen: restored?.screen ?? "HOME",
       lessonId: restored?.lessonId ?? course.lessons[0].id,
       courseId: restored?.courseId ?? course.id,
       recipeId: null,
       startStepId: null,
+      decided: Boolean(returning),
     };
   });
+  /*
+    どの画面から始めるかが、決まったか。
+
+    決まるまでは**何も描かない**（`decided` が false）。ここで仮に
+    ホームやようこそを出すと、決まった瞬間に別の画面へ入れ替わる
+    ——一瞬だけ知らない画面が見える。決め方は `app/entry.ts`。
+  */
+  const [decided, setDecided] = useState(initial.decided);
   const [screen, setScreen] = useState<Screen>(initial.screen);
   const [lessonId, setLessonId] = useState<string>(initial.lessonId);
   /*
@@ -186,10 +249,57 @@ export function App() {
   const courses = useCourses();
   const completed = useCompletedLessons();
 
-  useEffect(
-    () => savePlace({ screen, lessonId, courseId: detailCourseId }),
-    [screen, lessonId, detailCourseId],
-  );
+  /*
+    どの画面から始めるか。**揃ってから決める。**
+
+    条件は `app/entry.ts` が持つ。ここでやるのは材料を渡すことと、
+    決まった行き先を履歴の根に据えることだけ。
+  */
+  useEffect(() => {
+    if (decided) return;
+    const entry = decideEntry({
+      authLoading: auth.loading,
+      signedIn: Boolean(auth.user),
+      serverHistory: auth.progress
+        ? auth.progress.completed + auth.progress.in_progress
+        : null,
+      guestStarted: hasGuestStarted(),
+      guideSeen: accountGuideSeen(auth.user),
+      deviceHistory: listCompleted().length > 0 || hasAnyDraft(),
+      saved: loadPlace()?.screen ?? null,
+    });
+    if (entry.kind === "pending") return;
+    setDecided(true);
+    setScreen(entry.screen);
+  }, [decided, auth.loading, auth.user, auth.progress]);
+
+  /*
+    ログアウトしたら、ようこそへ。
+
+    `decided` を下ろすだけでよい——次の描画で入口の判断がやり直され、
+    端末の控えは `signOut` が落としている（`AuthContext`）ので、
+    行き先はようこそになる。ここで直に `setScreen("WELCOME")` と
+    書かないのは、**判断の場所を2つにしない**ため。
+
+    期限切れでログイン状態が落ちたときも同じ道を通る。落ちた先は
+    ようこそで、そこから入り直せる（行ったり来たりにはならない）。
+  */
+  const wasSignedIn = useRef(false);
+  useEffect(() => {
+    if (wasSignedIn.current && !auth.user) setDecided(false);
+    wasSignedIn.current = Boolean(auth.user);
+  }, [auth.user]);
+
+  useEffect(() => {
+    /*
+      入口の2枚は覚えない。1度だけ通るところなので、覚えて戻すと
+      毎回同じ入口をくぐり直すことになる。決まる前も書かない
+      ——仮の値で上書きすると、覚えていた場所が消える。
+    */
+    if (!decided) return;
+    if (screen === "WELCOME" || screen === "DIAGNOSIS_INTRO") return;
+    savePlace({ screen, lessonId, courseId: detailCourseId });
+  }, [decided, screen, lessonId, detailCourseId]);
 
   const navigate = useCallback(
     (
@@ -200,12 +310,15 @@ export function App() {
         recipeId?: string | null;
         startStepId?: string;
       } = {},
+      options: { replace?: boolean } = {},
     ) => {
       const state: AippoHistoryState = {
         aippo: true,
         depth: isAippoHistoryState(window.history.state)
-          ? window.history.state.depth + 1
-          : 1,
+          ? window.history.state.depth + (options.replace ? 0 : 1)
+          : options.replace
+            ? 0
+            : 1,
         screen: next,
         lessonId: values.lessonId ?? lessonId,
         courseId: values.courseId ?? detailCourseId,
@@ -220,7 +333,15 @@ export function App() {
         */
         startStepId: values.startStepId ?? null,
       };
-      window.history.pushState(state, "");
+      /*
+        `replace` は、いまの1つを**置き換える**。
+
+        入口の2枚（ようこそ・診断の案内）から出るときに使う。あれは
+        1度だけ通るところなので、履歴に残すと「戻る」でそこへ帰れて
+        しまう——案内を閉じた人が、戻るを押すたびに案内を読み直す。
+      */
+      if (options.replace) window.history.replaceState(state, "");
+      else window.history.pushState(state, "");
       setLessonId(state.lessonId);
       setDetailCourseId(state.courseId);
       setRecipeId(state.recipeId);
@@ -253,7 +374,24 @@ export function App() {
     [navigate],
   );
 
+  /*
+    履歴の根を1つだけ作る。**行き先が決まってから。**
+
+    決まる前に作ると、根が仮の画面（まだ決めていないホーム）になり、
+    そこへ「戻る」で着いてしまう。`decided` が立った最初の1回だけ走る。
+
+    根より下にいる画面（ホーム以外）は、戻り先を1つ敷いてから自分を
+    積む。そうしないと、1回目の「戻る」でアプリの外へ出る。
+  */
+  const rooted = useRef(false);
   useEffect(() => {
+    if (!decided || rooted.current) return;
+    if (isAippoHistoryState(window.history.state)) {
+      rooted.current = true;
+      return;
+    }
+    rooted.current = true;
+
     const current: AippoHistoryState = {
       aippo: true,
       depth: 0,
@@ -263,18 +401,24 @@ export function App() {
       recipeId,
       startStepId,
     };
-    if (!isAippoHistoryState(window.history.state)) {
-      if (screen === "TOP") {
-        window.history.replaceState(current, "");
-      } else {
-        window.history.replaceState(
-          { ...current, screen: BACK_FALLBACK[screen] },
-          "",
-        );
-        window.history.pushState({ ...current, depth: 1 }, "");
-      }
+    /*
+      入口の2枚は、それ自体が根。戻り先を敷かない——ようこその下に
+      ホームを敷くと、**始め方を選ぶ前のホーム**へ戻れてしまう。
+    */
+    if (BACK_FALLBACK[screen] === screen || screen === "DIAGNOSIS_INTRO") {
+      window.history.replaceState(current, "");
+    } else {
+      window.history.replaceState(
+        { ...current, screen: BACK_FALLBACK[screen] },
+        "",
+      );
+      window.history.pushState({ ...current, depth: 1 }, "");
     }
+    // 根を敷くのは、決まった直後の1回きり
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [decided]);
 
+  useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
       if (!isAippoHistoryState(event.state)) return;
       setScreen(event.state.screen);
@@ -285,15 +429,18 @@ export function App() {
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-    // The first render establishes the browser-history root exactly once.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const openCourse = (id: string, from: Screen) => {
     navigate(nextScreen(from, "OPEN_COURSE_DETAIL"), { courseId: id });
   };
 
-  const openLesson = (id: string, from: Screen, startAt?: string) => {
+  const openLesson = (
+    id: string,
+    from: Screen,
+    startAt?: string,
+    options: { replace?: boolean } = {},
+  ) => {
     /*
       準備中の教材は開かない。**判定はここ1か所。**
 
@@ -323,11 +470,11 @@ export function App() {
     const owner = courses.find((entry) =>
       entry.lessons.some((item) => item.id === id),
     );
-    navigate(nextScreen(from, "SELECT_LESSON"), {
-      lessonId: id,
-      courseId: owner?.id,
-      startStepId: startAt,
-    });
+    navigate(
+      nextScreen(from, "SELECT_LESSON"),
+      { lessonId: id, courseId: owner?.id, startStepId: startAt },
+      options,
+    );
   };
 
   const tab = TAB_OF[screen];
@@ -340,31 +487,82 @@ export function App() {
   */
   const social = useSocialResult();
 
+  /**
+   * 案内を「見た」ことにする。登録した人はサーバー、ゲストは端末。
+   *
+   * 出した時点で回す。閉じたときに回すと、読んだまま別の画面へ行った
+   * 人や、読み込み直した人にもう一度出る。
+   */
+  const markGuideSeen = useCallback(() => {
+    if (auth.user) auth.markDiagnosisNudgeSeen();
+    else markGuestSeen();
+  }, [auth]);
+
   const body = (() => {
+    // 決まるまでは何も描かない。一瞬だけ別の画面が見えるのを避ける
+    if (!decided) return null;
+
     switch (screen) {
-      case "TOP":
-        return <TopPage onStart={() => navigate(nextScreen("TOP", "START"))} />;
+      case "WELCOME":
+        return (
+          <WelcomePage
+            onStartGuest={() => {
+              /*
+                ゲストで始めた、という印だけを立てる。**ログイン済みには
+                しない**——この印は「ようこそをもう一度出さない」ため
+                だけのもので、登録した人かどうかは `me` が決める。
+              */
+              markGuestStarted();
+              /*
+                行き先は決め直す。案内を見ていない初回だけ案内へ、
+                それ以外はホームへ——判断は `app/entry.ts` の1か所。
+              */
+              setDecided(false);
+            }}
+            /*
+              登録・ログインが**済んだ**とき。押した時点ではない。
+              ここでも決め直す。登録した初日なら案内へ、続きがある人は
+              覚えていた場所へ戻る。
+            */
+            onAuthenticated={() => setDecided(false)}
+          />
+        );
+
+      case "DIAGNOSIS_INTRO":
+        return (
+          <DiagnosisIntroPage
+            onSeen={markGuideSeen}
+            onStart={() => {
+              /*
+                案内を、ホームに置き換えてから診断へ入る。
+
+                案内は1度きりの画面なので、履歴に残すと**診断を途中で
+                閉じた人が案内へ戻る**（そこで「あとで」をもう一度
+                押すことになる）。置き換えておけば、閉じた先はホーム。
+              */
+              navigate("HOME", {}, { replace: true });
+              openLesson(
+                DIAGNOSIS_LESSON_ID,
+                "DIAGNOSIS_INTRO",
+                DIAGNOSIS_FIRST_QUESTION_ID,
+              );
+            }}
+            /* 「あとで」も置き換える。戻るで案内へ帰さない */
+            onSkip={() =>
+              navigate(nextScreen("DIAGNOSIS_INTRO", "BACK_TO_HOME"), {}, {
+                replace: true,
+              })
+            }
+          />
+        );
 
       case "HOME":
         return (
           <HomePage
             onSelectLesson={(id) => openLesson(id, "HOME")}
-            onOpenCourse={() => navigate(nextScreen("HOME", "OPEN_COURSE"))}
-            // 「道のりを見る」から、いま学んでいるコースの中身へ直行する
-            onOpenPath={(id) => openCourse(id, "HOME")}
             onOpenRecord={() => navigate(nextScreen("HOME", "OPEN_RECORD"))}
             onOpenSkills={() => navigate(nextScreen("HOME", "OPEN_SKILLS"))}
             onOpenAccount={() => navigate(nextScreen("HOME", "OPEN_SETTINGS"))}
-            /*
-              初回の案内から診断へ。**開始説明を飛ばして1問目へ。**
-
-              入口は `openLesson` のまま。公開状態の判定はそこ1か所と
-              決めてあるので（近日公開に戻された日でも、押した先が
-              行き止まりにならない）、案内だけ別の道を通らせない。
-            */
-            onStartDiagnosis={() =>
-              openLesson(DIAGNOSIS_LESSON_ID, "HOME", DIAGNOSIS_FIRST_QUESTION_ID)
-            }
           />
         );
 
@@ -477,14 +675,9 @@ export function App() {
           return (
             <HomePage
               onSelectLesson={(id) => openLesson(id, "HOME")}
-              onOpenCourse={() => navigate("COURSE")}
-              onOpenPath={(id) => openCourse(id, "HOME")}
               onOpenRecord={() => navigate("RECORD")}
               onOpenSkills={() => navigate("SKILLS")}
               onOpenAccount={() => navigate("SETTINGS")}
-              onStartDiagnosis={() =>
-                openLesson(DIAGNOSIS_LESSON_ID, "HOME", DIAGNOSIS_FIRST_QUESTION_ID)
-              }
             />
           );
         }

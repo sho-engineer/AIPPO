@@ -3,9 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../src/App";
+import { forgetGuestSeen } from "../src/course/diagnosisNudge";
 import { COURSE } from "../src/course/catalog";
 import { resetCatalog } from "../src/course/live";
-import { BRAND } from "../src/content/ui";
 import { passSections } from "./support/sections";
 
 /** サーバーから届く形の、2本目のコース（近日公開）。 */
@@ -30,6 +30,14 @@ function catalogReply(courses: unknown[]): Response {
 describe("画面の行き来", () => {
   beforeEach(async () => {
     window.localStorage.clear();
+    /*
+      端末の控えを落としても、**この回のあいだの控え**は残る
+      （`course/diagnosisNudge.ts` の `seenInThisSession`。保存が使えない
+      端末で案内が毎回出ないようにするためのもの）。実ブラウザは読み込み
+      直すたびに消えるが、検査は同じ読み込みの中で何回も回るので、
+      ここで明示的に落とす。落とさないと、2回目から**ようこそが出ない**。
+    */
+    forgetGuestSeen();
     /*
       積んだ履歴を、いちばん最初まで巻き戻す。
 
@@ -67,8 +75,19 @@ describe("画面の行き来", () => {
     resetCatalog();
   });
 
+  /**
+   * ようこそからホームまで、入口の2枚を通り抜ける。
+   *
+   * ゲストで始めると、案内（`DiagnosisIntroPage`）が1度だけ挟まる。
+   * **出ていたら「あとで」で閉じる**という形にしてある——決め打ちに
+   * すると、案内を見たあとの検査（同じ端末で2回目）が落ちる。
+   */
   const start = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
+    await user.click(await screen.findByTestId("welcome-guest"));
+    const later = await screen
+      .findByTestId("diagnosis-intro-later")
+      .catch(() => null);
+    if (later) await user.click(later);
   };
 
   /** 下タブの「コース」を押して一覧へ。 */
@@ -106,14 +125,36 @@ describe("画面の行き来", () => {
     if (intro) await user.click(intro);
   };
 
-  it("タイトルから始まる", () => {
+  it("ようこそから始まる", async () => {
+    /*
+      初めて来た人の1枚目。**何を決める画面かが、見出しで分かる。**
+    */
     render(<App />);
+
     expect(
-      screen.getByRole("heading", { name: BRAND.headline }),
+      await screen.findByRole("heading", { name: "触って学ぶ、AIの使い方。" }),
     ).toBeInTheDocument();
+    // 始め方は3つとも出ている
+    expect(screen.getByTestId("welcome-signup")).toBeInTheDocument();
+    expect(screen.getByTestId("welcome-signin")).toBeInTheDocument();
+    expect(screen.getByTestId("welcome-guest")).toBeInTheDocument();
   });
 
-  it("タイトルからホームへ進む", async () => {
+  it("ゲストで始めると、ホームを経由せず診断の案内へ", async () => {
+    /*
+      **ホームを挟まない。** 挟むと、まだ何も無い記録の画面を1度見せて
+      から「まずは診断を」と言うことになる。
+    */
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByTestId("welcome-guest"));
+
+    expect(await screen.findByTestId("diagnosis-intro-page")).toBeInTheDocument();
+    expect(screen.queryByTestId("next-up")).not.toBeInTheDocument();
+  });
+
+  it("案内の「あとで」でホームへ進む", async () => {
     const user = userEvent.setup();
     render(<App />);
 
@@ -305,7 +346,8 @@ describe("画面の行き来", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(screen.getByTestId("poe-avatar")).toBeInTheDocument();
+    // ようこそでは、いちばん大きく出る1枚（手を振っているポー）
+    expect(await screen.findByTestId("welcome-po")).toBeInTheDocument();
 
     await start(user);
     // ホームでも同じ目印にそろえた（前は po-greeting という別名だった）
@@ -369,6 +411,7 @@ describe("画面の行き来", () => {
 describe("下タブの出し入れ", () => {
   beforeEach(async () => {
     window.localStorage.clear();
+    forgetGuestSeen();
     /*
       積んだ履歴を、いちばん最初まで巻き戻す。
 
@@ -406,8 +449,19 @@ describe("下タブの出し入れ", () => {
     resetCatalog();
   });
 
+  /**
+   * ようこそからホームまで、入口の2枚を通り抜ける。
+   *
+   * ゲストで始めると、案内（`DiagnosisIntroPage`）が1度だけ挟まる。
+   * **出ていたら「あとで」で閉じる**という形にしてある——決め打ちに
+   * すると、案内を見たあとの検査（同じ端末で2回目）が落ちる。
+   */
   const start = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
+    await user.click(await screen.findByTestId("welcome-guest"));
+    const later = await screen
+      .findByTestId("diagnosis-intro-later")
+      .catch(() => null);
+    if (later) await user.click(later);
   };
 
   /**
@@ -442,10 +496,18 @@ describe("下タブの出し入れ", () => {
     expect(lit).toHaveLength(0);
   });
 
-  it("タイトル画面には、下タブを出さない", async () => {
-    // 「押す場所は1つ」が売りの画面。抜け道を並べない
+  it("入口の2枚には、下タブを出さない", async () => {
+    /*
+      まだ「アプリの中」ではない。行き先を5つ並べても選びようがない。
+    */
+    const user = userEvent.setup();
     render(<App />);
 
+    await screen.findByTestId("welcome-page");
+    expect(screen.queryByTestId("tab-bar")).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId("welcome-guest"));
+    await screen.findByTestId("diagnosis-intro-page");
     expect(screen.queryByTestId("tab-bar")).not.toBeInTheDocument();
   });
 

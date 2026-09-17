@@ -38,7 +38,6 @@ async function openHome(page: Page): Promise<void> {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("next-up")).toBeVisible();
 }
 
@@ -155,7 +154,6 @@ test.describe("レッスンの絵", () => {
     await page.goto("/");
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
-    await page.getByRole("button", { name: "はじめる" }).first().click();
     await page.getByRole("button", { name: "コース" }).first().click();
 
     const soon = page.locator("[data-testid^='course-']");

@@ -43,7 +43,6 @@ async function openHome(page: Page): Promise<void> {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await expect(page.getByTestId("next-up")).toBeVisible();
 }
@@ -122,10 +121,16 @@ test.describe("いちばん低い持ち方で畳むもの", () => {
     await expect(page.getByTestId("home-greeting")).toBeVisible();
     await expect(page.getByTestId("next-up")).toBeVisible();
     await expect(page.getByTestId("continue-lesson")).toBeInViewport();
-    // 記録と数字も残す（畳むのはねらい書きと「ほかにも見る」だけ）
+    // 記録の3つも残す（畳むのはねらい書きと、あいさつの2行目だけ）
     await expect(page.getByTestId("progress-summary")).toBeVisible();
-    await expect(page.getByTestId("skill-summary")).toBeVisible();
-    // 道のりへの入口は、「ほかにも見る」を畳んでも残る
-    await expect(page.getByTestId("open-path")).toBeVisible();
+    await expect(page.getByTestId("stat-skills")).toBeVisible();
+    /*
+      道のりと見返しは、ホームから**移した**（コースとマイ学び）。
+      ここに戻ってきていないことを見る——積み直すのは簡単なので、
+      気づける場所を1つ置いておく。移した先で使えることは
+      `e2e/homeMoved.spec.ts` が見る。
+    */
+    await expect(page.getByTestId("open-path")).toHaveCount(0);
+    await expect(page.getByTestId("review-prompt")).toHaveCount(0);
   });
 });

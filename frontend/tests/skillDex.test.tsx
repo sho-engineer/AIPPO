@@ -14,6 +14,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../src/App";
+import { forgetGuestSeen } from "../src/course/diagnosisNudge";
 import { resetCatalog } from "../src/course/live";
 import { SkillDexPage } from "../src/pages/SkillDexPage";
 import type { SkillDex } from "../src/api/skills";
@@ -71,6 +72,8 @@ function serve(body: SkillDex | null) {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  window.localStorage.clear();
+  forgetGuestSeen();
 });
 
 function open(dex: SkillDex | null = DEX) {
@@ -203,8 +206,17 @@ describe("ホームの「身についたこと」", () => {
 
   const openHome = async (user: ReturnType<typeof userEvent.setup>) => {
     render(<App />);
-    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
-    return screen.findByTestId("skill-summary");
+    /*
+      ようこそ → （案内）→ ホーム。
+
+      入口が2枚あるので、押すのも2回になることがある。案内は
+      **出ていたら閉じる**形にしてある——見た印が端末に残っている
+      回では出ないので、決め打ちにすると落ちる。
+    */
+    await user.click(await screen.findByTestId("welcome-guest"));
+    const later = screen.queryByTestId("diagnosis-intro-later");
+    if (later) await user.click(later);
+    return screen.findByTestId("stat-skills");
   };
 
   /*

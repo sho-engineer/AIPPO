@@ -33,7 +33,6 @@ async function seedCompleted(page: Page, lessonIds: string[]): Promise<void> {
 }
 
 async function openPath(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("next-up")).toBeVisible();
   await page.getByTestId("open-path").click();
   await expect(page.getByTestId("course-outline")).toBeVisible();

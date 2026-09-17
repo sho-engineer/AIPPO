@@ -40,7 +40,6 @@ async function runToCompletion(page: Page): Promise<void> {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await page.getByRole("button", { name: "コース" }).click();
   await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-rewrite_text").click();

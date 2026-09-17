@@ -90,7 +90,6 @@ async function openRewrite(page: Page): Promise<void> {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await page.getByTestId("continue-lesson").click();
   await dismissLessonIntro(page);
   await expect(page.getByTestId("lesson-header")).toBeVisible();

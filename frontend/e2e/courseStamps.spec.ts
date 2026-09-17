@@ -41,7 +41,6 @@ async function seedCompleted(page: Page, lessonIds: string[]): Promise<void> {
 }
 
 async function openRewriteLesson(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await page.getByRole("button", { name: "コース" }).first().click();
   await page.getByTestId("current-course-open").click();
@@ -125,7 +124,6 @@ test.describe("道のりのスタンプ", () => {
       数えられる側を1本置く。
     */
     await seedCompleted(page, ["rewrite_text"]);
-    await page.getByRole("button", { name: "はじめる" }).first().click();
     await page.getByTestId("open-path").click();
 
     /*
@@ -141,7 +139,6 @@ test.describe("道のりのスタンプ", () => {
 
   test("ホームには持ち込まない", async ({ page }) => {
     await seedCompleted(page, ["diagnosis"]);
-    await page.getByRole("button", { name: "はじめる" }).first().click();
 
     await expect(page.getByTestId("next-up")).toBeVisible();
     await expect(page.getByTestId("path-progress")).toHaveCount(0);

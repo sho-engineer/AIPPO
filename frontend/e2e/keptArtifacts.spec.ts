@@ -27,7 +27,6 @@ async function finishALesson(page: Page): Promise<void> {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await page.getByRole("button", { name: "コース" }).click();
   await page.getByTestId("current-course-open").click();
   await page.getByTestId("lesson-rewrite_text").click();
@@ -122,7 +121,6 @@ test.describe("作ったものを取っておく", () => {
     await page.goto("/");
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
-    await page.getByRole("button", { name: "はじめる" }).first().click();
     await page.getByRole("button", { name: "マイ成果物" }).click();
 
     await expect(page.getByTestId("kept-list")).toHaveCount(0);

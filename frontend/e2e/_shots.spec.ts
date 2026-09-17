@@ -62,7 +62,7 @@ test.describe("代表画面", () => {
     await page.goto("/");
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
-    const start = page.getByRole("button", { name: "はじめる" }).first();
+    const start = page.getByTestId("welcome-guest");
     if (await start.count()) await start.click();
     await page.getByTestId("tab-bar").waitFor();
     await shot(page, "01-home-320");
@@ -74,7 +74,7 @@ test.describe("代表画面", () => {
     await page.goto("/");
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
-    const start = page.getByRole("button", { name: "はじめる" }).first();
+    const start = page.getByTestId("welcome-guest");
     if (await start.count()) await start.click();
     await page.getByTestId("tab-bar").waitFor();
     await page.getByRole("button", { name: "コース" }).first().click();

@@ -3,9 +3,10 @@ import { describe, expect, it } from "vitest";
 import { SCREENS, canTransition, nextScreen } from "../src/app/screens";
 
 describe("画面遷移", () => {
-  it("11画面（コースは一覧と中身の2段）", () => {
+  it("12画面（入口が2枚、コースは一覧と中身の2段）", () => {
     expect(SCREENS).toEqual([
-      "TOP",
+      "WELCOME",
+      "DIAGNOSIS_INTRO",
       "HOME",
       "COURSE",
       "COURSE_DETAIL",
@@ -107,9 +108,23 @@ describe("画面遷移", () => {
     expect(nextScreen("RECORD", "OPEN_COURSE")).toBe("COURSE");
   });
 
-  it("タイトル → ホーム → レッスン と進める", () => {
-    expect(nextScreen("TOP", "START")).toBe("HOME");
+  it("ようこそ → ホーム → レッスン と進める", () => {
+    expect(nextScreen("WELCOME", "START")).toBe("HOME");
     expect(nextScreen("HOME", "SELECT_LESSON")).toBe("LESSON");
+  });
+
+  it("ようこそから、診断の案内へ出られる", () => {
+    /*
+      登録・ログインが済んだ直後の道。どちらへ進むかを決めるのは
+      `app/entry.ts` で、この表が持つのは「その行き先があること」だけ。
+    */
+    expect(nextScreen("WELCOME", "OPEN_DIAGNOSIS_INTRO")).toBe("DIAGNOSIS_INTRO");
+  });
+
+  it("診断の案内は、行き止まりにしない", () => {
+    // 「診断をはじめる」と「あとで」の2つ。どちらにも先がある
+    expect(nextScreen("DIAGNOSIS_INTRO", "SELECT_LESSON")).toBe("LESSON");
+    expect(nextScreen("DIAGNOSIS_INTRO", "BACK_TO_HOME")).toBe("HOME");
   });
 
   it("ホームとコース一覧は行き来できる（下タブ）", () => {
@@ -129,14 +144,14 @@ describe("画面遷移", () => {
     expect(nextScreen("LESSON", "OPEN_COURSE")).toBe("COURSE");
   });
 
-  it("一覧とレッスンからタイトルへ戻れる", () => {
-    expect(nextScreen("COURSE", "BACK_TO_TOP")).toBe("TOP");
-    expect(nextScreen("LESSON", "BACK_TO_TOP")).toBe("TOP");
+  it("一覧とレッスンからようこそへ戻れる", () => {
+    expect(nextScreen("COURSE", "BACK_TO_WELCOME")).toBe("WELCOME");
+    expect(nextScreen("LESSON", "BACK_TO_WELCOME")).toBe("WELCOME");
   });
 
-  it("タイトルから直接レッスンへは進めない", () => {
-    expect(canTransition("TOP", "SELECT_LESSON")).toBe(false);
-    expect(nextScreen("TOP", "SELECT_LESSON")).toBe("TOP");
+  it("ようこそから直接レッスンへは進めない", () => {
+    expect(canTransition("WELCOME", "SELECT_LESSON")).toBe(false);
+    expect(nextScreen("WELCOME", "SELECT_LESSON")).toBe("WELCOME");
   });
 
   it("設定はホームと教材一覧から開け、どちらへも抜けられる", () => {
@@ -151,7 +166,7 @@ describe("画面遷移", () => {
   });
 
   it("遷移表に無いイベントは現在の画面を維持する", () => {
-    expect(nextScreen("TOP", "BACK_TO_TOP")).toBe("TOP");
+    expect(nextScreen("WELCOME", "BACK_TO_WELCOME")).toBe("WELCOME");
     expect(canTransition("LESSON", "START")).toBe(false);
   });
 });

@@ -36,7 +36,7 @@ test("ホームの横はみ出し", async ({ page }) => {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  const start = page.getByRole("button", { name: "はじめる" }).first();
+  const start = page.getByTestId("welcome-guest");
   if (await start.count()) await start.click();
   await page.getByTestId("tab-bar").waitFor();
   console.error("===== ホーム 320 =====");

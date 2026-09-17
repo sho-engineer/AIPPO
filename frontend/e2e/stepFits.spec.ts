@@ -130,7 +130,6 @@ async function walk(p: Page): Promise<Fit[]> {
   await p.goto("/");
   await p.evaluate(() => window.localStorage.clear());
   await p.reload();
-  await p.getByRole("button", { name: "はじめる" }).first().click();
   await p.getByTestId("continue-lesson").click();
   // 開いた最初に導入の一枚が浮かぶ。後ろの画面を測りたいので閉じる
   await dismissLessonIntro(p);
@@ -242,7 +241,6 @@ test.describe("いちばん低い持ち方（iPhone の Safari、上下の帯あ
     await page.goto("/");
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
-    await page.getByRole("button", { name: "はじめる" }).first().click();
 
     /*
       導入の一枚を持っているのは**骨格の教材**（Day2 以降）。
@@ -292,7 +290,6 @@ test("完了画面でも、次にやることは画面に残る", async ({ page 
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await page.getByTestId("continue-lesson").click();
   await dismissLessonIntro(page);
   await expect(page.getByTestId("lesson-header")).toBeVisible();

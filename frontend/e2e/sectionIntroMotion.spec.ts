@@ -22,7 +22,6 @@ async function toDay1(page: Page) {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await page.getByTestId("continue-lesson").click();
   await expect(page.getByTestId("section-transition")).toBeVisible();
 }
@@ -122,7 +121,6 @@ test.describe("章扉が出るとき", () => {
     await page.goto("/");
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
-    await page.getByRole("button", { name: "はじめる" }).first().click();
 
     // 絵を遅らせて、届く前の高さを測れるようにする
     await page.route("**/assets/teaching/day1_section_*.webp", async (route) => {

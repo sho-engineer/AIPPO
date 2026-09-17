@@ -30,7 +30,6 @@ async function openApp(page: Page) {
 
 async function intoLesson(page: Page) {
   await openApp(page);
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await page.getByRole("button", { name: "コース" }).click();
   await page.getByTestId("current-course-open").click();

@@ -253,6 +253,81 @@ export function touchStreak(): Streak {
 }
 
 /**
+ * ゲストとして始めた跡。
+ *
+ * 「ゲストではじめる」を押したことだけを覚える。**学んだかどうかとは
+ * 別**で、押しただけの人にも効く——学んだ跡のほうで代用すると、
+ * 押してから何もしなかった人が、次に開くたびにようこそへ戻され、
+ * そのたびに始め方を選び直すことになる。
+ *
+ * 登録した人には使わない。あちらはサーバーが本当の状態を持っている。
+ */
+const GUEST_KEY = "aippo:guest";
+
+export function markGuestStarted(): void {
+  try {
+    window.localStorage.setItem(GUEST_KEY, "1");
+  } catch {
+    /* 保存できなくても、その場の操作は続けられる */
+  }
+}
+
+export function hasGuestStarted(): boolean {
+  try {
+    return window.localStorage.getItem(GUEST_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * この端末に残っている学習の跡を、まとめて消す。
+ *
+ * ログアウトのときに呼ぶ。**次にこの端末を使う人へ、前の人の記録を
+ * 見せないため。** ホームの「レッスン完了 1」は端末とサーバーの両方を
+ * 足して出しているので（`course/progress.ts`）、端末の分を残すと、
+ * ログアウトしたあとのホームに前の人の数がそのまま出る。
+ *
+ * 消すのは**この端末の写し**だけ。サーバー側の記録は消さない——
+ * ログインし直せば戻ってくる。消したいときは設定から
+ * （`deleteLearningData`）。
+ */
+export function clearDeviceLearningCache(): void {
+  const store = storage();
+  if (!store) return;
+
+  try {
+    const doomed: string[] = [];
+    for (let at = 0; at < store.length; at += 1) {
+      const key = store.key(at);
+      if (!key) continue;
+      if (key.startsWith(PREFIX) || DEVICE_KEYS.has(key)) doomed.push(key);
+    }
+    for (const key of doomed) store.removeItem(key);
+  } catch {
+    /* 消せなくても画面は動く。止める理由が無い */
+  }
+}
+
+/**
+ * 端末に置いてある、学習まわりの控え。
+ *
+ * ここに**入れないもの**を決めておく。設定（音を出すか、など）は
+ * その人の記録ではなく端末の好みなので、ログアウトで戻さない。
+ */
+const DEVICE_KEYS = new Set([
+  DONE_KEY,
+  STREAK_KEY,
+  GUEST_KEY,
+  // いまどの画面にいたか（`app/session.ts`）
+  "aippo:place",
+  // 診断の案内を見たか（`course/diagnosisNudge.ts`）
+  "aippo:diagnosis-nudge",
+  // 診断のおすすめ順（`course/recommend.ts` の `STORAGE_KEY`）
+  "aippo:recommended",
+]);
+
+/**
  * 今日より前に、この端末でひらいたことがあるか。
  *
  * 「もう使っている人」を見分けるのに使う（`course/diagnosisNudge.ts`）。

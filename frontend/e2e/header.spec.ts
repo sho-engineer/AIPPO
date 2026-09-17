@@ -44,7 +44,6 @@ async function openSettings(page: Page): Promise<void> {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await expect(page.getByTestId("tab-bar")).toBeVisible();
   await page.getByRole("button", { name: "その他" }).first().click();
   await expect(page.getByRole("heading", { name: "設定" })).toBeVisible();
@@ -104,7 +103,6 @@ test.describe("上の帯", () => {
     await page.goto("/");
     await page.evaluate(() => window.localStorage.clear());
     await page.reload();
-    await page.getByRole("button", { name: "はじめる" }).first().click();
     await expect(page.getByTestId("tab-bar")).toBeVisible();
 
     expect(await logoOffset(page)).toBeLessThan(-50);

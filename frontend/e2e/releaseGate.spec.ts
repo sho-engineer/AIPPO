@@ -25,7 +25,6 @@ async function toHome(page: Page) {
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
 }
 
 async function toCourse(page: Page) {

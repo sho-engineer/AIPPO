@@ -25,6 +25,9 @@ import { useCallback, useEffect, useState } from "react";
 
 import { fetchSkillDex, type Skill, type SkillDex } from "../api/skills";
 import { AppHeader } from "../components/AppShell";
+import { ReviewPrompt } from "../components/ReviewPrompt";
+import { ReviewCards } from "../components/course/ReviewCards";
+import { useCourse } from "../course/live";
 import { IconCheck, IconSparkle, IconStar } from "../components/Icons";
 import { EVENTS, track } from "../lib/analytics";
 
@@ -181,6 +184,8 @@ function SkillCard({
 }
 
 export function SkillDexPage({ onSelectLesson, onOpenCourse }: SkillDexPageProps) {
+  /* 見返しの札が、どの教材の話かを引くのに要る */
+  const course = useCourse();
   const [dex, setDex] = useState<SkillDex | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -213,6 +218,19 @@ export function SkillDexPage({ onSelectLesson, onOpenCourse }: SkillDexPageProps
           いま自分にできることの一覧です。名前はどれも一般的な言葉なので、
           そのまま調べて続きを読めます。
         </p>
+
+        {/*
+          そろそろ見返しどきのもの・飛ばした解説。**ホームから移した。**
+
+          置き場所はここが正しい。ホームは「今日のつづき」を始める場所で、
+          見返しは**できるようになったことの手入れ**——この画面が持って
+          いる話そのもの。ホームに積んでいたころは、出る日と出ない日で
+          ホームの高さが変わり、出た日は下が画面から切れていた。
+
+          どちらも、無ければ何も出ない。空の見出しは残らない。
+        */}
+        <ReviewPrompt onSelectLesson={onSelectLesson} />
+        <ReviewCards course={course} />
 
         {failed && (
           <div

@@ -2,18 +2,19 @@
  * ホームの並び。
  *
  * ここは「ダッシュボード」ではなく、**今日のつづきをやりに戻ってくる
- * 場所**。作り直しで守ると決めたのは7つ。
+ * 場所**。作り直しで守ると決めたのは6つ。
  *
  *   1. 開いた直後に見えるのは あいさつ → 今日の1本 → はじめるボタン
  *   2. 今日の1本が主役。記録より前に出す
  *   3. ポーは1体だけ。吹き出しで1画面を使い切らない
  *   4. 今日の1本の絵は、横いっぱいに敷かない（1画面を占有しない）
- *   5. ホームに**全レッスンの一覧は出さない**（順番は道のりの画面が持つ）
- *   6. 道のり・記録への入口は、ホームから1回で届く
- *   7. 「身についたこと／今週の学習」で**「AI技」とは書かない**
+ *   5. **積むものを4つに絞る**。送らずに全部見えることを保つため
+ *   6. 「身についたこと／今週」で**「AI技」とは書かない**
  *
- * 5 と 6 は対になっている。一覧を畳んだ代わりに、入口は必ず残す
- * ——畳んだうえに入口も消すと、全体の順番を見る手段が無くなる。
+ * 5 が今回の作り直しの中心。前はこの下に「そろそろもう一度」「飛ばした
+ * 解説」「ほかにも見る」「学習の道のり」が積まれていて、実測で 390×844
+ * の下が切れていた。**消したのではなく、移した**——行き先はどれも
+ * 下タブの中にあり、そちらで使えることは `e2e/homeMoved.spec.ts` が見る。
  */
 
 import { render, screen, within } from "@testing-library/react";
@@ -21,12 +22,18 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../src/App";
-import { COURSE } from "../src/course/catalog";
+import { forgetGuestSeen } from "../src/course/diagnosisNudge";
 import { resetCatalog } from "../src/course/live";
 
 describe("ホームの並び", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    /*
+      この回のあいだの控えも落とす。端末の控えと別に持っているので
+      （`course/diagnosisNudge.ts`）、これが残ると2回目からようこそが
+      出ない。
+    */
+    forgetGuestSeen();
     resetCatalog();
   });
 
@@ -37,11 +44,20 @@ describe("ホームの並び", () => {
 
   const openHome = async (user: ReturnType<typeof userEvent.setup>) => {
     render(<App />);
-    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
+    /*
+      ようこそ → （案内）→ ホーム。
+
+      入口が2枚あるので、押すのも2回になることがある。案内は
+      **出ていたら閉じる**形にしてある——見た印が端末に残っている
+      回では出ないので、決め打ちにすると落ちる。
+    */
+    await user.click(await screen.findByTestId("welcome-guest"));
+    const later = screen.queryByTestId("diagnosis-intro-later");
+    if (later) await user.click(later);
     await screen.findByTestId("next-up");
   };
 
-  it("上から、あいさつ → 今日の1本 → これまで → 2つの数字 の順に並ぶ", async () => {
+  it("上から、あいさつ → 今日の1本 → これまでの記録 の順に並ぶ", async () => {
     /*
       順番そのものを見る。「今日の1本」へ着くまでにスクロールが要る
       並びに戻っていないこと。
@@ -52,13 +68,7 @@ describe("ホームの並び", () => {
     const user = userEvent.setup();
     await openHome(user);
 
-    const order = [
-      "home-greeting",
-      "next-up",
-      "progress-summary",
-      "skill-summary",
-      "week-summary",
-    ];
+    const order = ["home-greeting", "next-up", "progress-summary"];
     const positions = order.map((id) => ({ id, el: screen.getByTestId(id) }));
 
     for (let i = 0; i < positions.length - 1; i += 1) {
@@ -145,34 +155,27 @@ describe("ホームの並び", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it("「道のりを見る」で、コースの道のりへ1回で着く", async () => {
-    // 一覧を畳んだ代わりに、入口は必ず残す（憲章 原則 I）
-    const user = userEvent.setup();
-    await openHome(user);
-
-    await user.click(screen.getByTestId("open-path"));
-
-    expect(await screen.findByTestId("course-outline")).toBeInTheDocument();
-    expect(
-      screen.getByRole("heading", { name: COURSE.title }),
-    ).toBeInTheDocument();
-  });
-
-  it("これまでの記録は、終えた本数だけを出す", async () => {
+  it("これまでの記録は、3つの数を1行に収める", async () => {
     /*
-      前はここに「あと3レッスンで 1 Credit」まで出していた。学びの画面で
-      数える話ではないうえ、進み具合の意味が「あと何回でもらえるか」に
-      すり替わる。
+      前は「進み具合の帯」「◯/◯ レッスン完了」「数字の札2枚」で
+      3段になっていて、**同じ話が3回**出たうえに 150px を使っていた。
+      そのぶん主役が上へ追いやられ、下が画面から出ていた。
+
+      いまは枠1つ。中は3つに区切るだけで、縦には積まない。
     */
     const user = userEvent.setup();
     await openHome(user);
 
     const record = screen.getByTestId("progress-summary");
+    expect(within(record).getAllByRole("button")).toHaveLength(3);
     expect(record).toHaveTextContent("レッスン完了");
+    expect(record).toHaveTextContent("身についたこと");
+    expect(record).toHaveTextContent("今週");
+    // 学びの画面で数える話ではない
     expect(record).not.toHaveTextContent("Credit");
   });
 
-  it("2つの数字に「AI技」とは書かない", async () => {
+  it("3つの数に「AI技」とは書かない", async () => {
     /*
       同じものを図鑑の中では技として扱うが、毎日ひらく場所に AI の語を
       並べると、学習アプリではなく AI の道具箱に見える。
@@ -180,11 +183,26 @@ describe("ホームの並び", () => {
     const user = userEvent.setup();
     await openHome(user);
 
-    const skills = screen.getByTestId("skill-summary");
+    const skills = screen.getByTestId("stat-skills");
     expect(skills).toHaveTextContent("身についたこと");
     expect(skills).not.toHaveTextContent("AI技");
+  });
 
-    expect(screen.getByTestId("week-summary")).toHaveTextContent("今週の学習");
+  it("積むのは4つまで。移したものは、ホームに戻さない", async () => {
+    /*
+      **今回の作り直しの中心。** 送らずに全部見えることを保つため、
+      ホームに置くのは 帯・あいさつ・今日の1本・記録 の4つだけにした。
+
+      移した先で使えることは `e2e/homeMoved.spec.ts` が見る。ここでは
+      **戻ってきていないこと**だけを見張る——積み直すのは簡単なので、
+      気づける場所を1つ置いておく。
+    */
+    const user = userEvent.setup();
+    await openHome(user);
+
+    expect(screen.queryByTestId("review-prompt")).not.toBeInTheDocument();
+    expect(screen.queryByText("ほかにも見る")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("open-path")).not.toBeInTheDocument();
   });
 
   it("測っていない数字を出さない", async () => {
@@ -205,8 +223,7 @@ describe("ホームの並び", () => {
       今日の1本・道のり・おすすめ2件・カテゴリ6件 で、**10枚の浮いた面**
       がホームに並んでいた。
 
-      いまは今日の1本だけ。記録も、2つの数字も、「ほかにも見る」も、
-      線と余白で区切る（数字の2枚は器として線で囲うが、浮かせない）。
+      いまは今日の1本だけ。記録の3つも、線で囲うだけで浮かせない。
 
       影（shadow-card）の有無で数える。囲うかどうかを決めているのは
       そこで、線や角丸は札にも付くため。ポーの吹き出しは面ではなく
@@ -222,73 +239,15 @@ describe("ホームの並び", () => {
     expect(floating).toEqual(["po-hero-message", "next-up"]);
   });
 
-  it("「ほかにも見る」は、2列で4つまで。3つ目からは高さのある持ち方だけ", async () => {
-    /*
-      前は6つを札で折り返して並べていた。字の長さで幅が変わるので列が
-      そろわず、いちばん下の節がいちばん賑やかに見えていた。
-      **探すのはホームの主役ではない。**残りは「すべて見る」の先。
-
-      2行目は高さで畳む
-      ------------------
-      ホームは送らずに全部見えるようにしてある（`e2e/homeFits.spec.ts`）。
-      2行目（52px ＋ すきま 10px）は、390×844 でちょうど収まらないぶんに
-      当たる。**列は 2列のまま**なので、出ていても出ていなくても形は
-      崩れない。節ごと畳むのは 800px 未満のときだけ。
-
-      畳むのは見え方だけで、DOM からは消さない——ここで数えているのは
-      「4つまで」という決まりのほう。
-    */
-    const user = userEvent.setup();
-    await openHome(user);
-
-    const section = screen
-      .getByRole("heading", { name: "ほかにも見る" })
-      .closest("section")!;
-    const list = section.querySelector("ul")!;
-    const items = list.querySelectorAll("li");
-
-    expect(list.className).toContain("grid-cols-2");
-    expect(items).toHaveLength(4);
-
-    // 節そのものは 800px 未満で畳む
-    expect(section.className).toContain("[@media(min-height:800px)]:block");
-
-    // 1つ目・2つ目はいつも出る。3つ目からは 900px 以上のときだけ
-    expect(items[0].className).not.toContain("hidden");
-    expect(items[1].className).not.toContain("hidden");
-    for (const at of [2, 3]) {
-      expect(items[at].className).toContain("hidden");
-      expect(items[at].className).toContain("[@media(min-height:900px)]:block");
-    }
-  });
-
-  it("同じ数を3回言わない（帯と分数だけにする）", async () => {
-    /*
-      前は「帯」「◯/◯ レッスン完了」「丸の列」で同じ数を3回言っていた。
-      3回言っても分かることは増えず、44px を使う（丸 32 ＋ 上の余白 12）。
-      ホームを1画面に収めるとき、いちばん先に落ちるのはここ。
-
-      スタンプとして数えたい人には、コースの道のりに丸が並んでいる
-      （ホームには持ち込まないと決めてある——`e2e/courseStamps.spec.ts`）。
-    */
-    const user = userEvent.setup();
-    await openHome(user);
-
-    const record = screen.getByTestId("progress-summary");
-    expect(record).toHaveTextContent("レッスン完了");
-    expect(record.querySelectorAll("ul")).toHaveLength(0);
-  });
-
   it("記録への入口は残す", async () => {
     /*
-      節を畳んだときに、入口まで一緒に消さない。
-      学習記録は下タブから外したので、**ここと その他 の2か所**が
-      入口になる。数字を見て「もっと見たい」と思う場所はここ。
+      数字を見て「もっと見たい」と思う場所はここ。数だけ見せて終わりに
+      すると、「5」が何のことか確かめる道が無くなる。
     */
     const user = userEvent.setup();
     await openHome(user);
 
-    await user.click(screen.getByTestId("open-record"));
+    await user.click(screen.getByTestId("stat-done"));
 
     expect(
       await screen.findByRole("heading", { name: "学習記録" }),

@@ -3,32 +3,42 @@
  *
  * ここは「ダッシュボード」ではない。**今日のつづきをやりに戻ってくる
  * 場所**にする。開いた瞬間に見えるのは、おかえりの一言と、今日の1本と、
- * それを始めるボタン。それ以外は下へ流す。
+ * それを始めるボタン。それ以外は下タブの先へ置く。
  *
- * 順番は上から:
+ * 置くものは4つだけ
+ * -----------------
+ *   1. 帯（ロゴとアカウント）
+ *   2. おかえりなさい ＋ 小さなポー
+ *   3. 今日の1本 ← **この画面の主役**
+ *   4. これまでの記録（3つの数を、1行に）
  *
- *   1. おかえりなさい ＋ ポーのひとこと
- *   2. 今日のつづき ← **この画面の主役**
- *   3. これまでの記録（進み具合の帯）
- *   4. 身についたこと ／ 今週の学習
- *   5. ほかにも見る
+ * 減らした理由
+ * ------------
+ * 前はこの下に「そろそろもう一度」「飛ばした解説」「ほかにも見る」
+ * 「学習の道のり」が積まれていた。どれも要るものだが、**積むと画面が
+ * 送れるようになる**——送らないと見えない場所に置いたものは、置いて
+ * いないのとほとんど変わらないうえ、主役（今日の1本）が画面の上へ
+ * 追いやられる。実測でも 390×844 で下が切れていた。
  *
- * 「これから」を先に、「これまで」を後に
- * --------------------------------------
- * 3 以降はどれも「ここまでの自分」の話で、**まだ今日を始めていない人に
- * 先に見せるもの**ではない。開いた人が最初に触るものを、最初に置く。
+ * だから、それぞれの持ち主の画面へ返した。
+ *
+ *     そろそろもう一度・飛ばした解説 → マイ学び（`SkillDexPage`）
+ *     学習の道のり                   → コース（`CoursePage`）
+ *     ほかにも見る                   → コース（一覧そのもの）
+ *
+ * 消したのではなく、移した。行き先は下タブにあり、押せば同じものが
+ * 出る（`e2e/homeMoved.spec.ts` が、移した先で使えることを見張る）。
  *
  * 面で囲うのは、今日の1本ひとつだけ
  * --------------------------------
- * 白い面が2つ3つと浮くと、どれが本題かが分からなくなる。記録も、探すも、
- * 線と余白で区切る（「身についたこと／今週の学習」の2枚だけは、数字を
- * 並べる器として例外）。
+ * 白い面が2つ3つと浮くと、どれが本題かが分からなくなる。記録の3つは
+ * 数を並べるだけの器なので、薄い枠1つに収めて縦積みにしない。
  *
  * ホームに置かないもの
  * --------------------
- * - **AI活用診断** … 受けるのは1回。毎日開く場所の主役にはしない
- * - **おすすめコース** … 「次に何をするか」は今日の1本が答える。
- *   もう1つ並べると、開くたびに選び直させることになる
+ * - **AI活用診断** … 受けるのは1回。毎日開く場所の主役にはしない。
+ *   まだの人にだけ、細い1行の入口を置く
+ * - **おすすめコース** … 「次に何をするか」は今日の1本が答える
  * - **Credit の話** … 学びの画面で数える話ではない
  *
  * 「AI技」と書かない
@@ -39,14 +49,8 @@
  *
  * 1画面に収める
  * --------------
- * 上から下まで、**送らずに全部見える**ことを保つ（`e2e/homeFits.spec.ts`）。
- * 主役の下に積んであるのはどれも「ここまでの自分」の話なので、送らないと
- * 見えないなら、置いていないのとほとんど変わらない。
- *
- * 低い持ち方（iPhone の Safari で上下の帯が出ている状態＝ 402×660）では、
- * 高さで2つ畳む——今日の1本のねらい書きと、「ほかにも見る」。どちらも
- * 行き止まりにはならない（前者はレッスンの最初の一枚、後者は下の帯の
- * 「コース」と、いちばん下の「学習の道のりを見る」）。
+ * 上から下まで、**送らずに全部見える**ことを保つ
+ * （`e2e/homeFits.spec.ts`。320×568 から 430×932 まで）。
  *
  * 数字は測ったものだけ
  * --------------------
@@ -59,26 +63,18 @@
 
 import { useEffect, useState } from "react";
 
-import { AppHeader, IconMark } from "../components/AppShell";
-import { DiagnosisNudgeDialog } from "../components/aippo/DiagnosisNudge";
-import {
-  DIAGNOSIS_LESSON_ID,
-  useDiagnosisNudge,
-} from "../course/diagnosisNudge";
+import { AppHeader } from "../components/AppShell";
+import { DIAGNOSIS_LESSON_ID } from "../course/diagnosisNudge";
 import { PoFace } from "../po/PoAvatar";
 import { PrimaryButton } from "../components/aippo/PrimaryButton";
-import { ReviewPrompt } from "../components/ReviewPrompt";
-import { ReviewCards } from "../components/course/ReviewCards";
 import {
   IconBookmark,
   IconCalendar,
   IconChevronRight,
   IconClock,
-  IconMedal,
 } from "../components/Icons";
 import { useCourse } from "../course/live";
 import { startableLessons } from "../course/availability";
-import { CATEGORIES, lookOf } from "../course/presentation";
 import { LessonThumbnail } from "../components/lessons/LessonThumbnail";
 import { lessonThumbnail } from "../course/lessonThumbnail";
 import { recommendationsForHome } from "../course/recommend";
@@ -89,23 +85,11 @@ import type { Lesson } from "../course/types";
 
 export interface HomePageProps {
   onSelectLesson: (lessonId: string) => void;
-  /** コース一覧タブへ。 */
-  onOpenCourse: () => void;
-  /** いま学んでいるコースの道のりへ。一覧を経由させない。 */
-  onOpenPath: (courseId: string) => void;
   /** 学習記録タブへ。 */
   onOpenRecord: () => void;
   /** 身についたことの一覧へ。 */
   onOpenSkills: () => void;
   onOpenAccount: () => void;
-  /**
-   * 案内から診断を始める。**開始説明を飛ばして1問目へ。**
-   *
-   * 常設の入口（`open-diagnosis`）は `onSelectLesson` を通る——
-   * あちらを押した人は案内を読んでいないので、開始説明がその人に
-   * とっての最初の説明になる。
-   */
-  onStartDiagnosis: () => void;
 }
 
 // ---------------------------------------------------------- おかえりなさい
@@ -139,7 +123,16 @@ function Welcome({ done, bubble }: { done: number; bubble: string }) {
           高くなり、あいさつの節がそのぶん伸びる。言っていることは
           変えずに、点で切る。
         */}
-        <p className="mt-1 text-sm leading-6 text-ink-muted">今日も少しずつ。</p>
+        {/*
+          低い持ち方では出さない。
+
+          320×568 では、この1行（24px）がそのままホームのあふれ分に
+          なる。言っているのは励ましだけで、消えても行き止まりには
+          ならない——迎える一言（h1）のほうは残る。
+        */}
+        <p className="mt-1 hidden text-sm leading-6 text-ink-muted [@media(min-height:600px)]:block">
+          今日も少しずつ。
+        </p>
       </div>
 
       {/*
@@ -162,11 +155,22 @@ function Welcome({ done, bubble }: { done: number; bubble: string }) {
         ぶんだけ今日の1本が下がる。
       */}
       <div className="flex shrink-0 items-center gap-1">
+        {/*
+          狭い画面では吹き出しを出さない。
+
+          320px の実測で、右の塊（吹き出し 86 ＋ すきま 4 ＋ ポー 78 ＝
+          168px）を引くと左に 112px しか残らず、**「はじめまして」が
+          3行に割れていた**（96px。ふつうは32px）。そのぶんがそのまま
+          ホームのあふれになる。
+
+          ポーは残す。ひとこと言う役は消えるが、居ること自体が
+          この画面の顔。
+        */}
         <p
           data-testid="po-hero-message"
           aria-live="polite"
-          className="max-w-[5.5rem] rounded-card bg-surface px-2.5 py-1.5
-                     text-[0.6875rem] leading-4 shadow-card"
+          className="hidden max-w-[5.5rem] rounded-card bg-surface px-2.5 py-1.5
+                     text-[0.6875rem] leading-4 shadow-card min-[360px]:block"
         >
           {bubble}
         </p>
@@ -206,7 +210,13 @@ function TodayCard({
 
   return (
     <section
-      className="rounded-panel border border-line bg-surface p-3.5 shadow-card"
+      /*
+        いちばん低い持ち方（320×568）だけ、内側の余白を 2px 詰める。
+        ここと下のボタンの上、そして診断の1行の上で合わせて 12px
+        ——それが 568px に収めるための最後のぶん（実測）。
+      */
+      className="rounded-panel border border-line bg-surface p-3
+                 shadow-card [@media(min-height:600px)]:p-3.5"
       aria-labelledby="next-heading"
       data-testid="next-up"
     >
@@ -271,7 +281,7 @@ function TodayCard({
         testId="continue-lesson"
         onClick={onStart}
         trailing={<IconChevronRight className="h-5 w-5 shrink-0" />}
-        className="mt-3 w-full"
+        className="mt-2 w-full [@media(min-height:600px)]:mt-3"
       >
         {started ? "つづきをはじめる" : "はじめる"}
       </PrimaryButton>
@@ -279,135 +289,82 @@ function TodayCard({
   );
 }
 
-// ------------------------------------------------------------ これまでの記録
+// ------------------------------------------------------- これまでの記録
 
 /**
- * どこまで来たか。**帯と丸だけ。**
+ * 3つの数を、1行に。
  *
- * 前はここに「あと3レッスンで 1 Credit」まで出していた。学びの画面で
- * 数える話ではないうえ、進み具合の意味が「あと何回でもらえるか」に
- * すり替わる。
+ * なぜ1行か
+ * ----------
+ * 前は「進み具合の帯」と「◯/◯ レッスン完了」と、数字の札2枚が
+ * 縦に3段だった。同じ「ここまでの自分」の話が3回出てくるうえ、
+ * 合わせて 150px を使っていた——そのぶん主役（今日の1本）が上へ
+ * 追いやられ、下が画面から出ていた。
+ *
+ * 数はどれも1桁か2桁なので、横に3つ並べても読める。枠は1つ、
+ * 区切りは細い縦線だけにする。
+ *
+ * 押せる
+ * ------
+ * 3つとも、その中身の画面へ行ける。数だけ見せて終わりにすると、
+ * 「5」が何のことか確かめる道が無くなる。
  */
-function Record({
+function RecordRow({
   done,
-  total,
+  skills,
+  week,
   onOpenRecord,
+  onOpenSkills,
 }: {
   done: number;
-  total: number;
+  skills: number;
+  week: number;
   onOpenRecord: () => void;
+  onOpenSkills: () => void;
 }) {
-  const ratio = total > 0 ? Math.min(1, done / total) : 0;
+  const cells = [
+    { label: "レッスン完了", value: done, unit: "", onClick: onOpenRecord, testId: "stat-done" },
+    { label: "身についたこと", value: skills, unit: "", onClick: onOpenSkills, testId: "stat-skills" },
+    { label: "今週", value: week, unit: "日", onClick: onOpenRecord, testId: "stat-week" },
+  ];
 
   return (
-    <section aria-labelledby="record-heading" data-testid="progress-summary">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 id="record-heading" className="text-base font-bold">
-          これまでの記録
-        </h2>
-        <button
-          type="button"
-          onClick={onOpenRecord}
-          data-testid="open-record"
-          className="-my-2 shrink-0 py-2 text-xs text-ink-muted tabular-nums
-                     transition hover:text-ink"
-        >
-          <span className="font-bold text-ink">
-            {done} / {total}
-          </span>{" "}
-          レッスン完了
-        </button>
-      </div>
-
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-brand-line">
-        <div
-          className="h-full rounded-full bg-brand transition-[width] duration-500 ease-out"
-          style={{ width: `${ratio * 100}%` }}
-        />
-      </div>
-
-      {/*
-        丸は置かない。
-
-        「帯」「◯/◯ レッスン完了」「丸の列」で、**同じ数を3回**
-        言っていた。3回言っても分かることは増えず、44px を使う
-        （丸 32 ＋ 上の余白 12）。ホームを1画面に収めるとき、
-        いちばん先に落ちるのはここ。
-
-        スタンプとして数えたい人には、コースの道のりに丸が並んで
-        いる（`PathProgress`。ホームには持ち込まないと決めてある
-        ——`e2e/courseStamps.spec.ts`）。
-      */}
-    </section>
-  );
-}
-
-// ------------------------------------------ 身についたこと ／ 今週の学習
-
-/** 数字を1つ持つ札。押すと、その中身の画面へ。 */
-function StatCard({
-  icon,
-  tone,
-  label,
-  value,
-  unit,
-  onClick,
-  testId,
-}: {
-  icon: Parameters<typeof IconMark>[0]["icon"];
-  tone: "teal" | "rose";
-  label: string;
-  value: number;
-  unit?: string;
-  onClick: () => void;
-  testId: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      data-testid={testId}
-      /*
-        `min-w-0` が要る。
-
-        中の名前は `truncate`（＝折り返さない）なので、この札の
-        **min-content がその名前の全長**になる。札のほうに
-        `min-w-0` が無いと、flex の自動最小幅がそこで止まり、
-        2枚を並べたときに縮まない——320px では 159+12+133＝304px、
-        版面（280px）を 24px 超えて画面ごと横に送れていた（実測）。
-
-        `min-w-0` を置くと基準幅まで縮み、あふれたぶんは中の
-        `truncate` が引き受ける。
-      */
-      className="flex min-w-0 flex-1 items-center gap-2.5 rounded-card border border-line
-                 bg-surface px-3 py-2.5 text-left transition
-                 hover:border-brand-line active:scale-[0.98]"
+    <section
+      aria-labelledby="record-heading"
+      data-testid="progress-summary"
+      className="flex items-stretch rounded-panel border border-line bg-surface"
     >
-      <span
-        aria-hidden="true"
-        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-          tone === "teal" ? "bg-accent-teal-soft" : "bg-accent-rose-soft"
-        }`}
-      >
-        <IconMark icon={icon} tone={tone} className="h-4 w-4" />
-      </span>
+      <h2 id="record-heading" className="sr-only">
+        これまでの記録
+      </h2>
+      {cells.map((cell, at) => (
+        <button
+          key={cell.label}
+          type="button"
+          onClick={cell.onClick}
+          data-testid={cell.testId}
+          /*
+            `min-w-0` が要る。中の名前は折り返さないので、これが無いと
+            flex の自動最小幅がその全長で止まり、320px で横にあふれる。
 
-      {/*
-        名前は折り返させない。390px で2枚を並べると1枚あたり 171px
-        しか無く、「身についたこと」が2行に割れて数字が押し下げられて
-        いた。**「＞」も外した**——札ごと押せることは、押したときの
-        沈み込みで分かる。ここで 16px 取り返すほうが効く。
-      */}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-xs leading-4 text-ink-muted">
-          {label}
-        </span>
-        <span className="mt-0.5 block text-lg font-bold leading-7 tabular-nums">
-          {value}
-          {unit && <span className="ml-0.5 text-xs font-normal">{unit}</span>}
-        </span>
-      </span>
-    </button>
+            当たり判定は 44px 以上（`py-2.5` ＋ 2行ぶん）。
+          */
+          className={`flex min-w-0 flex-1 flex-col items-center justify-center
+                      px-1 py-2.5 text-center transition hover:bg-brand-soft/40
+                      active:scale-[0.98] ${
+                        at > 0 ? "border-l border-line" : ""
+                      }`}
+        >
+          <span className="block w-full truncate text-[0.6875rem] leading-4 text-ink-muted">
+            {cell.label}
+          </span>
+          <span className="mt-0.5 block text-xl font-bold leading-7 tabular-nums">
+            {cell.value}
+            {cell.unit && <span className="ml-0.5 text-xs font-normal">{cell.unit}</span>}
+          </span>
+        </button>
+      ))}
+    </section>
   );
 }
 
@@ -415,12 +372,9 @@ function StatCard({
 
 export function HomePage({
   onSelectLesson,
-  onOpenCourse,
-  onOpenPath,
   onOpenRecord,
   onOpenSkills,
   onOpenAccount,
-  onStartDiagnosis,
 }: HomePageProps) {
   /*
     終わったレッスンは、端末とサーバーの両方から取る。
@@ -469,14 +423,6 @@ export function HomePage({
     completed.includes(lesson.id),
   ).length;
 
-  /*
-    初めて来た人へ、1度だけ出す「まずは診断を」。
-
-    出す・出さないの条件は `course/diagnosisNudge.ts` が全部持っている。
-    終えたレッスンはここから渡す——同じ `progress` を1画面で何度も
-    取りに行かないため。
-  */
-  const nudge = useDiagnosisNudge(completed);
   /*
     診断を受けていない人には、常設の入口を残す。
 
@@ -547,7 +493,7 @@ export function HomePage({
         )}
 
         {nextLesson && (
-          <div className="mt-4">
+          <div className="mt-3 [@media(min-height:600px)]:mt-4">
             <TodayCard
               lesson={nextLesson}
               started={doneCount > 0}
@@ -568,175 +514,41 @@ export function HomePage({
           </div>
         )}
 
-        <div className="mt-4">
-          <Record done={doneCount} total={learnable.length} onOpenRecord={onOpenRecord} />
-        </div>
-
-        {/*
-          2つの数字。**「AI技」とは書かない。**
-
-          同じものを図鑑の中では技として扱うが、毎日開く場所に AI の語を
-          並べると、学習アプリではなく AI の道具箱に見える。
-        */}
-        <div className="mt-3 flex gap-3">
-          <StatCard
-            icon={IconMedal}
-            tone="teal"
-            label="身についたこと"
-            value={learned?.skills ?? 0}
-            onClick={onOpenSkills}
-            testId="skill-summary"
-          />
-          <StatCard
-            icon={IconCalendar}
-            tone="rose"
-            label="今週の学習"
-            value={week}
-            unit="日"
-            onClick={onOpenRecord}
-            testId="week-summary"
+        <div className="mt-3 [@media(min-height:600px)]:mt-4">
+          <RecordRow
+            done={doneCount}
+            skills={learned?.skills ?? 0}
+            week={week}
+            onOpenRecord={onOpenRecord}
+            onOpenSkills={onOpenSkills}
           />
         </div>
 
         {/*
-          そろそろ見返しどきのもの・飛ばした解説。無ければ何も出ない。
-          余白はそれぞれが持つ。ここで囲うと、出すものが無い日にも
-          空の余白だけが残る。
-        */}
-        <ReviewPrompt onSelectLesson={onSelectLesson} />
-        <ReviewCards course={course} />
+          診断の入口。**細い1行だけ。**
 
-        {/* ── ほかにも見る ── */}
-        <section
-          className="mt-5 hidden [@media(min-height:800px)]:block"
-          aria-labelledby="explore-heading"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <h2 id="explore-heading" className="text-base font-bold">
-              ほかにも見る
-            </h2>
-            <button
-              type="button"
-              onClick={onOpenCourse}
-              /* 当たり判定を広げる（py と -my を同じだけ。見た目は変わらない） */
-              className="-my-2 flex shrink-0 items-center gap-0.5 py-2 text-xs font-bold
-                         text-brand transition hover:text-brand-dark"
-            >
-              すべて見る
-              <IconChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          受けた人には出さない（受けるのは1回）。まだの人には、
+          飛ばしたあとで思い出せる場所が要る——始めた直後の案内
+          （`DiagnosisIntroPage`）を「あとで」で閉じた人の、次の入口。
 
-          {/*
-            2列で4つまで。**探すのはホームの主役ではない。**
-
-            前は6つを札で折り返して並べていた。字の長さで幅が変わるので
-            列がそろわず、いちばん下の節がいちばん賑やかに見えていた。
-            4つに絞って形をそろえる——残りは「すべて見る」の先にある。
-          */}
-          <ul className="mt-3 grid grid-cols-2 gap-2.5" role="list">
-            {CATEGORIES.slice(0, 4).map((category, at) => {
-              const look = lookOf(category.lessonId);
-              return (
-                /*
-                  3つ目からは、高さのある持ち方だけ。
-
-                  2行目（52px ＋ すきま 10px）は、390×844 でちょうど
-                  収まらないぶんに当たる。**列は 2列のまま**なので、
-                  出ていても出ていなくても形は崩れない。
-                */
-                <li
-                  key={category.label}
-                  className={at < 2 ? undefined : "hidden [@media(min-height:900px)]:block"}
-                >
-                  <button
-                    type="button"
-                    onClick={() => onSelectLesson(category.lessonId)}
-                    data-testid={`explore-${category.lessonId}`}
-                    className="flex min-h-[3.25rem] w-full items-center gap-2.5
-                               rounded-card border border-line bg-surface px-3 py-2.5
-                               text-sm transition hover:border-brand-line
-                               active:scale-[0.98]"
-                  >
-                    <IconMark
-                      icon={look.icon}
-                      tone={look.tone === "plain" ? "brand" : look.tone}
-                      className="h-[1.125rem] w-[1.125rem]"
-                    />
-                    <span className="min-w-0 flex-1 text-left">{category.label}</span>
-                    <IconChevronRight className="h-4 w-4 shrink-0 text-ink-muted" />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        {/*
-          道のりの入口。**節にはしない。**
-
-          全体の順番と現在地はコースの画面が持つ。ここに一覧まで出すと、
-          同じものを2画面が持つことになる。行1本だけ置いて、見たい人が
-          そこから入れるようにする。
-        */}
-        {/*
-          診断の常設の入口。**細い1行で、道のりの入口の隣に置く。**
-
-          面にしない。ホームで面を立ててよいのは今日の1本だけと決めて
-          あり（このファイルの冒頭）、診断を面で出すと主役が2つになる。
-          ここは「ほかの入口」の並びなので、行の形をそろえる。
-
-          押した先は、いつもの開始説明から。**案内から始めた人だけが
-          1問目へ直行する**（`onStartDiagnosis`）——こちらを押した人は
-          案内を読んでいないので、説明を飛ばすと何も知らずに1問目に着く。
+          面は立てない。ホームで面を立ててよいのは今日の1本だけと
+          決めてある（このファイルの冒頭）。
         */}
         {showDiagnosisLink && (
           <button
             type="button"
             onClick={() => onSelectLesson(DIAGNOSIS_LESSON_ID)}
             data-testid="open-diagnosis"
-            className="mt-3 flex min-h-[2.75rem] w-full items-center justify-center gap-1
-                       py-2 text-xs font-bold text-brand transition hover:text-brand-dark"
+            className="mt-1 flex min-h-[2.75rem] w-full items-center justify-center gap-1
+                       py-2 text-xs font-bold text-brand transition
+                       hover:text-brand-dark [@media(min-height:600px)]:mt-2"
           >
             AI活用診断をやってみる
             <IconChevronRight className="h-3.5 w-3.5" />
           </button>
         )}
-
-        <button
-          type="button"
-          onClick={() => onOpenPath(course.id)}
-          data-testid="open-path"
-          className="mt-3 flex w-full items-center justify-center gap-1 py-2
-                     text-xs text-ink-muted transition hover:text-ink"
-        >
-          {/*
-            **コース名は入れない。**ホームで学んでいるコースは1本しか
-            無いので、名前を足しても増える情報が無い。むしろ
-            「AIスタートコースの道のりを見る」は、下の帯の「コース」と
-            名前がぶつかる（部分一致で拾う仕掛けが、こちらを先に掴む）。
-          */}
-          学習の道のりを見る
-          <IconChevronRight className="h-3.5 w-3.5" />
-        </button>
       </main>
 
-      {/*
-        初めての人への案内。**ホームの中身より後ろに置く。**
-
-        一枚そのものは body へ出る（`MoreSheet` の portal）ので、
-        ここでの位置は描く順番だけの話だが、ホームの並びを読むときに
-        主役の前へ差し込まれていないほうが読みやすい。
-      */}
-      {nudge.open && (
-        <DiagnosisNudgeDialog
-          onStart={() => {
-            nudge.close();
-            onStartDiagnosis();
-          }}
-          onClose={nudge.close}
-        />
-      )}
     </>
   );
 }

@@ -96,7 +96,6 @@ for (const size of SIZES) {
       await page.goto("/");
       await page.evaluate(() => window.localStorage.clear());
       await page.reload();
-      await page.getByRole("button", { name: "はじめる" }).first().click();
       await page.getByTestId("continue-lesson").click();
 
       const wide: string[] = [];

@@ -49,20 +49,19 @@ export interface StubOptions {
   /** 取っておいた成果物。既定は「ゲストなので使えない」。 */
   saved?: unknown;
   /**
-   * ホームの「まずは診断を」の案内を、出すかどうか。既定は**出さない**。
+   * 入口の2枚（ようこそ・診断の案内）を出すかどうか。既定は**出さない**。
    *
-   * なぜ既定で黙らせるか
-   * --------------------
-   * あの案内は「初めて来たゲスト」に出る。検査はどれも
-   * `localStorage.clear()` から始めるので、**ほぼ全部の検査が初めての
-   * ゲスト**になる——ホームを通る道が案内で塞がれ、確かめたい先へ
-   * 進めない。
+   * なぜ既定で飛ばすか
+   * ------------------
+   * 検査はどれも `localStorage.clear()` から始めるので、**ほぼ全部の
+   * 検査がはじめての人**になる——ホームへ行く道が入口2枚で塞がれ、
+   * 確かめたい先へ進めない。
    *
-   * 案内そのものを見に来た検査（`e2e/diagnosisNudge.spec.ts`）だけが
-   * `true` を渡す。黙らせ方は本物と同じ道（端末に「見た」を残す）で、
-   * 画面側に検査用の抜け道は作っていない。
+   * 入口そのものを見に来た検査（`e2e/entryFlow.spec.ts`）だけが `true`
+   * を渡す。飛ばし方は本物と同じ道（端末に「ゲストで始めた」「案内を
+   * 見た」を残す）で、画面側に検査用の抜け道は作っていない。
    */
-  diagnosisNudge?: boolean;
+  showEntry?: boolean;
   /**
    * ログインしたばかりで、まだ何もしていない人として振る舞う。
    *
@@ -73,8 +72,15 @@ export interface StubOptions {
   freshAccount?: boolean;
 }
 
-/** ゲストの「案内を見た」を覚えておく場所（`course/diagnosisNudge.ts`）。 */
-const NUDGE_KEY = "aippo:diagnosis-nudge";
+/**
+ * 入口を通ったことを覚えておく2つ。
+ *
+ *   `aippo:guest`           … ゲストで始めた（`lib/draft.ts`）
+ *   `aippo:diagnosis-nudge` … 診断の案内を見た（`course/diagnosisNudge.ts`）
+ *
+ * 両方あると、開いた先はホームになる（`app/entry.ts`）。
+ */
+const ENTRY_KEYS = ["aippo:guest", "aippo:diagnosis-nudge"];
 
 export interface TutorBody {
   message: string;
@@ -124,20 +130,20 @@ export async function stubApi(
   let signedIn = options.signedIn ?? false;
 
   /*
-    案内を黙らせる。**読み込みのたびに、アプリより先に**立てる。
+    入口を通ったことにする。**読み込みのたびに、アプリより先に**立てる。
 
     検査は `localStorage.clear()` してから読み込み直すので、1回書いた
     だけでは消える。`addInitScript` はどの読み込みでも先に走るので、
     消されても次の読み込みで立ち直る。
   */
-  if (!options.diagnosisNudge) {
-    await page.addInitScript((key) => {
+  if (!options.showEntry) {
+    await page.addInitScript((keys) => {
       try {
-        window.localStorage.setItem(key, "1");
+        for (const key of keys) window.localStorage.setItem(key, "1");
       } catch {
-        /* 保存が使えない環境。そのときは案内が出るが、検査では使わない */
+        /* 保存が使えない環境。そこでは入口が出るが、検査では使わない */
       }
-    }, NUDGE_KEY);
+    }, ENTRY_KEYS);
   }
 
   await page.route("**/api/v1/ai/generate/", async (route: Route) => {

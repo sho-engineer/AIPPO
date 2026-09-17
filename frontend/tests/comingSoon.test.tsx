@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "../src/App";
+import { forgetGuestSeen } from "../src/course/diagnosisNudge";
 import { COURSE } from "../src/course/catalog";
 import { resetCatalog } from "../src/course/live";
 import {
@@ -182,6 +183,12 @@ describe("同梱データの既定", () => {
 describe("画面での見え方", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    /*
+      この回のあいだの控えも落とす。端末の控えと別に持っているので
+      （`course/diagnosisNudge.ts`）、これが残ると2回目からようこそが
+      出ない。
+    */
+    forgetGuestSeen();
     resetCatalog();
     vi.restoreAllMocks();
     serveCatalog();
@@ -193,7 +200,16 @@ describe("画面での見え方", () => {
   });
 
   const start = async (user: ReturnType<typeof userEvent.setup>) => {
-    await user.click(screen.getAllByRole("button", { name: "はじめる" })[0]);
+    /*
+      ようこそ → （案内）→ ホーム。
+
+      入口が2枚あるので、押すのも2回になることがある。案内は
+      **出ていたら閉じる**形にしてある——見た印が端末に残っている
+      回では出ないので、決め打ちにすると落ちる。
+    */
+    await user.click(await screen.findByTestId("welcome-guest"));
+    const later = screen.queryByTestId("diagnosis-intro-later");
+    if (later) await user.click(later);
   };
 
   /**
@@ -286,10 +302,16 @@ describe("画面での見え方", () => {
     render(<App />);
     await start(user);
 
-    // 届いた2本のうち始められるのは1本なので、分母は 1（2ではない）
-    const progress = await screen.findByTestId("progress-summary");
-    expect(progress).toHaveTextContent(/0\s*\/\s*1/);
-    // 2本目（近日公開）を分母に数えていないこと
-    expect(progress).not.toHaveTextContent(/\/\s*2/);
+    /*
+      届いた2本のうち始められるのは1本なので、分母は 1（2ではない）。
+
+      見る場所は今日の1本の「Day ◯ / ◯」。記録の行は**終えた数だけ**を
+      出す形に変えたので、分母はもうそちらに出ていない。
+    */
+    const card = await screen.findByTestId("next-up");
+    expect(card).toHaveTextContent(/Day\s*1\s*\/\s*1/);
+    expect(card).not.toHaveTextContent(/\/\s*2/);
+    // 終えた数は 0 のまま
+    expect(await screen.findByTestId("stat-done")).toHaveTextContent("0");
   });
 });

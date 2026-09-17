@@ -41,6 +41,7 @@ import {
 } from "react";
 
 import * as api from "../api/accounts";
+import { clearDeviceLearningCache } from "../lib/draft";
 import type { AccountUser, MigrationResult, Progress } from "../api/accounts";
 
 /**
@@ -221,6 +222,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         try {
           await api.signOut();
         } finally {
+          /*
+            端末に残っている学習の写しも、一緒に落とす。
+
+            ホームの「レッスン完了 1」は端末とサーバーの両方を足して
+            出している（`course/progress.ts`）。端末の分を残すと、
+            **ログアウトしたあとのホームに、前の人の数がそのまま出る**。
+            共用の端末でいちばん見せてはいけないもの。
+
+            消えるのはこの端末の写しだけで、サーバー側の記録は残る
+            ——ログインし直せば戻ってくる。
+          */
+          clearDeviceLearningCache();
           // 通信に失敗しても、この端末の表示はログアウトにする。
           // 押したのに残っていると、共用の端末で次の人に見えてしまう
           setState({ ...INITIAL, loading: false });

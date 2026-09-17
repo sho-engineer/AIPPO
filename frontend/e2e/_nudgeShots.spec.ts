@@ -19,11 +19,10 @@ const SIZES = [
 ];
 
 async function openHome(page: Page, options: StubOptions = {}): Promise<void> {
-  await stubApi(page, { diagnosisNudge: true, ...options });
+  await stubApi(page, { showEntry: true, ...options });
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
-  await page.getByRole("button", { name: "はじめる" }).first().click();
   await page.getByTestId("tab-bar").waitFor();
 }
 

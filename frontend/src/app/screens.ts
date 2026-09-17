@@ -2,7 +2,16 @@
  * アプリ全体の画面遷移。
  *
  * レッスンの中の進行（course/engine.ts）とは別の層。
- * こちらは「タイトル → ホーム → コース一覧 → レッスン」と、設定を扱う。
+ * こちらは「ようこそ → ホーム → コース一覧 → レッスン」と、設定を扱う。
+ *
+ * 入口が2枚ある
+ * -------------
+ *     WELCOME          はじめて来た人。名乗りと、始め方3つ
+ *     DIAGNOSIS_INTRO  始めた直後の1度だけ。診断への案内
+ *
+ * どちらも下タブを出さない。**まだ「アプリの中」ではない**ので、
+ * 行き先を5つ並べても選びようがない。どちらを出すか（あるいは
+ * どちらも出さずにホームへ行くか）は `app/entry.ts` が決める。
  *
  * ホームとコース一覧を分けたのは、支給デザインの下タブに合わせたため。
  * ホームは「今日どこから始めるか」、コース一覧は「どのコースにするか」を
@@ -21,7 +30,10 @@
  */
 
 export const SCREENS = [
-  "TOP",
+  // はじめて来た人の入口。名乗りと、始め方3つ
+  "WELCOME",
+  // 始めた直後に1度だけ出る、診断への案内
+  "DIAGNOSIS_INTRO",
   "HOME",
   "COURSE",
   "COURSE_DETAIL",
@@ -46,15 +58,32 @@ export type ScreenEvent =
   | "OPEN_COURSE"
   | "OPEN_COURSE_DETAIL"
   | "OPEN_RECIPE"
+  | "OPEN_DIAGNOSIS_INTRO"
   | "OPEN_RECORD"
   | "OPEN_SKILLS"
   | "OPEN_WORKS"
   | "OPEN_SAVED"
   | "OPEN_SETTINGS"
-  | "BACK_TO_TOP";
+  | "BACK_TO_WELCOME";
 
 const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
-  TOP: { START: "HOME" },
+  /*
+    ようこそ。ここから出る道は2つ。
+
+      START           ゲストで始める。案内を経て、あるいは直接ホームへ
+      OPEN_DIAGNOSIS  登録・ログインが済んだ直後。案内へ
+
+    どちらに進むかを決めるのは `app/entry.ts`。この表は
+    「その行き先があること」だけを持つ。
+  */
+  WELCOME: { START: "HOME", OPEN_DIAGNOSIS_INTRO: "DIAGNOSIS_INTRO" },
+  /*
+    診断への案内。**行き止まりにしない。**
+
+      SELECT_LESSON  「診断をはじめる」。1問目へ直行する
+      BACK_TO_HOME   「あとで」。そのままホームへ
+  */
+  DIAGNOSIS_INTRO: { SELECT_LESSON: "LESSON", BACK_TO_HOME: "HOME" },
   HOME: {
     SELECT_LESSON: "LESSON",
     OPEN_COURSE: "COURSE",
@@ -66,7 +95,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
-    BACK_TO_TOP: "TOP",
+    BACK_TO_WELCOME: "WELCOME",
   },
   COURSE: {
     // 続きの1本は、一覧から直接ひらける。読みたいのは中身であって、
@@ -79,7 +108,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
-    BACK_TO_TOP: "TOP",
+    BACK_TO_WELCOME: "WELCOME",
   },
   // コースの中身。ここから戻る先は、必ずコース一覧
   COURSE_DETAIL: {
@@ -93,7 +122,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
-    BACK_TO_TOP: "TOP",
+    BACK_TO_WELCOME: "WELCOME",
   },
   // レッスンを終えたらホームへ戻す。行き止まりにしない（憲章 原則 I）
   LESSON: {
@@ -102,7 +131,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_COURSE_DETAIL: "COURSE_DETAIL",
     // 完了画面の「こんな使い方もできます」から、くわしい説明へ
     OPEN_RECIPE: "RECIPE",
-    BACK_TO_TOP: "TOP",
+    BACK_TO_WELCOME: "WELCOME",
   },
   /*
     使い方のくわしい説明。
@@ -120,7 +149,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
-    BACK_TO_TOP: "TOP",
+    BACK_TO_WELCOME: "WELCOME",
   },
   // 学習履歴。ここから同じ教材をやり直せるので、レッスンへも出られる
   RECORD: {
@@ -132,7 +161,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
-    BACK_TO_TOP: "TOP",
+    BACK_TO_WELCOME: "WELCOME",
   },
   /*
     AI技図鑑。ここから「習得する」で教材へ入れる。
@@ -147,7 +176,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_RECORD: "RECORD",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
-    BACK_TO_TOP: "TOP",
+    BACK_TO_WELCOME: "WELCOME",
   },
   /*
     マイ成果物。作ったものを取り出す場所。
@@ -163,7 +192,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_SKILLS: "SKILLS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
-    BACK_TO_TOP: "TOP",
+    BACK_TO_WELCOME: "WELCOME",
   },
   // 取っておいた教材の置き場。ここからそのまま開ける
   SAVED: {
@@ -174,7 +203,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_SKILLS: "SKILLS",
     OPEN_WORKS: "WORKS",
     OPEN_SETTINGS: "SETTINGS",
-    BACK_TO_TOP: "TOP",
+    BACK_TO_WELCOME: "WELCOME",
   },
   // 設定はどこからでも抜けられる
   SETTINGS: {
@@ -184,7 +213,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_SKILLS: "SKILLS",
     OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
-    BACK_TO_TOP: "TOP",
+    BACK_TO_WELCOME: "WELCOME",
   },
 };
 
