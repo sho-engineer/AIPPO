@@ -1,3 +1,6 @@
 screenshots/
+# QA で撮った画面写真（`e2e/_*Shots.spec.ts`）。報告のために撮るもので、
+# 版に残す必要は無い
+shots/
 # 教材の絵の書き出し先。置き場所は public/assets/teaching/
 scripts/teaching-images/out/
