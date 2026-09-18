@@ -50,7 +50,19 @@ describe("画面の行き来", () => {
     const back = window.history.length - 1;
     if (back > 0) {
       window.history.go(-back);
-      await new Promise((done) => setTimeout(done, 0));
+      /*
+        `history.go` は**すぐには効かない**（jsdom は次の回に回す）。
+        1 tick では、積みが深いときに間に合わずに `replaceState` を
+        追い越し、**古い状態が戻ってきた状態で次の回が始まる**。
+        入口の判断は `history.state` を先に見るので、そこに古い
+        「HOME」が居ると、ようこそが出ないまま始まる（実際そうなった）。
+
+        数 tick 待ってから消す。実ブラウザでは回が分かれているので、
+        これは検査の側の後始末。
+      */
+      for (let at = 0; at < 5; at += 1) {
+        await new Promise((done) => setTimeout(done, 0));
+      }
     }
     window.history.replaceState(null, "");
     resetCatalog();
@@ -424,7 +436,19 @@ describe("下タブの出し入れ", () => {
     const back = window.history.length - 1;
     if (back > 0) {
       window.history.go(-back);
-      await new Promise((done) => setTimeout(done, 0));
+      /*
+        `history.go` は**すぐには効かない**（jsdom は次の回に回す）。
+        1 tick では、積みが深いときに間に合わずに `replaceState` を
+        追い越し、**古い状態が戻ってきた状態で次の回が始まる**。
+        入口の判断は `history.state` を先に見るので、そこに古い
+        「HOME」が居ると、ようこそが出ないまま始まる（実際そうなった）。
+
+        数 tick 待ってから消す。実ブラウザでは回が分かれているので、
+        これは検査の側の後始末。
+      */
+      for (let at = 0; at < 5; at += 1) {
+        await new Promise((done) => setTimeout(done, 0));
+      }
     }
     window.history.replaceState(null, "");
     resetCatalog();
@@ -457,6 +481,18 @@ describe("下タブの出し入れ", () => {
    * すると、案内を見たあとの検査（同じ端末で2回目）が落ちる。
    */
   const start = async (user: ReturnType<typeof userEvent.setup>) => {
+    try {
+      await screen.findByTestId("welcome-guest");
+    } catch {
+      const fs = await import("node:fs");
+      fs.appendFileSync(
+        "/tmp/appdebug.txt",
+        "NO WELCOME: " + document.body.innerText.slice(0, 160).replace(/\s+/g, " ") +
+          " | KEYS " + JSON.stringify(Object.keys(window.localStorage)) +
+          " | HIST " + window.history.length + " " + JSON.stringify(window.history.state) + "\n",
+      );
+      throw new Error("no welcome");
+    }
     await user.click(await screen.findByTestId("welcome-guest"));
     const later = await screen
       .findByTestId("diagnosis-intro-later")

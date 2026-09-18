@@ -206,7 +206,15 @@ export function BackStackProvider({
  * 積み場が無いところ（レッスンの外で使う一枚）では何もしない。
  * 呼ぶ側が場所を気にせず済むように、無いことを許す。
  */
-export function useCloseOnBack(close: () => void): void {
+/**
+ * 「戻る」で、この一枚を閉じる。
+ *
+ * `active` を false にすると、履歴を積まない。**入口に立ちはだかる
+ * 一枚**のため——あれは「開いて入った場所」ではなく、入る前の関所なので、
+ * そこで「戻る」を押した人が行きたいのは1つ外側（教材の外）になる。
+ * 積んでしまうと、関所を閉じて**選んでいない続きの画面**に着く。
+ */
+export function useCloseOnBack(close: () => void, active = true): void {
   const stack = useContext(Context);
   /*
     最新の閉じ方を ref で持つ。`close` は描き直すたびに別物になるので、
@@ -224,7 +232,7 @@ export function useCloseOnBack(close: () => void): void {
     ときにはもう積み終わっている。
   */
   useLayoutEffect(() => {
-    if (!stack) return;
+    if (!stack || !active) return;
     return stack.push(() => latest.current());
-  }, [stack]);
+  }, [stack, active]);
 }

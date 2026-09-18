@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { generate, AiRequestError, type AiUsage } from "../api/ai";
 import { completeLesson, sendLearningEvent, type LessonAward } from "../api/lesson";
 import { missionStateOf, type MissionState } from "./missions";
+import { lessonRevision } from "./resume";
 import { rememberForReview } from "./review";
 import { playSuccessSound } from "./sound";
 import {
@@ -213,6 +214,13 @@ function resolveAction(lesson: Lesson, step: LessonStep, values: StepValues): st
 
 export interface CourseLessonOptions {
   /**
+   * いまの持ち主（`course/resume.ts` の `ownerTag`）。
+   *
+   * 控えに書き、読むときに突き合わせる。**別のアカウントで入った人に、
+   * 前の人の続きを渡さない**ため。ゲストは空。
+   */
+  owner?: string;
+  /**
    * 下書きが無いときに、始める回。
    *
    * ホームの診断の案内から入った人だけが持って来る——案内で読んだ
@@ -276,10 +284,42 @@ export function useCourseLesson(
   */
   const startAt = useRef(options.startAtStepId);
 
+  /*
+    この試行の合言葉。
+
+    「最初からやり直す」で引き直す。**遅れて届いた前の試行の結果**を、
+    新しい試行へ混ぜないための目印。控えにも書いておく。
+  */
+  const attempt = useRef("");
+  const owner = options.owner ?? "";
+  /*
+    持ち主は、**箱越しに読む**。
+
+    復元は「ひらいた1回だけ」で、見張りは `lesson` だけ。ここを見張りへ
+    入れると、レッスンの途中でログインした瞬間に（`me` の聞き直しで
+    `owner` が変わる）**復元がもう一度走り、いま入力している内容が
+    控えの中身で上書きされる**。
+  */
+  const ownerRef = useRef(owner);
+  ownerRef.current = owner;
+  /*
+    教材の版は、**id が同じあいだは数え直さない。**
+
+    `lesson` そのものを見張りに入れていたら、教材の器が作り直される
+    たびに控えの保存が走った（`useCourse` は届いた教材で差し替える）。
+    保存は「中身が変わったとき」だけでよい。
+  */
+  const revision = useMemo(() => lessonRevision(lesson), [lesson]);
+
   // -- 読み込み直しても続きから（要件 §6.6） ---------------------------
   useEffect(() => {
     const draft = loadDraft(lesson.id);
-    if (draft && findStep(lesson, draft.stepId)) {
+    /*
+      別のアカウントの控えは読まない。持ち主が付いていない控え
+      （ゲストで進めた分・古い版）は、その人自身のものとして読む。
+    */
+    const mine = draft && (!draft.owner || draft.owner === ownerRef.current);
+    if (draft && mine && findStep(lesson, draft.stepId)) {
       setStepId(draft.stepId);
       setValues(draft.values);
       setRealTaskSkipped(Boolean(draft.realTaskSkipped));
@@ -320,6 +360,15 @@ export function useCourseLesson(
       if (draft.stepId !== firstStepId(lesson)) {
         void sendLearningEvent({ lessonId: lesson.id, eventType: "lesson_resumed" });
       }
+      attempt.current = draft.attempt ?? newRequestId();
+      /*
+        送っている最中に閉じた操作があれば、その合言葉を持ち直す。
+
+        同じ合言葉で送り直すと、サーバーは作り直さずに前の結果を返す
+        （`apps/ai/views.py` の `_replay`）。**開き直しただけで持ち分が
+        2つ減る**のを防ぐ。結果が残っていなければ、ふつうに作られる。
+      */
+      if (draft.pending) pendingRequest.current = draft.pending;
     } else if (startAt.current && findStep(lesson, startAt.current)) {
       /*
         下書きが無い人だけ、言われた回から始める。
@@ -330,6 +379,7 @@ export function useCourseLesson(
       setStepId(startAt.current);
       setPo(poOf(findStep(lesson, startAt.current) as LessonStep));
     }
+    if (!attempt.current) attempt.current = newRequestId();
     setRestored(true);
     void sendLearningEvent({ lessonId: lesson.id, eventType: "lesson_started" });
   }, [lesson]);
@@ -343,6 +393,18 @@ export function useCourseLesson(
       values,
       realTaskSkipped,
       /*
+        続きを出してよいかを、あとから確かめるための3つ。
+
+          revision … 教材の並び。変わっていたら復元しない
+          attempt  … この試行。遅れて届いた前の結果を弾く
+          owner    … 誰の控えか。別のアカウントへ渡さない
+      */
+      revision,
+      attempt: attempt.current,
+      owner,
+      /* 送信中に閉じた人のための合言葉。送り終われば消える */
+      pending: pendingRequest.current ?? undefined,
+      /*
         作ったものも一緒に。**このレッスンの分だけ**で、終えたら
         消える（`complete` / `restart` が `clearDraft` を呼ぶ）。
         溜め続けると、共用の端末で前の人の文章が残る。
@@ -355,7 +417,7 @@ export function useCourseLesson(
         outputText: run.outputText,
       })),
     });
-  }, [restored, lesson.id, stepId, values, realTaskSkipped, runs]);
+  }, [restored, lesson.id, revision, owner, stepId, values, realTaskSkipped, runs]);
 
   /*
     最初の1回で使う例文と、選ばせない条件の既定値を先に入れておく。
@@ -922,10 +984,28 @@ export function useCourseLesson(
 
   const restart = useCallback(() => {
     clearDraft(lesson.id);
+    /*
+      新しい試行として始める。
+
+      世代を進めるのは、**前の試行へ送った分が遅れて届いても
+      混ざらない**ようにするため（`run` の `mine !== generation.current`）。
+      合言葉も引き直す——同じ合言葉のままだと、サーバーが前の結果を
+      「同じ操作」として返してしまう。
+
+      消すのはこの教材の途中だけ。終えた記録（`aippo:completed`）も、
+      取った技も、しまってある成果物も触らない。
+    */
+    generation.current += 1;
+    pendingRequest.current = null;
+    attempt.current = newRequestId();
     setAward(null);
     setValues({});
     setRuns([]);
     setRealTaskSkipped(false);
+    setError(null);
+    setErrorKind(null);
+    setSubmitting(false);
+    inFlight.current = false;
     move(firstStepId(lesson));
   }, [lesson, move]);
 

@@ -113,6 +113,17 @@ interface AippoHistoryState {
    * 教材の頭から始めればよく、そこまでに進んだぶんは下書きが持っている。
    */
   startStepId: string | null;
+  /**
+   * その教材を、どの画面から開いたか。
+   *
+   * 「あとで」で降りる人を**元の画面へ返す**ために要る（`LessonRunner`
+   * の続きの関所）。履歴に入れてあるので、読み込み直しても分かる。
+   *
+   * `goBack` は使えない。あちらは**教材の中を1回ぶん戻る**ので、
+   * 関所で押すと選んでいない続きの画面に着く（実測で、1つ前の問いに
+   * 着いた）。
+   */
+  openedFrom: Screen | null;
 }
 
 function isAippoHistoryState(value: unknown): value is AippoHistoryState {
@@ -205,6 +216,7 @@ export function App() {
       courseId: restored?.courseId ?? course.id,
       recipeId: null,
       startStepId: null,
+      openedFrom: null,
       decided: Boolean(returning),
     };
   });
@@ -240,6 +252,10 @@ export function App() {
   */
   const [startStepId, setStartStepId] = useState<string | null>(
     initial.startStepId,
+  );
+  /* その教材を開いた画面。関所の「あとで」で返す先 */
+  const [openedFrom, setOpenedFrom] = useState<Screen | null>(
+    initial.openedFrom,
   );
   /*
     画面の下に少しだけ出る一言。いまの用は1つ——準備中の教材を
@@ -309,6 +325,7 @@ export function App() {
         courseId?: string;
         recipeId?: string | null;
         startStepId?: string;
+        openedFrom?: Screen;
       } = {},
       options: { replace?: boolean } = {},
     ) => {
@@ -332,6 +349,8 @@ export function App() {
           どちらも読めない。
         */
         startStepId: values.startStepId ?? null,
+        /* 教材を開いた回だけ入る。それ以外は持ち回さない */
+        openedFrom: values.openedFrom ?? null,
       };
       /*
         `replace` は、いまの1つを**置き換える**。
@@ -346,6 +365,7 @@ export function App() {
       setDetailCourseId(state.courseId);
       setRecipeId(state.recipeId);
       setStartStepId(state.startStepId);
+      setOpenedFrom(state.openedFrom);
       setScreen(state.screen);
     },
     [detailCourseId, lessonId, recipeId],
@@ -400,6 +420,7 @@ export function App() {
       courseId: detailCourseId,
       recipeId,
       startStepId,
+      openedFrom,
     };
     /*
       入口の2枚は、それ自体が根。戻り先を敷かない——ようこその下に
@@ -426,6 +447,7 @@ export function App() {
       setDetailCourseId(event.state.courseId);
       setRecipeId(event.state.recipeId);
       setStartStepId(event.state.startStepId ?? null);
+      setOpenedFrom(event.state.openedFrom ?? null);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -472,7 +494,7 @@ export function App() {
     );
     navigate(
       nextScreen(from, "SELECT_LESSON"),
-      { lessonId: id, courseId: owner?.id, startStepId: startAt },
+      { lessonId: id, courseId: owner?.id, startStepId: startAt, openedFrom: from },
       options,
     );
   };
@@ -691,6 +713,15 @@ export function App() {
               下書きが残っている人には効かない（続きのほうが強い）。
             */
             startAtStepId={startStepId ?? undefined}
+            /*
+              続きの関所の「あとで」で降りる先。**開いた画面へ返す。**
+
+              `onExit`（`goBack`）は使えない。あちらは教材の中を1回ぶん
+              戻るので、関所で押すと**選んでいない続きの画面**に着く。
+              開いた画面が分からないとき（直接ひらいた・古い履歴）は
+              ホームへ。
+            */
+            onLeave={() => navigate(openedFrom ?? "HOME")}
             /*
               帯の「×」の行き先。そのレッスンが入っているコースの中身。
             */

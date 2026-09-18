@@ -107,6 +107,14 @@ export interface MoreSheetProps {
    */
   describedBy?: string;
   /**
+   * 「戻る」で閉じるために、履歴を1つ持つか。既定は持つ。
+   *
+   * false にするのは、**入る前に立ちはだかる一枚**だけ。あれは
+   * 「開いて入った場所」ではないので、そこでの「戻る」は1つ外側
+   * （教材の外）へ抜けるのが素直になる。
+   */
+  holdsBack?: boolean;
+  /**
    * 見出しの id。**画面に出ている見出しを、そのまま名前にする。**
    *
    * `chromeless` の一枚は見出しを中身の側でデザインする。そこへ
@@ -194,6 +202,7 @@ export function MoreSheet({
   chromeless = false,
   describedBy,
   labelledBy,
+  holdsBack = true,
   testId,
   children,
 }: MoreSheetProps) {
@@ -204,7 +213,11 @@ export function MoreSheet({
     まま押すと、閉じたいだけなのに背面ごと前の問いへ移っていた。
     入れ子で重ねたときも、後から積んだ奥のほうから閉じる。
   */
-  useCloseOnBack(onClose);
+  /*
+    `holdsBack` が false の一枚は、履歴を積まない。入口の関所
+    （`ResumeDialog`）のため——詳しくは `useCloseOnBack` の側に書いた。
+  */
+  useCloseOnBack(onClose, holdsBack);
 
   const centered = placement !== "sheet";
   const full = placement === "full";

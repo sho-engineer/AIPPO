@@ -55,6 +55,9 @@ import {
 } from "../course/recommend";
 import { saveProfile } from "../api/diagnosis";
 import { useCompletedLessons } from "../course/progress";
+import { ResumeDialog } from "../components/course/ResumeDialog";
+import { ownerTag, resumeOffer, type ResumeOffer } from "../course/resume";
+import { loadDraft } from "../lib/draft";
 import { useCourseLesson } from "../course/useCourseLesson";
 import { FailureRescue } from "../components/course/FailureRescue";
 import { rescuePaths, type RescuePath } from "../course/rescue";
@@ -161,6 +164,13 @@ export interface LessonRunnerProps {
    * 飛ばして1問目へ）。続きがある人には効かない。
    */
   startAtStepId?: string;
+  /**
+   * 教材から降りる。**開いた画面へ返す。**
+   *
+   * 続きの関所の「あとで」で使う。`onExit` は教材の中を1回ぶん戻るので、
+   * 関所で押すと選んでいない続きの画面に着く（実測）。
+   */
+  onLeave?: () => void;
 }
 
 export function LessonRunner({
@@ -171,8 +181,23 @@ export function LessonRunner({
   onOpenCourseCatalog,
   onOpenRecipe,
   startAtStepId,
+  onLeave,
 }: LessonRunnerProps) {
-  const api = useCourseLesson(lesson, { startAtStepId });
+  const authUser = useAuth().user;
+  const owner = ownerTag(authUser);
+  const api = useCourseLesson(lesson, { startAtStepId, owner });
+
+  /*
+    途中まで進めた教材を、もう一度ひらいたとき。
+
+    ここ1か所で聞く。ホーム・コース・診断の導線・直接ひらいた・読み込み
+    直し——入口はいくつもあるが、教材をひらく道はこの画面を必ず通る。
+
+    見るのは**ひらいた1回だけ**。中の「次へ」「戻る」では出さないので、
+    控えではなく `useState` の初期値で1度だけ決める。
+  */
+  const [resume, setResume] = useState<ResumeOffer | null>(null);
+  const asked = useRef(false);
   /*
     「←」で戻る先を、画面ではなく**直前の状態**にするための積み場。
 
@@ -221,6 +246,29 @@ export function LessonRunner({
   const completedIds = useCompletedLessons();
   /* 次の1本。絞り方は完了画面の「次におすすめ」と共通（availability.ts） */
   const upcoming = nextLessons(course.lessons, lesson.id, completedIds);
+
+  /*
+    続きの選択を、ひらいた1回だけ決める。
+
+    `useEffect` にしてあるのは、終えた教材の一覧がサーバーから遅れて
+    届くため——**届く前に決めると、終えた人にも続きを聞く**ことになる。
+    決めたら `asked` を立てて、以後は何が変わっても聞き直さない
+    （中の「次へ」「戻る」で出ないのは、これが理由）。
+  */
+  useEffect(() => {
+    if (asked.current) return;
+    asked.current = true;
+    setResume(
+      resumeOffer({
+        lesson,
+        draft: loadDraft(lesson.id),
+        owner,
+        completed: completedIds,
+      }),
+    );
+    // ひらいた1回だけ。以後は聞き直さない
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lesson.id]);
   /* 帳面にしまえるのは登録した人だけ（course/keeping.ts）。 */
   const { canKeep } = useKeeping();
   /*
@@ -283,6 +331,14 @@ export function LessonRunner({
       return;
     }
     if (api.isSubmitting || api.error || api.findings.length > 0) return;
+    /*
+      続きを聞いているあいだは送らない。
+
+      控えの回が「送信中」だった人は、開いた瞬間にここへ入る。選ぶ前に
+      送ってしまうと、**「最初からやり直す」を押した人にも1回ぶん
+      かかる**——しかもその結果は捨てられる。
+    */
+    if (resume) return;
 
     // 目印は**ステップの id だけ**にする。
     // 実行回数を混ぜると、成功して回数が増えた瞬間に
@@ -300,7 +356,7 @@ export function LessonRunner({
     void send(runs.length === 0 ? "1回目" : undefined, { reuse: true });
     // send は毎回作り直されるので、依存に入れると送り続ける
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step.id, step.type, api.isSubmitting, api.error, api.findings.length]);
+  }, [step.id, step.type, api.isSubmitting, api.error, api.findings.length, resume]);
 
   /*
     サマリーの「なおす」。その回へ移すだけ。
@@ -1371,6 +1427,36 @@ export function LessonRunner({
       )}
       </BackStackProvider>
       </main>
+
+      {/*
+        途中まで進めた教材を、もう一度ひらいたとき。**いちばん上に置く。**
+
+        後ろの画面はもう続きの状態で描かれている（控えからの復元は
+        `useCourseLesson` が済ませている）。選ぶ前に触られないよう、
+        背景では閉じない形にしてある（`ResumeDialog`）。
+
+        「つづきから」は閉じるだけ——後ろがもうその状態なので、
+        ここで何かを積み直す必要が無い。
+      */}
+      {resume && (
+        <ResumeDialog
+          offer={resume}
+          onResume={() => setResume(null)}
+          onRestart={() => {
+            api.restart();
+            setResume(null);
+          }}
+          /*
+            「あとで」。控えは触らず、来た画面へ戻る。
+
+            行き先は `onExit`（開いた1つ前）。直接ひらいた人のように
+            戻る先が無いときも、あちらがホームへ倒す（`App.tsx` の
+            `goBack`）。閉じた先で同じ問いがもう一度出ることは無い
+            ——この画面ごと外れるため。
+          */
+          onLater={onLeave ?? onExit}
+        />
+      )}
     </>
   );
 }

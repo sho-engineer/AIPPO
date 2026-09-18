@@ -20,7 +20,7 @@ const PREFIX = "aippo:draft:";
  * 「レッスンを毎回最初からやり直させない」の正反対になる。
  * 下の `migrate()` がその道。
  */
-const VERSION = 2;
+const VERSION = 3;
 
 /**
  * AI の実行1回分。**続きから始めるために要る。**
@@ -49,6 +49,40 @@ export interface Draft {
   realTaskSkipped?: boolean;
   /** AI が返したもの。無ければ空（古い下書きと、まだ送っていない回）。 */
   runs?: SavedRun[];
+  /**
+   * そのとき開いていた教材の版（`course/resume.ts` の `lessonRevision`）。
+   *
+   * 教材の並びが変わると、控えの `stepId` は生きていても**続きの意味が
+   * 変わる**——回を足した日に、3問目のつもりで4問目から再開する、など。
+   * 版が違うときは復元せず、最初から始めてもらう。
+   *
+   * 版3より前の控えには入っていない。入っていないものは「分からない」
+   * であって「違う」ではないので、そこだけで捨てない。
+   */
+  revision?: string;
+  /**
+   * この試行の合言葉。
+   *
+   * 「最初からやり直す」で引き直す。**遅れて届いた前の試行の結果**を、
+   * 新しい試行へ混ぜないための目印（`useCourseLesson` の `generation`）。
+   */
+  attempt?: string;
+  /**
+   * 誰の控えか。ログインしている人だけ入る。
+   *
+   * 中身は読み戻せない短い印（`course/resume.ts` の `ownerTag`）で、
+   * メールそのものは端末に置かない。**別のアカウントで入った人に、
+   * 前の人の続きを出さない**ため。ゲストは空。
+   */
+  owner?: string;
+  /**
+   * 送っている最中に閉じた操作の合言葉。
+   *
+   * これがあると、開き直したときに**同じ合言葉で送り直せる**。
+   * サーバーは同じ合言葉を見たら作り直さずに前の結果を返すので
+   * （`apps/ai/views.py` の `_replay`）、持ち分が2つ減らない。
+   */
+  pending?: { key: string; id: string };
   updatedAt: number;
 }
 
@@ -114,6 +148,12 @@ export function loadDraft(lessonId: string): Draft | null {
  */
 function migrate(draft: Draft): Draft | null {
   if (draft.version === VERSION) return draft;
+  /*
+    版2 … 教材の版・試行・持ち主を持っていない。**空のまま読む。**
+           「分からない」であって「違う」ではないので、そこだけで
+           捨てない（捨てると、いま途中の人の続きが消える）。
+  */
+  if (draft.version === 2) return { ...draft, version: VERSION };
   if (draft.version === 1) return { ...draft, version: VERSION, runs: [] };
   return null;
 }
