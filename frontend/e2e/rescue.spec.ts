@@ -227,7 +227,14 @@ test.describe("続きから始める", () => {
     expect(before.length).toBeGreaterThan(0);
 
     await page.reload();
-    await page.waitForTimeout(800);
+    /*
+      開き直すと、まず**続きの関所**が出る（`components/course/ResumeDialog.tsx`）。
+      黙って続きへ入れるのをやめたので、ここで「つづきから」を選ぶ。
+      見たいのはその先——選んだあとに、AI が返したものが残っていること。
+    */
+    await page.getByTestId("resume-continue").click();
+    await expect(page.getByTestId("resume-sheet")).toHaveCount(0);
+    await page.waitForTimeout(500);
 
     await expect.poll(readResult).toBe(before);
   });
