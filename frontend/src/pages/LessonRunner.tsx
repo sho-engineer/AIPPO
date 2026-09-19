@@ -31,6 +31,7 @@ import { useCourse } from "../course/live";
 import {
   DIAGNOSIS_PHASES,
   PHASE_COPY,
+  FIRST_RESULT_PHASE,
   nextPhase,
   prevPhase,
   type DiagnosisPhase,
@@ -432,7 +433,19 @@ export function LessonRunner({
     **画面の上と下で言うことがずれる。**
   */
   const isDiagnosisResult = lesson.id === "diagnosis" && step.type === "completion";
-  const [phase, setPhase] = useState<DiagnosisPhase>(DIAGNOSIS_PHASES[0]);
+  const [phase, setPhase] = useState<DiagnosisPhase>(() =>
+    /*
+      **開き直した人には、演出を出さない。**
+
+      控えから戻ってきた人は、結果の画面にいきなり着く。そこで
+      整理中の1枚から始めると、**もう出ている結果を作り直している**
+      ように見えるし、読み返すたびに 1.2 秒待たされる。
+
+      演出を出すのは、5問目を押して**新しく結果を作ったとき**だけ
+      ——そのときは問いの回から入ってくるので、ここは通らない。
+    */
+    isDiagnosisResult ? FIRST_RESULT_PHASE : DIAGNOSIS_PHASES[0],
+  );
   /*
     結果の画面を離れたら、先頭（現在地）に戻す。
 
@@ -648,6 +661,14 @@ export function LessonRunner({
         別々に持つと、画面の上と下で言うことがずれる。
       */
       diagnosisPhase={phase}
+      /*
+        整理中の1枚を見終わったら、自分で現在地へ移る。
+
+        **押すものは置かない。** 1〜1.5秒のあいだに「次へ」を出すと、
+        押す人は演出を飛ばし、押さない人は待たされる——どちらにとっても
+        余計な判断が1つ増える。
+      */
+      onAnalyzed={() => setPhase("stage")}
     />
   );
 
@@ -1119,7 +1140,7 @@ export function LessonRunner({
           位置が決まらない＝帯が仕事をしていない状態。段に割ると、
           埋まった数がそのまま問い数になる。
 
-          **診断のあいだは、どの回でも段のまま出す。**
+          **問いが始まってから、終わるまで段のまま出す。**
 
           前は問いの回だけに渡していた。開始画面と結果では「数える
           ものが無い」からという理由だったが、渡さないことは
@@ -1129,23 +1150,26 @@ export function LessonRunner({
           「2つのうち1つ目。いまは『試す』」と、画面から消したはずの
           言葉を言っていた。
 
-          埋める数だけを場面で変える。開始画面は 0——**これから5問
-          ある**ことが、空の段の数でそのまま出る。結果は全部。
+          開始画面は、帯そのものを出さない（`hideProgress`）。
+          まだ1問も始まっていないので、空の段が5つ並ぶと「0 / 5 から
+          始まる長いもの」に見える。数え始めるのは質問1から。
+
+          結果では全部埋める。答え終わったことが、そのまま形になる。
         */
         segments={
-          lesson.id === "diagnosis"
+          lesson.id === "diagnosis" && !beforeQuestions
             ? {
                 total: questionCount,
-                done:
-                  questionAt >= 0
-                    ? questionAt + 1
-                    : beforeQuestions
-                      ? 0
-                      : questionCount,
+                done: questionAt >= 0 ? questionAt + 1 : questionCount,
                 at: questionAt >= 0 ? questionAt + 1 : undefined,
               }
             : undefined
         }
+        /*
+          開始画面には帯を出さない。ここで見せたいのは**何を測るか**で
+          あって、残りの量ではない。
+        */
+        hideProgress={lesson.id === "diagnosis" && beforeQuestions}
         currentMission={api.missions.current}
         phase={step.phase}
         /*
@@ -1309,16 +1333,21 @@ export function LessonRunner({
                 ? {
                     label: PHASE_COPY[phase].secondary as string,
                     /*
-                      おすすめから戻る先は**結果の先頭**にする。1つ前
+                      おすすめから戻る先は**現在地**にする。1つ前
                       （4つの力）ではない——ここに書いてあるのは
-                      「診断結果をもう一度見る」で、結果は読み取りから
-                      始まる。1歩だけ戻したい人は帯の「←」を押す。
+                      「診断結果をもう一度見る」で、結果は現在地から
+                      読む。1歩だけ戻したい人は帯の「←」を押す。
+
+                      **整理中へは戻さない。** あれは結果を作っている
+                      あいだの1枚で、結果ではない。見直すだけの人に
+                      1.2秒の演出をもう一度見せると、読み返しのたびに
+                      待たされることになる。
                     */
                     onClick: () =>
                       setPhase(
                         phase === "lesson"
-                          ? DIAGNOSIS_PHASES[0]
-                          : (prevPhase(phase) ?? DIAGNOSIS_PHASES[0]),
+                          ? FIRST_RESULT_PHASE
+                          : (prevPhase(phase) ?? FIRST_RESULT_PHASE),
                       ),
                   }
                 : undefined

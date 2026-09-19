@@ -485,12 +485,89 @@ export interface TraitLine {
 export function traitLines(
   result: DiagnosisResult,
   values: Record<string, string>,
+  /**
+   * 何行まで出すか。
+   *
+   * 現在地の画面は2行（できていること1つと、これから1つ）。3行並べると、
+   * その上の「そうなった理由」と合わせて**同じことを3通りで**言う形に
+   * なり、どれを読めばよいのか決められなくなる。
+   *
+   * 減らすときは**後ろから採る**。最後の行は必ず「これから」で、
+   * そこが次の画面へのつながりになっている。
+   */
+  limit?: number,
 ): TraitLine[] {
   const lines = answerLines(values);
-  return traitSeeds(result).map((seed) => ({
+  const seeds = traitSeeds(result);
+  const kept = limit && limit > 0 ? seeds.slice(-limit) : seeds;
+  return kept.map((seed) => ({
     ...seed,
     from: lines.filter((line) => axesMovedBy(line.stepId, values).includes(seed.axis)),
   }));
+}
+
+/**
+ * **なぜこの現在地になったのか。** 1〜2文。
+ *
+ * なぜ要るか
+ * ----------
+ * 現在地の画面には、段の名前と道しか無かった。5問答えた人にとって、
+ * 「条件を加え始めている段階」は当たっているかどうかを自分の記憶と
+ * 突き合わせるしかない文字列で、**どこからそう出たのかが1行も無い**。
+ *
+ * 作文しない
+ * ----------
+ * 判定そのものの決め方（`scoreDiagnosis`）をそのまま言葉にする。
+ * 現在地は `weakest`——積み上げの順で見て**最初に届いていない軸**
+ * ——から決まる。だから言うことは2つしかない。
+ *
+ *     どこまで届いているか
+ *     どこが最初に届かなかったか
+ *
+ * 順番の食い違いを、隠さない
+ * --------------------------
+ * 「条件を加える力」が5でも、その前の「AIに頼む」が2なら現在地は
+ * いちばん手前になる。**強みと現在地が噛み合わない**ように見える
+ * ——実際そう見えるのが正しいので、つじつまを合わせずに、なぜ
+ * そうなるのかを言う。積み上げの順で見ている、と。
+ *
+ * 5問から分かる以上のことは言わない
+ * ----------------------------------
+ * 「〜ができる人です」と断定しない。言うのは、5つの答えの中で
+ * どこが出てきてどこが出てこなかったか、まで。
+ */
+export function stageReason(result: DiagnosisResult): string[] {
+  const next = AXIS_LABELS[result.weakest];
+
+  /* 次に伸ばす軸より前は、届いているところ（`scoreDiagnosis` の並び順） */
+  const behindAt = AXES.indexOf(result.weakest);
+  const cleared = AXES.slice(0, behindAt);
+  const lines: string[] = [];
+
+  if (cleared.length === 0) {
+    lines.push(`5つの回答では、「${next}」がまだ出てきませんでした。そこがこの段階の入口です。`);
+  } else {
+    const last = AXIS_LABELS[cleared[cleared.length - 1]];
+    lines.push(
+      `「${last}」までは回答に出ていました。次の「${next}」がまだなので、ここが現在地です。`,
+    );
+  }
+
+  /*
+    強みのほうが**後ろの軸**にあるとき。
+
+    積み上げの順で見ているので、前が空いていれば後ろが高くても現在地は
+    手前になる。黙っていると、強みと現在地が噛み合っていないように
+    見えるだけで終わる。
+  */
+  const strongAt = AXES.indexOf(result.strongest);
+  if (strongAt > behindAt && result.axes[result.strongest] >= 3) {
+    lines.push(
+      `「${AXIS_LABELS[result.strongest]}」は高く出ています。ただしこの診断は手前から順に見るので、先にくる「${next}」が空いていると現在地は手前になります。`,
+    );
+  }
+
+  return lines;
 }
 
 /** 特徴の行を、軸と「できている／これから」だけで決める。 */

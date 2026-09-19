@@ -149,8 +149,21 @@ export function ChoiceButton({
               : "min-w-0 flex-1"
         }
       >
+        {/*
+          選んでも、**太さは変えない。**
+
+          ここは幅いっぱいの札なので、太字にしても札の外寸は変わらない
+          ——代わりに**中の折り返しが動く**。2行で収まっていた題が3行に
+          なれば札の高さが変わり、下に並ぶ札も、その下の帯も全部ずれる。
+          幅の決まった入れ物の中では、太字ぶんを先に取っておく手
+          （`bold-safe`）が効かない。折り返しは入れ物の幅で決まるため。
+
+          選ばれたことは、枠・地色・文字色・右のチェックの4つで示す。
+          太さを足さなくても足りる——むしろ4つのうち3つは色なので、
+          **色が見えなくても分かる**チェックのほうが要る。
+        */}
         <span
-          className={`block text-sm leading-6 ${selected ? "font-bold text-brand-dark" : ""}`}
+          className={`block text-sm leading-6 ${selected ? "text-brand-dark" : ""}`}
         >
           {label}
         </span>

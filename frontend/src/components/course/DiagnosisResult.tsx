@@ -1,49 +1,41 @@
 /**
  * AI活用診断の結果。
  *
- * 1画面を、4つに割った
- * --------------------
+ * 答え終わってからの、4枚
+ * ------------------------
  * 前はここが1画面だった。図・できていること・次の一歩・おすすめが
  * 同時に並び、下のボタンは「ここから始める」。**読む前に次へ行く道が
  * 目に入る**ので、結果は読まれずに押される形になっていた。
- * 「あっさりしていて、診断してもらった感じが弱い」と言われたのがそこ。
  *
- *     現在地  … 5段階のどこか。Lesson の話はまだしない
- *     特徴    … 回答から見えた3行と、その元になった自分の答え
- *     4つの力 … ひし形と、強み／次に伸ばす力／次に覚えること
+ *     整理中   … 1〜1.5秒。4つの観点を順に見て、自分で現在地へ移る
+ *     現在地   … 5段階のどこか・そうなった理由・回答から見えたこと
+ *     4つの力  … ひし形と、強み／次に伸ばす力／次に覚えること
  *     おすすめ … 上の3つを受けた1本。ここで初めて Lesson が出る
  *
  * 順番と文言は `course/diagnosisFlow.ts` が持つ。見出しと下のボタンは
  * `LessonRunner` が出すので、**2つのファイルにまたがる**——片方だけ
  * 直すと画面の上と下で言うことがずれる。
  *
- * 「分析しています」は無い
- * ------------------------
- * 5問目のあとに4つの観点が順に点く画面があったが、消した。採点は
- * 同期で終わる（`course/diagnosisScore.ts` は計算だけ）ので待つものが
- * 無く、しかもあの画面は4つの観点を**白い角丸カードに丸い印**で縦に
- * 並べていた——直前まで答えていた選択肢と見分けが付かず、
- * **自分が押していない項目に勝手にチェックが付く**ように見えていた。
+ * 「読み取りました」の1枚をやめた
+ * --------------------------------
+ * 5問目の直後に、4つの段（横棒）を出すだけの画面があった。押して
+ * 次へ行くための1枚で、**そこで新しく分かることが無い**——同じ4つの
+ * 値は、2つあとの「4つの力」でひし形として出る。同じものを2通りで
+ * 見せたうえ、押す回数だけが1つ増えていた。
  *
- * 「いまの様子」の一枚をやめた
- * ----------------------------
- * 押すと開く一枚に、現在地・できていること・次にやること・4つの力の
- * 内訳が入っていた。いまはそれが**画面そのもの**になったので、同じ
- * ことを2か所で言っている。廃止した。
+ * 代わりに置いたのが整理中の1枚（`diagnosis/Analyzing.tsx`）。
+ * こちらは**結果を出す前**にあり、押すものを持たない。
  *
- * 図の切り替え（道／ひし形）も同じ理由でやめた。道は現在地の画面、
- * ひし形は4つの力の画面と、**置き場所が役を持った**ので、選ばせる
- * 必要が無くなった。
+ * 「回答から見えた特徴」の1枚もやめた
+ * ------------------------------------
+ * 判断（現在地）と根拠（特徴とその元の回答）が別の画面に置かれて
+ * いた。現在地のほうは「そう出た」としか読めず、特徴のほうは答えの
+ * 復習にしかならない。1枚にまとめた（`StageView`）。
  *
- * 「この結果になった理由」の一枚もやめた
- * ----------------------------------------
- * 中身（答えた内容と、そこからの判断）は**画面そのもの**にした
- * （`TraitsView`）。一枚のままだと、判断は画面・根拠は一枚と離れて
- * 置かれ、しかも3画面のどこからでも開けるので**同じものが何度も
- * 載る**。押さない人には、根拠が1つも見えないままだった。
-
- * 残っている一枚は「ほかの候補」だけ。あれは押した人にだけ要る
- * 行き先で、結果の説明ではない。
+ * 図の切り替え（道／ひし形）もやめてある。道は現在地の画面、ひし形は
+ * 4つの力の画面と、**置き場所が役を持った**ので、選ばせる必要が
+ * 無くなった。残っている一枚は「ほかの候補」だけ——あれは押した人に
+ * だけ要る行き先で、結果の説明ではない。
  *
  * 点数を出さない
  * --------------
@@ -55,13 +47,15 @@ import { useState } from "react";
 
 import { IconCheck, IconChevronRight } from "../Icons";
 import { MoreSheet } from "./MoreSheet";
-import { AxisBars } from "./diagnosis/AxisBars";
+import { Analyzing } from "./diagnosis/Analyzing";
 import { GrowthTrack } from "./diagnosis/GrowthTrack";
 import { RadarChart } from "./diagnosis/RadarChart";
+import { prefersReducedMotion } from "../../course/motion";
 import {
   AXIS_LABELS,
   NEXT_LEARNING,
   scoreDiagnosis,
+  stageReason,
   traitLines,
 } from "../../course/diagnosisScore";
 import type { DiagnosisPhase } from "../../course/diagnosisFlow";
@@ -91,6 +85,13 @@ export interface DiagnosisResultProps {
    * 押せる形にしてあるのに押せないと、見えているだけで届かない道になる。
    */
   onPickLesson?: (lessonId: string) => void;
+  /**
+   * 整理中の1枚を見終わった。**現在地へ移る合図。**
+   *
+   * 画面を決めているのは `LessonRunner` なので、移るのもあちら。
+   * ここから呼ぶのは「終わった」ことだけ。
+   */
+  onAnalyzed?: () => void;
 }
 
 export function DiagnosisResult({
@@ -99,6 +100,7 @@ export function DiagnosisResult({
   phase,
   onEditAnswer,
   onPickLesson,
+  onAnalyzed,
 }: DiagnosisResultProps) {
   const result = scoreDiagnosis(values);
   /*
@@ -122,16 +124,33 @@ export function DiagnosisResult({
       data-testid="completion-view"
       data-phase={phase}
     >
-      {phase === "reading" && <ReadingView result={result} />}
-      {phase === "stage" && <StageView result={result} />}
-      {phase === "traits" && (
-        <TraitsView result={result} values={values} onEditAnswer={onEditAnswer} />
+      {phase === "analyzing" && (
+        <Analyzing
+          /*
+            **結果ができているか**を、演出と別に渡す。
+
+            採点は同期の計算なので、ここまで来ていれば `result` は
+            できている。それでも旗を立てて渡すのは、「時間が来たから
+            次へ」という作りにしないため——そう書くと、失敗しても
+            時間だけで進む形がいつでも作れてしまう。
+          */
+          ready={Boolean(result)}
+          reduced={prefersReducedMotion()}
+          onDone={onAnalyzed ?? (() => {})}
+        />
+      )}
+      {phase === "stage" && (
+        <StageView result={result} values={values} onEditAnswer={onEditAnswer} />
       )}
       {phase === "axes" && <AxesView result={result} />}
       {phase === "lesson" && (
         <LessonView
           lesson={first}
-          lead={recommendLead(values)}
+          /*
+            なぜこの1本かは、**いま出している教材ごと**渡して作る。
+            準備中の差し替えが起きているときは、そう書く（`waiting`）。
+          */
+          lead={recommendLead(values, first, Boolean(plan.waiting))}
           waiting={plan.waiting ? find(plan.waiting) : undefined}
           others={plan.rest.map(find).filter((one): one is Lesson => Boolean(one))}
           onPick={onPickLesson}
@@ -141,85 +160,37 @@ export function DiagnosisResult({
   );
 }
 
-// ------------------------------------------------------- ①読み取り
+// ------------------------------------------------------------ ①現在地
 
 /**
- * 答えから出した、4つの段。
+ * いまどこにいるか。**判定と、その理由を同じ画面に。**
  *
- * ここで出すのは**計算の結果そのもの**で、途中経過の演出ではない。
- * 横棒は左から順に伸びる（`AxisBars`）——4行が同時に埋まると、
- * 増えたのか最初からそうだったのかが分からない。
+ * 前は2枚に割れていた
+ * --------------------
+ * 「あなたの現在地」には段の名前と道だけ、「回答から見えた特徴」には
+ * 3行とその根拠。**判断と根拠が別の画面**にあるので、現在地のほうは
+ * 「そう出た」としか読めず、特徴のほうは答えの復習にしかならない。
+ * 押して次へ行く回数も1つ増えていた。
  *
- * 待たせない。押せばすぐ次へ行ける（下の帯のボタンは止めていない）。
- * 動きを減らす設定では、伸びる動きごと一瞬で終わる（`index.css`）。
+ * 1枚にまとめた。出す順は、読む順そのもの。
  *
- * 段はこの画面で受け取り、4つの関係はあとのひし形で見る——同じ値を
- * 2通りで**同時に**見せない、という決まりは守ったまま、役だけ分ける。
- */
-function ReadingView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
-  return (
-    <div className="shrink-0">
-      <div
-        className="rounded-card border border-line bg-surface px-4 py-4"
-        data-testid="diagnosis-reading"
-      >
-        {/*
-          数（「3 / 5」）は添えない。**棒の長さで足りる。**
-
-          5問から出した段に、数字で並べて比べるほどの精度は無い。
-          読み上げには段が渡る（`AxisBars` の `aria-label`）。
-        */}
-        <AxisBars axes={result.axes} focus={result.weakest} />
-      </div>
-      <p className="mt-3 text-[0.6875rem] leading-4 text-ink-muted">
-        ※ 5段階で表示しています。外部のAIには送っていません。
-      </p>
-    </div>
-  );
-}
-
-// ------------------------------------------------------------ ②現在地
-
-/**
- * いまどこにいるか。**ここでは Lesson の話をしない。**
+ *     道      … 5段階のどこか（形で）
+ *     段の名前 … そこの呼び名（言葉で）
+ *     理由    … **なぜそこなのか**（1〜2文）
+ *     特徴    … 回答から見えたこと（最大2つ）と、元になった答え
  *
- * 前は同じ画面に「次の一歩 ＋ おすすめ Day1」が並んでいて、現在地を
- * 読み終える前に目がそちらへ行っていた。次の話は3画面あと。
+ * 理由は作文しない
+ * ----------------
+ * 判定の決め方をそのまま言葉にする（`stageReason`）。現在地は
+ * 「積み上げの順で見て、最初に届かなかった軸」から決まるので、
+ * 言うのは**どこまで届いたか**と**どこが最初に空いたか**だけ。
  *
- * 特徴の3行もここから外した。**判断と根拠を1つの画面に置く**ため、
- * 次の画面（`TraitsView`）へ、元になった回答ごと移してある。
- */
-function StageView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
-  return (
-    <div className="shrink-0">
-      <div className="rounded-card border border-line bg-surface px-4 pb-4 pt-3.5">
-        <GrowthTrack stage={result.stage.number} summary />
-      </div>
-    </div>
-  );
-}
-
-// ------------------------------------------------- ③回答から見えた特徴
-
-/**
- * 回答から見えた特徴と、**その元になった自分の答え**。
- *
- * 3行だけ出す（できていること2つ・これから1つ）。行の下に、
- * その行の元になった回答を小さく並べる（`traitLines`）。
- *
- * 根拠が無いときは、無いと言う
+ * ここでは Lesson の話をしない
  * ----------------------------
- * 「これから」の行は、たいてい**その力を動かした答えが1つも無い**から
- * そうなっている。そこで理由を作文すると、5問から分からないことまで
- * 言い切ることになる。出てこなかったことを、そのまま書く。
- *
- * 「なおす」はここにある
- * ----------------------
- * 結果を見てから「そこは違う」と気づく人がいる。気づいたのに直せないと、
- * 出た結果を信じるしかなくなる。答えが並んでいるこの画面が、直す場所
- * としてもいちばん近い。
+ * 前は同じ画面に「次の一歩 ＋ おすすめ Day1」が並んでいて、現在地を
+ * 読み終える前に目がそちらへ行っていた。次の話は2画面あと。
  */
-function TraitsView({
+function StageView({
   result,
   values,
   onEditAnswer,
@@ -228,14 +199,56 @@ function TraitsView({
   values: Record<string, string>;
   onEditAnswer?: (stepId: string) => void;
 }) {
-  const lines = traitLines(result, values);
+  /*
+    特徴は2つまで。**後ろから採る**ので、最後は必ず「これから」になる
+    ——そこが次の画面（4つの力）へのつながり。
+  */
+  const lines = traitLines(result, values, 2);
+  const reason = stageReason(result);
 
   return (
     <div className="shrink-0">
-      <ul className="space-y-3" role="list" data-testid="diagnosis-traits">
+      <div className="rounded-card border border-line bg-surface px-4 pb-4 pt-3.5">
+        {/*
+          道と段の名前。説明文（`summary`）は出さない——下に「なぜ
+          そこなのか」が来るので、同じ画面で2通りの説明が並ぶ。
+        */}
+        <GrowthTrack stage={result.stage.number} />
+
+        {/*
+          そうなった理由。**判定の決め方から作る。**
+
+          「条件を加える力」が高いのに現在地が手前、という組み合わせは
+          実際に起きる（積み上げの順で見るため）。そのときは、なぜ
+          そう出るのかも一緒に言う（`stageReason` の2文目）。
+        */}
+        <div
+          className="mt-3 border-t border-line pt-3"
+          data-testid="diagnosis-stage-reason"
+        >
+          {reason.map((text) => (
+            <p key={text} className="text-[0.8125rem] leading-6 text-ink first:mt-0 [&+p]:mt-1.5">
+              {text}
+            </p>
+          ))}
+        </div>
+      </div>
+
+      {/*
+        回答から見えたこと。**元になった自分の答えを、その場に添える。**
+
+        行だけを出すと、どこからそう判断したのかが分からない。
+        根拠は作文せず、**選んだ札に書いてあった言葉**をそのまま置く
+        （`answerLines`）。
+
+        「これから」の行には、たいてい根拠になる答えが無い——その力を
+        動かした回答が1つも無いからそうなっている。無理に理由を作らず、
+        5問に出てこなかったことをそのまま書く。
+      */}
+      <ul className="mt-3 space-y-2.5" role="list" data-testid="diagnosis-traits">
         {lines.map((line) => (
           <li key={line.text} data-done={line.done ? "yes" : "no"}>
-            <p className="flex items-start gap-2 text-sm font-bold leading-6">
+            <p className="flex items-start gap-2 text-[0.8125rem] font-bold leading-6">
               <span
                 aria-hidden="true"
                 className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center
@@ -248,14 +261,8 @@ function TraitsView({
               <span className="min-w-0">{line.text}</span>
             </p>
 
-            {/*
-              元になった回答。**選んだ札に書いてあった言葉のまま。**
-
-              「なおす」はその答えの行に付ける。どの答えを直すのかが
-              押す前に分かる。
-            */}
             <ul
-              className="mt-1.5 space-y-1 pl-6"
+              className="mt-1 space-y-1 pl-6"
               role="list"
               data-testid="diagnosis-trait-from"
             >
@@ -272,6 +279,12 @@ function TraitsView({
                   >
                     <span className="min-w-0">{entry.text}</span>
                     {onEditAnswer && (
+                      /*
+                        「なおす」はここにある。結果を見てから「そこは
+                        違う」と気づく人がいて、直せないと出た結果を
+                        信じるしかなくなる。答えが並ぶこの場所が、直す
+                        入口としていちばん近い。
+                      */
                       <button
                         type="button"
                         onClick={() => onEditAnswer(entry.stepId)}
@@ -294,11 +307,11 @@ function TraitsView({
       {/*
         言い切らない。**5問から分かる範囲**をここで断っておく。
 
-        3行はどれも「あなたはこうだ」の形をしている。5問の自己申告と
+        上の行はどれも「あなたはこうだ」の形をしている。5問の自己申告と
         ミニ問題から出したものなので、そこまでを言う。
       */}
-      <p className="mt-4 text-[0.6875rem] leading-4 text-ink-muted">
-        ※ 5つの回答から見た範囲です。
+      <p className="mt-3 text-[0.6875rem] leading-4 text-ink-muted">
+        ※ 5つの回答から見た範囲です。外部のAIには送っていません。
       </p>
     </div>
   );
@@ -318,11 +331,19 @@ function TraitsView({
  * 何をするのか分からない。
  */
 function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
-  const rows = [
-    { label: "強み", value: `${AXIS_LABELS[result.strongest]}力`, strong: false },
-    { label: "次に伸ばす力", value: `${AXIS_LABELS[result.weakest]}力`, strong: true },
-    { label: "次に覚えること", value: NEXT_LEARNING[result.weakest], strong: false },
-  ];
+  /*
+    強みと次に伸ばす力が**同じ軸を指すことがある。**
+
+    どちらも同じ物差しで決めていないため起きる。強みは数がいちばん
+    高い軸、次に伸ばす力は積み上げの順で最初に届かない軸。4つとも
+    低い人（全部1〜2）では、いちばん高い軸がそのまま最初に届かない
+    軸になる。
+
+    **選定を変えて別々にはしない。** 見た目の都合で2つ目に高い軸を
+    「強み」と呼ぶと、その人の強みではないものを強みとして出すことに
+    なる。同じなら同じと言い、なぜそうなるのかを添える。
+  */
+  const same = result.strongest === result.weakest;
 
   return (
     /*
@@ -335,16 +356,13 @@ function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
     */
     <div className="flex min-h-0 flex-1 flex-col">
       {/*
-        短い1行。図の前に、何を見ればよいかを言う。
+        図の上に説明を置かない。
 
-        いちばん低い持ち方（375×667）では出さない。そこで渡せる高さは
-        331px しかなく、24px を図から引くと**図が読めない大きさ**に
-        なる。この1行は図の読み方の念押しで、無くても図と下の3行で
-        通じる——削る順としては先に来る。
+        「4つのうち、どこが薄いかを見ます。」の1行があった。図の読み方の
+        念押しだが、**見出し（4つの力のバランス）とポーの一言と合わせて
+        3回**同じことを言っていて、しかもその 24px は図から引かれていた。
+        図を大きくするのに、いちばん先に外せるのがここ。
       */}
-      <p className="hidden shrink-0 text-sm leading-6 text-ink-muted [@media(min-height:700px)]:block">
-        4つのうち、どこが薄いかを見ます。
-      </p>
 
       {/*
         ひし形。**この画面の主役はこれ。**
@@ -366,44 +384,84 @@ function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
         置かれるので（`RadarChart` の `place`）、ここを詰めると
         カードの外で切れる。
       */}
-      <div className="mt-3 flex min-h-[8.5rem] flex-1 justify-center px-8">
+      <div className="mt-1 flex min-h-[10rem] flex-1 justify-center px-8">
         <RadarChart axes={result.axes} focus={result.weakest} />
       </div>
 
       {/*
-        3行は、**名前の欄を折り返させない。**
+        図の下の3つ。**長さの違うものを、同じ組み方で並べない。**
 
-        前に同じ形の表を作ったとき、名前の欄を 96px にしていて
-        「次にやると良いこと」が2行に折れた。折れた行の頭と値の頭が
-        段違いになり、3行が表に見えなくなる（実機で撮って分かった）。
+        前は3つとも「名前 …… 値」の左右1行だった。短い2つ（「AIに頼む力」）
+        はそれで読めるが、3つ目の「次に覚えること」は
+        「誰向けか・どんな言い方かを足して、返ってくる文章を変える」と
+        長く、右寄せの1行に押し込むと折り返して**行の頭と値の頭が
+        段違い**になる（実機で撮って分かった）。
+
+        短い2つは左右。長い1つは見出しの下へ、左ぞろえで置く。
       */}
       <dl
-        className="mt-4 rounded-card bg-brand-soft/60 px-3.5"
+        className="mt-3 shrink-0 rounded-card bg-brand-soft/60 px-3.5 py-2
+                   [@media(min-height:700px)]:py-2.5"
         data-testid="diagnosis-axes-summary"
       >
-        {rows.map((row, at) => (
-          <div
-            key={row.label}
-            /*
-              低い端末では行を詰める。3行で 144px 取っていたのを
-              108px まで下げる——そのぶんが図へ渡る。
-            */
-            className={`flex items-baseline gap-3 py-1.5 [@media(min-height:700px)]:py-2.5 ${
-              at === 0 ? "" : "border-t border-brand-line/60"
-            }`}
+        <div className="flex items-baseline gap-3">
+          <dt className="shrink-0 whitespace-nowrap text-xs leading-5 text-ink-muted">
+            強み
+          </dt>
+          <dd
+            className="min-w-0 flex-1 text-right text-sm font-bold leading-5 text-ink"
+            data-testid="diagnosis-strength"
           >
-            <dt className="shrink-0 whitespace-nowrap text-xs leading-5 text-ink-muted">
-              {row.label}
-            </dt>
-            <dd
-              className={`min-w-0 flex-1 text-right text-sm leading-5 ${
-                row.strong ? "font-bold text-brand-dark" : "font-bold text-ink"
-              }`}
-            >
-              {row.value}
-            </dd>
-          </div>
-        ))}
+            {AXIS_LABELS[result.strongest]}力
+          </dd>
+        </div>
+
+        <div className="mt-1.5 flex items-baseline gap-3 border-t border-brand-line/60 pt-1.5">
+          <dt className="shrink-0 whitespace-nowrap text-xs leading-5 text-ink-muted">
+            次に伸ばす力
+          </dt>
+          <dd
+            className="min-w-0 flex-1 text-right text-sm font-bold leading-5 text-brand-dark"
+            data-testid="diagnosis-next-axis"
+          >
+            {AXIS_LABELS[result.weakest]}力
+          </dd>
+        </div>
+
+        {/*
+          強みと次に伸ばす力が同じ軸のとき。**言い換えずに、理由を足す。**
+
+          4つとも低い人では、いちばん高い軸がそのまま「最初に届いて
+          いない軸」になる。その人にとっては**いちばん手がかりのある
+          ところを伸ばす**のが次の一歩なので、判定としては正しい。
+          黙っていると同じ言葉が2行続くだけに見えるので、そう出る
+          理由をここで1行だけ言う。
+        */}
+        {same && (
+          <p
+            className="mt-1.5 text-[0.6875rem] leading-4 text-ink-muted"
+            data-testid="diagnosis-same-axis-note"
+          >
+            いま4つの中でいちばん手がかりがあるのがここでした。得意なところから伸ばすと、次が早く進みます。
+          </p>
+        )}
+
+        {/*
+          次に覚えること。**見出しの下へ、左ぞろえ。**
+
+          技の名前（「ターゲット指定」）ではなく、やることで書く
+          （`NEXT_LEARNING`）。名前はこのアプリの中の呼び名で、初めて
+          見る人には何をするのか分からない。
+        */}
+        <div className="mt-1.5 border-t border-brand-line/60 pt-1.5">
+          <dt className="text-xs leading-5 text-ink-muted">次に覚えること</dt>
+          <dd
+            className="mt-0.5 text-[0.8125rem] font-bold leading-5 text-ink"
+            data-testid="diagnosis-next-learning"
+          >
+            {NEXT_LEARNING[result.weakest]}
+          </dd>
+        </div>
       </dl>
     </div>
   );
@@ -625,59 +683,4 @@ function LessonView({
       )}
     </div>
   );
-}
-
-/**
- * どの回答から判断したかを、人の言葉で並べる。
- *
- * 記号（`tried` `first_time`）のままでは、読んでも自分の答えだと
- * 分からない。**選んだ札に書いてあった言葉**で返す。
- *
- * どの問いの答えかも一緒に返す。「なおす」でその問いへ戻すのに要る。
- */
-export function answerLines(
-  values: Record<string, string>,
-): { stepId: string; text: string }[] {
-  const usage: Record<string, string> = {
-    never: "AIはまだ使ったことがない",
-    tried: "AIを試したことはある",
-    sometimes: "困ったときにAIを使う",
-    work: "仕事でAIをよく使う",
-    daily: "ほぼ毎日、いろいろな用途でAIを使う",
-  };
-  const style: Record<string, string> = {
-    lost: "何を書けばいいか迷う、と答えた",
-    short: "とりあえず短くお願いする、と答えた",
-    condition: "条件を足して頼むことがある、と答えた",
-    adapt: "相手や目的に合わせて頼み方を変える、と答えた",
-    design: "仕事の流れに合わせて頼み方を組み立てる、と答えた",
-  };
-
-  const lines: { stepId: string; text: string }[] = [];
-  if (usage[values.ai_usage ?? ""]) {
-    lines.push({ stepId: "ai_usage", text: usage[values.ai_usage] });
-  }
-  if (style[values.ask_style ?? ""]) {
-    lines.push({ stepId: "ask_style", text: style[values.ask_style] });
-  }
-
-  const built = (values.build_prompt ?? "").split("|").filter(Boolean);
-  if (built.length === 3) {
-    lines.push({
-      stepId: "build_prompt",
-      text: "お願いを、3つの枠で組み立てた（何をしてほしい・誰向け・言い方）",
-    });
-  }
-
-  const matched = (values.match_purpose ?? "").split("|");
-  const answer = ["organize", "compare", "ideas"];
-  const hits = answer.filter((one, index) => matched[index] === one).length;
-  if (matched.filter(Boolean).length === 3) {
-    lines.push({
-      stepId: "match_purpose",
-      text: `3つの場面のうち、${hits}つで場面に合う使い方を選んだ`,
-    });
-  }
-
-  return lines;
 }

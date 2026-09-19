@@ -39,10 +39,21 @@ import { STAGES } from "../../../course/diagnosisScore";
 /*
   道の点に添える、2〜4字の名前。正式な名前は `STAGES` が持つ
   （`course/diagnosisScore.ts`）ので、ここは同じ言葉を短く切るだけ
-  ——別の言葉にしない。5つ目を「組み立て」から「流れ」に変えたのは、
-  正式な名前が「仕事の流れに組み込めている段階」になったため。
+  ——別の言葉にしない。
+
+  5つ目は「組み立て」。一度「流れ」に変えたことがある。正式な名前が
+  「仕事の流れに組み込めている段階」なので、そこから切り出すなら
+  「流れ」のほうが素直に見えたため。**戻した。**
+
+  この5つは、開始画面（これから見るもの）と結果画面（いまどこか）の
+  両方に出る。片方だけ見て決めると、もう片方との揃いが崩れる。
+  積み上げの5段を通して読んだとき——試す → 頼む → 条件 → 使い分け →
+  組み立て——最後が「流れ」だと、**何をするのかが動詞で出てこない**
+  （他の4つは全部やることの名前）。段の意味（仕事の流れの中へ
+  AIを組み込む）も内部の id（`workflow`）も変えていない。変えたのは
+  この5つ目の短い呼び名だけ。
 */
-const SHORT: readonly string[] = ["試す", "頼む", "条件", "使い分け", "流れ"];
+const SHORT: readonly string[] = ["試す", "頼む", "条件", "使い分け", "組み立て"];
 
 /**
  * 丸を、道の**線の中心**へ座らせるための引き上げ量（px）。
@@ -133,6 +144,23 @@ export function GrowthTrack({
       data-preview={preview ? "true" : undefined}
       className={big ? "pt-2" : ""}
     >
+      {/*
+        道と名前を、**1つの高さにまとめる。**
+
+        前は名前の並び（`ul`）のほうを浮かせて（`absolute`）、線を
+        通常の流れに置いていた。すると**この図の高さは線の太さ（4px）
+        だけ**になり、丸と名前はその外へぶら下がる。結果の画面では
+        下に来る段の名前に `mt-8` を付けて、ぶら下がったぶんを
+        避けていた——つまり 32px という数字が、図の実際の高さの
+        代わりをしていた。
+
+        始める前の画面（`preview`）には、その下に何も無い。避ける
+        相手が無いので、名前が**カードの外へはみ出して**いた。
+
+        浮かせるものを入れ替えた。名前の並びを通常の流れに戻し、
+        線のほうを後ろへ敷く。これで図の高さ＝丸と名前を含めた高さに
+        なり、置いた側は普通に余白を取るだけでよくなる。
+      */}
       <div className="relative">
         {/*
           道そのもの。左右に点の半径ぶんの余白を作らず、**点の中心を
@@ -140,9 +168,10 @@ export function GrowthTrack({
           そこで終わりなのかが読めない。
         */}
         <div
-          className={`relative mx-[10%] rounded-full bg-brand-line ${
+          className={`absolute inset-x-[10%] top-0 rounded-full bg-brand-line ${
             big ? "h-1.5" : "h-1"
           }`}
+          aria-hidden="true"
         >
           {/* 始める前は、進んだぶんが無い。線は灰のまま置く */}
           {!preview && (
@@ -154,7 +183,7 @@ export function GrowthTrack({
           )}
         </div>
 
-        <ul className="absolute inset-x-0 top-0 flex" role="list">
+        <ul className="relative flex" role="list">
           {STAGES.map((one, at) => {
             const done = !preview && at <= index;
             const here = !preview && at === index;
@@ -226,8 +255,13 @@ export function GrowthTrack({
       */}
       {!preview && (
       <p
+        /*
+          ふつうの余白でよくなった。前の `mt-8` / `mt-11` は、外へ
+          ぶら下がった名前を避けるための下駄で、余白の意味を持って
+          いなかった（図の高さが線の太さしか無かったため）。
+        */
         className={`font-bold leading-6 text-brand-dark ${
-          big ? "mt-11 text-center text-base" : "mt-8 text-[0.9375rem]"
+          big ? "mt-4 text-center text-base" : "mt-3 text-[0.9375rem]"
         }`}
         data-testid="growth-stage-name"
       >

@@ -103,7 +103,16 @@ export function ChoiceTiles({
                   className={`h-4 w-4 shrink-0 text-brand transition-opacity
                               ${active ? "opacity-100" : "opacity-0"}`}
                 />
-                {option.label}
+                {/*
+                  幅は、太字ぶんで先に取っておく（`bold-safe`）。
+
+                  チェックの場所は確保してあったが、**字そのものの
+                  幅**は選んだ瞬間に伸びていた。札は折り返しながら
+                  並ぶので、1枚伸びると後ろが次の行へ落ちる。
+                */}
+                <span className="bold-safe" data-label={option.label}>
+                  {option.label}
+                </span>
               </button>
             </li>
           );

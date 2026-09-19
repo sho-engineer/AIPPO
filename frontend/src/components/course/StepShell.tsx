@@ -44,6 +44,18 @@ export interface StepShellProps {
   /** 帯を決まった数の段に割る（`LessonProgress`）。診断の5問で使う。 */
   segments?: LessonProgressProps["segments"];
   /**
+   * 帯そのものを出さない。
+   *
+   * 診断の開始画面で使う。**まだ1問も始まっていない**ので、進み具合を
+   * 出すと「0 / 5 から始まる長いもの」に見える。ここで見せたいのは
+   * 何を測るかであって、残りの量ではない。
+   *
+   * 数えるものが無いときに `segments` を省くのでは足りない——
+   * `LessonProgress` はそのとき章の帯を描く。出さないと決めたものは、
+   * 出さないと言う。
+   */
+  hideProgress?: boolean;
+  /**
    * いまどの区切りか。
    *
    * 分かるときは、点の目盛りより先にこちらを出す。
@@ -168,6 +180,7 @@ export function StepShell({
   label,
   count,
   segments,
+  hideProgress = false,
   phase,
   po,
   summary,
@@ -263,7 +276,11 @@ export function StepShell({
         data-testid="step-stage"
         className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-2"
       >
-      <div className="shrink-0 pt-1" data-phase={phase ?? undefined}>
+      <div
+        className={hideProgress ? "" : "shrink-0 pt-1"}
+        data-phase={phase ?? undefined}
+      >
+        {hideProgress ? null : (
         <LessonProgress
           current={progress.current}
           total={progress.total}
@@ -273,6 +290,7 @@ export function StepShell({
           count={count}
           segments={segments}
         />
+        )}
       </div>
 
       {/*
@@ -417,7 +435,13 @@ export function StepShell({
         余白が余ったり足りなかったりしていた。
 
         safe-area は残す。足さないと iPhone のホームバーに隠れる。
+
+        押すものが無い画面では、帯ごと出さない（`primaryLabel` が空）。
+        診断の整理中がそれ——1〜1.5秒で自分から次へ行くので、押す先も
+        待たせる理由も無い。空のボタンを置くと、押せるものがあるのに
+        効かないように見える。
       */}
+      {primaryLabel === "" ? null : (
       <div
         className="-mx-5 shrink-0 border-t border-line bg-surface px-5
                    pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3"
@@ -434,48 +458,67 @@ export function StepShell({
             </p>
           )}
           {/*
-            受け取った合図。押した札が青くなるだけでは、登録されたのか
-            分からない。選んだ中身を返して、押し間違いにその場で気づけるようにする。
-          */}
-          {doneLabel && (
-            <p
-              data-testid="step-done-inline"
-              role="status"
-              className="mb-2 flex items-center gap-1.5 text-xs font-bold text-brand"
-            >
-              <span
-                aria-hidden="true"
-                className="flex h-4 w-4 shrink-0 items-center justify-center
-                           rounded-full bg-brand text-white"
-              >
-                <IconCheck className="h-2.5 w-2.5" />
-              </span>
-              {doneLabel}
-            </p>
-          )}
+            ボタンのすぐ上の1行。**出ていても出ていなくても、同じ高さ。**
 
-          {hintNearButton && !doneLabel && (
-            <p
-              data-testid="step-hint"
-              data-tone={refused ? "warning" : "neutral"}
-              className={`mb-2 flex items-start gap-1.5 text-xs leading-5 ${
-                refused ? "font-bold text-caution" : "text-ink-muted"
-              }`}
-              // 押せない理由は、押す前に読み上げへ届ける
-              role="status"
-            >
-              {refused ? (
-                // 断られたときだけは印を出す。ふだんの案内とは意味が違う
-                <IconCaution className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-              ) : quiet ? null : (
-                <IconBulb
-                  className="mt-0.5 h-4 w-4 shrink-0 text-brand"
+            ここには3つのうちどれかが入る——押せない理由（`hintNearButton`）、
+            受け取った合図（`doneLabel`）、そして何も無い状態。
+
+            なぜ場所を先に取るか
+            --------------------
+            前は中身が無いとき要素ごと消していた。最後の1つを選んだ
+            瞬間に「あと1つ選んでください。」が消え、**帯が 28px 縮む**
+            ——その 28px は上の送り枠へ渡るので、見出しも札も全部が
+            下から詰め上がる。4つの持ち方すべてで測って、どれも同じ
+            28px だった（320 / 375 / 390 / 430）。
+
+            320×568 では、それに加えて**勝手に送られていた**。枠を
+            3つ埋める回（質問3・4）で、送り位置が 43px・79px と
+            動いている。選び終えた瞬間に画面がずれるので、次に押す
+            ものを目で追い直すことになる。
+
+            いちばん高い状態に合わせて先に取る。`min-h` は1行ぶん
+            （`text-xs` の行送り 20px）。文が2行になる端末ではそこから
+            伸びるが、**消えたことで縮むことは無くなる**。
+          */}
+          <div className="mb-2 min-h-5">
+            {doneLabel ? (
+              <p
+                data-testid="step-done-inline"
+                role="status"
+                className="flex items-center gap-1.5 text-xs leading-5 font-bold text-brand"
+              >
+                <span
                   aria-hidden="true"
-                />
-              )}
-              <span>{hintNearButton}</span>
-            </p>
-          )}
+                  className="flex h-4 w-4 shrink-0 items-center justify-center
+                             rounded-full bg-brand text-white"
+                >
+                  <IconCheck className="h-2.5 w-2.5" />
+                </span>
+                {doneLabel}
+              </p>
+            ) : hintNearButton ? (
+              <p
+                data-testid="step-hint"
+                data-tone={refused ? "warning" : "neutral"}
+                className={`flex items-start gap-1.5 text-xs leading-5 ${
+                  refused ? "font-bold text-caution" : "text-ink-muted"
+                }`}
+                // 押せない理由は、押す前に読み上げへ届ける
+                role="status"
+              >
+                {refused ? (
+                  // 断られたときだけは印を出す。ふだんの案内とは意味が違う
+                  <IconCaution className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                ) : quiet ? null : (
+                  <IconBulb
+                    className="mt-0.5 h-4 w-4 shrink-0 text-brand"
+                    aria-hidden="true"
+                  />
+                )}
+                <span>{hintNearButton}</span>
+              </p>
+            ) : null}
+          </div>
           {/*
             戻る道はヘッダーの「←」1本にした。
 
@@ -592,6 +635,7 @@ export function StepShell({
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

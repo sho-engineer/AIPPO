@@ -45,7 +45,7 @@
           "type": "intro",
           "title": "今のAIの使い方をチェック",
           "instruction": "5つの質問から、今の得意なことと、次に伸ばす力が分かります。",
-          "poMessage": "いつもの使い方に近いものを選んでね",
+          "poMessage": "いつもの使い方を教えてね",
           "poEmotion": "question",
           "primaryLabel": "診断をはじめる"
         },

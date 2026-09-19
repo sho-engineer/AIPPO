@@ -22,12 +22,32 @@
  *
  * 動き
  * ----
- * **無い。** 前は中心から 0.4 秒で広がっていたが、ここは結果の画面の
- * 主役で、開いた瞬間に読む図。広がりきるまでのあいだ、いちばん見たい
- * 「どこが薄いか」が読めない——診断結果に演出を足さない、という
- * 決まりとも合わない。描いた形をそのまま出す。
+ * 青い面と4つの点だけが、中心から実際の位置へ 0.7 秒で開く。
+ *
+ * 一度これを消したことがある。「広がりきるまで、いちばん見たい
+ * 『どこが薄いか』が読めない」という理由だったが、**消す相手を
+ * 間違えていた**——読めなくしていたのは、軸も目盛りも名前も
+ * **全部まとめて**動かしていたことのほう。枠が動かなければ、形が
+ * 決まっていく 0.7 秒はそのまま「自分の結果が出てくる」時間になる。
+ *
+ * だから動かすものを分けた。
+ *
+ *     動かさない … 目盛りの輪・軸の線・軸の名前（最初から最後の姿）
+ *     動かす     … 青い面と、4つの点だけ
+ *
+ * 跳ね返らせない。繰り返さない。戻ってきたときにも再生しない
+ * （同じ結果を見るたびに動くと、読み返しの邪魔にしかならない）。
+ *
+ * 途中の値は、結果ではない
+ * ------------------------
+ * 広がる途中の形は**演出の値**で、採点の結果ではない。読み上げ
+ * （`aria-label`）には最初から確定した段だけを渡す——途中を読ませると、
+ * 目で見ている人には見えない「0点」の瞬間を読み上げだけが言うことになる。
  */
 
+import { useEffect, useState } from "react";
+
+import { prefersReducedMotion } from "../../../course/motion";
 import { AXES, AXIS_LABELS, type Axis } from "../../../course/diagnosisScore";
 
 /** 図の中に置く短い名前。正式な名前は読み上げと凡例が持つ。 */
@@ -47,6 +67,39 @@ const ANGLE: Record<Axis, number> = {
 };
 
 const MAX = 5;
+
+/** 中心から開ききるまで（ミリ秒）。 */
+const SPREAD = 700;
+
+/**
+ * もう開いて見せた結果。**この部品の外に置く。**
+ *
+ * なぜ `useRef` では足りないか
+ * ----------------------------
+ * 4つの力の画面からおすすめへ進むと、この部品は**画面ごと消える**
+ * （`DiagnosisResult` が場面で中身を差し替える）。戻ってくると新しく
+ * 作り直されるので、`useRef` に覚えさせた「もう見せた」は一緒に消える
+ * ——戻るたびに中心から開き直すことになる。
+ *
+ * なぜ1つだけか
+ * -------------
+ * 見せた鍵を全部ためると、答えを直して**同じ結果**に戻した人に
+ * 二度と再生されなくなる。ここは直前の1つだけ覚える。
+ *
+ * 新しく診断を終えたときは、整理中の1枚が消してくれる
+ * （`Analyzing` → `resetRadarSpread`）。
+ */
+let spreadShown: string | null = null;
+
+/**
+ * 「もう見せた」を忘れる。
+ *
+ * 新しい結果を作り始めたときに呼ぶ。同じ点数に戻った人にも、
+ * **新しく答え終わった回は**もう一度出すため。
+ */
+export function resetRadarSpread(): void {
+  spreadShown = null;
+}
 
 /*
   図の形は、**大きさに依らない座標で描く。**
@@ -88,8 +141,17 @@ function polygon(values: Record<Axis, number>): string {
  */
 const SHAPE = {
   fluid: {
-    box: "aspect-square h-full max-h-[13.75rem] min-h-[5.75rem]",
-    label: "text-[0.6875rem]",
+    /*
+      上限を 220 → 272px へ、下限を 92 → 120px へ上げた。
+
+      上に置いていた1行の説明（「4つのうち、どこが薄いかを見ます。」）を
+      外し、下の3行を詰めたぶんが、そのまま図へ渡る。図はこの画面の
+      主役で、**小さいと軸の名前と目盛りが読めない**——単に拡大すると
+      名前が外へはみ出すので、名前の置き場（下の `place`）ごと見直して
+      ある。
+    */
+    box: "aspect-square h-full max-h-[17rem] min-h-[7.5rem]",
+    label: "text-xs",
     dot: 2.6,
     focusDot: 3.6,
   },
@@ -115,14 +177,92 @@ export function RadarChart({ axes, focus, size = "fluid" }: RadarChartProps) {
   const { box, label: LABEL, dot, focusDot } = SHAPE[size];
 
   /*
+    開き具合。0 が中心、1 が確定した形。**これは演出の値**で、
+    採点の結果（`axes`）には触れない。
+
+    再生するのは**その結果を初めて描いたときだけ。** 値が同じまま
+    描き直されたり、戻ってきたりしたときは動かさない——読み返すたびに
+    図が動くと、見たいものが毎回 0.7 秒遅れて出てくる。
+
+    見分けるのは「4つの段を並べた文字列」。同じ回答なら同じ文字列に
+    なるので、これが変わったときだけが**新しい結果**。
+  */
+  const key = AXES.map((axis) => axes[axis]).join("-");
+  const [open, setOpen] = useState(() => (spreadShown === key ? 1 : 0));
+
+  useEffect(() => {
+    /* もう見せた結果。完成形のまま置く */
+    if (spreadShown === key) {
+      setOpen(1);
+      return;
+    }
+
+    /* 動きを減らす設定では、完成形をそのまま置く */
+    if (prefersReducedMotion()) {
+      spreadShown = key;
+      setOpen(1);
+      return;
+    }
+
+    /*
+      1コマずつ自分で進める。
+
+      CSS の transition には任せられない。多角形の形は `points`
+      属性で持っていて、**そこは CSS では動かない**（座標の並びは
+      アニメーションできる値ではない）。`transform: scale()` で
+      代用する手もあるが、それだと点の大きさまで一緒に膨らむ。
+
+      動かしたいのは**座標だけ**なので、開き具合を数として持ち、
+      毎コマ座標を計算し直す。行き過ぎて戻る動き（跳ね返り）を
+      持たない曲線にしてある——ここは結果を読む図で、弾ませる
+      場面ではない。
+    */
+    let raf = 0;
+    const started = performance.now();
+    const tick = (now: number) => {
+      const ratio = Math.min(1, (now - started) / SPREAD);
+      /* ゆっくり止まる。1 を超えないので、行き過ぎて戻ることが無い */
+      setOpen(1 - Math.pow(1 - ratio, 3));
+      if (ratio < 1) {
+        raf = requestAnimationFrame(tick);
+        return;
+      }
+      /*
+        **開ききってから覚える。** 始めた時点で覚えると、開発中の
+        作り直し（StrictMode の二度がけ）で1回目が取り消されたあと、
+        2回目が「もう見せた」と判断して**中心に畳まれたまま**止まる。
+        実際そうなって、図が出ないまま残った。
+      */
+      spreadShown = key;
+    };
+    setOpen(0);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [key]);
+
+  /*
     次に目指すところ。**いまより1つだけ上。**
 
     「満点の形」を重ねると、どの軸も遠く見えて、次に何をすれば
     よいのかがかえって分からない。1つ上なら手が届く。
+
+    根拠はある——`scoreDiagnosis` が返す段（1〜5）の、1つ上。
+    段は「上へ届いた分だけ上げる」形で出していて（`toStep`）、
+    次の段は**次に届くべきところ**そのもの。固定値ではないので
+    残してある。
   */
   const target = AXES.reduce(
     (acc, axis) => {
       acc[axis] = Math.min(MAX, axes[axis] + 1);
+      return acc;
+    },
+    {} as Record<Axis, number>,
+  );
+
+  /** 開き具合を掛けた、いまの描画用の値。 */
+  const drawn = AXES.reduce(
+    (acc, axis) => {
+      acc[axis] = axes[axis] * open;
       return acc;
     },
     {} as Record<Axis, number>,
@@ -167,6 +307,10 @@ export function RadarChart({ axes, focus, size = "fluid" }: RadarChartProps) {
             />
           ))}
 
+          {/*
+            ここから下だけが動く。枠（目盛り・軸）は上で描き終えていて、
+            中心から開くあいだも最初の姿のまま座っている。
+          */}
           <g>
             {/* 次に目指す形。破線なので、いまの形と取り違えない */}
             <polygon
@@ -175,11 +319,11 @@ export function RadarChart({ axes, focus, size = "fluid" }: RadarChartProps) {
               strokeWidth={1.5}
               strokeDasharray="3 3"
               vectorEffect="non-scaling-stroke"
-              opacity={0.55}
+              opacity={0.55 * open}
             />
             {/* いまの形 */}
             <polygon
-              points={polygon(axes)}
+              points={polygon(drawn)}
               className="fill-brand stroke-brand"
               fillOpacity={0.18}
               strokeWidth={2}
@@ -187,7 +331,7 @@ export function RadarChart({ axes, focus, size = "fluid" }: RadarChartProps) {
               vectorEffect="non-scaling-stroke"
             />
             {AXES.map((axis) => {
-              const [x, y] = at(axis, axes[axis]);
+              const [x, y] = at(axis, drawn[axis]);
               return (
                 <circle
                   key={axis}

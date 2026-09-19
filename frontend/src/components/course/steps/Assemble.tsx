@@ -146,10 +146,19 @@ export function AssembleStep({ step, value, onChange }: AssembleStepProps) {
                   aria-pressed={on}
                   data-testid="assemble-choice"
                   /*
+                    幅を、太字ぶんで先に取っておく（`bold-safe`）。
+
+                    選んだ札だけ太字にすると、字が横に広がって札が
+                    数 px 伸びる。札は折り返しながら並ぶので、1枚が
+                    伸びると後ろが次の行へ落ち、その下が全部ずれる。
+                    いつも太字ぶんの幅にしておけば、選んでも動かない。
+                  */
+                  data-label={option.label}
+                  /*
                     印は色だけに頼らない（要件 §6.12）。選んだ札は
                     地の色と枠と太さの3つで変わる。
                   */
-                  className={`min-h-[2.75rem] rounded-badge border px-3 py-1.5
+                  className={`bold-safe min-h-[2.75rem] rounded-badge border px-3 py-1.5
                               text-[0.875rem] leading-6 transition
                               ${
                                 on
