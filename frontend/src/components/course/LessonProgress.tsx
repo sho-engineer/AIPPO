@@ -74,7 +74,18 @@ export interface LessonProgressProps {
    * 通しで伸びる。長いレッスン（19歩）では、そのほうが細かい
    * 進み具合まで出る。こちらは数える用。両方は渡さない。
    */
-  segments?: { total: number; done: number };
+  segments?: {
+    total: number;
+    /** 埋める段の数。 */
+    done: number;
+    /**
+     * いま何問目に居るか。1始まり。問いの回でなければ省く。
+     *
+     * `done` と分けてあるのは、**最後の問いに居る**のと
+     * **全部答え終わった**のが、埋まった数では同じになるため。
+     */
+    at?: number;
+  };
   /** いま何番目の区切りか。1始まり。 */
   currentMission?: number;
 }
@@ -109,7 +120,19 @@ export function LessonProgress({
       */
       aria-valuetext={
         segments
-          ? `${segments.total}問のうち${segments.done}問目`
+          ? /*
+              問いの上に居るなら、何問目かを言う。
+
+              居ないとき（開始画面・結果）に埋まった数で言い換えると
+              読めなくなる——「5問のうち0問目」、そして結果では
+              「5問のうち5問目」。**埋まった数と、何問目かは別のもの**
+              なので、別々に受け取る（`at`）。
+            */
+            segments.at
+            ? `${segments.total}問のうち${segments.at}問目`
+            : segments.done >= segments.total
+              ? `全${segments.total}問に回答済み`
+              : `全${segments.total}問`
           : here
             ? `${missions.length}つのうち${currentMission}つ目。いまは「${here.label}」`
             : `${Math.round(ratio * 100)}パーセント`

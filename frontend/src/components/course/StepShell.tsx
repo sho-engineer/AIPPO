@@ -22,7 +22,7 @@ import {
 } from "../Icons";
 import { PoHero } from "../aippo/PoHero";
 import { PrimaryButton } from "../aippo/PrimaryButton";
-import { LessonProgress } from "./LessonProgress";
+import { LessonProgress, type LessonProgressProps } from "./LessonProgress";
 import type { Mission } from "../../course/missions";
 import { StepTransition } from "./StepTransition";
 import type { PoSize } from "../../po/sizes";
@@ -42,7 +42,7 @@ export interface StepShellProps {
   /** 帯の右に出す数え方（`LessonProgress`）。 */
   count?: string;
   /** 帯を決まった数の段に割る（`LessonProgress`）。診断の5問で使う。 */
-  segments?: { total: number; done: number };
+  segments?: LessonProgressProps["segments"];
   /**
    * いまどの区切りか。
    *

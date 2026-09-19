@@ -184,6 +184,89 @@ test.describe("AI活用診断", () => {
     ]);
   });
 
+  test("帯は、はじめから終わりまで段のまま", async ({ page }) => {
+    /*
+      渡さないことは、出さないことではない。
+
+      開始画面と結果には `segments` を渡していなかった。「そこは問い
+      ではないので数えるものが無い」という理由だったが、
+      `LessonProgress` は `segments` が無ければ**章の帯**を描く。
+      実機の写しで開始画面の右寄りに入っていた細い切れ目がそれで、
+      読み上げは「2つのうち1つ目。いまは『試す』」——聞かれているのは
+      自分のことなのに、何かを試している最中に見える言葉を、画面から
+      消したあとも読み上げにだけ残していた。
+
+      だから通しで見る。**どの画面でも段のまま**であること。
+    */
+    /*
+      `openDiagnosis` は開始画面を1回押して通り過ぎる。ここで見たいのは
+      その開始画面そのものなので、押さずに止める。
+    */
+    await stubApi(page);
+    await page.goto("/");
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await page.getByRole("button", { name: "コース" }).first().click();
+    await page.getByTestId("current-course-open").click();
+    await page.getByTestId("lesson-diagnosis").first().click();
+    await dismissLessonIntro(page);
+    await expect(page.getByTestId("diagnosis-intro")).toBeVisible();
+
+    const read = () =>
+      page.evaluate(() => {
+        const root = document.querySelector('[data-testid="lesson-progress"]');
+        const segs = root?.querySelector('[data-testid="progress-segments"]');
+        return {
+          segmented: !!segs,
+          total: segs ? segs.children.length : 0,
+          filled: segs
+            ? [...segs.children].filter(
+                (node) => (node as HTMLElement).dataset.done === "true",
+              ).length
+            : 0,
+          valuetext: root?.getAttribute("aria-valuetext") ?? "",
+        };
+      });
+
+    // ── 開始画面。まだ1問も答えていない ──
+    const intro = await read();
+    expect(intro.segmented, "開始画面の帯が章の帯に落ちている").toBe(true);
+    expect(intro.filled, "答える前なのに段が埋まっている").toBe(0);
+    expect(intro.valuetext).not.toContain("試す");
+
+    /*
+      段の数は数え直さない。**教材が持っている数**と合っていればよい
+      ——ここに 5 と書くと、問いを1つ足した日に検査だけが古い数を守る。
+    */
+    const asked = intro.total;
+    expect(asked).toBeGreaterThan(1);
+
+    // 開始画面から、最初の問いへ
+    await page.getByTestId("primary-action").click();
+
+    // ── 問いの画面。埋まった数が、そのまま何問目か ──
+    for (let at = 1; at <= asked; at += 1) {
+      if (await page.getByTestId("completion-view").count()) break;
+
+      const here = await read();
+      expect(here.segmented, `質問${at}の帯が章の帯に落ちている`).toBe(true);
+      expect(here.total).toBe(asked);
+      expect(here.filled, `質問${at}で埋まった段の数が合わない`).toBe(at);
+      expect(here.valuetext, `質問${at}の読み上げ`).toContain(`${at}問目`);
+
+      if (!(await answerOne(page))) break;
+    }
+
+    // ── 結果。全部埋まっている ──
+    await expect(page.getByTestId("completion-view")).toBeVisible({
+      timeout: 6000,
+    });
+    const done = await read();
+    expect(done.segmented, "結果の帯が章の帯に落ちている").toBe(true);
+    expect(done.filled, "答え終えたのに段が埋まっていない").toBe(asked);
+    expect(done.valuetext).not.toContain("試す");
+  });
+
   test("どの画面も、送らずに全部見える", async ({ page }) => {
     /*
       ミニ問題は枠が3つあり、それぞれ札が2行に折り返す。札の高さを
@@ -877,6 +960,26 @@ test.describe("AI活用診断", () => {
     await page.waitForTimeout(600);
 
     await expectFits(page, "診断の開始画面");
+
+    /*
+      **収まっているだけでは足りない。** 余りが全部いちばん下へ
+      落ちていないこと。
+
+      中身を「自分の高さのまま」置いていたので、背の高い端末ほど道の
+      下に白が溜まっていた。実機（iPhone 16 Pro）で 225px、iPhone 15 で
+      192px——下だけに溜まった白は、画面が途中で終わっているように
+      見える。いまは上下へ配ってある（`DiagnosisIntro`）。
+    */
+    const tail = await page.evaluate(() => {
+      const intro = document.querySelector('[data-testid="diagnosis-intro"]');
+      const cta = document.querySelector('[data-testid="primary-action"]');
+      if (!intro || !cta) return null;
+      return Math.round(
+        cta.getBoundingClientRect().top - intro.getBoundingClientRect().bottom,
+      );
+    });
+    expect(tail, "道の下と、ボタンのあいだに白が溜まっている")
+      .toBeLessThanOrEqual(40);
 
     /*
       大きな説明画像を置かない。**絵の中の「AI活用診断」が上の帯と

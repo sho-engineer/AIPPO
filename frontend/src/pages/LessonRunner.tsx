@@ -405,6 +405,22 @@ export function LessonRunner({
   const questionAt = questions.findIndex((each) => each.id === step.id);
 
   /*
+    問いの前に居るか、うしろに居るか。
+
+    問いでない回（開始画面・結果）でも、帯は段のまま出す——**落とすと
+    章の帯に戻ってしまう**（`LessonProgress` は `segments` が無ければ
+    そちらを描く）。開始画面に章の区切り線が1本入り、読み上げは
+    「2つのうち1つ目。いまは『試す』」と、画面から消したはずの言葉を
+    言っていた。
+
+    どちらに居るかは、最初の問いとの前後で決める。数は数えない。
+  */
+  const firstQuestionAt = lesson.steps.findIndex((each) => each.key);
+  const beforeQuestions =
+    firstQuestionAt >= 0 &&
+    lesson.steps.findIndex((each) => each.id === step.id) < firstQuestionAt;
+
+  /*
     診断の結果は4画面（`course/diagnosisFlow.ts`）。いまどれかを持つ。
 
     **教材のステップにはしない。** 増やすと3層（同梱・seed・配信）
@@ -1103,12 +1119,31 @@ export function LessonRunner({
           位置が決まらない＝帯が仕事をしていない状態。段に割ると、
           埋まった数がそのまま問い数になる。
 
-          問いの画面だけ。開始画面と結果では出さない——そこは問いでは
-          ないので、数えるものが無い。
+          **診断のあいだは、どの回でも段のまま出す。**
+
+          前は問いの回だけに渡していた。開始画面と結果では「数える
+          ものが無い」からという理由だったが、渡さないことは
+          「帯を出さない」ことにはならない——`LessonProgress` は
+          `segments` が無ければ章の帯を描く。実機の写しで開始画面の
+          右寄りに入っていた細い切れ目がそれで、読み上げも
+          「2つのうち1つ目。いまは『試す』」と、画面から消したはずの
+          言葉を言っていた。
+
+          埋める数だけを場面で変える。開始画面は 0——**これから5問
+          ある**ことが、空の段の数でそのまま出る。結果は全部。
         */
         segments={
-          lesson.id === "diagnosis" && questionAt >= 0
-            ? { total: questionCount, done: questionAt + 1 }
+          lesson.id === "diagnosis"
+            ? {
+                total: questionCount,
+                done:
+                  questionAt >= 0
+                    ? questionAt + 1
+                    : beforeQuestions
+                      ? 0
+                      : questionCount,
+                at: questionAt >= 0 ? questionAt + 1 : undefined,
+              }
             : undefined
         }
         currentMission={api.missions.current}

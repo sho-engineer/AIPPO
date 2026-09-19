@@ -59,10 +59,33 @@ export function DiagnosisIntro() {
       送らない。**この画面は1つも隠さずに収まること。**
 
       中身は3つのメタと道1本だけなので、いちばん低い持ち方
-      （402×660）でも余る。伸び縮みする箱を作らず、自分の高さのまま
-      置く——伸ばすと、空いた白の真ん中に細い線が1本という姿になる。
+      （402×660）でも余る。
+
+      余ったぶんを、どこへ置くか
+      --------------------------
+      ここは「自分の高さのまま置く」だけにしてあった。伸ばすと空いた
+      白の真ん中に細い線が1本、という姿になるため——**道そのものを
+      伸ばさない**判断は正しい。ただし伸ばさないと、余りは全部いちばん
+      下へ落ちる。実機（iPhone 16 Pro）で測ると、道の下端と
+      「診断をはじめる」のあいだが **225px** 空いていた（iPhone 15 で
+      192px、SE で 143px）。下だけに溜まった白は、**画面が途中で
+      終わっている**ように見える。
+
+      だから、箱は伸ばさずに**白のほうを配る**。上下に伸びる隙間を
+      置いて、余りをそこへ流す。数字は書かない——何px 余るかは
+      端末の高さで変わる。
+
+      配り方は 2 : 3 で下を厚くする。均等に割ると、道が説明文から
+      離れすぎて、何の図なのかが読み取れなくなる。上は「つながって
+      見える」ぶんだけ空け、残りは下へ回す。
+
+      低い持ち方では、隙間は 0 まで縮む（`min-h-0`）。余りが無いときに
+      場所を取らないので、収まり方はこれまでと変わらない。
     */
-    <div className="shrink-0" data-testid="diagnosis-intro">
+    <div
+      className="flex min-h-0 flex-1 flex-col"
+      data-testid="diagnosis-intro"
+    >
       {/*
         3つを横1行に。**札にして折り返させる。**
 
@@ -71,7 +94,7 @@ export function DiagnosisIntro() {
         狭い端末では折り返す（`flex-wrap`）——縮めて字を小さくしない。
       */}
       <ul
-        className="flex flex-wrap items-center gap-x-2 gap-y-1.5"
+        className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5"
         role="list"
         data-testid="diagnosis-meta"
       >
@@ -87,13 +110,19 @@ export function DiagnosisIntro() {
         ))}
       </ul>
 
+      {/* 余りの 5 分の 2。上は「つながって見える」ぶんだけ空ける */}
+      <div className="min-h-0 shrink-0 grow-[2]" aria-hidden="true" />
+
       {/*
         何を見る診断なのか。**結果で使う道をそのまま出す。**
 
         5つの名前をここに書き写さない。書き写すと、段の名前を変えた
         ときに片方だけ古くなり、始める前に見た言葉が結果に出てこない。
       */}
-      <section className="mt-5 rounded-card border border-line bg-surface px-4 pb-4 pt-3.5">
+      <section
+        className="mt-5 shrink-0 rounded-card border border-line bg-surface
+                   px-4 pb-4 pt-3.5"
+      >
         <h2 className="text-xs font-bold leading-5 text-ink-muted">
           この5段階のどこにいるかを見ます
         </h2>
@@ -101,6 +130,9 @@ export function DiagnosisIntro() {
           <GrowthTrack stage={1} preview />
         </div>
       </section>
+
+      {/* 余りの 5 分の 3。下を厚くして、ボタンの手前にゆとりを残す */}
+      <div className="min-h-0 shrink-0 grow-[3]" aria-hidden="true" />
     </div>
   );
 }
