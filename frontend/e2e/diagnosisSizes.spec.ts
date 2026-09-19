@@ -49,7 +49,8 @@ async function openDiagnosis(page: Page) {
 
 /** いま出ている画面で答えて、次へ。答え終わっていれば false。 */
 async function answerOne(page: Page): Promise<boolean> {
-  if (await page.getByTestId("completion-view").count()) return false;
+  if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) return false;
 
   const parts = page.getByTestId("assemble-part");
   const count = await parts.count();
@@ -120,7 +121,8 @@ for (const size of SIZES) {
       await page.getByTestId("primary-action").click();
 
       for (let guard = 0; guard < 8; guard += 1) {
-        if (await page.getByTestId("completion-view").count()) break;
+        if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
         screens.push(await page.locator("main h1").first().innerText());
         seen.push(await measure(page));
         if (!(await answerOne(page))) break;

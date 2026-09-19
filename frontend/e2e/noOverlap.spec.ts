@@ -262,7 +262,8 @@ test.describe("文字どうしが重ならない", () => {
       const title = await page.locator("main h1").first().innerText().catch(() => "");
       const found = await overlaps(page);
       expect(found, `「${title}」で重なっている\n${report(found)}`).toEqual([]);
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
       if (!(await advance(page))) break;
     }
   });

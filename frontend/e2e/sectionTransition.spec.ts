@@ -118,7 +118,8 @@ test.describe("段が変わったことを、1枚で言う", () => {
     for (let step = 0; step < 30; step += 1) {
       const title = await coverTitle(page);
       if (title) covers.push(title);
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
       if (!(await advance(page))) break;
     }
 

@@ -14,7 +14,8 @@ import { dismissLessonIntro } from "./support/lessonIntro";
 import { stubApi } from "./support/stubApi";
 
 async function answerOne(page: Page): Promise<boolean> {
-  if (await page.getByTestId("completion-view").count()) return false;
+  if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) return false;
   const parts = page.getByTestId("assemble-part");
   const count = await parts.count();
   if (count > 0) {

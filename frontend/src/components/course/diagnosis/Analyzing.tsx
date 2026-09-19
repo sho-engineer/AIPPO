@@ -9,25 +9,42 @@
  * 回る。ここに1枚挟むのは、待たせるためではなく**何を見たのか**を
  * 言うため——4つの観点で振り返った、と先に言っておく。
  *
+ * 読める長さにする
+ * ----------------
+ * 最初の版は 1.8 秒だった（実測）。4つの観点を目で追うには短く、
+ * 「出た瞬間に消えた」と言われた。いまは **2.8 秒**。
+ *
+ *     0.4秒ごとに1つずつ強調   … 4つで 1.6 秒
+ *     最後の1つのあとに余韻     … 残り 1.2 秒
+ *
+ * 待たせる画面ではないので、これ以上は伸ばさない。
+ *
+ * ひとまとまりにする
+ * ------------------
+ * 前は見出しと説明を画面の上（`StepShell` の見出し欄）に、ポーと
+ * 4項目を中央に置いていた。あいだに**大きな白**が空き、上の文と下の
+ * 項目が別のものに見える。いまはこの部品が画面まるごとを受け持ち、
+ * ポー・見出し・説明・4項目を**中央のひとかたまり**として置く。
+ *
  * 一度消した画面と、どこが違うか
  * ------------------------------
- * 前にも「分析しています」の1.8秒があり、消した。理由は2つあって、
+ * 前にも「分析しています」の画面があり、消した。理由は2つあって、
  * どちらもこの版では避けてある。
  *
  *   ・**やっていないことを言っていた**（「AIが分析しています」）。
  *     採点は端末の中の計算で、外のAIは通っていない。いまは
- *     「回答から、今の使い方を整理しています」——実際にやること
- *     しか書かない。偽の進捗率も、架空の処理ステップも出さない。
+ *     「回答を整理しています」——実際にやることしか書かない。
+ *     偽の進捗率も、架空の処理ステップも出さない。
  *
  *   ・**選択肢と見分けが付かなかった**。4つの観点を白い角丸カードに
  *     丸い印で縦に並べ、順に青くしていたので、直前まで答えていた
  *     札と同じ形をしていた——自分が押していない項目に勝手に
- *     チェックが付くように見える。いまは印を持たない字の行で、
- *     枠も地色も付けない。押せるものには見えない。
+ *     チェックが付くように見える。いまは印も枠も地色も持たない
+ *     字の行で、押せるものには見えない。
  *
  * 時間で進めない
  * --------------
- * **演出の時計と、結果ができたかどうかは別のもの。** 1.2秒たっても
+ * **演出の時計と、結果ができたかどうかは別のもの。** 2.8 秒たっても
  * 結果が作れていなければ進まない（`ready`）。採点は同期の計算なので
  * ふつうは先に終わっているが、「時間が来たから次へ」にしておくと、
  * 失敗しているのに結果の画面へ進む形がいつでも作れてしまう。
@@ -42,6 +59,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { IconCheckCircle } from "../../Icons";
 import { PoFace } from "../../../po/PoAvatar";
 import { isSheetOpen } from "../MoreSheet";
 import { resetRadarSpread } from "./RadarChart";
@@ -58,8 +76,11 @@ const SAY: Partial<Record<Axis, string>> = {
   purpose: "自分に合わせる",
 };
 
-/** ぜんぶ点くまでの長さ。1つあたりの間はここから割って出す。 */
-const SPAN = 1200;
+/** 1つ強調してから、次を強調するまで。 */
+const STEP = 400;
+
+/** 出してから、結果の画面へ移るまで。最後の項目のあとに余韻が残る。 */
+const TOTAL = 2800;
 
 export interface AnalyzingProps {
   /**
@@ -68,16 +89,16 @@ export interface AnalyzingProps {
    * **これが false のあいだは、何秒たっても次へ行かない。**
    */
   ready: boolean;
-  /** 4つとも点き終わり、結果もできている。 */
+  /** 見せ終わり、結果もできている。 */
   onDone: () => void;
-  /** 動きを減らす設定か。点く順を出さず、最後の姿で置く。 */
+  /** 動きを減らす設定か。順に点けず、最初から全部を出す。 */
   reduced: boolean;
 }
 
 export function Analyzing({ ready, onDone, reduced }: AnalyzingProps) {
   /*
-    いくつ目まで点いたか。**見た目だけの数**で、採点とは関係が無い。
-    動きを減らす設定では最初から全部点いた姿にする。
+    いくつ目まで強調したか。**見た目だけの数**で、採点とは関係が無い。
+    動きを減らす設定では、最初から全部。
   */
   const [lit, setLit] = useState(reduced ? AXES.length : 0);
 
@@ -97,9 +118,8 @@ export function Analyzing({ ready, onDone, reduced }: AnalyzingProps) {
 
   useEffect(() => {
     if (reduced) return;
-    const step = SPAN / AXES.length;
     const timers = AXES.map((_, at) =>
-      window.setTimeout(() => setLit(at + 1), step * (at + 1)),
+      window.setTimeout(() => setLit(at + 1), STEP * (at + 1)),
     );
     return () => timers.forEach((id) => window.clearTimeout(id));
   }, [reduced]);
@@ -108,12 +128,14 @@ export function Analyzing({ ready, onDone, reduced }: AnalyzingProps) {
     /*
       進む条件は3つそろったとき。**どれか1つでも欠けたら進まない。**
 
-        1. 見せ終わった（動きを減らす設定なら、短い一拍だけ）
+        1. 見せ終わった（2.8秒）
         2. 結果ができている（`ready`）
         3. 一枚が開いていない——確認のシートの後ろで画面が
            入れ替わると、閉じた先が思っていた場所と違う
+
+      動きを減らす設定でも、**長さは変えない**。あれは動きを減らす
+      設定であって、急ぐ設定ではない。読む時間は同じだけ要る。
     */
-    const wait = reduced ? 200 : SPAN + 150;
     const id = window.setTimeout(function settle() {
       if (went.current) return;
       if (!ready || isSheetOpen()) {
@@ -123,50 +145,90 @@ export function Analyzing({ ready, onDone, reduced }: AnalyzingProps) {
       }
       went.current = true;
       onDone();
-    }, wait);
+    }, TOTAL);
     return () => window.clearTimeout(id);
-  }, [ready, reduced, onDone]);
+  }, [ready, onDone]);
 
   return (
+    /*
+      画面まるごとを受け持つ。**中身は1つのかたまりとして中央に。**
+
+      高さは帯（44px）の下いっぱい。`StepShell` と同じ式を使うのは、
+      前後の画面と**帯の位置がそろう**ため——ここだけ数式が違うと、
+      移った瞬間に上の帯が跳ねる。
+    */
     <div
-      className="flex min-h-0 flex-1 flex-col items-center justify-center"
+      className="mx-auto flex h-[calc(100dvh-2.75rem-env(safe-area-inset-top))] w-full
+                 max-w-page flex-col items-center justify-center px-6
+                 pb-[max(1rem,env(safe-area-inset-bottom))]"
       data-testid="diagnosis-analyzing"
       data-ready={ready ? "yes" : "no"}
     >
       {/*
         ポー。既存のものをそのまま使う（描き起こさない）。
-        ここは結果を待つ数秒なので、表情は考えごとのまま動かさない。
+        結果を待つ数秒なので、表情は考えごとのまま動かさない。
       */}
       <PoFace emotion="question" size="md" />
+
+      <h1 className="mt-4 text-center text-lg font-bold leading-7">
+        回答を整理しています
+      </h1>
+
+      {/*
+        説明。**行の折れる場所を決めておく**（`<br>`）。
+        成り行きに任せると、端末の幅で2行になったり3行になったりして、
+        下の4項目の位置が端末ごとに変わる。
+      */}
+      <p className="mt-2 text-center text-sm leading-6 text-ink-muted">
+        4つの観点から、
+        <br />
+        今のAIの使い方を確認しています。
+      </p>
 
       {/*
         4つの観点。**最初から4行そろえて置く。**
 
-        順に足していくと、行が増えるたびに下がずれる。点く順で見せたい
-        のは「順番に見ている」ことであって、増えていくことではない。
+        順に足していくと、行が増えるたびに下がずれる。順番に見せたいのは
+        「1つずつ見ている」ことであって、増えていくことではない。
 
-        点いている行は、色と太さで出す。場所は動かさない——太字ぶんの
-        幅は先に取ってある（`bold-safe`）。
+        強調は、色と太さと印の3つ。場所は動かさない——太字ぶんの幅は
+        先に取ってあり（`bold-safe`）、印は最初から場所を取っている。
       */}
       <ul
-        className="mt-5 w-full max-w-[16rem] space-y-1.5"
+        className="mt-5 w-full max-w-[15rem] space-y-2"
         role="list"
         data-testid="analyzing-axes"
       >
         {AXES.map((axis, at) => {
           const on = at < lit;
-          const text = SAY[axis] ?? AXIS_LABELS[axis];
+          const text = `${SAY[axis] ?? AXIS_LABELS[axis]}力`;
           return (
             <li
               key={axis}
               data-lit={on ? "yes" : "no"}
-              className={`bold-safe text-center text-sm leading-6 transition-colors
-                          duration-300 ${
-                            on ? "font-bold text-brand-dark" : "text-ink-muted/60"
-                          }`}
-              data-label={text}
+              className="flex items-center justify-center gap-1.5"
             >
-              {text}
+              {/*
+                印。**選ぶ札のチェックには見せない。**
+
+                前の版は丸い塗りつぶしのチェックで、直前まで押していた
+                選択肢と同じ形だった。ここは輪郭だけの印にして、
+                場所は最初から空けておく（`opacity`）。
+              */}
+              <IconCheckCircle
+                aria-hidden="true"
+                className={`h-4 w-4 shrink-0 text-brand transition-opacity duration-300 ${
+                  on ? "opacity-100" : "opacity-0"
+                }`}
+              />
+              <span
+                className={`bold-safe text-sm leading-6 transition-colors duration-300 ${
+                  on ? "font-bold text-brand-dark" : "text-ink-muted/60"
+                }`}
+                data-label={text}
+              >
+                {text}
+              </span>
             </li>
           );
         })}

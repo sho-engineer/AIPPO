@@ -334,7 +334,8 @@ test.describe("軽快さと状態", () => {
         return [...new Set(out)].slice(0, 3);
       });
       if (cut.length) found.push(`${at} 「${title}」 切れ=${cut.join("/")}`);
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
       await fill(page);
       await page.getByTestId("primary-action").first().click({ force: true });
       await page.waitForTimeout(350);

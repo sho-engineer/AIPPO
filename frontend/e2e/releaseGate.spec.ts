@@ -121,7 +121,8 @@ test.describe("診断の結果", () => {
     await page.getByTestId("primary-action").click();
 
     for (let guard = 0; guard < 8; guard += 1) {
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
       const parts = page.getByTestId("assemble-part");
       const count = await parts.count();
       if (count > 0) {

@@ -79,7 +79,8 @@ for (const [name, width, height] of SIZES) {
     await openLessonById(page, "rewrite_text");
 
     for (let at = 0; at < 30; at += 1) {
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
       const skip = page.getByRole("button", { name: "今回はスキップする" });
       if (await skip.count()) {
         await skip.click();
@@ -114,7 +115,8 @@ for (const [name, width, height] of SIZES) {
       if (seen.trimmed.length) bad.push(`切り詰め=${seen.trimmed.join("/")}`);
       if (seen.clipped.length) bad.push(`切れ=${seen.clipped.join("/")}`);
       if (bad.length) rows.push(`${String(at).padStart(2, "0")}「${title}」 ${bad.join(" | ")}`);
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
       await forward(page);
     }
     console.error(`\n===== ${name} =====`);

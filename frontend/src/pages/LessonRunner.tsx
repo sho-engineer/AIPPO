@@ -26,6 +26,7 @@ import {
 } from "../components/course/SectionTransition";
 import { StepRenderer } from "../components/course/StepRenderer";
 import { StepShell } from "../components/course/StepShell";
+import { Analyzing } from "../components/course/diagnosis/Analyzing";
 import { useAuth } from "../auth/AuthContext";
 import { useCourse } from "../course/live";
 import {
@@ -45,6 +46,7 @@ import {
   canAutoAdvance,
   isAnswered,
 } from "../course/autoAdvance";
+import { prefersReducedMotion } from "../course/motion";
 import { poAppearance, PO_SIZE_BY_SCENE } from "../course/poPresence";
 import { primaryLabel } from "../course/primaryLabel";
 import { nextLessons } from "../course/availability";
@@ -661,14 +663,6 @@ export function LessonRunner({
         別々に持つと、画面の上と下で言うことがずれる。
       */
       diagnosisPhase={phase}
-      /*
-        整理中の1枚を見終わったら、自分で現在地へ移る。
-
-        **押すものは置かない。** 1〜1.5秒のあいだに「次へ」を出すと、
-        押す人は演出を飛ばし、押さない人は待たされる——どちらにとっても
-        余計な判断が1つ増える。
-      */
-      onAnalyzed={() => setPhase("stage")}
     />
   );
 
@@ -1053,6 +1047,29 @@ export function LessonRunner({
             (step.meta as { sectionLabel?: string } | undefined)?.sectionLabel
           }
           onContinue={onPrimary}
+        />
+      ) : isDiagnosisResult && phase === "analyzing" ? (
+        /*
+          整理中の1枚は、**画面まるごとを受け持つ。**
+
+          `StepShell` に載せていたころは、見出しと説明が上の見出し欄に、
+          ポーと4項目が中央に置かれ、**あいだに大きな白**が空いていた
+          （上の文と下の項目が別のものに見える）。押すものも無いので、
+          下の帯も要らない。ひとかたまりで中央に置くために、枠ごと
+          差し替える。
+        */
+        <Analyzing
+          /*
+            **結果ができているか**を、演出と別に渡す。
+
+            採点は同期の計算なので、ここまで来ていれば出来ている。
+            それでも旗を立てて渡すのは、「時間が来たから次へ」という
+            作りにしないため——そう書くと、失敗しても時間だけで進む形が
+            いつでも作れてしまう。
+          */
+          ready={Boolean(values)}
+          reduced={prefersReducedMotion()}
+          onDone={() => setPhase(FIRST_RESULT_PHASE)}
         />
       ) : stuck ? (
         /*

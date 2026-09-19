@@ -99,7 +99,8 @@ const heading = (page: Page) => page.locator("main h1").first();
  */
 async function toCompletion(page: Page) {
   for (let guard = 0; guard < 8; guard += 1) {
-    if (await page.getByTestId("completion-view").count()) return;
+    if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) return;
     await step(page);
   }
   await expect(page.getByTestId("completion-view")).toBeVisible();
@@ -551,7 +552,8 @@ test.describe("スマホの見え方", () => {
           `${width}×${height}「${title}」で押す場所が画面の外`,
         ).toBeLessThanOrEqual(height + 1);
 
-        if (await page.getByTestId("completion-view").count()) break;
+        if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
         await step(page, async () => {
           const box_ = page.locator("textarea:visible").first();
           if (await box_.count()) await box_.fill(MY_TEXT);

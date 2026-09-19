@@ -154,7 +154,8 @@ test.describe("実機の指摘", () => {
         if (seen.gap > 56) bad.push(`空き ${seen.gap}px（${seen.where}）`);
         if (seen.stamps || seen.stampText) bad.push("スタンプ有り");
         if (bad.length) rows.push(`${String(at).padStart(2, "0")}「${title}」 ${bad.join(" | ")}`);
-        if (await page.getByTestId("completion-view").count()) break;
+        if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
         await forward(page);
       }
       console.error(`\n===== ${size.name} =====`);

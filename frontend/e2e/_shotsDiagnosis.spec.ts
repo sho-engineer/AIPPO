@@ -21,7 +21,8 @@ const SIZES = [
 ];
 
 async function answerOne(page: Page): Promise<boolean> {
-  if (await page.getByTestId("completion-view").count()) return false;
+  if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) return false;
   const parts = page.getByTestId("assemble-part");
   const n = await parts.count();
   if (n > 0) {
@@ -92,8 +93,25 @@ for (const size of SIZES) {
     await page.waitForTimeout(450);
     await shot("8-整理中");
 
-    await page.waitForTimeout(1800);
+    /* 整理中は 2.8 秒。過ぎるのを、見出しで待つ */
+    await page.waitForFunction(
+      () =>
+        (document.querySelector("main h1")?.textContent ?? "").includes("現在地"),
+      undefined,
+      { timeout: 10000 },
+    );
+    await page.waitForTimeout(400);
     await shot("9-現在地");
+
+    /* 詳しくを開いた姿も残す */
+    await page.getByTestId("diagnosis-reason-open").click();
+    await page.waitForTimeout(500);
+    await shot("9b-現在地-詳しく");
+    await page.getByTestId("detail-next").click();
+    await page.waitForTimeout(400);
+    await shot("9c-現在地-回答の振り返り");
+    await page.getByTestId("diagnosis-detail-close").click();
+    await page.waitForTimeout(400);
 
     await page.getByTestId("primary-action").click();
     /* ひし形が開ききるのを待ってから写す */

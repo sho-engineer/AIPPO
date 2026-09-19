@@ -325,6 +325,55 @@ export function recommendReason(answers: Record<string, string>): string {
  * そのまま文にすると、1つも届いていない人に「身についていました」と
  * 言うことになる。3に届いていなければ、そこは言わずに始める。
  */
+export interface LeadParts {
+  /** ① 回答から分かった、できていること。 */
+  able: string;
+  /** ② 次に伸ばすとよいこと。 */
+  next: string;
+  /** ③ その教材で実際に試せること。渡さなければ空。 */
+  here: string;
+}
+
+/**
+ * おすすめの理由を、**3つに分けて**返す。
+ *
+ * なぜ分けるか
+ * ------------
+ * 3つつなげると、320px で 4〜5行になる。おすすめの画面はそれだけで
+ * 164px あふれていた（実測）。主画面に置くのは②と③——**なぜこの1本
+ * なのか**に直接答える2文で、①（いまできていること）は開いて読む側へ
+ * 回す。文を削るのではなく、出す場所を分ける。
+ */
+export function recommendLeadParts(
+  answers: Record<string, string>,
+  lesson?: { number: number; goal?: string },
+  substituted = false,
+): LeadParts {
+  const { axes, weakest, strongest } = scoreDiagnosis(answers);
+
+  const able =
+    axes[strongest] < 3
+      ? "いまは、AIに頼むところからの段階でした。"
+      : `回答には「${AXIS_LABELS[strongest]}」力が出ていました。`;
+
+  const next = `次に伸ばすとよいのは「${AXIS_LABELS[weakest]}」——${NEXT_LEARNING[weakest]}ことです。`;
+
+  if (!lesson?.goal) return { able, next, here: "" };
+
+  const here = substituted
+    ? /*
+        診断が指した1本がまだ開いていない。**黙って差し替えない。**
+
+        「あなたに最適の1本を選びました」と書くと、選択肢が1本しか
+        無いことを隠したうえで、選んだふりをすることになる。いま
+        できることを、できる範囲で正確に言う。
+      */
+      `いま開いているのは Day${lesson.number} です。ここでは${lesson.goal}ので、その手前の練習になります。`
+    : `Day${lesson.number} では、${lesson.goal}ことを実際に試します。`;
+
+  return { able, next, here };
+}
+
 export function recommendLead(
   answers: Record<string, string>,
   /**
@@ -341,35 +390,6 @@ export function recommendLead(
    */
   substituted = false,
 ): string {
-  const { axes, weakest, strongest } = scoreDiagnosis(answers);
-
-  /* ① 回答から分かった、できていること */
-  const able =
-    axes[strongest] < 3
-      ? "いまは、AIに頼むところからの段階でした。"
-      : `回答には「${AXIS_LABELS[strongest]}」力が出ていました。`;
-
-  /* ② 次に伸ばすとよいこと */
-  const next = `次に伸ばすとよいのは「${AXIS_LABELS[weakest]}」——${NEXT_LEARNING[weakest]}ことです。`;
-
-  /*
-    ③ その1本で実際に試せること。
-
-    教材が持っている `goal` をそのまま引く。ここで別に書くと、
-    教材を直した日に**おすすめの説明だけが古いまま**残る。
-  */
-  if (!lesson?.goal) return `${able}${next}`;
-
-  const here = substituted
-    ? /*
-        診断が指した1本がまだ開いていない。**黙って差し替えない。**
-
-        「あなたに最適の1本を選びました」と書くと、選択肢が1本しか
-        無いことを隠したうえで、選んだふりをすることになる。いま
-        できることを、できる範囲で正確に言う。
-      */
-      `いま開いているのは Day${lesson.number} です。ここでは${lesson.goal}ので、その手前の練習になります。`
-    : `Day${lesson.number} では、${lesson.goal}ことを実際に試します。`;
-
+  const { able, next, here } = recommendLeadParts(answers, lesson, substituted);
   return `${able}${next}${here}`;
 }

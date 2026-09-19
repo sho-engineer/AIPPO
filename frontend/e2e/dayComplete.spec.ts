@@ -41,7 +41,8 @@ async function runToCompletion(page: Page) {
       受け取ってしまう。
     */
 
-    if (await page.getByTestId("completion-view").count()) return;
+    if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) return;
 
     const primary = page.getByTestId("primary-action").first();
     if (!(await primary.count())) break;

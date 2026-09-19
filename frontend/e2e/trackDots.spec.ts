@@ -52,7 +52,8 @@ async function toResult(page: Page) {
       **`return` にしない。** 下に置いた「整理中を過ぎるまで待つ」を
       飛ばしてしまい、呼んだ側は押すもののない画面から始めることになる。
     */
-    if (await page.getByTestId("completion-view").count()) break;
+    if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
     /*
       枠を埋める回は、枠ごとに1つ。もう選んである枠は触らない
       ——押すと取り消しになる。

@@ -150,7 +150,14 @@ const SHAPE = {
       名前が外へはみ出すので、名前の置き場（下の `place`）ごと見直して
       ある。
     */
-    box: "aspect-square h-full max-h-[17rem] min-h-[7.5rem]",
+    /*
+      下限は、低い端末ではもう一段下げる。7.5rem（120px）で固定して
+      いたので、320×568 の「4つの力」が 54px あふれていた。
+      6rem（96px）でも4つの頂点の関係は読める。
+    */
+    box:
+      "aspect-square h-full max-h-[17rem] min-h-[6rem] " +
+      "[@media(min-height:700px)]:min-h-[7.5rem]",
     label: "text-xs",
     dot: 2.6,
     focusDot: 3.6,
@@ -390,7 +397,10 @@ export function RadarChart({ axes, focus, size = "fluid" }: RadarChartProps) {
         凡例。**線が2種類ある図に、凡例が無いのは不親切。**
         色だけで分けず、実線と破線でも分けてある。
       */}
-      <p className="mt-1.5 flex items-center justify-center gap-3 text-[0.625rem] text-ink-muted">
+      <p
+        className="mt-1 flex items-center justify-center gap-3 text-[0.625rem]
+                   text-ink-muted [@media(min-height:700px)]:mt-1.5"
+      >
         <span className="flex items-center gap-1">
           <span aria-hidden="true" className="h-0.5 w-4 rounded-full bg-brand" />
           いま

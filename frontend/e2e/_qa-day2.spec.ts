@@ -55,7 +55,8 @@ async function walk(page: Page, tag: string, own: boolean) {
       path: `qa/day2-${tag}-${String(index).padStart(2, "0")}-${title}.png`,
     });
 
-    if (await page.getByTestId("completion-view").count()) break;
+    if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
     const primary = page.getByTestId("primary-action").first();
     if (!(await primary.count())) break;
 

@@ -47,20 +47,25 @@ import { useState } from "react";
 
 import { IconArrow, IconCheck, IconChevronRight } from "../Icons";
 import { MoreSheet } from "./MoreSheet";
-import { Analyzing } from "./diagnosis/Analyzing";
+import { DetailSheet } from "./diagnosis/DetailSheet";
 import { GrowthTrack } from "./diagnosis/GrowthTrack";
 import { RadarChart } from "./diagnosis/RadarChart";
-import { prefersReducedMotion } from "../../course/motion";
 import {
+  AXES,
   AXIS_LABELS,
   NEXT_LEARNING,
+  NEXT_SKILL,
   scoreDiagnosis,
   stageReason,
   traitLines,
 } from "../../course/diagnosisScore";
 import type { DiagnosisPhase } from "../../course/diagnosisFlow";
 import { lookOf } from "../../course/presentation";
-import { recommendLead, recommendPlan } from "../../course/recommend";
+import {
+  recommendLeadParts,
+  recommendPlan,
+  type LeadParts,
+} from "../../course/recommend";
 import type { Lesson } from "../../course/types";
 
 export interface DiagnosisResultProps {
@@ -85,13 +90,6 @@ export interface DiagnosisResultProps {
    * 押せる形にしてあるのに押せないと、見えているだけで届かない道になる。
    */
   onPickLesson?: (lessonId: string) => void;
-  /**
-   * 整理中の1枚を見終わった。**現在地へ移る合図。**
-   *
-   * 画面を決めているのは `LessonRunner` なので、移るのもあちら。
-   * ここから呼ぶのは「終わった」ことだけ。
-   */
-  onAnalyzed?: () => void;
 }
 
 export function DiagnosisResult({
@@ -100,7 +98,6 @@ export function DiagnosisResult({
   phase,
   onEditAnswer,
   onPickLesson,
-  onAnalyzed,
 }: DiagnosisResultProps) {
   const result = scoreDiagnosis(values);
   /*
@@ -124,21 +121,6 @@ export function DiagnosisResult({
       data-testid="completion-view"
       data-phase={phase}
     >
-      {phase === "analyzing" && (
-        <Analyzing
-          /*
-            **結果ができているか**を、演出と別に渡す。
-
-            採点は同期の計算なので、ここまで来ていれば `result` は
-            できている。それでも旗を立てて渡すのは、「時間が来たから
-            次へ」という作りにしないため——そう書くと、失敗しても
-            時間だけで進む形がいつでも作れてしまう。
-          */
-          ready={Boolean(result)}
-          reduced={prefersReducedMotion()}
-          onDone={onAnalyzed ?? (() => {})}
-        />
-      )}
       {phase === "stage" && (
         <StageView result={result} values={values} onEditAnswer={onEditAnswer} />
       )}
@@ -150,7 +132,7 @@ export function DiagnosisResult({
             なぜこの1本かは、**いま出している教材ごと**渡して作る。
             準備中の差し替えが起きているときは、そう書く（`waiting`）。
           */
-          lead={recommendLead(values, first, Boolean(plan.waiting))}
+          lead={recommendLeadParts(values, first, Boolean(plan.waiting))}
           waiting={plan.waiting ? find(plan.waiting) : undefined}
           others={plan.rest.map(find).filter((one): one is Lesson => Boolean(one))}
           onPick={onPickLesson}
@@ -163,27 +145,23 @@ export function DiagnosisResult({
 // ------------------------------------------------------------ ①現在地
 
 /**
- * いまどこにいるか。**判定と、その理由を同じ画面に。**
+ * いまどこにいるか。**主画面は判断だけ。根拠は開いて読む。**
  *
- * 前は2枚に割れていた
- * --------------------
- * 「あなたの現在地」には段の名前と道だけ、「回答から見えた特徴」には
- * 3行とその根拠。**判断と根拠が別の画面**にあるので、現在地のほうは
- * 「そう出た」としか読めず、特徴のほうは答えの復習にしかならない。
- * 押して次へ行く回数も1つ増えていた。
+ * なぜ分けたか
+ * ------------
+ * 判定と、その理由と、根拠になった回答を1枚に積んでいた。文章の量は
+ * 答えの組み合わせで変わるので、**人によって画面が縦に伸びる**——
+ * 実測で 390×844 が 42px、320×568 が最大 148px あふれていた。
+ * 隠して収めるのではなく、**出す単位を分ける**。
  *
- * 1枚にまとめた。出す順は、読む順そのもの。
+ *     主画面   … 段の名前・5段階の道・要約1〜2文・理由リンク・CTA
+ *     開く一枚 … 詳しい判定理由／回答の振り返り（`DetailSheet`）
  *
- *     道      … 5段階のどこか（形で）
- *     段の名前 … そこの呼び名（言葉で）
- *     理由    … **なぜそこなのか**（1〜2文）
- *     特徴    … 回答から見えたこと（最大2つ）と、元になった答え
- *
- * 理由は作文しない
+ * 要約は作文しない
  * ----------------
- * 判定の決め方をそのまま言葉にする（`stageReason`）。現在地は
- * 「積み上げの順で見て、最初に届かなかった軸」から決まるので、
- * 言うのは**どこまで届いたか**と**どこが最初に空いたか**だけ。
+ * 判定の決め方をそのまま短くしたもの（`stageReason` の1文目）。
+ * 2文目——強みと現在地が噛み合わない理由——は一枚のほうへ回す。
+ * 主画面に置くと、そこだけで3〜4行になる。
  *
  * ここでは Lesson の話をしない
  * ----------------------------
@@ -199,161 +177,160 @@ function StageView({
   values: Record<string, string>;
   onEditAnswer?: (stepId: string) => void;
 }) {
-  /*
-    特徴は2つまで。**後ろから採る**ので、最後は必ず「これから」になる
-    ——そこが次の画面（4つの力）へのつながり。
-  */
-  const lines = traitLines(result, values, 2);
+  const [open, setOpen] = useState(false);
   const reason = stageReason(result);
+  const lines = traitLines(result, values, 2);
 
   return (
-    <div className="shrink-0">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div
-        className="rounded-card border border-line bg-surface px-4 py-3
+        className="shrink-0 rounded-card border border-line bg-surface px-4 py-3
                    [@media(min-height:700px)]:pb-4 [@media(min-height:700px)]:pt-3.5"
       >
-        {/*
-          道と段の名前。説明文（`summary`）は出さない——下に「なぜ
-          そこなのか」が来るので、同じ画面で2通りの説明が並ぶ。
-        */}
+        {/* 道と段の名前。説明文（`summary`）は出さない——下に要約が来る */}
         <GrowthTrack stage={result.stage.number} />
 
         {/*
-          そうなった理由。**判定の決め方から作る。**
+          要約。**1文だけ**（`stageReason` の先頭）。
 
-          「条件を加える力」が高いのに現在地が手前、という組み合わせは
-          実際に起きる（積み上げの順で見るため）。そのときは、なぜ
-          そう出るのかも一緒に言う（`stageReason` の2文目）。
+          残りは一枚のほうへ回す。ここに全部置くと、答えの組み合わせに
+          よって3〜4行になり、そのぶん画面が伸びる。
         */}
-        <div
-          className="mt-2.5 border-t border-line pt-2.5
-                     [@media(min-height:700px)]:mt-3 [@media(min-height:700px)]:pt-3"
+        <p
+          className="mt-2.5 border-t border-line pt-2.5 text-[0.8125rem] leading-6
+                     text-ink [@media(min-height:700px)]:mt-3
+                     [@media(min-height:700px)]:pt-3"
           data-testid="diagnosis-stage-reason"
         >
-          {reason.map((text) => (
-            <p key={text} className="text-[0.8125rem] leading-6 text-ink first:mt-0 [&+p]:mt-1.5">
-              {text}
-            </p>
-          ))}
-        </div>
+          {reason[0]}
+        </p>
       </div>
 
       {/*
-        回答から見えたこと。**元になった自分の答えを、その場に添える。**
+        詳しく読む道。**カードの外に、独立した行として置く。**
 
-        行だけを出すと、どこからそう判断したのかが分からない。
-        根拠は作文せず、**選んだ札に書いてあった言葉**をそのまま置く
-        （`answerLines`）。
-
-        「これから」の行には、たいてい根拠になる答えが無い——その力を
-        動かした回答が1つも無いからそうなっている。無理に理由を作らず、
-        5問に出てこなかったことをそのまま書く。
+        カードの中に入れると、判定の一部のように見える。ここは
+        「もっと知りたい人だけが押すもの」なので、外に1行で置く。
       */}
-      <ul
-        className="mt-2.5 space-y-2 [@media(min-height:700px)]:mt-3
-                   [@media(min-height:700px)]:space-y-2.5"
-        role="list"
-        data-testid="diagnosis-traits"
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        data-testid="diagnosis-reason-open"
+        className="mt-2.5 shrink-0 self-start rounded-cta py-2 text-xs
+                   font-bold text-brand-dark underline transition
+                   hover:text-brand"
       >
-        {lines.map((line, at) => (
-          <li
-            key={line.text}
-            data-done={line.done ? "yes" : "no"}
-            /*
-              低い端末では、**1つに絞る**（仕様は「最大2項目」）。
-
-              1項目は、行と、その元になった答えと、「なおす」で
-              90px 前後。375×667 では2つ並べるとそれだけで画面が
-              あふれる。落とすのは前のほう——最後の1つは必ず
-              「これから」で、次の画面へのつながりになっている。
-            */
-            className={
-              at < lines.length - 1
-                ? "hidden [@media(min-height:700px)]:block"
-                : undefined
-            }
-          >
-            <p className="flex items-start gap-2 text-[0.8125rem] font-bold leading-6">
-              {/*
-                印は、**言っていることと合わせる。**
-
-                前はどちらの行にも同じチェックを付け、色だけ変えて
-                いた。「AIへの頼み方はこれから」にチェックが付いて
-                いる状態で、実機の写しで見て気づいた——チェックは
-                「済んだ」の印なので、**まだのことを済んだと言って
-                いる**ことになる。色が見えない人には、その矛盾しか
-                残らない。
-
-                できていることはチェック、これからは矢印にする。
-              */}
-              <span
-                aria-hidden="true"
-                className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center
-                            rounded-full text-white ${
-                              line.done ? "bg-brand" : "bg-ink-muted"
-                            }`}
-              >
-                {line.done ? (
-                  <IconCheck className="h-2.5 w-2.5" />
-                ) : (
-                  <IconArrow className="h-2.5 w-2.5" />
-                )}
-              </span>
-              <span className="min-w-0">{line.text}</span>
-            </p>
-
-            <ul
-              className="mt-1 space-y-1 pl-6"
-              role="list"
-              data-testid="diagnosis-trait-from"
-            >
-              {line.from.length === 0 ? (
-                <li className="text-xs leading-5 text-ink-muted">
-                  今回の5問には、この場面が出てきませんでした。
-                </li>
-              ) : (
-                line.from.map((entry) => (
-                  <li
-                    key={entry.stepId}
-                    className="flex items-start justify-between gap-2 text-xs leading-5
-                               text-ink-muted"
-                  >
-                    <span className="min-w-0">{entry.text}</span>
-                    {onEditAnswer && (
-                      /*
-                        「なおす」はここにある。結果を見てから「そこは
-                        違う」と気づく人がいて、直せないと出た結果を
-                        信じるしかなくなる。答えが並ぶこの場所が、直す
-                        入口としていちばん近い。
-                      */
-                      <button
-                        type="button"
-                        onClick={() => onEditAnswer(entry.stepId)}
-                        data-testid="diagnosis-edit-answer"
-                        className="shrink-0 rounded-badge border border-line px-2 py-0.5
-                                   text-[0.6875rem] leading-4 text-brand-dark transition
-                                   hover:bg-brand-soft"
-                      >
-                        なおす
-                      </button>
-                    )}
-                  </li>
-                ))
-              )}
-            </ul>
-          </li>
-        ))}
-      </ul>
+        この結果になった理由
+      </button>
 
       {/*
-        言い切らない。**5問から分かる範囲**をここで断っておく。
-
-        上の行はどれも「あなたはこうだ」の形をしている。5問の自己申告と
-        ミニ問題から出したものなので、そこまでを言う。
+        余りは、リンクと下のボタンのあいだへ落とす。要素どうしの間隔は
+        固定したまま——近さは意味を持つので、端末の高さで変えない。
       */}
-      <p className="mt-2 text-[0.6875rem] leading-4 text-ink-muted [@media(min-height:700px)]:mt-3">
-        ※ 5つの回答から見た範囲です。外部のAIには送っていません。
-      </p>
+      <div className="min-h-0 flex-1" aria-hidden="true" />
+
+      {open && (
+        <DetailSheet
+          title="この結果になった理由"
+          onClose={() => setOpen(false)}
+          pages={[
+            {
+              label: "判定の理由",
+              body: (
+                <div className="space-y-2">
+                  <p className="text-sm font-bold leading-6 text-brand-dark">
+                    {result.stage.name}
+                  </p>
+                  {reason.map((text) => (
+                    <p key={text} className="text-sm leading-6 text-ink">
+                      {text}
+                    </p>
+                  ))}
+                  <p className="text-[0.8125rem] leading-6 text-ink-muted">
+                    {result.stage.summary}
+                  </p>
+                </div>
+              ),
+            },
+            {
+              label: "回答の振り返り",
+              body: (
+                <ul className="space-y-3" role="list" data-testid="diagnosis-traits">
+                  {lines.map((line) => (
+                    <li key={line.text} data-done={line.done ? "yes" : "no"}>
+                      <p className="flex items-start gap-2 text-sm font-bold leading-6">
+                        {/*
+                          印は、言っていることと合わせる。できている
+                          ことはチェック、これからは矢印——チェックは
+                          「済んだ」の印なので、まだのことに付けると
+                          色が見えない人には矛盾しか残らない。
+                        */}
+                        <span
+                          aria-hidden="true"
+                          className={`mt-1 flex h-4 w-4 shrink-0 items-center
+                                      justify-center rounded-full text-white ${
+                                        line.done ? "bg-brand" : "bg-ink-muted"
+                                      }`}
+                        >
+                          {line.done ? (
+                            <IconCheck className="h-2.5 w-2.5" />
+                          ) : (
+                            <IconArrow className="h-2.5 w-2.5" />
+                          )}
+                        </span>
+                        <span className="min-w-0">{line.text}</span>
+                      </p>
+
+                      <ul
+                        className="mt-1 space-y-1 pl-6"
+                        role="list"
+                        data-testid="diagnosis-trait-from"
+                      >
+                        {line.from.length === 0 ? (
+                          <li className="text-xs leading-5 text-ink-muted">
+                            今回の5問には、この場面が出てきませんでした。
+                          </li>
+                        ) : (
+                          line.from.map((entry) => (
+                            <li
+                              key={entry.stepId}
+                              className="flex items-start justify-between gap-2
+                                         text-xs leading-5 text-ink-muted"
+                            >
+                              <span className="min-w-0">{entry.text}</span>
+                              {onEditAnswer && (
+                                /*
+                                  「なおす」はここにある。結果を見てから
+                                  「そこは違う」と気づいた人が、直せずに
+                                  終わらないように。答えが並ぶこの場所が、
+                                  直す入口としていちばん近い。
+                                */
+                                <button
+                                  type="button"
+                                  onClick={() => onEditAnswer(entry.stepId)}
+                                  data-testid="diagnosis-edit-answer"
+                                  className="shrink-0 rounded-badge border border-line
+                                             px-2 py-0.5 text-[0.6875rem] leading-4
+                                             text-brand-dark transition hover:bg-brand-soft"
+                                >
+                                  なおす
+                                </button>
+                              )}
+                            </li>
+                          ))
+                        )}
+                      </ul>
+                    </li>
+                  ))}
+                  <li className="text-[0.6875rem] leading-4 text-ink-muted">
+                    ※ 5つの回答から見た範囲です。外部のAIには送っていません。
+                  </li>
+                </ul>
+              ),
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }
@@ -372,6 +349,7 @@ function StageView({
  * 何をするのか分からない。
  */
 function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
+  const [open, setOpen] = useState(false);
   /*
     強みと次に伸ばす力が**同じ軸を指すことがある。**
 
@@ -425,7 +403,15 @@ function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
         置かれるので（`RadarChart` の `place`）、ここを詰めると
         カードの外で切れる。
       */}
-      <div className="mt-1 flex min-h-[10rem] flex-1 justify-center px-8">
+      <div
+        /*
+          低い端末では、図の下限を下げる。ここを 160px で固定して
+          いたので、320×568 では下の3行と詰まって 54px あふれていた。
+          形が潰れない下限（112px）まで下げる。
+        */
+        className="mt-1 flex min-h-[7rem] flex-1 justify-center px-8
+                   [@media(min-height:700px)]:min-h-[10rem]"
+      >
         <RadarChart axes={result.axes} focus={result.weakest} />
       </div>
 
@@ -441,8 +427,8 @@ function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
         短い2つは左右。長い1つは見出しの下へ、左ぞろえで置く。
       */}
       <dl
-        className="mt-3 shrink-0 rounded-card bg-brand-soft/60 px-3.5 py-2
-                   [@media(min-height:700px)]:py-2.5"
+        className="mt-2 shrink-0 rounded-card bg-brand-soft/60 px-3.5 py-1.5
+                   [@media(min-height:700px)]:mt-3 [@media(min-height:700px)]:py-2.5"
         data-testid="diagnosis-axes-summary"
       >
         <div className="flex items-baseline gap-3">
@@ -488,22 +474,97 @@ function AxesView({ result }: { result: ReturnType<typeof scoreDiagnosis> }) {
         )}
 
         {/*
-          次に覚えること。**見出しの下へ、左ぞろえ。**
+          次に覚えること。**主画面には短い名前だけ。**
 
-          技の名前（「ターゲット指定」）ではなく、やることで書く
-          （`NEXT_LEARNING`）。名前はこのアプリの中の呼び名で、初めて
-          見る人には何をするのか分からない。
+          やることの1文（`NEXT_LEARNING`）は長く、端末によって2〜3行に
+          なる——そのぶんだけ画面が伸びる。ここは技の受け持ち範囲を
+          短く言い、中身は開いて読む。
         */}
-        <div className="mt-1.5 border-t border-brand-line/60 pt-1.5">
-          <dt className="text-xs leading-5 text-ink-muted">次に覚えること</dt>
+        <div className="mt-1.5 flex items-baseline gap-3 border-t border-brand-line/60 pt-1.5">
+          <dt className="shrink-0 whitespace-nowrap text-xs leading-5 text-ink-muted">
+            次に覚えること
+          </dt>
           <dd
-            className="mt-0.5 text-[0.8125rem] font-bold leading-5 text-ink"
+            className="min-w-0 flex-1 text-right text-sm font-bold leading-5 text-ink"
             data-testid="diagnosis-next-learning"
           >
-            {NEXT_LEARNING[result.weakest]}
+            {NEXT_SKILL[result.weakest].name}
           </dd>
         </div>
       </dl>
+
+      {/*
+        詳しく読む道。**カードの外に、独立した行として置く。**
+      */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        data-testid="diagnosis-axes-open"
+        className="mt-2 shrink-0 self-start rounded-cta py-2 text-xs font-bold
+                   text-brand-dark underline transition hover:text-brand"
+      >
+        4つの力について詳しく
+      </button>
+
+      {open && (
+        <DetailSheet
+          title="4つの力について"
+          onClose={() => setOpen(false)}
+          pages={[
+            {
+              label: "次に覚えること",
+              body: (
+                <div className="space-y-2">
+                  <p className="text-sm font-bold leading-6 text-brand-dark">
+                    {NEXT_SKILL[result.weakest].name}
+                  </p>
+                  <p className="text-sm leading-6 text-ink">
+                    {NEXT_SKILL[result.weakest].summary}
+                  </p>
+                  <p className="text-sm leading-6 text-ink">
+                    {NEXT_LEARNING[result.weakest]}
+                  </p>
+                </div>
+              ),
+            },
+            {
+              label: "4つの力の読み方",
+              body: (
+                <div className="space-y-2">
+                  <p className="text-sm leading-6 text-ink-muted">
+                    4つは積み上げの順に並んでいます。手前が空いていると、
+                    後ろが高くても現在地は手前になります。
+                  </p>
+                  <ul className="space-y-1.5" role="list">
+                    {AXES.map((axis) => (
+                      <li
+                        key={axis}
+                        className="flex items-baseline justify-between gap-3 text-sm leading-6"
+                      >
+                        <span
+                          className={
+                            axis === result.weakest
+                              ? "font-bold text-brand-dark"
+                              : "text-ink"
+                          }
+                        >
+                          {AXIS_LABELS[axis]}
+                        </span>
+                        <span className="shrink-0 tabular-nums text-ink-muted">
+                          5段階のうち {result.axes[axis]}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-[0.6875rem] leading-4 text-ink-muted">
+                    ※ 5つの回答から見た範囲です。外部のAIには送っていません。
+                  </p>
+                </div>
+              ),
+            },
+          ]}
+        />
+      )}
     </div>
   );
 }
@@ -525,7 +586,8 @@ function LessonView({
   onPick,
 }: {
   lesson: Lesson | undefined;
-  lead: string;
+  /** なぜこの1本か。3つに分かれている（`recommendLeadParts`）。 */
+  lead: LeadParts;
   /**
    * 診断が本当に指していた1本。**まだ公開していないときだけ渡る。**
    *
@@ -549,6 +611,7 @@ function LessonView({
   onPick?: (lessonId: string) => void;
 }) {
   const [also, setAlso] = useState(false);
+  const [why, setWhy] = useState(false);
   if (!lesson) return <div className="shrink-0" />;
   const look = lookOf(lesson.id);
 
@@ -584,12 +647,26 @@ function LessonView({
         外に出すと、カードと理由が別のことを言っているように読める。
         推薦と根拠は1つのまとまり。
       */}
+      {/*
+        なぜこの1本か。**主画面には2文まで。**
+
+        3つつなげると 320px で 4〜5行になり、おすすめの画面だけで
+        164px あふれていた（実測）。ここに置くのは**なぜこの1本なのか**に
+        直接答える2つ——次に伸ばすとよいことと、その教材で試せること。
+        1つ目（いまできていること）は開いて読む側へ回す。
+      */}
       <span
         className="mt-3 block border-t border-brand-line/70 pt-3 text-[0.8125rem]
                    leading-6 text-ink"
         data-testid="diagnosis-reason-line"
       >
-        {lead}
+        {lead.next}
+        {/*
+          3つ目の文は、狭い端末では出さない（仕様は「1〜2文」なので
+          1文でもよい）。320px では2文で5行になり、そのぶん画面が
+          あふれていた。消すのではなく、下の「詳しく」へ回してある。
+        */}
+        <span className="hidden min-[361px]:inline">{lead.here}</span>
       </span>
     </>
   );
@@ -606,15 +683,6 @@ function LessonView({
         2つが同じ重さで並んでいるように見える。どちらが今日
         始められるのかを、読む前に決めさせない。
       */}
-      {waiting && (
-        <p
-          className="mb-1.5 text-xs font-bold leading-5 text-ink-muted"
-          data-testid="diagnosis-open-label"
-        >
-          今受けられるおすすめ
-        </p>
-      )}
-
       {onPick ? (
         <button
           type="button"
@@ -630,38 +698,67 @@ function LessonView({
         </div>
       )}
 
-      {waiting && (
-        /*
-          本来のおすすめ。**押せない札として置く。**
+      {/*
+        1つ目の文（いまできていること）は、押した人にだけ。
+        主画面は2文までに抑えてある。
+      */}
+      {lead.able && (
+        <button
+          type="button"
+          onClick={() => setWhy(true)}
+          data-testid="diagnosis-lead-open"
+          className="-my-1 mt-3 py-1 text-xs font-bold text-brand-dark underline
+                     transition hover:text-brand"
+        >
+          なぜこの1本か、詳しく
+        </button>
+      )}
 
-          `button` にしない——押せる見た目のものが押せないのが
-          いちばん悪い。ここは知らせであって、道ではない。
-        */
-        <div className="mt-3" data-testid="diagnosis-waiting">
-          <p className="text-xs font-bold leading-5 text-ink-muted">
-            あなたに合う次のLesson
-          </p>
-          <div
-            className="mt-1.5 flex items-center gap-3 rounded-card border border-line
-                       bg-surface px-3.5 py-2.5"
-          >
-            <span className="min-w-0 flex-1">
-              <span className="block text-[0.6875rem] font-bold leading-4 text-ink-muted">
-                Day {waiting.number}
-              </span>
-              <span className="block text-sm font-bold leading-5 text-ink">
-                {waiting.title}
-              </span>
-            </span>
-            <span
-              className="shrink-0 rounded-badge bg-brand-soft px-2 py-0.5
-                         text-[0.6875rem] font-bold leading-4 text-brand-dark"
-              data-testid="diagnosis-waiting-badge"
-            >
-              準備中
-            </span>
-          </div>
-        </div>
+      {why && (
+        <DetailSheet
+          title="なぜこの1本か"
+          onClose={() => setWhy(false)}
+          pages={[
+            {
+              label: "診断からの読み取り",
+              body: (
+                <div className="space-y-2" data-testid="diagnosis-lead-detail">
+                  <p className="text-sm leading-6 text-ink">{lead.able}</p>
+                  <p className="text-sm leading-6 text-ink">{lead.next}</p>
+                  {lead.here && (
+                    <p className="text-sm leading-6 text-ink">{lead.here}</p>
+                  )}
+                </div>
+              ),
+            },
+            ...(waiting
+              ? [
+                  {
+                    /*
+                      診断が本当に指していた1本。**黙って差し替えない。**
+
+                      主画面から外したのは、札がもう1枚増えるとそれだけで
+                      90px 使い、320px であふれていたため。**消しては
+                      いない**——2文目（「いま開いているのは Day1 です」）が
+                      主画面で差し替えを言い、その中身はここで読める。
+                    */
+                    label: "あなたに合う次のLesson",
+                    body: (
+                      <div className="space-y-2" data-testid="diagnosis-waiting">
+                        <p className="text-sm font-bold leading-6 text-ink">
+                          Day {waiting.number} {waiting.title}
+                        </p>
+                        <p className="text-sm leading-6 text-ink-muted">
+                          この1本は準備中です。公開までは、いま開いている
+                          Lesson でその手前を練習します。
+                        </p>
+                      </div>
+                    ),
+                  },
+                ]
+              : []),
+          ]}
+        />
       )}
 
       {others.length > 0 && (

@@ -77,7 +77,8 @@ async function expectFits(page: Page, where: string): Promise<void> {
 
 /** いま出ている画面で答えて、次へ。答え終わっていれば false。 */
 async function answerOne(page: Page): Promise<boolean> {
-  if (await page.getByTestId("completion-view").count()) return false;
+  if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) return false;
 
   const parts = page.getByTestId("assemble-part");
   const count = await parts.count();
@@ -174,7 +175,8 @@ test.describe("AI活用診断", () => {
 
     const asked: string[] = [];
     for (let guard = 0; guard < 12; guard += 1) {
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
       asked.push((await page.locator("main h1").first().innerText()).trim());
       if (!(await answerOne(page))) break;
     }
@@ -255,7 +257,8 @@ test.describe("AI活用診断", () => {
 
     // ── 問いの画面。埋まった数が、そのまま何問目か ──
     for (let at = 1; at <= asked; at += 1) {
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
 
       const here = await read();
       expect(here.segmented, `質問${at}の帯が章の帯に落ちている`).toBe(true);
@@ -289,7 +292,8 @@ test.describe("AI活用診断", () => {
     await openDiagnosis(page);
 
     for (let guard = 0; guard < 12; guard += 1) {
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
 
       const where = (await page.locator("main h1").first().innerText()).trim();
       const over = await page.evaluate(
@@ -373,10 +377,22 @@ test.describe("AI活用診断", () => {
       分かれていて、現在地のほうは「そう出た」としか読めなかった。
     */
     await expect(page.getByTestId("diagnosis-stage-reason")).toBeVisible();
+
+    /*
+      詳しい根拠は、**開いて読む一枚**のほう。主画面へ積むと、答えの
+      組み合わせによって画面が縦に伸びる（実測で 390×844 が 42px、
+      320×568 が最大 148px あふれていた）。隠すのでも消すのでもなく、
+      出す単位を分けてある。
+    */
+    await page.getByTestId("diagnosis-reason-open").click();
+    await expect(page.getByTestId("diagnosis-detail-sheet")).toBeVisible();
+    await page.getByTestId("detail-next").click();
     await expect(page.getByTestId("diagnosis-traits")).toBeVisible();
     await expect(
       page.getByTestId("diagnosis-trait-from").first(),
     ).toBeVisible();
+    await page.getByTestId("diagnosis-detail-close").click();
+    await expect(page.getByTestId("diagnosis-detail-sheet")).toHaveCount(0);
     await expect(page.getByTestId("primary-action")).toHaveText(
       /使い方のバランスを見る/,
     );
@@ -428,13 +444,15 @@ test.describe("AI活用診断", () => {
       if (!(await answerOne(page))) break;
     }
 
-    await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 4000 });
-
     /*
       整理中の1枚。**押すものを置かない。** 押せる先が無いので、
-      帯ごと出さない（`StepShell`）。
+      帯ごと出さない。画面まるごとを受け持つ部品なので、結果の
+      入れ物（`completion-view`）もまだ無い。
     */
-    await expect(page.getByTestId("diagnosis-analyzing")).toBeVisible();
+    await expect(page.getByTestId("diagnosis-analyzing")).toBeVisible({
+      timeout: 4000,
+    });
+    await expect(page.getByTestId("completion-view")).toHaveCount(0);
     await expect(page.getByTestId("primary-action")).toHaveCount(0);
 
     /* 4つの観点は、最初から4行そろって置いてある（増えていかない） */
@@ -493,32 +511,40 @@ test.describe("AI活用診断", () => {
     }
   });
 
-  test("結果の説明を開く一枚は、もう無い", async ({ page }) => {
+  test("結果の説明は、開いて読む一枚として在る", async ({ page }) => {
     /*
       前はここに一枚が2つあった（「いまの様子」と「この結果になった
-      理由」）。前者は現在地・できていること・次にやること・4つの力の
-      内訳が入っていて、**いまはそれが画面そのもの**になっている。
+      理由」）。どちらも中身を画面そのものへ移して廃した。
 
-      後者も同じ道をたどった。答えた内容とそこからの判断は、いまは
-      特徴の画面（③）そのもの。一枚のままだと判断と根拠が離れて
-      置かれ、しかもどの画面からも開けるので**同じものが何度も載る**
-      ——押さない人には、根拠が1つも見えなかった。
+      **理由の一枚だけ戻した。** 根拠は答えの組み合わせで長さが変わる
+      ので、主画面へ積むと人によって画面が縦に伸びる（実測で
+      390×844 が 42px、320×568 が最大 182px）。隠すのでも消すのでも
+      なく、出す単位を分ける。
+
+      どの画面からでも開ける形には戻していない——理由のリンクは
+      現在地の画面にだけ、4つの力のリンクはその画面にだけ置く。
+      同じものが何度も載らないように。
     */
     await toResult(page);
 
-    await expect(page.getByTestId("diagnosis-reason-open")).toHaveCount(0);
-    await expect(page.getByTestId("diagnosis-detail-sheet")).toHaveCount(0);
+    /* 廃したままの一枚は、戻っていない */
     await expect(page.getByTestId("diagnosis-reason-sheet")).toHaveCount(0);
+    await expect(page.getByTestId("chart-switch")).toHaveCount(0);
 
-    // 根拠は、特徴の画面に出ている
-    for (let guard = 0; guard < 6; guard += 1) {
-      if (await page.getByTestId("diagnosis-traits").count()) break;
-      await page.getByTestId("primary-action").click();
-      await page.waitForTimeout(400);
-    }
-    await expect(page.getByTestId("diagnosis-trait-from").first()).toContainText(
-      /と答えた|AI|3つの場面/,
-    );
+    /* 開く前は、一枚は出ていない */
+    await expect(page.getByTestId("diagnosis-detail-sheet")).toHaveCount(0);
+
+    await page.getByTestId("diagnosis-reason-open").click();
+    const sheet = page.getByTestId("diagnosis-detail-sheet");
+    await expect(sheet).toBeVisible();
+
+    /* 重ねて開かない */
+    await expect(sheet).toHaveCount(1);
+
+    /* 閉じれば、元の画面に戻る */
+    await page.getByTestId("diagnosis-detail-close").click();
+    await expect(sheet).toHaveCount(0);
+    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
   });
 
   for (const [name, width, height] of [
@@ -1047,7 +1073,8 @@ test.describe("AI活用診断", () => {
       expect(headTop, `「${heading}」の見出しが画面の外`).toBeGreaterThan(0);
 
       if (!(await answerOne(page))) break;
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
     }
 
     /* 送れるのは、枠を埋める2問だけ */
@@ -1062,6 +1089,83 @@ test.describe("AI活用診断", () => {
       動かない**——枠の外に置いてあるので、中身の量に左右されない。
     */
     expect(new Set(seats).size, `ボタンが動いている: ${seats.join(" / ")}`).toBe(1);
+  });
+
+  test("整理中は、読める長さ出ている", async ({ page }) => {
+    /*
+      最初の版は 1.8 秒だった（実測）。4つの観点を目で追うには短く、
+      「出た瞬間に消えた」と言われた。いまは 2.8 秒を目安にする。
+
+      **秒数をここに書き写さない**——`Analyzing` の `TOTAL` を変えた日に、
+      検査だけが古い数を守ることになる。見るのは「短すぎない」ことと
+      「待たせすぎない」ことの幅。
+    */
+    await openDiagnosis(page);
+    for (let guard = 0; guard < 8; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+
+    const shown = Date.now();
+    await expect(page.getByTestId("diagnosis-analyzing")).toBeVisible({
+      timeout: 4000,
+    });
+    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地", {
+      timeout: 10000,
+    });
+    const span = Date.now() - shown;
+
+    expect(span, `整理中が ${span}ms しか出ていない`).toBeGreaterThan(2000);
+    expect(span, `整理中が ${span}ms も出ている`).toBeLessThan(4500);
+  });
+
+  test("結果は、どの画面も送らずに収まる", async ({ page }) => {
+    /*
+      答えの長さで画面が伸びていた。実測で 390×844 の現在地が 42px、
+      320×568 のおすすめが最大 182px あふれていた——**人によって
+      出るかどうかが変わる**ので、1通り試しただけでは見つからない。
+
+      隠して収めたのではない。詳しい根拠を**開いて読む一枚**へ移して、
+      主画面には判断と次の一手だけを置いた。
+    */
+    await toResult(page);
+
+    for (let guard = 0; guard < 4; guard += 1) {
+      const heading = (await page.locator("main h1").first().innerText()).trim();
+      await expectFits(page, heading);
+
+      /* 詳しくを開いても、後ろは送れないまま */
+      const more = page.getByTestId("diagnosis-reason-open");
+      if (await more.count()) {
+        await more.click();
+        await expect(page.getByTestId("diagnosis-detail-sheet")).toBeVisible();
+        const locked = await page.evaluate(
+          () => getComputedStyle(document.body).overflow,
+        );
+        expect(locked, "一枚が開いているのに、後ろが送れる").toBe("hidden");
+        await page.getByTestId("diagnosis-detail-close").click();
+        await expect(page.getByTestId("diagnosis-detail-sheet")).toHaveCount(0);
+      }
+
+      if (heading.includes("おすすめ")) break;
+      await page.getByTestId("primary-action").click();
+      await page.waitForTimeout(900);
+    }
+  });
+
+  test("詳しくを閉じると、焦点が開いた場所へ戻る", async ({ page }) => {
+    /*
+      閉じたあとに焦点が body へ落ちると、キーボードで読んでいる人は
+      **画面の先頭から辿り直す**ことになる。開いた場所へ返す。
+    */
+    await toResult(page);
+    await page.getByTestId("diagnosis-reason-open").click();
+    await expect(page.getByTestId("diagnosis-detail-sheet")).toBeVisible();
+    await page.getByTestId("diagnosis-detail-close").click();
+
+    const focused = await page.evaluate(
+      () => document.activeElement?.getAttribute("data-testid") ?? "",
+    );
+    expect(focused).toBe("diagnosis-reason-open");
   });
 
   test("開始画面も、送らずに全部見える", async ({ page }) => {

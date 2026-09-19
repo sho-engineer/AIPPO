@@ -49,7 +49,9 @@ import {
   type DiagnosisPhase,
 } from "../src/course/diagnosisFlow";
 import {
-  recommendLead, recommendPlan,
+  recommendLead,
+  recommendLeadParts,
+  recommendPlan,
   recommendLesson,
   recommendReason,
 } from "../src/course/recommend";
@@ -475,6 +477,19 @@ describe("結果の5画面", () => {
       />,
     );
 
+  /**
+   * 「詳しく」を開く。
+   *
+   * 判定の根拠と長い学習内容は、主画面から**一枚のほう**へ移した。
+   * 主画面に積むと、答えの組み合わせによって画面が縦に伸びるため
+   * （実測で 390×844 が 42px、320×568 が最大 182px あふれていた）。
+   */
+  const openDetail = async (testId: string) => {
+    const user = userEvent.setup();
+    await user.click(screen.getByTestId(testId));
+    return screen.getByTestId("diagnosis-detail-sheet");
+  };
+
   it("答え終わったら、整理中の1枚から始まる", () => {
     /*
       **一度消した画面を、条件を付けて戻した。**
@@ -495,8 +510,12 @@ describe("結果の5画面", () => {
     const first = DIAGNOSIS_PHASES[0];
     expect(first, "結果は整理中から始まる").toBe("analyzing");
 
-    show(first);
-
+    /*
+      整理中は**画面まるごと**を受け持つ部品になった（`LessonRunner` が
+      枠ごと差し替える）。結果の中身（`DiagnosisResult`）からは外した
+      ので、ここでも部品そのものを描いて見る。
+    */
+    render(<Analyzing ready reduced onDone={() => {}} />);
     const view = screen.getByTestId("diagnosis-analyzing");
 
     /* 4つの観点は、最初から4行そろって置いてある（増えていかない） */
@@ -533,7 +552,8 @@ describe("結果の5画面", () => {
     );
 
     /* 動きを減らす設定の待ち（200ms）より、たっぷり長く置く */
-    await new Promise((done) => setTimeout(done, 700));
+    /* 2.8 秒より、たっぷり長く置く */
+    await new Promise((done) => setTimeout(done, 3200));
     expect(moved, "結果ができていないのに進んだ").toHaveLength(0);
   });
 
@@ -544,7 +564,11 @@ describe("結果の5画面", () => {
     );
 
     expect(screen.queryByRole("button")).toBeNull();
-    await waitFor(() => expect(moved).toHaveLength(1));
+    /*
+      2.8 秒。**動きを減らす設定でも短くしない**——あれは動きを減らす
+      設定であって、急ぐ設定ではない。読む時間は同じだけ要る。
+    */
+    await waitFor(() => expect(moved).toHaveLength(1), { timeout: 5000 });
   });
 
   it("一枚が開いているあいだは、後ろで進まない", async () => {
@@ -564,12 +588,12 @@ describe("結果の5画面", () => {
     const moved: string[] = [];
     render(<Analyzing ready reduced onDone={() => moved.push("進んだ")} />);
 
-    await new Promise((done) => setTimeout(done, 700));
+    await new Promise((done) => setTimeout(done, 3200));
     expect(moved, "一枚が開いているのに進んだ").toHaveLength(0);
 
     /* 閉じれば進む */
     open.mockReturnValue(false);
-    await waitFor(() => expect(moved).toHaveLength(1));
+    await waitFor(() => expect(moved).toHaveLength(1), { timeout: 6000 });
     open.mockRestore();
   });
 
@@ -730,32 +754,37 @@ describe("結果の5画面", () => {
     expect(said).not.toMatch(/\d+\s*%/);
   });
 
-  it("①特徴は2つまで。最後は「これから」", () => {
+  it("①特徴は2つまで。最後は「これから」", async () => {
     /*
       できていることだけを並べると、読んだ人は次に何をするのか
       分からない。**最後の1つは必ず「これから」**にしてある
       （`traitLines`）。境目がこの並びの中にあることが、次の画面への橋。
     */
     show("stage");
+    await openDetail("diagnosis-reason-open");
+    /* 「回答の振り返り」のページへ */
+    await userEvent.setup().click(screen.getByTestId("detail-next"));
 
     const items = screen
       .getByTestId("diagnosis-traits")
-      .querySelectorAll(":scope > li");
+      .querySelectorAll(":scope > li[data-done]");
     expect(items.length).toBeGreaterThan(0);
     expect(items.length).toBeLessThanOrEqual(2);
     expect(items[items.length - 1].textContent).toContain("これから");
   });
 
-  it("①特徴の1行ずつに、元になった答えが付く", () => {
+  it("①特徴の1行ずつに、元になった答えが付く", async () => {
     /*
       判断と根拠が離れていると、読んでも「そう出た」以上のことが
       分からない。**同じ画面**に、選んだ札の言葉のまま置く。
     */
     show("stage");
+    await openDetail("diagnosis-reason-open");
+    await userEvent.setup().click(screen.getByTestId("detail-next"));
 
     const items = screen
       .getByTestId("diagnosis-traits")
-      .querySelectorAll(":scope > li");
+      .querySelectorAll(":scope > li[data-done]");
     for (const item of items) {
       const from = item.querySelector("[data-testid='diagnosis-trait-from']");
       expect(from, item.textContent ?? "").not.toBeNull();
@@ -763,15 +792,15 @@ describe("結果の5画面", () => {
     }
   });
 
-  it("②5問から分かる範囲だと断る", () => {
+  it("②5問から分かる範囲だと断る", async () => {
     /*
       3行はどれも「あなたはこうだ」の形をしている。5問の自己申告と
       ミニ問題から出したものなので、そこまでを言う。
     */
     show("stage");
-    expect(screen.getByTestId("completion-view")).toHaveTextContent(
-      "5つの回答から見た範囲",
-    );
+    const sheet = await openDetail("diagnosis-reason-open");
+    await userEvent.setup().click(screen.getByTestId("detail-next"));
+    expect(sheet).toHaveTextContent("5つの回答から見た範囲");
   });
 
   it("いまいる点が1つだけ光り、次の点が分かる", () => {
@@ -803,7 +832,7 @@ describe("結果の5画面", () => {
     expect(text).toContain("次に覚えること");
   });
 
-  it("②の「次に覚えること」は、技の名前ではなくやることで書く", () => {
+  it("②の「次に覚えること」は、開けばやることで書いてある", async () => {
     /*
       「ターゲット指定」はこのアプリの中の呼び名で、初めて見る人には
       何をするのか分からない。ここはそのレッスンで**実際に手を動かす
@@ -812,9 +841,16 @@ describe("結果の5画面", () => {
     const { weakest } = scoreDiagnosis(values);
     show("axes");
 
-    expect(screen.getByTestId("diagnosis-axes-summary")).toHaveTextContent(
-      NEXT_LEARNING[weakest],
+    /*
+      主画面には**技の名前だけ**。やることの1文は長く、端末によって
+      2〜3行になる——そのぶん画面が伸びるので、開いて読む側へ回した。
+    */
+    expect(screen.getByTestId("diagnosis-next-learning")).toHaveTextContent(
+      NEXT_SKILL[weakest].name,
     );
+
+    const sheet = await openDetail("diagnosis-axes-open");
+    expect(sheet).toHaveTextContent(NEXT_LEARNING[weakest]);
   });
 
   it("②の強みと次に伸ばす力が、採点と食い違わない", () => {
@@ -826,18 +862,28 @@ describe("結果の5画面", () => {
     expect(text).toContain(AXIS_LABELS[result.weakest]);
   });
 
-  it("③おすすめは、診断の結果を引いて理由を言う", () => {
+  it("③おすすめは、診断の結果を引いて理由を言う", async () => {
     /*
       「あなたにおすすめ」とだけ書いてあると、何を見て選んだのかが
       分からない——診断の結果とつながっていない推薦は、広告と
       区別が付かない。
     */
     show("lesson");
+    const parts = recommendLeadParts(values, getLesson("rewrite_text")!);
 
     expect(screen.getByTestId("diagnosis-lesson")).toBeInTheDocument();
+    /*
+      主画面は**2文まで**。3つつなげると 320px で5行になり、おすすめの
+      画面だけで 182px あふれていた（実測）。ここに置くのは「なぜこの
+      1本なのか」に直接答えるほう。
+    */
     expect(screen.getByTestId("diagnosis-reason-line")).toHaveTextContent(
-      recommendLead(values),
+      parts.next,
     );
+
+    /* 1つ目の文（いまできていること）は、開けば読める */
+    const sheet = await openDetail("diagnosis-lead-open");
+    expect(sheet).toHaveTextContent(parts.able);
   });
 
   it("③のおすすめは、押せば始められる", async () => {
@@ -892,7 +938,7 @@ describe("結果の5画面", () => {
     expect(open.waiting).toBeUndefined();
   });
 
-  it("本来のおすすめが準備中なら、そう添える", () => {
+  it("本来のおすすめが準備中なら、開いた先でそう添える", async () => {
     /*
       黙って Day1 へ差し替えない。答えから出た行き先が画面に出て
       いないと、「自分に合わせて選ばれた」のか「1本しか無いから
@@ -913,14 +959,23 @@ describe("結果の5画面", () => {
       />,
     );
 
-    expect(screen.getByTestId("diagnosis-open-label")).toHaveTextContent(
-      "今受けられるおすすめ",
+    /*
+      主画面の札は1枚だけ。準備中の1本は**開いて読む側**へ移した
+      ——札がもう1枚増えると 90px 使い、320px であふれていた。
+      消してはいない（2文目が主画面で差し替えを言っている）。
+    */
+    const sheet = await openDetail("diagnosis-lead-open");
+    await userEvent.setup().click(screen.getByTestId("detail-next"));
+
+    /* めくりの見出しが、その1本の位置づけを言う */
+    expect(screen.getByTestId("detail-label")).toHaveTextContent(
+      "あなたに合う次のLesson",
     );
-    const waiting = screen.getByTestId("diagnosis-waiting");
-    expect(waiting).toHaveTextContent("あなたに合う次のLesson");
-    expect(waiting).toHaveTextContent("準備中");
-    // 押せるものは、この中に1つも無い
-    expect(waiting.querySelectorAll("button")).toHaveLength(0);
+    expect(screen.getByTestId("diagnosis-waiting")).toHaveTextContent("準備中");
+    /* 押せる形にはしない——押せないものを押せるように見せない */
+    expect(
+      sheet.querySelectorAll('[data-testid="diagnosis-waiting"] button'),
+    ).toHaveLength(0);
   });
 
   it("細かい点数を、どの画面にも出さない", () => {
@@ -935,18 +990,25 @@ describe("結果の5画面", () => {
     }
   });
 
-  it("「この結果になった理由」の一枚は、もう無い", () => {
+  it("「この結果になった理由」は、開いて読む一枚として在る", async () => {
     /*
-      中身は画面そのものになった（②）。一枚のままだと、判断は画面・
-      根拠は一枚と離れて置かれ、しかも3画面のどこからでも開けるので
-      **同じものが何度も載る**。押さない人には根拠が1つも見えない。
+      一度この一枚を廃して、中身を主画面へ移した。判断と根拠が離れて
+      いると読めない、という理由だった。
+
+      **戻した。** 根拠は答えの組み合わせで長さが変わるので、主画面へ
+      積むと人によって画面が縦に伸びる（実測で 390×844 が 42px、
+      320×568 が最大 148px）。隠すのでも消すのでもなく、**出す単位を
+      分ける**——主画面は判断と要約、根拠は開いて読む。
+
+      どの画面からでも開ける形には戻していない。理由のリンクは
+      現在地の画面にだけ置いてある。
     */
-    for (const phase of DIAGNOSIS_PHASES) {
-      const view = show(phase);
-      expect(view.queryByTestId("diagnosis-reason-open"), phase).toBeNull();
-      expect(view.queryByTestId("diagnosis-detail-sheet"), phase).toBeNull();
-      view.unmount();
-    }
+    show("stage");
+    const sheet = await openDetail("diagnosis-reason-open");
+    expect(sheet).toHaveTextContent(scoreDiagnosis(values).stage.name);
+
+    /* 図の切り替えは、置き場所が役を持ったので要らないまま */
+    expect(screen.queryByTestId("chart-switch")).toBeNull();
   });
 
   it("「いまの様子」の一枚は、もう無い", () => {
@@ -970,6 +1032,8 @@ describe("結果の5画面", () => {
     const user = userEvent.setup();
     const edited: string[] = [];
     show("stage", { onEditAnswer: (id: string) => edited.push(id) });
+    await openDetail("diagnosis-reason-open");
+    await user.click(screen.getByTestId("detail-next"));
 
     const fix = screen.getAllByTestId("diagnosis-edit-answer")[0];
     await user.click(fix);
@@ -977,13 +1041,14 @@ describe("結果の5画面", () => {
     expect(edited[0]).toBeTruthy();
   });
 
-  it("特徴の根拠は、記号ではなく選んだ言葉で返す", () => {
+  it("特徴の根拠は、記号ではなく選んだ言葉で返す", async () => {
     show("stage");
+    const sheet = await openDetail("diagnosis-reason-open");
+    await userEvent.setup().click(screen.getByTestId("detail-next"));
 
-    const view = screen.getByTestId("completion-view");
-    expect(view).toHaveTextContent("困ったときにAIを使う");
-    expect(view).not.toHaveTextContent("sometimes");
-    expect(view).not.toHaveTextContent("first_time");
+    expect(sheet).toHaveTextContent("困ったときにAIを使う");
+    expect(sheet).not.toHaveTextContent("sometimes");
+    expect(sheet).not.toHaveTextContent("first_time");
   });
 });
 

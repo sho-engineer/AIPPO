@@ -73,7 +73,8 @@ async function answerRemaining(page: Page): Promise<void> {
       `break` にすると**答え切ったのに失敗**する。整理中を過ぎるまでの
       待ちは、呼んだ側が持つ（`toDiagnosisResult` / `summaryLines`）。
     */
-    if (await page.getByTestId("completion-view").count()) return;
+    if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) return;
 
     const parts = page.getByTestId("assemble-part");
     const count = await parts.count();
@@ -138,6 +139,15 @@ async function summaryLines(page: Page): Promise<string[]> {
   await expect(page.locator("main h1").first()).toHaveText("あなたの現在地", {
     timeout: 8000,
   });
+  /*
+    根拠と「なおす」は、**開いて読む一枚**の中（`DetailSheet`）。
+    主画面へ積むと、答えの組み合わせによって画面が縦に伸びるため、
+    出す単位を分けてある。
+  */
+  if (!(await page.getByTestId("diagnosis-detail-sheet").count())) {
+    await page.getByTestId("diagnosis-reason-open").click();
+    await page.getByTestId("detail-next").click();
+  }
   const traits = page.getByTestId("diagnosis-traits");
   await expect(traits).toBeVisible();
   const lines = await page.getByTestId("diagnosis-trait-from").allInnerTexts();

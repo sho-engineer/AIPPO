@@ -83,7 +83,8 @@ test.describe("代表画面", () => {
     await dismissLessonIntro(page);
 
     for (let at = 0; at < 8; at += 1) {
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
       await forward(page);
     }
     await shot(page, "02-diagnosis-reading");
@@ -123,7 +124,8 @@ test.describe("代表画面", () => {
     await shot(page, "13-day1-check-answered");
 
     for (let at = 0; at < 26; at += 1) {
-      if (await page.getByTestId("completion-view").count()) break;
+      if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
       await forward(page);
     }
     await shot(page, "05-day1-completion");

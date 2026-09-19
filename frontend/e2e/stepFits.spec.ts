@@ -295,7 +295,8 @@ test("完了画面でも、次にやることは画面に残る", async ({ page 
   await expect(page.getByTestId("lesson-header")).toBeVisible();
 
   for (let step = 0; step < 30; step += 1) {
-    if (await page.getByTestId("completion-view").count()) break;
+    if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
     if (!(await advance(page))) break;
   }
 

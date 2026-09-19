@@ -265,7 +265,8 @@ async function walk(page: Page, tag: string, found: string[]) {
     const m = await measure(page);
     const row = line(tag, index, title, m);
     if (row) found.push(row);
-    if (await page.getByTestId("completion-view").count()) break;
+    if (((await page.getByTestId("completion-view").count()) ||
+      (await page.getByTestId("diagnosis-analyzing").count()))) break;
     if (!(await advance(page))) break;
   }
 }
