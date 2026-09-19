@@ -98,6 +98,14 @@ export interface PoHeroProps {
    * するので、描き直しを挟むと1拍遅れて跳ねる。
    */
   hideWhenShort?: boolean;
+  /**
+   * 引っ込める高さの境目（px）。既定は 560。
+   *
+   * 560 は**キーボードが出ている高さ**の目安で、書く画面のための数。
+   * 読む画面（診断の結果）では事情が違う——キーボードは出ないが、
+   * 中身のほうが多い。そこでは 700 を渡す。
+   */
+  hideBelow?: 560 | 700;
 }
 
 export function PoHero({
@@ -113,6 +121,7 @@ export function PoHero({
   align = "start",
   burst = false,
   hideWhenShort = false,
+  hideBelow = 560,
 }: PoHeroProps) {
   const centered = align === "center";
 
@@ -158,7 +167,17 @@ export function PoHero({
       */}
       {showPo && (
         <div
-          className={`mt-4 ${hideWhenShort ? "[@media(max-height:560px)]:hidden" : ""}`}
+          /*
+            クラスは**そのまま書く**。組み立てると Tailwind が拾えず、
+            その指定だけが生成されない。
+          */
+          className={`mt-4 ${
+            hideWhenShort
+              ? hideBelow === 700
+                ? "[@media(max-height:700px)]:hidden"
+                : "[@media(max-height:560px)]:hidden"
+              : ""
+          }`}
           data-po-hide-when-short={hideWhenShort ? "yes" : undefined}
         >
           <PoSpeech

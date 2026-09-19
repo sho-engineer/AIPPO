@@ -1170,6 +1170,18 @@ export function LessonRunner({
           あって、残りの量ではない。
         */
         hideProgress={lesson.id === "diagnosis" && beforeQuestions}
+        /*
+          結果の画面では、低い端末でポーを引っ込める。
+
+          ここは**読む画面**で、置くものがいちばん多い（道・段の名前・
+          そうなった理由・回答から見えたこと）。375×667 の実測で、
+          ポーの吹き出しを入れると 45px あふれていた。
+
+          消す順は「同じことを言っているもの」から。現在地の画面で
+          ポーが言うのは「いまはここ！」で、**見出しと道がすでに
+          言っている**——削って最後に失われる情報が、いちばん少ない。
+        */
+        poHideBelow={isDiagnosisResult ? 700 : undefined}
         currentMission={api.missions.current}
         phase={step.phase}
         /*

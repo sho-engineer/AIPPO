@@ -48,7 +48,11 @@ async function toResult(page: Page) {
   await dismissLessonIntro(page);
 
   for (let step = 0; step < 12; step += 1) {
-    if (await page.getByTestId("completion-view").count()) return;
+    /*
+      **`return` にしない。** 下に置いた「整理中を過ぎるまで待つ」を
+      飛ばしてしまい、呼んだ側は押すもののない画面から始めることになる。
+    */
+    if (await page.getByTestId("completion-view").count()) break;
     /*
       枠を埋める回は、枠ごとに1つ。もう選んである枠は触らない
       ——押すと取り消しになる。
@@ -74,6 +78,13 @@ async function toResult(page: Page) {
     await page.waitForTimeout(600);
   }
   await expect(page.getByTestId("completion-view")).toBeVisible();
+  /*
+    整理中の1枚を過ぎるまで待つ。あの画面には押すものが無いので、
+    待たずに押しにいくと「ボタンが出てこない」で時間切れになる。
+  */
+  await expect(page.locator("main h1").first()).toHaveText("あなたの現在地", {
+    timeout: 8000,
+  });
 }
 
 /** 丸ごとの、線の中心からのずれ（px）。 */

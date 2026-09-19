@@ -544,13 +544,19 @@ export function stageReason(result: DiagnosisResult): string[] {
   const cleared = AXES.slice(0, behindAt);
   const lines: string[] = [];
 
+  /*
+    短く書く。**1文につき1つのことだけ。**
+
+    最初に書いたものは1文が40字を超えていて、375×667 でこの2文だけが
+    163px を占めた（画面が 109px あふれた）。言っている中身は
+    「どこまで届いたか」と「どこが空いたか」の2つしかないので、
+    そのぶんの長さでよい。
+  */
   if (cleared.length === 0) {
-    lines.push(`5つの回答では、「${next}」がまだ出てきませんでした。そこがこの段階の入口です。`);
+    lines.push(`回答には「${next}」がまだ出ていません。ここが入口です。`);
   } else {
     const last = AXIS_LABELS[cleared[cleared.length - 1]];
-    lines.push(
-      `「${last}」までは回答に出ていました。次の「${next}」がまだなので、ここが現在地です。`,
-    );
+    lines.push(`「${last}」までは回答に出ていました。次は「${next}」です。`);
   }
 
   /*
@@ -563,7 +569,7 @@ export function stageReason(result: DiagnosisResult): string[] {
   const strongAt = AXES.indexOf(result.strongest);
   if (strongAt > behindAt && result.axes[result.strongest] >= 3) {
     lines.push(
-      `「${AXIS_LABELS[result.strongest]}」は高く出ています。ただしこの診断は手前から順に見るので、先にくる「${next}」が空いていると現在地は手前になります。`,
+      `「${AXIS_LABELS[result.strongest]}」は高めですが、手前から順に見るため現在地は手前になります。`,
     );
   }
 

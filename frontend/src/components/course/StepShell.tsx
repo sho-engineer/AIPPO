@@ -55,6 +55,8 @@ export interface StepShellProps {
    * 出さないと言う。
    */
   hideProgress?: boolean;
+  /** ポーを引っ込める高さの境目（`PoHero`）。読む画面は 700。 */
+  poHideBelow?: 560 | 700;
   /**
    * いまどの区切りか。
    *
@@ -181,6 +183,7 @@ export function StepShell({
   count,
   segments,
   hideProgress = false,
+  poHideBelow,
   phase,
   po,
   summary,
@@ -385,6 +388,7 @@ export function StepShell({
             ことは、譲れない条件（要件 §6.11）。
           */
           hideWhenShort
+          hideBelow={poHideBelow}
         />
       </div>
 

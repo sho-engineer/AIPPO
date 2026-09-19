@@ -208,7 +208,10 @@ function StageView({
 
   return (
     <div className="shrink-0">
-      <div className="rounded-card border border-line bg-surface px-4 pb-4 pt-3.5">
+      <div
+        className="rounded-card border border-line bg-surface px-4 py-3
+                   [@media(min-height:700px)]:pb-4 [@media(min-height:700px)]:pt-3.5"
+      >
         {/*
           道と段の名前。説明文（`summary`）は出さない——下に「なぜ
           そこなのか」が来るので、同じ画面で2通りの説明が並ぶ。
@@ -223,7 +226,8 @@ function StageView({
           そう出るのかも一緒に言う（`stageReason` の2文目）。
         */}
         <div
-          className="mt-3 border-t border-line pt-3"
+          className="mt-2.5 border-t border-line pt-2.5
+                     [@media(min-height:700px)]:mt-3 [@media(min-height:700px)]:pt-3"
           data-testid="diagnosis-stage-reason"
         >
           {reason.map((text) => (
@@ -245,9 +249,30 @@ function StageView({
         動かした回答が1つも無いからそうなっている。無理に理由を作らず、
         5問に出てこなかったことをそのまま書く。
       */}
-      <ul className="mt-3 space-y-2.5" role="list" data-testid="diagnosis-traits">
-        {lines.map((line) => (
-          <li key={line.text} data-done={line.done ? "yes" : "no"}>
+      <ul
+        className="mt-2.5 space-y-2 [@media(min-height:700px)]:mt-3
+                   [@media(min-height:700px)]:space-y-2.5"
+        role="list"
+        data-testid="diagnosis-traits"
+      >
+        {lines.map((line, at) => (
+          <li
+            key={line.text}
+            data-done={line.done ? "yes" : "no"}
+            /*
+              低い端末では、**1つに絞る**（仕様は「最大2項目」）。
+
+              1項目は、行と、その元になった答えと、「なおす」で
+              90px 前後。375×667 では2つ並べるとそれだけで画面が
+              あふれる。落とすのは前のほう——最後の1つは必ず
+              「これから」で、次の画面へのつながりになっている。
+            */
+            className={
+              at < lines.length - 1
+                ? "hidden [@media(min-height:700px)]:block"
+                : undefined
+            }
+          >
             <p className="flex items-start gap-2 text-[0.8125rem] font-bold leading-6">
               <span
                 aria-hidden="true"
@@ -310,7 +335,7 @@ function StageView({
         上の行はどれも「あなたはこうだ」の形をしている。5問の自己申告と
         ミニ問題から出したものなので、そこまでを言う。
       */}
-      <p className="mt-3 text-[0.6875rem] leading-4 text-ink-muted">
+      <p className="mt-2 text-[0.6875rem] leading-4 text-ink-muted [@media(min-height:700px)]:mt-3">
         ※ 5つの回答から見た範囲です。外部のAIには送っていません。
       </p>
     </div>

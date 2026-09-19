@@ -48,8 +48,15 @@ async function answerAll(page: Page): Promise<void> {
   // 最初の1枚は説明。そこから5問
   await page.getByTestId("primary-action").click();
   await answerRemaining(page);
-  /* 待ち画面は挟まない。5問目を押したら、そのまま現在地が出る */
+  /*
+    5問目のあとは、整理中の1枚（1〜1.5秒）を挟んでから現在地が出る。
+    **押すものは無い**ので、待つのではなく移り終わるのを見る。
+    秒数で書かない——長さを変えた日に、ここだけ古い数で落ちる。
+  */
   await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 4000 });
+  await expect(page.locator("main h1").first()).toHaveText("あなたの現在地", {
+    timeout: 8000,
+  });
 }
 
 /**
@@ -61,6 +68,11 @@ async function answerAll(page: Page): Promise<void> {
  */
 async function answerRemaining(page: Page): Promise<void> {
   for (let guard = 0; guard < 12; guard += 1) {
+    /*
+      ここは `return` のまま。抜けたあとに `throw` が待っているので、
+      `break` にすると**答え切ったのに失敗**する。整理中を過ぎるまでの
+      待ちは、呼んだ側が持つ（`toDiagnosisResult` / `summaryLines`）。
+    */
     if (await page.getByTestId("completion-view").count()) return;
 
     const parts = page.getByTestId("assemble-part");
@@ -118,13 +130,15 @@ async function answerRemaining(page: Page): Promise<void> {
  * すぐ下に、その元になった答えと「なおす」が並ぶ（`DiagnosisResult`）。
  */
 async function summaryLines(page: Page): Promise<string[]> {
+  /*
+    判断とその根拠は、**現在地の画面**に一緒に並ぶ。前は別の画面
+    （「回答から見えた特徴」）に分かれていたので、そこまで押して
+    いく必要があった。いまは整理中の1枚を過ぎれば、もうそこに居る。
+  */
+  await expect(page.locator("main h1").first()).toHaveText("あなたの現在地", {
+    timeout: 8000,
+  });
   const traits = page.getByTestId("diagnosis-traits");
-  while ((await traits.count()) === 0) {
-    const heading = await page.locator("main h1").first().innerText();
-    if (heading.includes("おすすめ")) throw new Error("特徴の画面に着かない");
-    await page.getByTestId("primary-action").click();
-    await page.waitForTimeout(400);
-  }
   await expect(traits).toBeVisible();
   const lines = await page.getByTestId("diagnosis-trait-from").allInnerTexts();
   return lines.map((line) => line.replace(/\s*なおす\s*/g, "").trim());

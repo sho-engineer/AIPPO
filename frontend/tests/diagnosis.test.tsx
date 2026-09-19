@@ -684,8 +684,22 @@ describe("結果の5画面", () => {
     show("stage");
 
     const reason = screen.getByTestId("diagnosis-stage-reason");
-    expect(reason.textContent?.trim().length ?? 0).toBeGreaterThan(0);
-    expect(reason.textContent).toContain("現在地");
+    const said = reason.textContent ?? "";
+    expect(said.trim().length).toBeGreaterThan(0);
+
+    /*
+      **次に伸ばす軸の名前が出ていること。** 判定はそこから決まるので、
+      理由に出てこないなら、判定の決め方を言葉にできていない。
+
+      文そのものは書き写さない——言い回しを直した日に、検査だけが
+      古い文を守ることになる。
+    */
+    const result = scoreDiagnosis(values);
+    expect(said).toContain(AXIS_LABELS[result.weakest]);
+
+    /* 5問から分かる以上のことを言い切らない */
+    expect(said).not.toContain("できる人");
+    expect(said).not.toMatch(/\d+\s*%/);
   });
 
   it("①特徴は2つまで。最後は「これから」", () => {

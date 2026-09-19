@@ -127,13 +127,14 @@ for (const size of SIZES) {
       }
 
       /*
-        質問5のあとは、**結果がそのまま出る。**
-        「回答を分析しています」を挟まない（`course/diagnosisFlow.ts`）。
+        質問5のあとは、整理中の1枚（1〜1.5秒）を挟んでから現在地。
+        押すものを持たず、自分で移る（`course/diagnosisFlow.ts`）。
       */
-      await expect(page.getByTestId("diagnosis-analyzing")).toHaveCount(0);
-      await expect(page.locator("main h1").first()).toHaveText(
-        "5つの答えを読み取りました",
-      );
+      await expect(page.getByTestId("diagnosis-analyzing")).toBeVisible();
+      await expect(page.getByTestId("primary-action")).toHaveCount(0);
+      await expect(page.locator("main h1").first()).toHaveText("あなたの現在地", {
+        timeout: 8000,
+      });
 
       /*
         結果の画面を、おすすめまで押していく。**何画面あるかは
