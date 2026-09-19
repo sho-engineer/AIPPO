@@ -106,6 +106,21 @@ export interface PoHeroProps {
    * 中身のほうが多い。そこでは 700 を渡す。
    */
   hideBelow?: 560 | 700;
+  /**
+   * 説明文が、ボタンのすぐ上の案内と**同じことを言っている**か。
+   *
+   * true のとき、狭い端末（360px 以下）では出さない。
+   *
+   * 診断の「普段の自分に一番近いものを1つ選んでください。」は、
+   * ボタンの上の「ひとつ選んでください。」と同じ内容。320px では
+   * これだけで 64px（2行＋余白）を使い、**同じ文が1画面に2回**
+   * 出たまま画面があふれていた。仕様の「収まらないときは重複説明を
+   * 先に見直す」は、まさにこれを指す。
+   *
+   * 読み上げにも出なくなるが、同じ内容が下の案内から届く
+   * （`role="status"`）。
+   */
+  terseDescription?: boolean;
 }
 
 export function PoHero({
@@ -122,6 +137,7 @@ export function PoHero({
   burst = false,
   hideWhenShort = false,
   hideBelow = 560,
+  terseDescription = false,
 }: PoHeroProps) {
   const centered = align === "center";
 
@@ -153,7 +169,13 @@ export function PoHero({
         <h1 className="text-xl font-bold leading-[1.5] sm:text-2xl">{title}</h1>
 
         {description && (
-          <p className="mt-2 text-sm leading-7 text-ink-muted">{description}</p>
+          <p
+            className={`mt-2 text-sm leading-7 text-ink-muted ${
+              terseDescription ? "[@media(max-width:360px)]:hidden" : ""
+            }`}
+          >
+            {description}
+          </p>
         )}
 
         {meta && <div className="mt-3">{meta}</div>}

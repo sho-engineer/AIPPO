@@ -57,6 +57,8 @@ export interface StepShellProps {
   hideProgress?: boolean;
   /** ポーを引っ込める高さの境目（`PoHero`）。読む画面は 700。 */
   poHideBelow?: 560 | 700;
+  /** 説明文が、ボタン上の案内と同じことを言っているか（`PoHero`）。 */
+  terseDescription?: boolean;
   /**
    * いまどの区切りか。
    *
@@ -184,6 +186,7 @@ export function StepShell({
   segments,
   hideProgress = false,
   poHideBelow,
+  terseDescription = false,
   phase,
   po,
   summary,
@@ -347,7 +350,7 @@ export function StepShell({
         ポーが居ない画面では、見出しだけがここに残る。居ないぶんの
         余白は返すので、本文がその高さぶん上がる。
       */}
-      <div className="mt-2 shrink-0 [@media(min-height:700px)]:mt-4">
+      <div className="mt-1 shrink-0 min-[361px]:mt-2 [@media(min-height:700px)]:mt-4">
         <PoHero
           eyebrow={
             eyebrow && (
@@ -389,6 +392,7 @@ export function StepShell({
           */
           hideWhenShort
           hideBelow={poHideBelow}
+          terseDescription={terseDescription}
         />
       </div>
 
@@ -423,7 +427,7 @@ export function StepShell({
             引かれる**。高さのある持ち方では 20px のままにする——
             そこでは余りのほうが多く、詰めても読みやすくならない。
           */
-          className="mt-2 flex min-h-0 flex-1 flex-col [@media(min-height:700px)]:mt-5"
+          className="mt-1 flex min-h-0 flex-1 flex-col min-[361px]:mt-2 [@media(min-height:700px)]:mt-5"
         >
           <StepTransition stepKey={title}>{children}</StepTransition>
         </div>

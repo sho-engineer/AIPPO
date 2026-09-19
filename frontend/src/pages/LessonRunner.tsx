@@ -1182,6 +1182,20 @@ export function LessonRunner({
           言っている**——削って最後に失われる情報が、いちばん少ない。
         */
         poHideBelow={isDiagnosisResult ? 700 : undefined}
+        /*
+          説明文が、ボタン上の案内と同じことを言っている回。
+
+          見分けるのは**回の形**。札を並べるだけの回（`parts` を持たない）
+          では、説明は「いくつ選ぶか」しか言うことが無く、それは
+          ボタンの上の案内がすでに言っている（`engine.ts` の `reason`）。
+          枠を埋める回（質問3・4）の説明は場面そのものなので、外さない。
+
+          回の id を並べない——問いを1つ足した日に、ここだけ古い一覧に
+          なる。
+        */
+        terseDescription={
+          lesson.id === "diagnosis" && !step.parts?.length && questionAt >= 0
+        }
         currentMission={api.missions.current}
         phase={step.phase}
         /*

@@ -991,6 +991,79 @@ test.describe("AI活用診断", () => {
     await expect(page.getByTestId("lesson-mission-count")).toContainText("5 / 5");
   });
 
+  test("320×568 で送れるのは、枠を埋める2問だけ", async ({ page }) => {
+    /*
+      **いちばん狭い端末で、どこまでを「収める」と約束するか。**
+
+      375×667 以上は全画面が送らずに収まる（`diagnosisSizes`）。
+      320×568（iPhone SE 1st / 5s）だけは、質問3・4 が収まらない。
+
+      収めようとして何が要るかを数えた。どちらも枠が3つ並ぶ回で、
+      札は 11個・9個。札の当たりは 44px から下げられない（指で押せる
+      最小）。字を縮めるのも、選択肢を減らすのも、場面の説明を削るのも
+      **仕様が禁じている**——「文字の過度な縮小や overflow:hidden に
+      よる切り捨ては禁止」「質問ごとの複数設問の仕様は維持する」。
+
+      画面を分ける案も採らなかった。枠3つを2画面に割ると、**押す回数が
+      全端末で2回増える**うえ、「1つのお願いを3つの枠で組み立てる」と
+      いう問いの形そのものが崩れる。1機種のために、全員のテンポと
+      問いの意味を落とすのは割に合わない。
+
+      だから**送れることを認める。** ただし送っても壊れないことは
+      約束する——下のボタンは動かない、見出しは先頭で見える、
+      選んでも位置が動かない（そこが今回いちばん直したところ）。
+
+      ここに書いてあるのは**決めごと**で、直し忘れではない。
+    */
+    await page.setViewportSize({ width: 320, height: 568 });
+    await openDiagnosis(page);
+
+    const scrollable = async () =>
+      page.evaluate(() => {
+        const stage = document.querySelector('[data-testid="step-stage"]');
+        return stage ? stage.scrollHeight - stage.clientHeight : 0;
+      });
+    const ctaTop = async () =>
+      page.evaluate(() =>
+        Math.round(
+          document
+            .querySelector('[data-testid="primary-action"]')
+            ?.getBoundingClientRect().top ?? -1,
+        ),
+      );
+
+    const over: Record<string, number> = {};
+    const seats: number[] = [];
+
+    for (let q = 1; q <= 5; q += 1) {
+      const heading = (await page.locator("main h1").first().innerText()).trim();
+      over[heading] = await scrollable();
+      seats.push(await ctaTop());
+
+      /* 見出しは、送りの先頭で見えていること */
+      const headTop = await page.evaluate(
+        () => Math.round(document.querySelector("main h1")?.getBoundingClientRect().top ?? -1),
+      );
+      expect(headTop, `「${heading}」の見出しが画面の外`).toBeGreaterThan(0);
+
+      if (!(await answerOne(page))) break;
+      if (await page.getByTestId("completion-view").count()) break;
+    }
+
+    /* 送れるのは、枠を埋める2問だけ */
+    const scrolls = Object.entries(over).filter(([, px]) => px > 8);
+    expect(
+      scrolls.map(([name]) => name).sort(),
+      `送れる画面が想定と違う: ${JSON.stringify(over)}`,
+    ).toEqual(["この場面なら、どう頼む？", "こんなとき、AIに何を頼む？"].sort());
+
+    /*
+      下のボタンは、どの問いでも同じ場所に座っている。**送れる画面でも
+      動かない**——枠の外に置いてあるので、中身の量に左右されない。
+    */
+    expect(new Set(seats).size, `ボタンが動いている: ${seats.join(" / ")}`).toBe(1);
+  });
+
   test("開始画面も、送らずに全部見える", async ({ page }) => {
     /*
       絵を幅いっぱい・高さは比なりで置いていたころ、いちばん低い
