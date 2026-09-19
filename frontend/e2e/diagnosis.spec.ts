@@ -956,6 +956,41 @@ test.describe("AI活用診断", () => {
     await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
   });
 
+  test("「診断結果を見る」を連打しても、1回しか進まない", async ({ page }) => {
+    /*
+      指の2度目は、画面が入れ替わるより早いことがある。2回進むと
+      履歴に同じ行き先が2つ積まれ、戻った人がもう一度同じ場所に着く。
+    */
+    await openDiagnosis(page);
+    /* 5問目の手前まで */
+    for (let guard = 0; guard < 4; guard += 1) {
+      if (!(await answerOne(page))) break;
+    }
+    const cards = page.locator("[aria-pressed]");
+    if (await cards.count()) await cards.first().click();
+    await page.waitForTimeout(400);
+
+    /* 2回ぶんを、1つの動きの中で投げる */
+    await page.evaluate(() => {
+      const node = document.querySelector<HTMLElement>(
+        '[data-testid="primary-action"]',
+      );
+      node?.click();
+      node?.click();
+    });
+
+    await expect(page.getByTestId("completion-view")).toBeVisible({
+      timeout: 6000,
+    });
+    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地", {
+      timeout: 8000,
+    });
+
+    /* 1回ぶんだけ戻れば、5問目に着く */
+    await page.evaluate(() => window.history.back());
+    await expect(page.getByTestId("lesson-mission-count")).toContainText("5 / 5");
+  });
+
   test("開始画面も、送らずに全部見える", async ({ page }) => {
     /*
       絵を幅いっぱい・高さは比なりで置いていたころ、いちばん低い

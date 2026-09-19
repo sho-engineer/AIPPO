@@ -28,6 +28,7 @@ import {
   type DiagnosisResultProps,
 } from "../src/components/course/DiagnosisResult";
 import { Analyzing } from "../src/components/course/diagnosis/Analyzing";
+import * as sheets from "../src/components/course/MoreSheet";
 import { DiagnosisIntro } from "../src/components/course/diagnosis/DiagnosisIntro";
 import { COURSE, getLesson } from "../src/course/catalog";
 import {
@@ -37,6 +38,7 @@ import {
   NEXT_SKILL,
   STAGES,
   scoreDiagnosis,
+  stageReason,
   traitsOf,
 } from "../src/course/diagnosisScore";
 import {
@@ -545,6 +547,32 @@ describe("結果の5画面", () => {
     await waitFor(() => expect(moved).toHaveLength(1));
   });
 
+  it("一枚が開いているあいだは、後ろで進まない", async () => {
+    /*
+      **離れようとしている人を、時計だけで先へ送らない。**
+
+      整理中は 1〜1.5 秒で自分から現在地へ移る。その途中で「×」を
+      押すと、やめるかどうかを確かめる一枚が開く——その後ろで画面が
+      入れ替わると、「やめない」を選んだ人が**思っていたのと違う
+      場所**に着く。
+
+      実ブラウザでも試したが、1.2 秒の窓を狙って押す検査は**通ったり
+      落ちたりする**（窓を外すと、もう次の画面に居る）。見たいのは
+      「開いているかどうかを見ているか」なので、ここで決め打ちにする。
+    */
+    const open = vi.spyOn(sheets, "isSheetOpen").mockReturnValue(true);
+    const moved: string[] = [];
+    render(<Analyzing ready reduced onDone={() => moved.push("進んだ")} />);
+
+    await new Promise((done) => setTimeout(done, 700));
+    expect(moved, "一枚が開いているのに進んだ").toHaveLength(0);
+
+    /* 閉じれば進む */
+    open.mockReturnValue(false);
+    await waitFor(() => expect(moved).toHaveLength(1));
+    open.mockRestore();
+  });
+
   it("動きを減らす設定では、4つとも最初から点いている", () => {
     render(<Analyzing ready reduced onDone={() => {}} />);
 
@@ -956,6 +984,145 @@ describe("結果の5画面", () => {
     expect(view).toHaveTextContent("困ったときにAIを使う");
     expect(view).not.toHaveTextContent("sometimes");
     expect(view).not.toHaveTextContent("first_time");
+  });
+});
+
+describe("結果の組み合わせ", () => {
+  /*
+    **極端な答えでも、言うことが破綻しないこと。**
+
+    仕様が名指しした4つを見る——全部低い人、全部高い人、同点の人、
+    そして「強み」と「次に伸ばす力」が同じ軸を指す人。どれも実際に
+    起きる組み合わせで、**文面の都合で判定を変えない**のが決まり。
+  */
+  const LOWEST = {
+    ai_usage: "never",
+    ask_style: "lost",
+    build_prompt: "ideas|expert|technical",
+    match_purpose: "compare|ideas|organize",
+    want_to_do: "writing",
+  };
+  const HIGHEST = {
+    ai_usage: "daily",
+    ask_style: "design",
+    build_prompt: "explain|first_time|kind_polite",
+    match_purpose: "organize|compare|ideas",
+    want_to_do: "writing",
+  };
+
+  /**
+   * 5問ぶんの答えを、総当たりで作る（1125通り）。
+   *
+   * 選択肢の値は教材データから引く。**ここに書き写さない**——札を
+   * 1つ足した日に、検査だけが古い一覧を回すことになる。
+   */
+  function everyAnswer(): Record<string, string>[] {
+    const lesson = getLesson("diagnosis")!;
+    const pick = (id: string) =>
+      lesson.steps.find((one) => one.id === id)?.options?.map((o) => o.value) ?? [];
+    const part = (at: number) =>
+      lesson.steps.find((one) => one.id === "build_prompt")?.parts?.[at]
+        ?.options.map((o) => o.value) ?? [];
+
+    const all: Record<string, string>[] = [];
+    for (const ai_usage of pick("ai_usage"))
+      for (const ask_style of pick("ask_style"))
+        for (const what of part(0))
+          for (const who of part(1))
+            for (const how of part(2))
+              all.push({
+                ai_usage,
+                ask_style,
+                build_prompt: `${what}|${who}|${how}`,
+                match_purpose: "organize|compare|ideas",
+                want_to_do: "writing",
+              });
+    return all;
+  }
+
+  it("全部低くても、「身についていました」と言わない", () => {
+    const result = scoreDiagnosis(LOWEST);
+    /* いちばん高い軸も 3 に届いていない人 */
+    expect(result.axes[result.strongest]).toBeLessThan(3);
+
+    const lead = recommendLead(LOWEST);
+    expect(lead).not.toContain("身についていました");
+    expect(lead).not.toContain("出ていました");
+
+    /* 理由も、できていないことを言い切らない */
+    const reason = stageReason(result).join("");
+    expect(reason).toContain(AXIS_LABELS[result.weakest]);
+  });
+
+  it("全部高ければ、「これから」を作らない", () => {
+    const result = scoreDiagnosis(HIGHEST);
+    if (AXES.every((axis) => result.axes[axis] >= 4)) {
+      const traits = traitsOf(result);
+      expect(traits.some((line) => line.endsWith("これから"))).toBe(false);
+    }
+    /* 段の名前と説明が、必ず在ること */
+    expect(result.stage.name).toBeTruthy();
+    expect(result.stage.summary).toBeTruthy();
+  });
+
+  it("強みと次に伸ばす力が同じでも、言い換えずに理由を添える", () => {
+    /*
+      4つとも低い人では、いちばん高い軸がそのまま「最初に届いて
+      いない軸」になる。**選定を変えて別々にはしない**——見た目の
+      都合で2つ目に高い軸を「強み」と呼ぶと、その人の強みでない
+      ものを強みとして出すことになる。
+    */
+    const same = everyAnswer().filter((one) => {
+      const r = scoreDiagnosis(one);
+      return r.strongest === r.weakest;
+    });
+    expect(same.length, "同じ軸を指す組み合わせが1つも無い").toBeGreaterThan(0);
+
+    render(
+      <DiagnosisResult values={same[0]} lessons={COURSE.lessons} phase="axes" />,
+    );
+    const summary = screen.getByTestId("diagnosis-axes-summary");
+    expect(screen.getByTestId("diagnosis-strength").textContent).toBe(
+      screen.getByTestId("diagnosis-next-axis").textContent,
+    );
+    expect(summary).toHaveTextContent("得意なところから伸ばす");
+  });
+
+  it("どの組み合わせでも、理由は次に伸ばす軸を名指しする", () => {
+    /*
+      理由が判定とつながっていなければ、読んだ人には確かめる手立てが
+      無い。**1125通り**すべてで、次に伸ばす軸の名前が理由に出ること。
+    */
+    for (const one of everyAnswer()) {
+      const result = scoreDiagnosis(one);
+      const reason = stageReason(result).join("");
+      expect(
+        reason,
+        `次に伸ばす軸（${result.weakest}）が理由に出ていない: ${reason}`,
+      ).toContain(AXIS_LABELS[result.weakest]);
+      /* 5問から分かる以上のことを言い切らない */
+      expect(reason).not.toContain("できる人");
+    }
+  });
+
+  it("どの組み合わせでも、おすすめの理由が回答とつながる", () => {
+    const day1 = COURSE.lessons.find((one) => one.id === "rewrite_text")!;
+    for (const one of everyAnswer().slice(0, 120)) {
+      const result = scoreDiagnosis(one);
+      const lead = recommendLead(one, day1);
+      /* ②次に伸ばすとよいこと */
+      expect(lead).toContain(AXIS_LABELS[result.weakest]);
+      /* ③その教材で試せること */
+      expect(lead).toContain(`Day${day1.number}`);
+      expect(lead).toContain(day1.goal);
+    }
+  });
+
+  it("公開が1本だけのときは、選んだふりをしない", () => {
+    const day1 = COURSE.lessons.find((one) => one.id === "rewrite_text")!;
+    const lead = recommendLead(HIGHEST, day1, true);
+    expect(lead).toContain("いま開いているのは");
+    expect(lead).not.toContain("あなたに最適");
   });
 });
 

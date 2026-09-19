@@ -45,7 +45,7 @@
 
 import { useState } from "react";
 
-import { IconCheck, IconChevronRight } from "../Icons";
+import { IconArrow, IconCheck, IconChevronRight } from "../Icons";
 import { MoreSheet } from "./MoreSheet";
 import { Analyzing } from "./diagnosis/Analyzing";
 import { GrowthTrack } from "./diagnosis/GrowthTrack";
@@ -274,6 +274,18 @@ function StageView({
             }
           >
             <p className="flex items-start gap-2 text-[0.8125rem] font-bold leading-6">
+              {/*
+                印は、**言っていることと合わせる。**
+
+                前はどちらの行にも同じチェックを付け、色だけ変えて
+                いた。「AIへの頼み方はこれから」にチェックが付いて
+                いる状態で、実機の写しで見て気づいた——チェックは
+                「済んだ」の印なので、**まだのことを済んだと言って
+                いる**ことになる。色が見えない人には、その矛盾しか
+                残らない。
+
+                できていることはチェック、これからは矢印にする。
+              */}
               <span
                 aria-hidden="true"
                 className={`mt-1 flex h-4 w-4 shrink-0 items-center justify-center
@@ -281,7 +293,11 @@ function StageView({
                               line.done ? "bg-brand" : "bg-ink-muted"
                             }`}
               >
-                <IconCheck className="h-2.5 w-2.5" />
+                {line.done ? (
+                  <IconCheck className="h-2.5 w-2.5" />
+                ) : (
+                  <IconArrow className="h-2.5 w-2.5" />
+                )}
               </span>
               <span className="min-w-0">{line.text}</span>
             </p>
