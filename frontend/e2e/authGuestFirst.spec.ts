@@ -51,10 +51,19 @@ async function openApp(page: Page) {
 
     秒数で誤魔化さず、応答そのものを待つ。
   */
+  /*
+    待つ長さは、**1本の持ち時間より短く**。
+
+    はじめ 60 秒にしていた。1本の持ち時間（30秒）より長いので、
+    バックエンドが落ちていると待ち切る前に持ち時間が尽き、
+    「ページが閉じられた」という**何が起きたか分からない落ち方**に
+    なる（実際そうなった）。ここで諦めれば、そのあとの `expect` が
+    「何が無かったか」を名前で教えてくれる。
+  */
   const catalog = page
     .waitForResponse(
       (res) => res.url().includes("/api/v1/catalog/") && res.status() === 200,
-      { timeout: 60_000 },
+      { timeout: 15_000 },
     )
     .catch(() => null);
   await page.reload();
