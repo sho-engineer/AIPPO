@@ -23,6 +23,7 @@
  */
 
 import { expect, test, type Page, type Locator } from "@playwright/test";
+import { skipEntry } from "./support/entry";
 import { dismissLessonIntro } from "./support/lessonIntro";
 
 /**
@@ -63,6 +64,12 @@ function collectFailures(page: Page): string[] {
 }
 
 async function toCourse(page: Page): Promise<void> {
+  /*
+    入口（タイトル → 診断の案内）は通ったことにして、ホームから始める。
+    ここが見るのは通しで完走できることで、入口の出方ではない
+    （そちらは `e2e/entryFlow.spec.ts`）。
+  */
+  await skipEntry(page);
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();

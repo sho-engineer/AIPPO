@@ -66,6 +66,20 @@ await scan("タイトル");
 
 await p.getByRole("button", { name: "はじめる" }).first().click();
 await p.waitForTimeout(900);
+/*
+  「はじめる」の次はホームではなく、**診断の入口**（1画面）。
+
+  前はここを「ホーム」として数えていた。名前が違うだけに見えるが、
+  実際には**ホームが一度も検査されていなかった**——そして下のタブが
+  無い画面で「コース」を探し続けて、30秒で落ちていた。
+
+  入口はユーザーが必ず通る画面なので、そのまま1つとして検査する。
+  「あとで」でホームへ抜けて、ホームも検査する。
+*/
+await scan("診断の入口");
+
+await p.getByTestId("diagnosis-intro-later").click();
+await p.waitForTimeout(700);
 await scan("ホーム");
 
 await p.getByRole("button", { name: "コース" }).click();
@@ -121,61 +135,47 @@ await scan("レッスン 章扉");
 await p.getByTestId("primary-action").first().click();
 await p.waitForTimeout(700);
 
-// 続いて、導入の一枚が中央に浮かぶ。ここも読み上げの検査に入れる
-await scan("レッスン 導入の一枚");
+/*
+  導入の一枚は、**出る教材と出ない教材がある。**
 
-// 「詳しく見る」の中も見る（画面いっぱいの一枚で、中は縦に送れる）
-await p.getByTestId("lesson-intro-detail").click();
-await p.waitForTimeout(500);
-await scan("レッスン 詳しく見る");
-await p.getByTestId("lesson-detail-close").click();
-await p.waitForTimeout(300);
+  ここは長らく「章扉のあとに必ず浮かぶ」と決め打ちだった。Day1 が
+  独自の並びへ移って出なくなったとき、この行は 30 秒待って落ち、
+  **その先の画面が1つも検査されなくなった**——読み上げの検査が
+  途中で止まっていることに、しばらく誰も気づかなかった。
 
-await p.getByTestId("lesson-intro-close").click();
-await p.waitForTimeout(500);
-await scan("レッスン 完成イメージ");
+  `e2e/support/lessonIntro.ts` と同じ考え方にする。**出ていたら見る。**
+  並びが変わっても、ここは直さずに済む。
+*/
+const sheet = p.getByTestId("lesson-intro-sheet");
+if ((await sheet.count()) > 0) {
+  await scan("レッスン 導入の一枚");
 
-await p.getByTestId("primary-action").first().click();
-await p.waitForTimeout(700);
-await scan("レッスン お試し");
+  // 「詳しく見る」の中も見る（画面いっぱいの一枚で、中は縦に送れる）
+  const detail = p.getByTestId("lesson-intro-detail");
+  if ((await detail.count()) > 0) {
+    await detail.click();
+    await p.waitForTimeout(500);
+    await scan("レッスン 詳しく見る");
+    await p.getByTestId("lesson-detail-close").click();
+    await p.waitForTimeout(300);
+  }
 
-// Day1 の最初の1回で選ぶのは「どこから直すか」。誰向けかは2回目に足す
-await p.getByRole("button", { name: "専門用語を減らす" }).click();
-await p.getByTestId("primary-action").first().click();
-await p.waitForTimeout(1800);
-await scan("レッスン 観察");
+  await p.getByTestId("lesson-intro-close").click();
+  await p.waitForTimeout(500);
+}
 
 /*
-  「変わったところ」の中央の一枚。
+  ここから先は、**決め打ちで進めない。**
 
-  この画面の読み比べ・言いかえの対応・見どころは全部この中にあり、
-  **通常画面からは見えない**。開かずに検査を終えると、いちばん
-  文字の多い場所を一度も見ないことになる。全文の比べまで開く。
+  前はこの位置に「お試しで『専門用語を減らす』を押す」と書いてあった。
+  Day1 が組み直されて1回目は条件を選ばなくなり（`course/catalog.ts` の
+  ①まずはAIに頼んでみる）、この行は 30 秒待って落ちた——**そこから
+  先の画面が、1つも検査されなくなった**。
+
+  下の周回は、もともとその形になっている。見出しで画面を数え、
+  押せなければ選び、完了画面で止まる。教材の文言や並びが変わっても、
+  ここは直さずに済む。
 */
-if (await p.getByTestId("result-more").count()) {
-  await p.getByTestId("result-more").click();
-  await p.waitForTimeout(400);
-  await scan("レッスン 変わったところ");
-
-  await p.getByTestId("full-compare-open").click();
-  await p.waitForTimeout(400);
-  await scan("レッスン 変わったところ 全文");
-
-  /*
-    閉じるのは**上に重ねた一枚から**。
-
-    全文の比べは、変わったところの上にもう一枚重なる（`MoreSheet` の
-    `elevated`）。上の一枚は画面いっぱいの背景を敷いているので、
-    下の一枚の×を押そうとすると**その背景が受け取る**——押し続けても
-    何も起きないまま時間切れになり、ここから先の画面が一度も検査
-    されなくなる（実際そうなった）。
-  */
-  await p.getByTestId("full-compare-close").click();
-  await p.waitForTimeout(400);
-
-  await p.getByTestId("changes-close").click();
-  await p.waitForTimeout(400);
-}
 
 /*
   残りのステップを最後まで進め、新しく作った画面も検査する。
@@ -183,7 +183,7 @@ if (await p.getByTestId("result-more").count()) {
 */
 const primary = p.getByTestId("primary-action").first();
 const seen = new Set();
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < 40; i++) {
   /*
     技のスタンプ台紙。**閉じないと、この先へ進めない。**
 
@@ -200,6 +200,48 @@ for (let i = 0; i < 30; i++) {
     await scan("レッスン 技のスタンプ台紙");
     await p.getByTestId("skill-stamp-continue").click();
     await p.waitForTimeout(600);
+    continue;
+  }
+
+  /*
+    「変わったところ」の中央の一枚。
+
+    この画面の読み比べ・言いかえの対応・見どころは全部この中にあり、
+    **通常画面からは見えない**。開かずに検査を終えると、いちばん
+    文字の多い場所を一度も見ないことになる。全文の比べまで開く。
+
+    周回の中に置いてあるのは、**何回目の結果に出るかを決めないため**。
+    外に置いていたころは「1回目の結果のあと」と決め打ちで、段が
+    組み変わると開かなくなった。出ていたら開く。
+  */
+  const more = p.getByTestId("result-more");
+  if ((await more.count()) && !seen.has("変わったところ")) {
+    seen.add("変わったところ");
+    await more.click();
+    await p.waitForTimeout(400);
+    await scan("レッスン 変わったところ");
+
+    const full = p.getByTestId("full-compare-open");
+    if (await full.count()) {
+      await full.click();
+      await p.waitForTimeout(400);
+      await scan("レッスン 変わったところ 全文");
+
+      /*
+        閉じるのは**上に重ねた一枚から**。
+
+        全文の比べは、変わったところの上にもう一枚重なる（`MoreSheet` の
+        `elevated`）。上の一枚は画面いっぱいの背景を敷いているので、
+        下の一枚の×を押そうとすると**その背景が受け取る**——押し続けても
+        何も起きないまま時間切れになり、ここから先の画面が一度も検査
+        されなくなる（実際そうなった）。
+      */
+      await p.getByTestId("full-compare-close").click();
+      await p.waitForTimeout(400);
+    }
+
+    await p.getByTestId("changes-close").click();
+    await p.waitForTimeout(400);
     continue;
   }
 

@@ -1,5 +1,7 @@
 import type { Page, Route } from "@playwright/test";
 
+import { skipEntry } from "./entry";
+
 /**
  * バックエンドの応答をスタブへ差し替える。
  *
@@ -72,15 +74,6 @@ export interface StubOptions {
   freshAccount?: boolean;
 }
 
-/**
- * 入口を通ったことを覚えておく2つ。
- *
- *   `aippo:guest`           … ゲストで始めた（`lib/draft.ts`）
- *   `aippo:diagnosis-nudge` … 診断の案内を見た（`course/diagnosisNudge.ts`）
- *
- * 両方あると、開いた先はホームになる（`app/entry.ts`）。
- */
-const ENTRY_KEYS = ["aippo:guest", "aippo:diagnosis-nudge"];
 
 export interface TutorBody {
   message: string;
@@ -130,20 +123,11 @@ export async function stubApi(
   let signedIn = options.signedIn ?? false;
 
   /*
-    入口を通ったことにする。**読み込みのたびに、アプリより先に**立てる。
-
-    検査は `localStorage.clear()` してから読み込み直すので、1回書いた
-    だけでは消える。`addInitScript` はどの読み込みでも先に走るので、
-    消されても次の読み込みで立ち直る。
+    入口を通ったことにする。中身は `support/entry.ts`——**スタブを
+    使わない検査も同じものが要る**ので、そちらへ出してある。
   */
   if (!options.showEntry) {
-    await page.addInitScript((keys) => {
-      try {
-        for (const key of keys) window.localStorage.setItem(key, "1");
-      } catch {
-        /* 保存が使えない環境。そこでは入口が出るが、検査では使わない */
-      }
-    }, ENTRY_KEYS);
+    await skipEntry(page);
   }
 
   await page.route("**/api/v1/ai/generate/", async (route: Route) => {

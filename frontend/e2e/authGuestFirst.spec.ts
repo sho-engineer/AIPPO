@@ -10,6 +10,7 @@
  */
 
 import { expect, test, type Page } from "@playwright/test";
+import { skipEntry } from "./support/entry";
 import { dismissLessonIntro } from "./support/lessonIntro";
 
 const API = "http://127.0.0.1:8000";
@@ -23,6 +24,14 @@ async function backendIsUp(page: Page): Promise<boolean> {
 }
 
 async function openApp(page: Page) {
+  /*
+    ここが見るのは**ゲストのまま試せること**で、入口の出方ではない。
+    入口（タイトル → 診断の案内）は通ったことにして、ホームから始める。
+
+    スタブを使う検査は `stubApi` が同じことをしている。ここはスタブを
+    使わない（本物のバックエンドに当てる）ので、自分で立てる。
+  */
+  await skipEntry(page);
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
