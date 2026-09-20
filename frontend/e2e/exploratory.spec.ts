@@ -82,8 +82,19 @@ async function toCourse(page: Page): Promise<void> {
 async function advance(page: Page): Promise<boolean> {
   /*
     技を受け取る回で「覚えた」を押すと、スタンプ台紙が1枚挟まる。
-    閉じずに下のボタンを押そうとすると、背景が受け取ってしまう。
+    閉じずに下のボタンを押そうとすると、**背景が受け取ってしまう**
+    ——押し続けても何も起きないまま、完走できずに終わる。
+
+    ここには長いこと、この注意書きだけがあって**閉じる処理が無かった**。
+    手元では台紙の出る回まで届く前に別の理由で止まっていたので
+    気づかず、CI（本物のバックエンド）でだけ完走できずに落ちていた。
   */
+  const stamp = page.getByTestId("skill-stamp-sheet");
+  if (await stamp.count()) {
+    await page.getByTestId("skill-stamp-continue").click();
+    await expect(stamp).toHaveCount(0);
+    return true;
+  }
 
   const primary = page.getByTestId("primary-action").first();
   if (!(await primary.isVisible().catch(() => false))) return false;
@@ -112,8 +123,28 @@ async function advance(page: Page): Promise<boolean> {
 async function runToEnd(page: Page): Promise<void> {
   for (let i = 0; i < 40; i++) {
     if (await page.getByTestId("completion-view").isVisible().catch(() => false)) return;
-    if (!(await advance(page))) break;
-    await page.waitForTimeout(150);
+    if (!(await advance(page))) {
+      /*
+        止まった場所を名前で残す。
+
+        黙って抜けると、あとの `expect` は「完了画面が無い」としか
+        言わない——40回のうちどこで止まったのかが分からず、CI の
+        記録だけでは追えない（実際そうなって、原因が分かるまでに
+        時間がかかった）。
+      */
+      const here = (
+        await page.locator("main h1").first().innerText().catch(() => "")
+      ).trim();
+      throw new Error(`完走できずに止まった。いま出ているのは「${here}」`);
+    }
+    /*
+      AI を呼ぶ回があるので、押したあとは少し待つ。
+
+      150ms では、込み合った機械で返る前に次の判断へ進んでしまう。
+      待つのは「押せるようになるまで」なので、長めに取っても
+      普段の速さは変わらない。
+    */
+    await page.waitForTimeout(400);
   }
 }
 
