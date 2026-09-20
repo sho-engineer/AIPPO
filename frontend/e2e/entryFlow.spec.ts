@@ -233,6 +233,35 @@ test.describe("再訪", () => {
     await expect(page.getByTestId("progress-summary")).toBeVisible();
     await expect(welcome(page)).toHaveCount(0);
   });
+
+  test("入口を抜けたあとの「戻る」で、ようこそへ落ちない", async ({ page }) => {
+    /*
+      **履歴の根が、入口のまま残っていた。**
+
+      開いた直後、まだ行き先が決まらないうちに端末の保存が消えると、
+      その回は「初めての人」と読んでようこそを根に据える。読み込み
+      直せば保存は戻っているのでホームへ入れるが、根は入口のまま
+      ——設定を開いて「戻る」を押すと、ようこそが出た。
+
+      時々しか出ない。消える時刻と決まる時刻のどちらが先かで変わる
+      ので、**同じ手順でも通ったり落ちたりする**（実測 4/6 で再現）。
+      だから消す位置を「決まる前」に置いたまま検査する——待ってから
+      消すと、この穴には二度と当たらない。
+    */
+    await stubApi(page);
+    await page.goto("/");
+    // ここで待たない。決まる前に消えることが、この検査の条件
+    await page.evaluate(() => window.localStorage.clear());
+    await page.reload();
+    await expect(page.getByTestId("tab-bar")).toBeVisible();
+
+    await page.getByRole("button", { name: "その他" }).first().click();
+    await expect(page.getByRole("heading", { name: "設定" })).toBeVisible();
+    await page.getByRole("button", { name: "前の画面へ戻る" }).click();
+
+    await expect(page.getByTestId("tab-bar")).toBeVisible();
+    await expect(welcome(page)).toHaveCount(0);
+  });
 });
 
 test.describe("ログインしている人", () => {

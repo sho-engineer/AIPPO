@@ -406,7 +406,27 @@ export function App() {
   const rooted = useRef(false);
   useEffect(() => {
     if (!decided || rooted.current) return;
-    if (isAippoHistoryState(window.history.state)) {
+    /*
+      すでに根があるなら、そのまま使う——**ただし入口の根は別。**
+
+      入口の2枚（ようこそ・案内）に居るあいだも、履歴にはその画面が
+      入る。そこから先へ進んだ回では根を敷き直さないと、**根が入口の
+      ままになる**。あとで「戻る」を押した人は、ホームではなく
+      ようこその画面に着く。
+
+      実際に踏んだ穴
+      --------------
+      開いた直後、まだ行き先が決まらないうちに端末の保存が消えると、
+      その回は「初めての人」と判断してようこそを根に据える。読み込み
+      直すと保存は戻っているのでホームへ入れるが、**根は入口のまま**
+      ——設定を開いて「戻る」を押すと、ようこそが出た。
+      （検査で4/6の割合で出た。時々しか出ないのは、消える時刻と
+      決まる時刻のどちらが先かで変わるため）
+
+      `initial` が履歴からの復元で入口を弾いているのと、同じ線引き。
+    */
+    const existing = window.history.state;
+    if (isAippoHistoryState(existing) && !isEntryScreen(existing.screen)) {
       rooted.current = true;
       return;
     }
