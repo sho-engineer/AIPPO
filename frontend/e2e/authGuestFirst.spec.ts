@@ -61,7 +61,29 @@ test.describe("ゲストのまま試せる", () => {
     */
     await intoLesson(page);
 
-    await expect(page.getByTestId("outcome-preview")).toBeVisible();
+    /*
+      教材の中身が出ていること。**どの回の、どの画面かは指さない。**
+
+      ここは `outcome-preview` を待っていた。それは骨格
+      （`course/shared.ts`）の「完成イメージ」の目印で、Day1 が手書きへ
+      移ったときに消えた——以来ずっと見つからず、`authGuestFirst` は
+      CI でしか動かないので、長く落ちたままだった。
+
+      見たいのは「登録の壁が無いこと」なので、回の中身が出ていれば足りる。
+    */
+    await expect(page.getByTestId("step-shell")).toBeVisible();
+
+    /*
+      題どおり、**AIまで届くことを実際に見る。**
+
+      押して結果が返るところまで通す。ここを見ないと、ゲストが
+      レッスンを開けるところまでしか確かめていないことになる。
+    */
+    await page.getByTestId("primary-action").first().click();
+    await expect(page.getByTestId("result-preview").first()).toBeVisible({
+      timeout: 20_000,
+    });
+
     // 登録を求める画面が割り込んでいないこと
     await expect(page.getByTestId("auth-dialog")).toHaveCount(0);
   });

@@ -6,6 +6,7 @@
 import os
 from pathlib import Path
 
+from corsheaders.defaults import default_headers as cors_default_headers
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
@@ -306,6 +307,24 @@ CORS_ALLOWED_ORIGINS = _list(
     "http://localhost:5173,http://127.0.0.1:5173",
 )
 CORS_ALLOW_CREDENTIALS = True
+
+#: 画面が足すヘッダを、許可の一覧へ入れる。
+#:
+#: **読んでいるのに、通していなかった。** `X-AIPPO-Timezone` は画面が
+#: 毎回付け（`frontend/src/api/http.ts`）、サーバーも読んでいる
+#: （`apps/lessons/services/localtime.py` の `BROWSER_HEADER`）。ところが
+#: django-cors-headers の既定の一覧に自前のヘッダは入らないので、
+#: **別オリジンからの要求は事前確認の時点で全部ブラウザに止められていた**
+#: ——教材も、AIも、学習の記録も、1つも届かない。
+#:
+#: 本番（Vercel）は画面とAPIが同じオリジンなので事前確認が起きず、
+#: これが表に出なかった。出たのは、画面とAPIを別の番号で動かす場所
+#: ——つまり CI と、手元の開発——だけ。
+#:
+#: 既定の一覧を置き換えず、足す形にする。置き換えると
+#: `content-type` や `x-csrftoken` まで自分で並べることになり、
+#: ライブラリが増やした日に静かに欠ける。
+CORS_ALLOW_HEADERS = (*cors_default_headers, "x-aippo-timezone")
 
 # --- ログイン状態の持ち方 -------------------------------------------------
 # 合言葉（トークン）は画面へ渡さない。Django のセッション Cookie だけを使う。
