@@ -34,7 +34,31 @@ async function openApp(page: Page) {
   await skipEntry(page);
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
+
+  /*
+    **教材が届くまで待ってから触る。**
+
+    画面は同梱データで先に出て、起動時の `GET /api/v1/catalog/` が
+    返ったところでサーバーの分へ差し替える（`src/course/live.ts`）。
+    差し替わる前にタブを押すと、コースの一覧が空のまま開く——帯は
+    「コース」が選ばれているのに、中身はホームのまま、という形で
+    止まる（実際そうなった）。
+
+    ここだけスタブを使わないので、返るまでの時間は**そのときの
+    サーバーの混み具合**で変わる。検査を全部並べて走らせると、
+    開発サーバーは1本ずつしか捌けないので目に見えて遅くなり、
+    単体で走らせたときだけ通る——といういちばん困る出方をする。
+
+    秒数で誤魔化さず、応答そのものを待つ。
+  */
+  const catalog = page
+    .waitForResponse(
+      (res) => res.url().includes("/api/v1/catalog/") && res.status() === 200,
+      { timeout: 60_000 },
+    )
+    .catch(() => null);
   await page.reload();
+  await catalog;
 }
 
 async function intoLesson(page: Page) {
