@@ -86,6 +86,8 @@ describe("名前の置き場", () => {
       // Day を終えた瞬間と、そこから次へ進んだ回
       "day_completed",
       "day_complete_next_clicked",
+      // 学習マップを開いた回。入口が合っているかを見る1本
+      "learning_map_opened",
     ]);
   });
 
@@ -161,7 +163,7 @@ describe("実際に送られる場面", () => {
   it("図鑑を開くと、1回送る", async () => {
     const sent = watch();
 
-    render(<SkillDexPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<SkillDexPage onSelectLesson={() => {}} onOpenCourse={() => {}} onOpenMap={() => {}} />);
 
     await waitFor(() =>
       expect(

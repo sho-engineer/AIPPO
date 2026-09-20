@@ -34,6 +34,45 @@ await p.route("**/api/v1/progress/", (r) =>
       skills: [], signed_in: false,
     },
   }));
+/*
+  AI技図鑑と学習マップ。塞いでおかないと、読み込みに失敗した画面
+  （赤い帯だけ）を検査することになり、**中身のほうが検査されない**。
+*/
+await p.route("**/api/v1/rewards/skills/", (r) =>
+  r.fulfill({
+    json: {
+      skills: [], acquired_count: 0, total_count: 0, combos: [],
+      xp: { total: 0, level: "AI Starter", next_level: "AI Beginner", to_next: 100 },
+    },
+  }));
+await p.route("**/api/v1/rewards/map/", (r) => {
+  const second = {
+    number: 2, name: "頼む",
+    description: "目的を伝えて、基本的な仕事をAIに頼める",
+    status: "locked", skipped: false, remaining: 1,
+    has_challenge: true, challenge_open: false,
+    skills: [{
+      slug: "prompt", name: "プロンプト",
+      one_line: "してほしいことをAIに伝える",
+      status: "locked", lessons: ["rewrite_text"],
+    }],
+  };
+  return r.fulfill({
+    json: {
+      current_level: 1, reached_by: "diagnosis",
+      levels: [
+        {
+          number: 1, name: "試す",
+          description: "AIに質問したり、簡単な文章生成を試せる",
+          status: "current", skipped: false, skills: [], remaining: 0,
+          has_challenge: false, challenge_open: false,
+        },
+        second,
+      ],
+      next: second,
+    },
+  });
+});
 await p.route("**/api/v1/ai/models/", (r) =>
   r.fulfill({
     json: {
@@ -85,6 +124,20 @@ await scan("ホーム");
 await p.getByRole("button", { name: "コース" }).click();
 await p.waitForTimeout(700);
 await scan("教材一覧");
+
+// マイ学びと、そこから開く学習マップ
+await p.getByRole("button", { name: "マイ学び" }).click();
+await p.waitForTimeout(700);
+await scan("マイ学び");
+if (await p.getByTestId("skills-open-map").count()) {
+  await p.getByTestId("skills-open-map").click();
+  await p.waitForTimeout(700);
+  await scan("学習マップ");
+  await p.goBack();
+  await p.waitForTimeout(500);
+}
+await p.getByRole("button", { name: "ホーム" }).click();
+await p.waitForTimeout(500);
 
 // 設定と、その下位画面
 await p.getByRole("button", { name: "その他" }).click();

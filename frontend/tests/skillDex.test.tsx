@@ -78,7 +78,7 @@ beforeEach(() => {
 
 function open(dex: SkillDex | null = DEX) {
   serve(dex);
-  return render(<SkillDexPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+  return render(<SkillDexPage onSelectLesson={() => {}} onOpenCourse={() => {}} onOpenMap={() => {}} />);
 }
 
 describe("AI技図鑑", () => {
@@ -117,7 +117,7 @@ describe("AI技図鑑", () => {
     const user = userEvent.setup();
     const go = vi.fn();
     serve(DEX);
-    render(<SkillDexPage onSelectLesson={go} onOpenCourse={() => {}} />);
+    render(<SkillDexPage onSelectLesson={go} onOpenCourse={() => {}} onOpenMap={() => {}} />);
 
     await user.click(await screen.findByTestId("skill-toggle-comparison"));
     await user.click(screen.getByTestId("skill-lesson-comparison-compare_options"));
@@ -178,7 +178,7 @@ describe("AI技図鑑", () => {
       skills: DEX.skills.map((skill) => ({ ...skill, acquired: false, acquired_at: null })),
       acquired_count: 0,
     });
-    render(<SkillDexPage onSelectLesson={() => {}} onOpenCourse={go} />);
+    render(<SkillDexPage onSelectLesson={() => {}} onOpenCourse={go} onOpenMap={() => {}} />);
 
     await user.click(await screen.findByTestId("skills-empty-start"));
 
@@ -188,7 +188,7 @@ describe("AI技図鑑", () => {
   it("読み込めなかったら、その場でやり直せる", async () => {
     const user = userEvent.setup();
     const send = serve(null);
-    render(<SkillDexPage onSelectLesson={() => {}} onOpenCourse={() => {}} />);
+    render(<SkillDexPage onSelectLesson={() => {}} onOpenCourse={() => {}} onOpenMap={() => {}} />);
 
     await user.click(await screen.findByTestId("skills-retry"));
 

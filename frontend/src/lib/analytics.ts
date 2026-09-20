@@ -105,6 +105,18 @@ export const EVENTS = {
   */
   dayCompleted: "day_completed",
   dayCompleteNextClicked: "day_complete_next_clicked",
+  /*
+    学習マップを開いた回。
+
+    見たい問いは「置き場所が合っているか」——結果画面とマイ学びの
+    どちらから来るかで、次に導線を足す場所が決まる。開かれないなら、
+    地図の中身ではなく入口が悪い。
+
+    **段が上がった回はここから送らない。** 上げたのはサーバーなので、
+    サーバーが記録している（`ChallengeAttempt`）。こちらからも送ると
+    二重に数える。
+  */
+  learningMapOpened: "learning_map_opened",
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

@@ -43,6 +43,8 @@ export const SCREENS = [
   "RECORD",
   // AI技図鑑。「何ができるようになったか」を見る場所
   "SKILLS",
+  // 学習マップ。「いまどの段で、次に何が要るか」を見る場所
+  "MAP",
   // マイ成果物。「何を作ったか」を取り出す場所
   "WORKS",
   "SAVED",
@@ -61,6 +63,7 @@ export type ScreenEvent =
   | "OPEN_DIAGNOSIS_INTRO"
   | "OPEN_RECORD"
   | "OPEN_SKILLS"
+  | "OPEN_MAP"
   | "OPEN_WORKS"
   | "OPEN_SAVED"
   | "OPEN_SETTINGS"
@@ -87,6 +90,7 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
   HOME: {
     SELECT_LESSON: "LESSON",
     OPEN_COURSE: "COURSE",
+    OPEN_MAP: "MAP",
     // ホームの「学習の道のり」から、いま学んでいるコースの道のりへ。
     // 一覧を経由させない——どのコースを見たいかは、もう決まっている
     OPEN_COURSE_DETAIL: "COURSE_DETAIL",
@@ -127,6 +131,8 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
   // レッスンを終えたらホームへ戻す。行き止まりにしない（憲章 原則 I）
   LESSON: {
     BACK_TO_HOME: "HOME",
+    // 診断の結果と完了画面から、次に何が要るかを見に行ける
+    OPEN_MAP: "MAP",
     OPEN_COURSE: "COURSE",
     OPEN_COURSE_DETAIL: "COURSE_DETAIL",
     // 完了画面の「こんな使い方もできます」から、くわしい説明へ
@@ -173,6 +179,8 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     SELECT_LESSON: "LESSON",
     BACK_TO_HOME: "HOME",
     OPEN_COURSE: "COURSE",
+    // 「何ができるか」の隣に「次に何が要るか」を置く
+    OPEN_MAP: "MAP",
     OPEN_RECORD: "RECORD",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
@@ -190,6 +198,24 @@ const TRANSITIONS: Record<Screen, Partial<Record<ScreenEvent, Screen>>> = {
     OPEN_COURSE: "COURSE",
     OPEN_RECORD: "RECORD",
     OPEN_SKILLS: "SKILLS",
+    OPEN_SAVED: "SAVED",
+    OPEN_SETTINGS: "SETTINGS",
+    BACK_TO_WELCOME: "WELCOME",
+  },
+  /*
+    学習マップ。**行き止まりにしない。**
+
+    足りない技のレッスンへ、ここから直接入れる。見て終わりにすると、
+    「あと2つ」と言われた人が、どこへ行けばよいか分からないまま
+    画面を閉じることになる。
+  */
+  MAP: {
+    SELECT_LESSON: "LESSON",
+    BACK_TO_HOME: "HOME",
+    OPEN_COURSE: "COURSE",
+    OPEN_SKILLS: "SKILLS",
+    OPEN_RECORD: "RECORD",
+    OPEN_WORKS: "WORKS",
     OPEN_SAVED: "SAVED",
     OPEN_SETTINGS: "SETTINGS",
     BACK_TO_WELCOME: "WELCOME",

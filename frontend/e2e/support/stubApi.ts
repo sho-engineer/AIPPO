@@ -48,6 +48,8 @@ export interface StubOptions {
   passkey?: boolean;
   /** AI技図鑑の中身。既定は「1つも覚えていない」。 */
   skillDex?: unknown;
+  /** 学習マップの中身。既定は「Lv.1 に居て、次の段の技が2つ未取得」。 */
+  levelMap?: unknown;
   /** 取っておいた成果物。既定は「ゲストなので使えない」。 */
   saved?: unknown;
   /**
@@ -331,6 +333,66 @@ export async function stubApi(
           total_count: 0,
           combos: [],
           xp: { total: 0, level: "AI Starter", next_level: "AI Beginner", to_next: 100 },
+        },
+      ),
+    });
+  });
+
+  /*
+    学習マップ。既定は「Lv.1 に居て、Lv.2 の技が2つとも未取得」。
+
+    ここも塞いでおかないと、開発機に立っているバックエンドの中身で
+    検査の結果が変わる（技図鑑と同じ理由）。
+  */
+  await page.route("**/api/v1/rewards/map/", async (route: Route) => {
+    const second = {
+      number: 2,
+      name: "頼む",
+      description: "目的を伝えて、基本的な仕事をAIに頼める",
+      status: "locked",
+      skipped: false,
+      remaining: 2,
+      has_challenge: true,
+      challenge_open: false,
+      skills: [
+        {
+          slug: "prompt",
+          name: "プロンプト",
+          one_line: "してほしいことをAIに伝える",
+          status: "locked",
+          lessons: ["rewrite_text"],
+        },
+        {
+          slug: "context",
+          name: "コンテキスト",
+          one_line: "背景と目的を先に渡す",
+          status: "locked",
+          lessons: ["summarize_text"],
+        },
+      ],
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        options.levelMap ?? {
+          current_level: 1,
+          reached_by: "diagnosis",
+          levels: [
+            {
+              number: 1,
+              name: "試す",
+              description: "AIに質問したり、簡単な文章生成を試せる",
+              status: "current",
+              skipped: false,
+              skills: [],
+              remaining: 0,
+              has_challenge: false,
+              challenge_open: false,
+            },
+            second,
+          ],
+          next: second,
         },
       ),
     });

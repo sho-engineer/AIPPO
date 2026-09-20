@@ -56,6 +56,7 @@ import { RecipePage } from "./pages/RecipePage";
 import { appliedTipById } from "./course/appliedTips";
 import { useCompletedLessons } from "./course/progress";
 import { SavedPage } from "./pages/SavedPage";
+import { LearningMapPage } from "./pages/LearningMapPage";
 import { SkillDexPage } from "./pages/SkillDexPage";
 import { WorksPage } from "./pages/WorksPage";
 
@@ -82,6 +83,8 @@ const TAB_OF: Partial<Record<Screen, TabKey>> = {
   // 学習記録・あとで見るは、下タブから外した（その他とホームから開ける）。
   // どのタブも光らせない——光っていないタブを押させないため
   SKILLS: "skills",
+  // 地図は「マイ学び」から入る。光る場所は動かさない
+  MAP: "skills",
   WORKS: "works",
   SETTINGS: "more",
 };
@@ -153,6 +156,8 @@ const BACK_FALLBACK: Record<Screen, Screen> = {
   RECIPE: "COURSE_DETAIL",
   RECORD: "HOME",
   SKILLS: "HOME",
+  // 地図から戻る先は「マイ学び」。来たのはそこから
+  MAP: "SKILLS",
   WORKS: "HOME",
   SAVED: "HOME",
   SETTINGS: "HOME",
@@ -673,8 +678,12 @@ export function App() {
           <SkillDexPage
             onSelectLesson={(id) => openLesson(id, "SKILLS")}
             onOpenCourse={() => navigate(nextScreen("SKILLS", "OPEN_COURSE"))}
+            onOpenMap={() => navigate(nextScreen("SKILLS", "OPEN_MAP"))}
           />
         );
+
+      case "MAP":
+        return <LearningMapPage onSelectLesson={(id) => openLesson(id, "MAP")} />;
 
       case "RECORD":
         return (

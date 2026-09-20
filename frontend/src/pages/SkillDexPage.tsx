@@ -28,7 +28,13 @@ import { AppHeader } from "../components/AppShell";
 import { ReviewPrompt } from "../components/ReviewPrompt";
 import { ReviewCards } from "../components/course/ReviewCards";
 import { useCourse } from "../course/live";
-import { IconCheck, IconSparkle, IconStar } from "../components/Icons";
+import {
+  IconCheck,
+  IconChevronRight,
+  IconMedal,
+  IconSparkle,
+  IconStar,
+} from "../components/Icons";
 import { EVENTS, track } from "../lib/analytics";
 
 export interface SkillDexPageProps {
@@ -36,6 +42,8 @@ export interface SkillDexPageProps {
   onSelectLesson: (lessonId: string) => void;
   /** 何も取れていない人の行き先。 */
   onOpenCourse: () => void;
+  /** 学習マップへ。「何ができるか」の隣に「次に何が要るか」を置く。 */
+  onOpenMap: () => void;
 }
 
 /**
@@ -183,7 +191,11 @@ function SkillCard({
   );
 }
 
-export function SkillDexPage({ onSelectLesson, onOpenCourse }: SkillDexPageProps) {
+export function SkillDexPage({
+  onSelectLesson,
+  onOpenCourse,
+  onOpenMap,
+}: SkillDexPageProps) {
   /* 見返しの札が、どの教材の話かを引くのに要る */
   const course = useCourse();
   const [dex, setDex] = useState<SkillDex | null>(null);
@@ -229,6 +241,37 @@ export function SkillDexPage({ onSelectLesson, onOpenCourse }: SkillDexPageProps
 
           どちらも、無ければ何も出ない。空の見出しは残らない。
         */}
+        {/*
+          学習マップへの1行。**この画面の上のほうに置く。**
+
+          ここが答えるのは「いま何ができるか」で、地図が答えるのは
+          「次に何が要るか」。続きの問いなので、覚えた技の一覧を
+          読み終えるより前に行き先を見せる。
+        */}
+        <button
+          type="button"
+          onClick={onOpenMap}
+          data-testid="skills-open-map"
+          className="mt-4 flex min-h-[2.75rem] w-full items-center gap-3 rounded-card
+                     border border-brand-line bg-brand-soft/40 px-4 py-3 text-left
+                     transition hover:bg-brand-soft active:scale-[0.99]"
+        >
+          <span
+            aria-hidden="true"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full
+                       bg-brand text-white"
+          >
+            <IconMedal className="h-4 w-4" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-bold">学習マップ</span>
+            <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
+              いまいる段と、次の段に必要な技
+            </span>
+          </span>
+          <IconChevronRight className="h-4 w-4 shrink-0 text-ink-muted" />
+        </button>
+
         <ReviewPrompt onSelectLesson={onSelectLesson} />
         <ReviewCards course={course} />
 
