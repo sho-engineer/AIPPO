@@ -155,6 +155,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   */
   const lastCheckedAt = useRef(0);
 
+  /**
+   * 「案内を見た」を、サーバーへもう送ったか。
+   *
+   * ここに置くのは、`AuthProvider` がアプリの開いているあいだ
+   * 作り直されないから。画面側の `ref` は組み替えで消えるので、
+   * 数える場所としては足りない（`markDiagnosisNudgeSeen`）。
+   */
+  const sentNudgeSeen = useRef(false);
+
   useEffect(() => {
     // ログインしていない人には聞かない。聞いても答えは変わらないので、
     // ゲストのまま学んでいる人に無駄な通信をさせないため
@@ -234,6 +243,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             ——ログインし直せば戻ってくる。
           */
           clearDeviceLearningCache();
+          /*
+            「案内を送った」の掛け金も戻す。
+
+            次に入る人は**別の人**かもしれない。立てたままにすると、
+            その人が案内を見ても、見たことがサーバーへ残らない。
+          */
+          sentNudgeSeen.current = false;
           // 通信に失敗しても、この端末の表示はログアウトにする。
           // 押したのに残っていると、共用の端末で次の人に見えてしまう
           setState({ ...INITIAL, loading: false });
@@ -253,28 +269,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       markDiagnosisNudgeSeen() {
         /*
-          **もう立っているなら、送らない。**
+          **1度だけ送る。掛け金はここに置く。**
 
-          案内の画面は「1度だけ」を `ref` で守っているが、`ref` は
-          描き直しでは残っても**作り直し（unmount → mount）では消える**。
-          親の状態が変わって組み替えが起きると数え直しになり、同じ
-          書き込みが2回出る——CI の通しで実際に2回届いた。
+          案内の画面も「1度だけ」を `ref` で守っているが、あちらの
+          `ref` は描き直しでは残っても**作り直し（unmount → mount）
+          では消える**。親の状態が変わって組み替えが起きると数え直しに
+          なり、同じ書き込みが2回出る——CI の通しで実際に2回届いた。
 
-          止めるならここ。呼ぶ側がいくつ増えても、送るのは1回で済む。
-          「見た」は戻らない（true から false にはしない）ので、
-          立っているかどうかだけ見れば足りる。
+          ここの `ref` は `AuthProvider` のもので、アプリが開いている
+          あいだ作り直されない。呼ぶ側がいくつ増えても、送るのは1回。
+
+          状態の中を見て決めない
+          ----------------------
+          はじめは `setState` の更新関数の中で「もう立っているか」を
+          見ていた。**あれでは間に合わない**——更新関数が走るのは次の
+          描画のときで、呼んだその場では返ってこない。同じ回に2回
+          呼ばれると、どちらも「まだ」と読んで2回送る（実際そうなり、
+          CI は直したはずのあとも同じ2件を返した）。
+
+          掛け金は、読むのも立てるのも**その場で終わる**ものにする。
         */
-        let alreadySeen = false;
-        setState((current) => {
-          if (!current.user) return current;
-          alreadySeen = current.user.diagnosis_nudge_seen === true;
-          if (alreadySeen) return current;
-          return {
-            ...current,
-            user: { ...current.user, diagnosis_nudge_seen: true },
-          };
-        });
-        if (alreadySeen) return;
+        if (sentNudgeSeen.current) return;
+        sentNudgeSeen.current = true;
+
+        setState((current) =>
+          current.user
+            ? { ...current, user: { ...current.user, diagnosis_nudge_seen: true } }
+            : current,
+        );
 
         /*
           サーバーにも残す。**返事は待たない。**
