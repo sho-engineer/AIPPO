@@ -7,54 +7,57 @@
  * 出ると、**答えと結果のあいだに何も無い**。5つ押しただけのものが
  * 判定として返ってくるので、読む前に「当たっているのか」を疑う側に
  * 回る。ここに1枚挟むのは、待たせるためではなく**何を見たのか**を
- * 言うため——4つの観点で振り返った、と先に言っておく。
+ * 言うため。
  *
- * 読める長さにする
- * ----------------
- * 最初の版は 1.8 秒だった（実測）。4つの観点を目で追うには短く、
- * 「出た瞬間に消えた」と言われた。いまは **2.8 秒**。
+ * 長さの決め方
+ * ------------
+ * 1.8秒 → 2.8秒 と伸ばしてきて、実機では**まだ短い**と言われた。
+ * いまは初回 **5秒**。4つの段を1.5秒ずつ読ませ、最後に結果が
+ * できたことを言う。
  *
- *     0.4秒ごとに1つずつ強調   … 4つで 1.6 秒
- *     最後の1つのあとに余韻     … 残り 1.2 秒
+ *     0.0〜1.5  回答を整理しています
+ *     1.5〜3.0  AIの使い方を見ています
+ *     3.0〜4.5  得意なところと、伸ばせるところを確かめています
+ *     4.5〜5.0  診断結果ができました
  *
- * 待たせる画面ではないので、これ以上は伸ばさない。
+ * **直したときは 1.4 秒**（`mode="recalc"`）。1問だけ直した人に
+ * 同じ5秒を見せると、直すたびに待たされる。初回は「診断を受けた」
+ * 体験、直したときは「すぐ反映された」体験と、役割を分ける。
  *
- * ひとまとまりにする
- * ------------------
- * 前は見出しと説明を画面の上（`StepShell` の見出し欄）に、ポーと
- * 4項目を中央に置いていた。あいだに**大きな白**が空き、上の文と下の
- * 項目が別のものに見える。いまはこの部品が画面まるごとを受け持ち、
- * ポー・見出し・説明・4項目を**中央のひとかたまり**として置く。
+ * 進み具合を出す
+ * --------------
+ * 帯が 0 から 100 まで進む。**これは演出そのものの進み具合**で、
+ * 採点の進捗ではない——採点は端末の中の計算で、押した時点でほぼ
+ * 終わっている。偽の数字を出しているのではなく、「あと どれくらいで
+ * 結果が出るか」を目で分かるようにしているだけ。だから帯は必ず
+ * 5秒で右端へ着き、途中で止まったり跳ねたりしない。
  *
- * 一度消した画面と、どこが違うか
+ * やっていないことを言わない
+ * --------------------------
+ * 「AIが分析しています」とは書かない。採点は端末の中の計算で、外の
+ * AI は通っていない。指示書の例は「回答を分析しています」だったが、
+ * **分析という語はここでは嘘になる**ので「整理」「見ています」
+ * 「確かめています」に置き換えてある。段の数も長さも指示どおり。
+ *
+ * 選択肢と見分けが付くようにする
  * ------------------------------
- * 前にも「分析しています」の画面があり、消した。理由は2つあって、
- * どちらもこの版では避けてある。
- *
- *   ・**やっていないことを言っていた**（「AIが分析しています」）。
- *     採点は端末の中の計算で、外のAIは通っていない。いまは
- *     「回答を整理しています」——実際にやることしか書かない。
- *     偽の進捗率も、架空の処理ステップも出さない。
- *
- *   ・**選択肢と見分けが付かなかった**。4つの観点を白い角丸カードに
- *     丸い印で縦に並べ、順に青くしていたので、直前まで答えていた
- *     札と同じ形をしていた——自分が押していない項目に勝手に
- *     チェックが付くように見える。いまは印も枠も地色も持たない
- *     字の行で、押せるものには見えない。
+ * 前にこの画面を一度消したことがある。4つの観点を白い角丸カードに
+ * 丸い印で縦に並べ、順に青くしていたので、直前まで答えていた札と
+ * 同じ形に見えた——**自分が押していない項目に勝手にチェックが付く**。
+ * いまは印も枠も地色も持たない字の行で、押せるものには見えない。
  *
  * 時間で進めない
  * --------------
- * **演出の時計と、結果ができたかどうかは別のもの。** 2.8 秒たっても
- * 結果が作れていなければ進まない（`ready`）。採点は同期の計算なので
- * ふつうは先に終わっているが、「時間が来たから次へ」にしておくと、
- * 失敗しているのに結果の画面へ進む形がいつでも作れてしまう。
+ * **演出の時計と、結果ができたかどうかは別のもの。** 時間がたっても
+ * 結果が作れていなければ進まない（`ready`）。「時間が来たから次へ」に
+ * しておくと、失敗しているのに結果の画面へ進む形がいつでも作れて
+ * しまう。
  *
  * 離れたら、進めない
  * ------------------
  * 閉じた・戻った・別の画面を開いた——そのあとに時計だけが生き残って
- * 結果へ飛ばすことが無いようにする。消えるときに時計も止め
- * （`useEffect` の後始末）、一枚（確認のシート）が開いているあいだは
- * 進めない。
+ * 結果へ飛ばすことが無いようにする。消えるときに時計も止め、
+ * 一枚（確認のシート）が開いているあいだは進めない。
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -63,24 +66,25 @@ import { IconCheckCircle } from "../../Icons";
 import { PoFace } from "../../../po/PoAvatar";
 import { isSheetOpen } from "../MoreSheet";
 import { resetRadarSpread } from "./RadarChart";
-import { AXES, AXIS_LABELS, type Axis } from "../../../course/diagnosisScore";
+
+/** 初回。指示どおり5秒。 */
+const FULL_MS = 5000;
+
+/** 答えを直したあと。同じ5秒を見せない。 */
+const RECALC_MS = 1400;
 
 /**
- * 観点の並び。**採点の軸そのもの**（`AXES`）から作る。
+ * 初回に出す4つの段。
  *
- * ここに4つの名前を書き写すと、軸を足した日にこの画面だけが古い数を
- * 言う。「自分に合わせる」だけ `AXIS_LABELS`（「目的に合わせる」）と
- * 言い換えているので、その差分だけを持つ。
+ * `at` は出し始める時刻。最後の1つだけ短い（0.5秒）のは、あれが
+ * 「できました」の一言で、読ませる文ではないから。
  */
-const SAY: Partial<Record<Axis, string>> = {
-  purpose: "自分に合わせる",
-};
-
-/** 1つ強調してから、次を強調するまで。 */
-const STEP = 400;
-
-/** 出してから、結果の画面へ移るまで。最後の項目のあとに余韻が残る。 */
-const TOTAL = 2800;
+const STAGES = [
+  { at: 0, title: "回答を整理しています" },
+  { at: 1500, title: "AIの使い方を見ています" },
+  { at: 3000, title: "得意なところと、伸ばせるところを確かめています" },
+  { at: 4500, title: "診断結果ができました" },
+] as const;
 
 export interface AnalyzingProps {
   /**
@@ -91,44 +95,68 @@ export interface AnalyzingProps {
   ready: boolean;
   /** 見せ終わり、結果もできている。 */
   onDone: () => void;
-  /** 動きを減らす設定か。順に点けず、最初から全部を出す。 */
+  /** 動きを減らす設定か。段を追わず、最初から最後の姿で出す。 */
   reduced: boolean;
+  /**
+   * 初回の診断か、答えを直したあとの作り直しか。
+   *
+   * 既定は初回。直したあとは短く、言うことも1つにする。
+   */
+  mode?: "full" | "recalc";
 }
 
-export function Analyzing({ ready, onDone, reduced }: AnalyzingProps) {
+export function Analyzing({
+  ready,
+  onDone,
+  reduced,
+  mode = "full",
+}: AnalyzingProps) {
+  const recalc = mode === "recalc";
+  const total = recalc ? RECALC_MS : FULL_MS;
+
   /*
-    いくつ目まで強調したか。**見た目だけの数**で、採点とは関係が無い。
-    動きを減らす設定では、最初から全部。
+    いま何段目か。**見た目だけの数**で、採点とは関係が無い。
+    動きを減らす設定では、最初から最後の段。
   */
-  const [lit, setLit] = useState(reduced ? AXES.length : 0);
+  const [stage, setStage] = useState(reduced ? STAGES.length - 1 : 0);
+
+  /*
+    帯の進み。最初の描画では 0 で、次の描画で 100 にする——同じ描画の
+    中で 0 → 100 にすると、移り変わりが起きずに一瞬で右端へ飛ぶ。
+  */
+  const [running, setRunning] = useState(false);
 
   /* 進むのは1度だけ。時計と `ready` の両方から呼ばれる */
   const went = useRef(false);
 
   /*
-    この1枚が出た＝**新しく答え終わって、結果を作っている**。
+    この1枚が出た＝**結果を作っている**。
 
     ひし形の「もう見せた」を、ここで忘れさせる。答えを直して同じ
-    点数に戻った人にも、新しく答え終わった回はもう一度出すため
-    （戻ってきただけの人には出さない、という決まりはあちらが持つ）。
+    点数に戻った人にも、作り直した回はもう一度出すため。
   */
   useEffect(() => {
     resetRadarSpread();
   }, []);
 
   useEffect(() => {
-    if (reduced) return;
-    const timers = AXES.map((_, at) =>
-      window.setTimeout(() => setLit(at + 1), STEP * (at + 1)),
+    const id = window.requestAnimationFrame(() => setRunning(true));
+    return () => window.cancelAnimationFrame(id);
+  }, []);
+
+  useEffect(() => {
+    if (reduced || recalc) return;
+    const timers = STAGES.slice(1).map((step, at) =>
+      window.setTimeout(() => setStage(at + 1), step.at),
     );
     return () => timers.forEach((id) => window.clearTimeout(id));
-  }, [reduced]);
+  }, [reduced, recalc]);
 
   useEffect(() => {
     /*
       進む条件は3つそろったとき。**どれか1つでも欠けたら進まない。**
 
-        1. 見せ終わった（2.8秒）
+        1. 見せ終わった
         2. 結果ができている（`ready`）
         3. 一枚が開いていない——確認のシートの後ろで画面が
            入れ替わると、閉じた先が思っていた場所と違う
@@ -145,9 +173,11 @@ export function Analyzing({ ready, onDone, reduced }: AnalyzingProps) {
       }
       went.current = true;
       onDone();
-    }, TOTAL);
+    }, total);
     return () => window.clearTimeout(id);
-  }, [ready, onDone]);
+  }, [ready, onDone, total]);
+
+  const title = recalc ? "結果を更新しています" : STAGES[stage].title;
 
   return (
     /*
@@ -163,6 +193,7 @@ export function Analyzing({ ready, onDone, reduced }: AnalyzingProps) {
                  pb-[max(1rem,env(safe-area-inset-bottom))]"
       data-testid="diagnosis-analyzing"
       data-ready={ready ? "yes" : "no"}
+      data-mode={mode}
     >
       {/*
         ポー。既存のものをそのまま使う（描き起こさない）。
@@ -170,76 +201,103 @@ export function Analyzing({ ready, onDone, reduced }: AnalyzingProps) {
       */}
       <PoFace emotion="question" size="md" />
 
-      <h1 className="mt-4 text-center text-lg font-bold leading-7">
-        回答を整理しています
-      </h1>
-
       {/*
-        説明。**行の折れる場所を決めておく**（`<br>`）。
-        成り行きに任せると、端末の幅で2行になったり3行になったりして、
-        下の4項目の位置が端末ごとに変わる。
+        段の文。**高さを先に取っておく。**
+
+        4つの文は長さが違い、いちばん長い「得意なところと、伸ばせる
+        ところを確かめています」は狭い画面で2行になる。成り行きに
+        任せると段が変わるたびに下の帯と項目が動くので、2行ぶんの
+        高さを最初から空けておく。
       */}
-      <p className="mt-2 text-center text-sm leading-6 text-ink-muted">
-        4つの観点から、
-        <br />
-        今のAIの使い方を確認しています。
-      </p>
+      <div className="mt-4 flex min-h-[3.5rem] items-center">
+        <h1
+          className="text-center text-lg font-bold leading-7"
+          data-testid="analyzing-title"
+        >
+          {title}
+        </h1>
+      </div>
 
       {/*
-        4つの観点。**最初から4行そろえて置く。**
+        進み具合。**演出そのものの進み具合**で、採点の進捗ではない。
+
+        時間は CSS に任せる（`transition`）。1フレームずつ JavaScript で
+        書き換えると、込み合った端末で飛び飛びになる。
+      */}
+      <div
+        className="mt-3 h-1.5 w-full max-w-[15rem] overflow-hidden rounded-full bg-line"
+        role="progressbar"
+        aria-label="診断の進み具合"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={running ? 100 : 0}
+        data-testid="analyzing-progress"
+      >
+        <div
+          className="h-full rounded-full bg-brand"
+          style={{
+            width: running ? "100%" : "0%",
+            transition: `width ${total}ms linear`,
+          }}
+        />
+      </div>
+
+      {/*
+        4つの段を、そのまま並べる。**最初から4行そろえて置く。**
 
         順に足していくと、行が増えるたびに下がずれる。順番に見せたいのは
         「1つずつ見ている」ことであって、増えていくことではない。
 
-        強調は、色と太さと印の3つ。場所は動かさない——太字ぶんの幅は
-        先に取ってあり（`bold-safe`）、印は最初から場所を取っている。
+        直したあと（`recalc`）は出さない。1.4秒で4行を追わせても読めず、
+        読めないものを置くと画面が重くなるだけ。
       */}
-      <ul
-        className="mt-5 w-full max-w-[15rem] space-y-2"
-        role="list"
-        data-testid="analyzing-axes"
-      >
-        {AXES.map((axis, at) => {
-          const on = at < lit;
-          const text = `${SAY[axis] ?? AXIS_LABELS[axis]}力`;
-          return (
-            <li
-              key={axis}
-              data-lit={on ? "yes" : "no"}
-              className="flex items-center justify-center gap-1.5"
-            >
-              {/*
-                印。**選ぶ札のチェックには見せない。**
-
-                前の版は丸い塗りつぶしのチェックで、直前まで押していた
-                選択肢と同じ形だった。ここは輪郭だけの印にして、
-                場所は最初から空けておく（`opacity`）。
-              */}
-              <IconCheckCircle
-                aria-hidden="true"
-                className={`h-4 w-4 shrink-0 text-brand transition-opacity duration-300 ${
-                  on ? "opacity-100" : "opacity-0"
-                }`}
-              />
-              <span
-                className={`bold-safe text-sm leading-6 transition-colors duration-300 ${
-                  on ? "font-bold text-brand-dark" : "text-ink-muted/60"
-                }`}
-                data-label={text}
+      {!recalc && (
+        <ul
+          className="mt-5 w-full max-w-[16rem] space-y-2"
+          role="list"
+          data-testid="analyzing-axes"
+        >
+          {STAGES.map((step, at) => {
+            const on = at <= stage;
+            return (
+              <li
+                key={step.at}
+                data-lit={on ? "yes" : "no"}
+                className="flex items-center gap-1.5"
               >
-                {text}
-              </span>
-            </li>
-          );
-        })}
-      </ul>
+                {/*
+                  印。**選ぶ札のチェックには見せない。**
+
+                  輪郭だけの印にして、場所は最初から空けておく
+                  （`opacity` で出し入れする。要素は消さない）。
+                */}
+                <IconCheckCircle
+                  aria-hidden="true"
+                  className={`h-4 w-4 shrink-0 text-brand transition-opacity duration-300 ${
+                    on ? "opacity-100" : "opacity-0"
+                  }`}
+                />
+                <span
+                  className={`bold-safe text-sm leading-6 transition-colors duration-300 ${
+                    on ? "font-bold text-brand-dark" : "text-ink-muted/60"
+                  }`}
+                  data-label={step.title}
+                >
+                  {step.title}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
       {/*
-        読み上げには、点く順を渡さない。**途中の姿は結果ではない。**
-        言うのは、いま何をしているかだけ。
+        読み上げには、段が変わるたびの文を渡さない。1.5秒ごとに
+        割り込むと、読み上げている途中で次に上書きされる。
+        言うのは、いま何が起きているかだけ。
       */}
       <p className="sr-only" role="status">
-        回答を整理しています。
+        {recalc ? "結果を更新しています。" : "回答を整理しています。"}
       </p>
     </div>
   );

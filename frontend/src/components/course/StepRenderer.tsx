@@ -90,6 +90,15 @@ export interface StepRendererProps {
    * `LessonRunner` だから。**上と下で別々に持つと、言うことがずれる。**
    */
   diagnosisPhase?: DiagnosisPhase;
+  /**
+   * 診断結果から、その回答だけを直しに行く。
+   *
+   * `api.goTo` を直に渡していたころは、着いた先がふつうの問いの画面に
+   * なり、**直したあとは残りの問いをもう一度通る**ことになっていた。
+   * 直すのは「診断をやり直す機能」ではないので、`LessonRunner` が
+   * 編集として構えたうえで移す（`beginEdit`）。
+   */
+  onEditAnswer?: (stepId: string) => void;
 }
 
 /**
@@ -127,6 +136,7 @@ export function StepRenderer({
   onOpenRecipe,
   onPickLesson,
   diagnosisPhase = "stage",
+  onEditAnswer,
 }: StepRendererProps) {
   const { step, values, runs } = api;
   const completedCount = completedIds.length;
@@ -1026,7 +1036,7 @@ export function StepRenderer({
             values={values}
             lessons={course.lessons}
             phase={diagnosisPhase}
-            onEditAnswer={api.goTo}
+            onEditAnswer={onEditAnswer}
             onPickLesson={onPickLesson}
           />
         );

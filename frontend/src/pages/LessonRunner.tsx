@@ -481,9 +481,95 @@ export function LessonRunner({
     見ないまま**次へ行くことになる。
   */
   const atResult = isDiagnosisResult;
+
+  /**
+   * いま、**1問だけ**直している最中か。
+   *
+   * なぜ状態を持つか
+   * ----------------
+   * 前は「直す」が `goTo` を呼ぶだけだった。着いた先はふつうの問いの
+   * 画面なので、直したあとは**残りの問いをもう一度通る**——5問目まで
+   * 進み直して、また整理中を見て、やっと結果に戻る。直したいのは
+   * 1つなのに、診断をやり直したのと同じ手間がかかっていた。
+   *
+   * 直すのは「診断をやり直す機能」ではなく「その回答だけを書き換える
+   * 機能」にする。そのために覚えておくのは3つ。
+   *
+   *   `stepId` … どの回を直しているか（ここ以外では編集扱いにしない）
+   *   `backTo` … 直しに来る前に見ていた結果の画面。**そこへ返す**
+   *   `before` … 直す前の答え。「キャンセル」で元に戻す
+   *
+   * `backTo` を覚えるのは、結果が3画面に分かれているから。いつも
+   * 先頭（現在地）へ返すと、4つの力を見ていた人は自分で2回押し直す
+   * ことになる。
+   */
+  const [editing, setEditing] = useState<{
+    stepId: string;
+    backTo: DiagnosisPhase;
+    before: Record<string, string>;
+  } | null>(null);
+
+  /** 直したあとの作り直しか。初回の5秒ではなく、短い1.4秒を出す。 */
+  const [recalculating, setRecalculating] = useState(false);
+
+  /* いま直している回に居るか。別の回へ移ったら、編集は終わり */
+  const inEditMode = Boolean(editing && editing.stepId === step.id);
+
   useEffect(() => {
     if (!atResult) setPhase(DIAGNOSIS_PHASES[0]);
   }, [atResult]);
+
+  /** 結果の画面が載っている回。直したあと、ここへ帰る。 */
+  const completionStepId = lesson.steps.find(
+    (each) => each.type === "completion",
+  )?.id;
+
+  /** その回が持っている答えの鍵。まとめて1つの回の答えとして扱う。 */
+  const keysOf = (target: Lesson["steps"][number]): string[] => [
+    ...(target.key ? [target.key] : []),
+    ...((target.parts ?? []).map((part) => part.key).filter(Boolean) as string[]),
+  ];
+
+  /** 「直す」を押された。その回だけを開き、いまの答えを控えておく。 */
+  const beginEdit = (stepId: string) => {
+    const target = lesson.steps.find((each) => each.id === stepId);
+    if (!target) return;
+    const before: Record<string, string> = {};
+    for (const key of keysOf(target)) before[key] = values[key] ?? "";
+    setEditing({ stepId, backTo: phase, before });
+    api.goTo(stepId);
+  };
+
+  /**
+   * 「変更を反映」。**結果へ帰る。次の問いへは進まない。**
+   *
+   * 帰り道で整理中の1枚を通るが、初回の5秒ではなく 1.4 秒
+   * （`recalculating`）。採点そのものは結果の画面が毎回やり直すので、
+   * ここですることは「どこへ帰るか」を決めるだけ。
+   */
+  const applyEdit = () => {
+    if (!editing || !completionStepId) return;
+    setRecalculating(true);
+    api.goTo(completionStepId);
+  };
+
+  /**
+   * 「キャンセル」。**答えを元に戻して**、結果へ帰る。
+   *
+   * 作り直しの1枚は通らない——何も変えていないのに「更新しています」と
+   * 出るのは嘘になる。控えていた答えを書き戻し、見ていた画面へ直接返す。
+   */
+  const cancelEdit = () => {
+    if (!editing || !completionStepId) return;
+    for (const [key, was] of Object.entries(editing.before)) {
+      api.setValue(key, was);
+    }
+    const backTo = editing.backTo;
+    setEditing(null);
+    setRecalculating(false);
+    api.goTo(completionStepId);
+    setPhase(backTo);
+  };
 
   /*
     押されたときに何をするかは、**そのときの状態で決める。**
@@ -688,6 +774,12 @@ export function LessonRunner({
         別々に持つと、画面の上と下で言うことがずれる。
       */
       diagnosisPhase={phase}
+      /*
+        「直す」は、その回答だけを書き換える操作。**診断のやり直し
+        ではない。** `api.goTo` を直に渡すと問いの画面へ着くだけで、
+        直したあと残りの問いをもう一度通ることになる。
+      */
+      onEditAnswer={beginEdit}
     />
   );
 
@@ -1094,7 +1186,23 @@ export function LessonRunner({
           */
           ready={Boolean(values)}
           reduced={prefersReducedMotion()}
-          onDone={() => setPhase(FIRST_RESULT_PHASE)}
+          /*
+            直したあとは短く。初回は「診断を受けた」体験、直した
+            あとは「すぐ反映された」体験と、役割を分ける。
+          */
+          mode={recalculating ? "recalc" : "full"}
+          onDone={() => {
+            /*
+              帰る先は、**直しに来る前に見ていた画面**。
+
+              いつも先頭（現在地）へ返すと、4つの力を見ていた人は
+              自分で2回押し直すことになる。初回はまだ何も見ていない
+              ので、先頭がそのまま帰る先。
+            */
+            setPhase(editing?.backTo ?? FIRST_RESULT_PHASE);
+            setEditing(null);
+            setRecalculating(false);
+          }}
         />
       ) : stuck ? (
         /*
@@ -1115,7 +1223,21 @@ export function LessonRunner({
       ) : (
         <>
       <StepShell
-        {...(isDiagnosisResult
+        {...(inEditMode
+          ? {
+              /*
+                直している最中は、**ふつうの問いと見分けが付くようにする。**
+
+                見た目は同じ問いの画面なので、何も言わないと「診断を
+                最初からやり直している」と読める。肩書きに1行だけ置く
+                ——見出しそのものは問いの文のままにする（そこを
+                差し替えると、何を聞かれているのか分からなくなる）。
+              */
+              eyebrow: { icon: IconChecklist, label: "回答を修正" },
+              title: step.title,
+              instruction: step.instruction,
+            }
+          : isDiagnosisResult
           ? {
               /*
                 結果は4画面。見出しも肩書きも、その画面のものを出す
@@ -1317,9 +1439,18 @@ export function LessonRunner({
               phase === "lesson"
               ? `Day ${course.lessons.find((one) => one.id === recommendLesson(values))?.number ?? 1}をはじめる`
               : PHASE_COPY[phase].primary
-            : primaryLabel(step)
+            : /*
+                直している最中は「次へ」ではない。**次の問いへは行かない。**
+
+                ここが「次へ」のままだと、押した人は残りの問いへ進むと
+                思う（実際、前はそう動いていた）。押した先が結果である
+                ことを、言葉で先に言う。
+              */
+              inEditMode
+              ? "変更を反映"
+              : primaryLabel(step)
         }
-        onPrimary={onPrimary}
+        onPrimary={inEditMode ? applyEdit : onPrimary}
         /*
           答えるまで、次へは押せない。
 
@@ -1366,7 +1497,16 @@ export function LessonRunner({
             戻るボタンを4回押すことになる。入れた文章も選んだ条件も
             消えない（`values` はステップを移っても残る）。
           */
-          editStep
+          /*
+            直している最中は、**やめる道をここに置く。**
+
+            主ボタン（変更を反映）のすぐ下。帯の「←」でも出られるが、
+            あれは「前の問いへ戻る」の場所なので、直すのをやめる操作と
+            しては読めない。やめたら答えは元のまま、見ていた結果へ返る。
+          */
+          inEditMode
+            ? { label: "キャンセル", onClick: cancelEdit }
+          : editStep
             ? { label: editLabel, onClick: () => api.goTo(editStep) }
           : step.id === "real_task_intro"
             ? { label: "次のレッスンへ", onClick: api.finishEarly }

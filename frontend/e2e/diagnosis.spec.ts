@@ -1093,8 +1093,8 @@ test.describe("AI活用診断", () => {
 
   test("整理中は、読める長さ出ている", async ({ page }) => {
     /*
-      最初の版は 1.8 秒だった（実測）。4つの観点を目で追うには短く、
-      「出た瞬間に消えた」と言われた。いまは 2.8 秒を目安にする。
+      1.8秒 → 2.8秒 と伸ばしてきて、実機では**まだ短い**と言われた。
+      いまは 5 秒を目安にする（`Analyzing` の `FULL_MS`）。
 
       **秒数をここに書き写さない**——`Analyzing` の `TOTAL` を変えた日に、
       検査だけが古い数を守ることになる。見るのは「短すぎない」ことと
@@ -1114,8 +1114,8 @@ test.describe("AI活用診断", () => {
     });
     const span = Date.now() - shown;
 
-    expect(span, `整理中が ${span}ms しか出ていない`).toBeGreaterThan(2000);
-    expect(span, `整理中が ${span}ms も出ている`).toBeLessThan(4500);
+    expect(span, `整理中が ${span}ms しか出ていない`).toBeGreaterThan(4000);
+    expect(span, `整理中が ${span}ms も出ている`).toBeLessThan(8000);
   });
 
   test("結果は、どの画面も送らずに収まる", async ({ page }) => {
@@ -1150,6 +1150,133 @@ test.describe("AI活用診断", () => {
       await page.getByTestId("primary-action").click();
       await page.waitForTimeout(900);
     }
+  });
+
+  /** 結果から「直す」を開いて、その回の編集に入る。 */
+  async function toEdit(page: Page): Promise<void> {
+    await page.getByTestId("diagnosis-reason-open").click();
+    await expect(page.getByTestId("diagnosis-detail-sheet")).toBeVisible();
+    await page.getByTestId("detail-next").click();
+    await page.getByTestId("diagnosis-edit-answer").first().click();
+    await expect(page.getByTestId("diagnosis-detail-sheet")).toHaveCount(0);
+  }
+
+  test("「直す」は、その回だけを編集する（次の問いへ行かない）", async ({ page }) => {
+    /*
+      **直すのは、診断をやり直す機能ではない。**
+
+      前は `goTo` で問いへ移すだけだった。着いた先はふつうの問いの
+      画面なので、直したあとは残りの問いをもう一度通る——5問目まで
+      進み直して、また整理中を見て、やっと結果に戻る。直したいのは
+      1つなのに、受け直したのと同じ手間がかかっていた。
+    */
+    await toResult(page);
+    await toEdit(page);
+
+    /* 編集中だと分かること。ふつうの問いと見た目が同じなので */
+    await expect(page.getByText("回答を修正")).toBeVisible();
+    await expect(page.getByTestId("primary-action")).toHaveText("変更を反映");
+    await expect(page.getByRole("button", { name: "キャンセル" })).toBeVisible();
+
+    await page.getByTestId("primary-action").click();
+
+    /* 次の問いへは行かない。結果へ帰る */
+    await expect(page.getByTestId("completion-view")).toBeVisible({
+      timeout: 8000,
+    });
+    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
+  });
+
+  test("直したあとの作り直しは、初回より短い", async ({ page }) => {
+    /*
+      初回は「診断を受けた」体験、直したあとは「すぐ反映された」体験。
+      **秒数はここに書き写さない**——`Analyzing` の定数を変えた日に、
+      検査だけが古い数を守ることになる。見るのは初回より短いこと。
+    */
+    const first = Date.now();
+    await toResult(page);
+    const firstSpan = Date.now() - first;
+
+    await toEdit(page);
+    const again = Date.now();
+    await page.getByTestId("primary-action").click();
+    await expect(page.getByTestId("diagnosis-analyzing")).toBeVisible();
+    await expect(page.getByTestId("diagnosis-analyzing")).toHaveAttribute(
+      "data-mode",
+      "recalc",
+    );
+    await expect(page.getByTestId("completion-view")).toBeVisible({
+      timeout: 8000,
+    });
+    const againSpan = Date.now() - again;
+
+    expect(
+      againSpan,
+      `直したあとが ${againSpan}ms で、初回（${firstSpan}ms 以内）より短くない`,
+    ).toBeLessThan(4000);
+  });
+
+  test("キャンセルすると、答えを変えずに結果へ帰る", async ({ page }) => {
+    await toResult(page);
+    const before = (
+      await page.getByTestId("diagnosis-stage-reason").innerText()
+    ).trim();
+
+    await toEdit(page);
+
+    /* いまと違う札を押しておく。キャンセルで元に戻るはず */
+    const cards = page.locator("[aria-pressed]");
+    const count = await cards.count();
+    for (let at = 0; at < count; at += 1) {
+      if ((await cards.nth(at).getAttribute("aria-pressed")) !== "true") {
+        await cards.nth(at).click();
+        break;
+      }
+    }
+
+    await page.getByRole("button", { name: "キャンセル" }).click();
+    await expect(page.getByTestId("completion-view")).toBeVisible();
+
+    /*
+      作り直しの1枚は通らない。何も変えていないのに「更新しています」と
+      出るのは嘘になる。
+    */
+    await expect(page.getByTestId("diagnosis-analyzing")).toHaveCount(0);
+    await expect(page.getByTestId("diagnosis-stage-reason")).toHaveText(before);
+  });
+
+  test("答えを変えると、ひし形も変わる", async ({ page }) => {
+    await toResult(page);
+    await toAxes(page);
+    const before = await page
+      .getByTestId("radar-chart")
+      .locator("svg")
+      .getAttribute("aria-label");
+
+    await page.goBack();
+    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
+    await toEdit(page);
+
+    /* 最後の札を選ぶ。いちばん上の札とは点数が違う */
+    const cards = page.locator("[aria-pressed]");
+    const count = await cards.count();
+    for (let at = count - 1; at >= 0; at -= 1) {
+      if ((await cards.nth(at).getAttribute("aria-pressed")) !== "true") {
+        await cards.nth(at).click();
+        break;
+      }
+    }
+    await page.getByTestId("primary-action").click();
+    await expect(page.getByTestId("completion-view")).toBeVisible({
+      timeout: 8000,
+    });
+    await toAxes(page);
+
+    const after = await page
+      .getByTestId("radar-chart")
+      .locator("svg")
+      .getAttribute("aria-label");
+    expect(after, "答えを変えたのに、ひし形が同じ").not.toBe(before);
   });
 
   test("詳しくを閉じると、焦点が開いた場所へ戻る", async ({ page }) => {
