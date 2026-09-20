@@ -29,6 +29,7 @@ from apps.catalog.models import (
     Lesson,
     PublishStatus,
 )
+from apps.rewards.levels import seed_levels
 from apps.rewards.models import (
     AiTaskPricing,
     LearningPath,
@@ -336,6 +337,9 @@ def seed_rewards() -> tuple[LearningPath | None, int]:
     pricing_made = seed_ai_task_pricing()
     # 図鑑の中身。教材が入ってから呼ぶ（技とレッスンを繋ぐため）
     seed_ai_skills()
+    # 段と昇段の条件。**技のあとに呼ぶ**——要件は技を指すので、
+    # 先に呼ぶと要件が空のまま固定される（`seed_levels` の註）
+    seed_levels()
     path = seed_foundation_path()
     practical = seed_practical_path()
     seed_recipes(path)

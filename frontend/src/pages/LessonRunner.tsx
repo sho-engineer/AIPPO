@@ -47,7 +47,7 @@ import {
   isAnswered,
 } from "../course/autoAdvance";
 import { prefersReducedMotion } from "../course/motion";
-import { preloadImage, preloadImages } from "../lib/preloadImage";
+import { preloadImage } from "../lib/preloadImage";
 import { poAppearance, PO_SIZE_BY_SCENE } from "../course/poPresence";
 import { primaryLabel } from "../course/primaryLabel";
 import { nextLessons } from "../course/availability";
@@ -104,7 +104,7 @@ function sectionImage(step: Lesson["steps"][number]): SectionImage | null {
  */
 function usePreloadNextSection(lesson: Lesson, stepId: string): void {
   /*
-    **最初の章扉は、開いた時点で用意する。**
+    **最初の章扉だけは、開いた時点で用意する。**
 
     ここは長いこと「次の章扉」だけを見ていた。ところが困るのは
     いちばん最初——レッスンを開いた直後の1枚で、そこはまだ誰も
@@ -112,15 +112,15 @@ function usePreloadNextSection(lesson: Lesson, stepId: string): void {
     瞬間に絵へ入れ替わる（実機で「文字の画面が一瞬見える」と
     言われたのがこれ）。
 
-    段の数は多くて数枚、1枚 150KB ほどなので、まとめて用意して困る
-    量ではない。
+    **それでも、まとめては取らない。** 全部の章扉を最初に取ると
+    レッスンの立ち上がりが遅くなる——下の「次の1枚」と合わせて、
+    同時に動くのは多くて2枚。
   */
   useEffect(() => {
-    const covers = lesson.steps
-      .filter((step) => step.type === "section_transition")
-      .map((step) => sectionImage(step)?.src)
-      .filter((src): src is string => Boolean(src));
-    void preloadImages(covers);
+    const first = lesson.steps.find(
+      (step) => step.type === "section_transition" && sectionImage(step),
+    );
+    void preloadImage(first ? sectionImage(first)?.src : undefined);
   }, [lesson]);
 
   useEffect(() => {

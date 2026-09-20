@@ -539,3 +539,179 @@ class XpEvent(models.Model):
 
     def __str__(self) -> str:
         return f"{self.kind} {self.source_id} +{self.amount}"
+
+
+# --------------------------------------------------------------- AIPPO Level
+
+
+class AippoLevel(models.Model):
+    """AIPPO Level。**AIを仕事でどこまで実践的に使えるか。**
+
+    XP ではない
+    -----------
+    数をためると上がるものにしない。上がる条件は2つあって、どちらも
+    「できるようになったこと」を指す（`LevelRequirement`）。
+
+        1. その段に要る AI技（`AiSkill`）を全部そろえる
+        2. 昇段の実践問題（`RankUpChallenge`）を通る
+
+    集めただけでも、問題を通っただけでも上がらない。片方だけで上がる
+    形にすると、**受けた回数か、こなした本数**のどちらかが Level の
+    正体になってしまう。
+
+    段の数え方は、診断と同じ
+    ------------------------
+    診断が出している5段階（`apps/catalog` の判定ではなく、画面側の
+    `course/diagnosisScore.ts` の `STAGES`）と**同じ番号**にしてある。
+    2つの数を並行に持つと、片方だけ動かした日に「道は5段目なのに
+    Level 2」という食い違いが出る。
+    """
+
+    number = models.PositiveSmallIntegerField(
+        primary_key=True, help_text="1〜5。診断の段階と同じ番号"
+    )
+    name = models.CharField(max_length=40, help_text="短い名前（「頼む」）")
+    description = models.CharField(
+        max_length=120, help_text="どこまで使える段か（1行）"
+    )
+    order = models.PositiveSmallIntegerField(default=0)
+
+    class Meta:
+        ordering = ("number",)
+        verbose_name = "AIPPO Level"
+        verbose_name_plural = "AIPPO Level"
+
+    def __str__(self) -> str:
+        return f"Lv.{self.number} {self.name}"
+
+
+class RankUpChallenge(models.Model):
+    """昇段の実践問題。**知識を聞かない。実際に書かせる。**
+
+    1つの段に1つ。その段までに覚えた技を、**まとめて1回使えるか**を見る
+    ——技ごとの小テストを並べても、順に思い出すだけで終わる。
+
+    判定は規則で行う（`apps/rewards/rankup.py`）。AI へ送って採点させる
+    形も考えたが、やめた。同じ答えで結果が揺れると「何が足りなかったか」
+    を言い切れず、落ちた人へ返す言葉が毎回変わる。規則なら、足りない
+    観点をそのまま名前で返せる。
+    """
+
+    level = models.OneToOneField(
+        AippoLevel,
+        primary_key=True,
+        related_name="challenge",
+        on_delete=models.CASCADE,
+        help_text="この問題を通ると上がる段",
+    )
+    title = models.CharField(max_length=80)
+    scenario = models.TextField(help_text="場面。ここを読んで指示文を書く")
+    #: 見る観点。`apps/rewards/rankup.py` の `CHECKS` の鍵を並べる。
+    #:
+    #: ここに書き写すのは**鍵だけ**で、見分け方そのものは持たない。
+    #: 判定の中身を教材データに置くと、言い回しを1つ足すたびに
+    #: 全部の問題を配り直すことになる。
+    checks = models.JSONField(
+        default=list, help_text='["purpose", "audience", "condition", "format"]'
+    )
+    estimated_minutes = models.PositiveSmallIntegerField(default=2)
+
+    class Meta:
+        verbose_name = "昇段の実践問題"
+        verbose_name_plural = "昇段の実践問題"
+
+    def __str__(self) -> str:
+        return f"Lv.{self.level_id} への挑戦：{self.title}"
+
+
+class LevelRequirement(models.Model):
+    """その段へ上がるのに要るもの。**技の一覧と、実践問題。**
+
+    段そのもの（`AippoLevel`）と分けてあるのは、**要件だけを差し替える**
+    ことがあるため。技を1つ増やす／順番を入れ替えるのは運用の話で、
+    段の意味は変わらない。
+    """
+
+    level = models.OneToOneField(
+        AippoLevel,
+        primary_key=True,
+        related_name="requirement",
+        on_delete=models.CASCADE,
+    )
+    required_skills = models.ManyToManyField(
+        AiSkill,
+        related_name="required_for_levels",
+        blank=True,
+        help_text="この段へ上がるのに要る技。全部そろって初めて挑戦できる",
+    )
+
+    class Meta:
+        verbose_name = "昇段の条件"
+        verbose_name_plural = "昇段の条件"
+
+    def __str__(self) -> str:
+        return f"Lv.{self.level_id} の条件"
+
+
+class UserLevel(models.Model):
+    """その人のいまの段と、**どうやってそこに居るか。**
+
+    `reached_by` を持つ理由
+    -----------------------
+    診断で Lv.3 と出た人に、Lv.1 と Lv.2 のレッスンをやり直させない
+    （仕様12）。ただし**実際に取っていない技を「取った」ことにはしない**。
+    地図では通り過ぎた段として出し、技そのものは未取得のままにする。
+
+        diagnosis … 診断で決まった開始地点
+        rankup    … 実践問題を通って上がった
+
+    混ぜると、あとから「この人は本当にこの技を使えるのか」が分からなく
+    なる。技の取得記録は `SkillProgress` が別に持ち続ける。
+    """
+
+    class ReachedBy(models.TextChoices):
+        DIAGNOSIS = "diagnosis", "診断で決まった開始地点"
+        RANKUP = "rankup", "実践問題を通って上がった"
+
+    learner_key = models.UUIDField(primary_key=True)
+    level = models.ForeignKey(
+        AippoLevel, related_name="users", on_delete=models.PROTECT
+    )
+    reached_by = models.CharField(
+        max_length=20, choices=ReachedBy.choices, default=ReachedBy.DIAGNOSIS
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "いまの Level"
+        verbose_name_plural = "いまの Level"
+
+    def __str__(self) -> str:
+        return f"{self.learner_key} → Lv.{self.level_id}（{self.reached_by}）"
+
+
+class ChallengeAttempt(models.Model):
+    """実践問題に挑んだ記録。**落ちても罰は無い。何度でも。**
+
+    残すのは、次に何を足せばよいかを返すため（`missing`）。点数で並べる
+    ためではないので、順位も平均も出さない。
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    learner_key = models.UUIDField(db_index=True)
+    challenge = models.ForeignKey(
+        RankUpChallenge, related_name="attempts", on_delete=models.CASCADE
+    )
+    passed = models.BooleanField()
+    #: 足りなかった観点。通ったときは空。
+    missing = models.JSONField(default=list)
+    answer = models.TextField(blank=True, help_text="書いた指示文")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "挑戦の記録"
+        verbose_name_plural = "挑戦の記録"
+
+    def __str__(self) -> str:
+        return f"{self.learner_key} Lv.{self.challenge_id} {'合格' if self.passed else '再挑戦'}"

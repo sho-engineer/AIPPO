@@ -83,13 +83,3 @@ export function preloadImage(src: string | undefined): Promise<void> {
   inFlight.set(src, task);
   return task;
 }
-
-/**
- * いくつかの絵を、まとめて用意する。
- *
- * 待つのは全部そろうまで。1枚でも欠けた状態で出すと、結局そこが
- * あとから現れる。
- */
-export function preloadImages(sources: (string | undefined)[]): Promise<void> {
-  return Promise.all(sources.map(preloadImage)).then(() => undefined);
-}
