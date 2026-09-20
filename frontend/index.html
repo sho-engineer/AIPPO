@@ -23,6 +23,36 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <!--
+        最初の1画面に必ず出るものだけ、先に取りに行かせる。
+
+        画面を組み立てる JavaScript を読み終わってからでは、絵を探し
+        始めるのがそのぶん遅い。ここに書いておくと、HTML を読んだ時点で
+        取りに行ける。
+
+        **全部は書かない。** 先に取るものが増えるほど、本当に要るものの
+        順番が後ろへ下がる。ここに並べるのは、どの入口から来ても必ず
+        出る2つだけ——ロゴ（上の帯。18KB）と、ポーのふつうの顔
+        （ようこそ・ホーム・診断のどれでも出る。35KB）。
+
+        教材の絵は書かない。開く教材によって違うので、ここで決め打つと
+        **使わない絵を毎回取る**ことになる。あちらは次の画面へ移る前に
+        用意する（`src/lib/preloadImage.ts`）。
+    -->
+    <link
+      rel="preload"
+      as="image"
+      href="/brand/logo-horizontal.webp"
+      type="image/webp"
+      fetchpriority="high"
+    />
+    <link
+      rel="preload"
+      as="image"
+      href="/assets/po/neutral.webp"
+      type="image/webp"
+    />
     <meta
       name="description"
       content="AIをさわってみたい人のための、手を動かして学ぶ練習アプリです。"

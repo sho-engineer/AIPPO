@@ -62,7 +62,17 @@
 import { useEffect, useState } from "react";
 
 import { playSound } from "../../course/sound";
+import { isImageReady, preloadImage } from "../../lib/preloadImage";
 import { IconChevronRight } from "../Icons";
+
+/**
+ * 絵が来ないとき、題を出すまでの待ち。
+ *
+ * ふつうの回線ではここへ来る前に出るので、題は出ない。出るのは
+ * 本当に遅いときだけ——そこで何も言わずに面だけ出していると、
+ * 止まっているのか読み込み中なのか分からなくなる。
+ */
+const SLOW_IMAGE_MS = 600;
 
 /**
  * 「つづける」の大きさと見た目。**4章ぶん、ここだけで決める。**
@@ -256,8 +266,39 @@ export function SectionTransition({
     **絵が出る前に押せてしまうと、章扉を見ないまま通り過ぎる**ので、
     出るまでは静かに待つ（`opacity`）。届かなければ題が代わりに出る。
   */
-  const [shown, setShown] = useState(false);
-  useEffect(() => setShown(false), [image?.src]);
+  /*
+    もう画に起こしてある絵なら、**最初の描画から出ている。**
+
+    ここを常に `false` から始めていたころ、2回目に同じ章扉を開いても
+    いったん受け皿が出てから絵へ入れ替わっていた。キャッシュには
+    載っているので、待つ理由が無い。
+  */
+  const [shown, setShown] = useState(() => isImageReady(image?.src));
+  useEffect(() => setShown(isImageReady(image?.src)), [image?.src]);
+
+  /*
+    題を出すのは、**待っても来ないとき**だけ。
+
+    前はここに条件が無く、絵が出るまでずっと題が画面いっぱいに出ていた
+    ——実機では「文字の画面 → 絵の画面」と別の画面が一瞬見えたように
+    感じる（録画で指摘されたのがこれ）。
+
+    かといって、出さないままにはできない。取れない回線で題が無いと、
+    どの章に居るのか分からなくなる。**ふつうの速さでは出ない・
+    本当に遅いときだけ出る**の両方を満たすために、少し待ってから出す。
+  */
+  const [slow, setSlow] = useState(false);
+  useEffect(() => {
+    setSlow(false);
+    if (isImageReady(image?.src)) return;
+    const timer = window.setTimeout(() => setSlow(true), SLOW_IMAGE_MS);
+    return () => window.clearTimeout(timer);
+  }, [image?.src]);
+
+  /* 次に開いたときのために、画に起こし終わったことを覚えておく */
+  useEffect(() => {
+    void preloadImage(image?.src);
+  }, [image?.src]);
 
   /* 絵を持たない章は、重ねない置き方にする */
   if (!image) {
@@ -307,6 +348,23 @@ export function SectionTransition({
         置かない——置くと箱が縮み、そのぶん切る量が増える。
       */}
       <div className="relative min-h-0 w-full flex-1">
+        {/*
+          絵が来るまでの受け皿。**文字ではなく、面で待つ。**
+
+          真っ白でも、題の大文字でもない。章扉と同じ大きさの淡い面を
+          置いておけば、「この場所に何か出る」ことだけが伝わり、
+          出たときに**入れ替わったように見えない**（地の色が近い）。
+
+          新しく「読み込み中」の画面を足したわけではない。ここはもとから
+          章扉の居る場所で、絵が入るまでのあいだ同じ枠が空いているだけ。
+        */}
+        {!shown && (
+          <div
+            aria-hidden="true"
+            data-testid="section-intro-placeholder"
+            className="absolute inset-0 bg-brand-soft"
+          />
+        )}
         {/*
           出るときだけ、短く動かす層。**ここに入れるのは絵だけ。**
 
@@ -372,7 +430,7 @@ export function SectionTransition({
               下端 6rem ぶんはボタンの場所なので、そこまでで止める。
             */
             className={
-              shown
+              shown || !slow
                 ? "sr-only"
                 : "pointer-events-none absolute inset-x-0 top-0 bottom-24 flex items-center justify-center px-6 text-center text-2xl font-bold leading-relaxed"
             }

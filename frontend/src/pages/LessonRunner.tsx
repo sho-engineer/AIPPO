@@ -47,6 +47,7 @@ import {
   isAnswered,
 } from "../course/autoAdvance";
 import { prefersReducedMotion } from "../course/motion";
+import { preloadImage, preloadImages } from "../lib/preloadImage";
 import { poAppearance, PO_SIZE_BY_SCENE } from "../course/poPresence";
 import { primaryLabel } from "../course/primaryLabel";
 import { nextLessons } from "../course/availability";
@@ -102,6 +103,26 @@ function sectionImage(step: Lesson["steps"][number]): SectionImage | null {
  * 置き場に残るだけになる。
  */
 function usePreloadNextSection(lesson: Lesson, stepId: string): void {
+  /*
+    **最初の章扉は、開いた時点で用意する。**
+
+    ここは長いこと「次の章扉」だけを見ていた。ところが困るのは
+    いちばん最初——レッスンを開いた直後の1枚で、そこはまだ誰も
+    先回りしていなかった。絵が届くまで題だけが大きく出て、届いた
+    瞬間に絵へ入れ替わる（実機で「文字の画面が一瞬見える」と
+    言われたのがこれ）。
+
+    段の数は多くて数枚、1枚 150KB ほどなので、まとめて用意して困る
+    量ではない。
+  */
+  useEffect(() => {
+    const covers = lesson.steps
+      .filter((step) => step.type === "section_transition")
+      .map((step) => sectionImage(step)?.src)
+      .filter((src): src is string => Boolean(src));
+    void preloadImages(covers);
+  }, [lesson]);
+
   useEffect(() => {
     const at = lesson.steps.findIndex((step) => step.id === stepId);
     if (at < 0) return;
@@ -112,8 +133,12 @@ function usePreloadNextSection(lesson: Lesson, stepId: string): void {
     const src = next ? sectionImage(next)?.src : undefined;
     if (!src) return;
 
-    const image = new Image();
-    image.src = src;
+    /*
+      共通の用意係を通す。`new Image()` を直に使っていたころは、
+      取れたことを**章扉の側が知らなかった**ので、開いたときに
+      いったん受け皿を出してから絵へ入れ替えていた。
+    */
+    void preloadImage(src);
   }, [lesson, stepId]);
 }
 
