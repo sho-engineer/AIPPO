@@ -125,8 +125,15 @@ await p.getByRole("button", { name: "コース" }).click();
 await p.waitForTimeout(700);
 await scan("教材一覧");
 
-// マイ学びと、そこから開く学習マップ
-await p.getByRole("button", { name: "マイ学び" }).click();
+/*
+  マイ学びと、そこから開く学習マップ。
+
+  下タブは**必ず帯の中から押す**。帯の外にも同じ言葉のボタンがある
+  （左上のロゴの読み上げ名が「ホームへ戻る」）ので、画面ぜんぶから
+  探すと2つ見つかって止まる。
+*/
+const tab = (name) => p.getByTestId("tab-bar").getByRole("button", { name });
+await tab("マイ学び").click();
 await p.waitForTimeout(700);
 await scan("マイ学び");
 if (await p.getByTestId("skills-open-map").count()) {
@@ -136,7 +143,7 @@ if (await p.getByTestId("skills-open-map").count()) {
   await p.goBack();
   await p.waitForTimeout(500);
 }
-await p.getByRole("button", { name: "ホーム" }).click();
+await tab("ホーム").click();
 await p.waitForTimeout(500);
 
 // 設定と、その下位画面
