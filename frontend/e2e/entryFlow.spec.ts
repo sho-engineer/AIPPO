@@ -321,6 +321,33 @@ test.describe("入口の3枚が、どの持ち方でも読める", () => {
       const three = await fits(page, "progress-summary");
       expect(three.over, `ホームが ${three.over}px あふれた`).toBeLessThanOrEqual(0);
       expect(three.wide).toBeLessThanOrEqual(0);
+
+      /*
+        **収まっているだけでは足りない。余りがあること。**
+
+        いちばん低い持ち方で、ホームは余り 0 で収まっていた——中身と
+        下タブを足してちょうど 568px。収まってはいるので `over` は 0 を
+        返し、検査は通る。ところが 1px でも増えれば送りが出るので、
+        同じコードが手元では通り CI では 28px あふれた（字の詰まり方で
+        題の折り返しが2行と3行に分かれた）。
+
+        どちらの環境が正しいという話ではなく、**余りが無いのが問題**。
+        少しの差を吸えるだけ空けておく。
+      */
+      if (size.height <= 600) {
+        const room = await page.evaluate(() => {
+          const last = document.querySelector('[data-testid="open-diagnosis"]');
+          const bar = document.querySelector('[data-testid="tab-bar"]');
+          if (!last || !bar) return 999;
+          return Math.round(
+            bar.getBoundingClientRect().top - last.getBoundingClientRect().bottom,
+          );
+        });
+        expect(
+          room,
+          `ホームの余りが ${room}px しかない。字の詰まり方が少し変わると送りが出る`,
+        ).toBeGreaterThanOrEqual(16);
+      }
     });
   }
 });

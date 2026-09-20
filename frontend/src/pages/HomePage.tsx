@@ -227,7 +227,26 @@ function TodayCard({
 
       <div className="mt-1.5 flex items-start gap-3">
         <div className="min-w-0 flex-1">
-          <h2 id="next-heading" className="text-lg font-bold leading-7">
+          {/*
+            題は**2行まで**。
+
+            320px では、右の絵に幅を取られて題が折り返す（実測 2行・
+            56px）。折り返しの数は**字の詰まり方でいくらでも変わる**
+            ——同じ作りでも、手元では2行、CI では3行になっていた。
+            差は 28px で、これがホームのあふれ 28px の正体。
+
+            行数を決めておけば、題の長さでも環境でも箱の高さが動かない。
+            3行目に当たるのは題がよほど長いときだけで、その全文は
+            開いた先の見出しに出る。
+
+            `line-clamp` は `display:-webkit-box` を敷いて効くので、
+            同じ札に `block` や `hidden` を足さないこと（下の説明文で
+            一度それをやって、2行のはずが3行のまま出ていた）。
+          */}
+          <h2
+            id="next-heading"
+            className="line-clamp-2 text-lg font-bold leading-7"
+          >
             {lesson.title}
           </h2>
 
@@ -449,7 +468,23 @@ export function HomePage({
         11px の余り。**共通の 112px より 40px 少ない**ぶんが、
         そのままホームを1画面に収める側へ回る。
       */}
-      <main className="page !pb-[calc(4.5rem+env(safe-area-inset-bottom))]">
+      {/*
+        いちばん低い持ち方（568px）では、上の余白も詰める。
+
+        **ここは余りが 0 だった。** 実測で、中身と下タブを足すとちょうど
+        568px——1px でも増えれば送りが出る、という組み方になっていた。
+        実際 CI の測りでは 28px あふれていて、手元では出ない。出る／
+        出ないが環境で変わるのは、**余りが無いから**であって、
+        どちらかの環境が間違っているのではない。
+
+        情報は減らさず、隙間だけを詰めて余りを作る。600px 以上は
+        いままでどおり。
+      */}
+      <main
+        className="page !pb-[calc(4.25rem+env(safe-area-inset-bottom))] !pt-2
+                   [@media(min-height:600px)]:!pb-[calc(4.5rem+env(safe-area-inset-bottom))]
+                   [@media(min-height:600px)]:!pt-4"
+      >
         <Welcome
           done={doneCount}
           bubble={
@@ -493,7 +528,7 @@ export function HomePage({
         )}
 
         {nextLesson && (
-          <div className="mt-3 [@media(min-height:600px)]:mt-4">
+          <div className="mt-2 [@media(min-height:600px)]:mt-4">
             <TodayCard
               lesson={nextLesson}
               started={doneCount > 0}
@@ -514,7 +549,7 @@ export function HomePage({
           </div>
         )}
 
-        <div className="mt-3 [@media(min-height:600px)]:mt-4">
+        <div className="mt-2 [@media(min-height:600px)]:mt-4">
           <RecordRow
             done={doneCount}
             skills={learned?.skills ?? 0}

@@ -252,11 +252,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
 
       markDiagnosisNudgeSeen() {
-        setState((current) =>
-          current.user
-            ? { ...current, user: { ...current.user, diagnosis_nudge_seen: true } }
-            : current,
-        );
+        /*
+          **もう立っているなら、送らない。**
+
+          案内の画面は「1度だけ」を `ref` で守っているが、`ref` は
+          描き直しでは残っても**作り直し（unmount → mount）では消える**。
+          親の状態が変わって組み替えが起きると数え直しになり、同じ
+          書き込みが2回出る——CI の通しで実際に2回届いた。
+
+          止めるならここ。呼ぶ側がいくつ増えても、送るのは1回で済む。
+          「見た」は戻らない（true から false にはしない）ので、
+          立っているかどうかだけ見れば足りる。
+        */
+        let alreadySeen = false;
+        setState((current) => {
+          if (!current.user) return current;
+          alreadySeen = current.user.diagnosis_nudge_seen === true;
+          if (alreadySeen) return current;
+          return {
+            ...current,
+            user: { ...current.user, diagnosis_nudge_seen: true },
+          };
+        });
+        if (alreadySeen) return;
+
         /*
           サーバーにも残す。**返事は待たない。**
 
