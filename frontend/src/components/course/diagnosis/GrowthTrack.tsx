@@ -110,6 +110,18 @@ export interface GrowthTrackProps {
    * 「あなたはここ」と言うことになる。
    */
   preview?: boolean;
+  /**
+   * いまいる段の名前を、この図の下に出すか。
+   *
+   * 既定は出す。消すのは、**すぐ下に同じ名前が別の形で並ぶとき**だけ
+   * ——5段の一覧（`LevelSheet`）では図の下に Lv.1〜5 が並ぶので、
+   * 図がもう一度「AIを試し始めている段階」と言うと同じ言葉が2回出る。
+   * そのぶん縦を使い、5段目が画面から押し出されていた。
+   *
+   * 読み上げ用の1文は消さない。あれは点の並びの代わりに読むもので、
+   * 見えている名前とは役が違う。
+   */
+  showName?: boolean;
 }
 
 export function GrowthTrack({
@@ -117,6 +129,7 @@ export function GrowthTrack({
   size = "sm",
   summary = false,
   preview = false,
+  showName = true,
 }: GrowthTrackProps) {
   const big = size === "lg";
   const [drawn, setDrawn] = useState(false);
@@ -253,7 +266,7 @@ export function GrowthTrack({
 
         始める前は出さない。**まだどこでもない。**
       */}
-      {!preview && (
+      {!preview && showName && (
       <p
         /*
           ふつうの余白でよくなった。前の `mt-8` / `mt-11` は、外へ

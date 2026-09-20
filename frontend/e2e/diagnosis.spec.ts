@@ -1152,6 +1152,76 @@ test.describe("AI活用診断", () => {
     }
   });
 
+  test("現在地から、5段階の一覧を開ける", async ({ page }) => {
+    /*
+      **「Lv.2 って何？」の行き先を作る。**
+
+      結果の画面には自分の段しか出ていない。5つ並べて初めて、いまが
+      高いのか低いのかが分かる。ただし5つの説明を結果の画面へ置くと
+      そのぶん縦に伸びるので、開いて読む一枚にする。
+    */
+    await toResult(page);
+    await page.getByTestId("diagnosis-level-open").click();
+    await expect(page.getByTestId("level-sheet")).toBeVisible();
+
+    /* 5つそろっていること。一目で見比べるための一覧なので */
+    await expect(page.getByTestId("level-list").locator("li")).toHaveCount(5);
+
+    /* いまの段が1つだけ、はっきり分かること */
+    await expect(page.getByTestId("level-here")).toHaveCount(1);
+
+    /* 次に何をすれば上がるか。並べるだけの階級表にしない */
+    await expect(page.getByTestId("level-next")).toBeVisible();
+
+    /* 後ろは送れない。開いているあいだは一枚の中だけ */
+    const locked = await page.evaluate(
+      () => getComputedStyle(document.body).overflow,
+    );
+    expect(locked).toBe("hidden");
+  });
+
+  test("一覧の段と、道の点は食い違わない", async ({ page }) => {
+    /*
+      **同じ数を2か所で数えない。**
+
+      指示書に添えてあった画面では、道が「組み立て」（5段目）を
+      指しているのに文字は「Level 2」だった。2つの数を別々に持つと
+      いつか必ずこうなる。ここでは道の点と一覧の印が**同じ段**を
+      指していることを見る。
+    */
+    await toResult(page);
+
+    const here = await page
+      .getByTestId("growth-node")
+      .evaluateAll((nodes) =>
+        nodes.findIndex((one) => (one as HTMLElement).dataset.state === "here"),
+      );
+    expect(here, "道のどこも光っていない").toBeGreaterThanOrEqual(0);
+
+    await page.getByTestId("diagnosis-level-open").click();
+    await expect(page.getByTestId("level-sheet")).toBeVisible();
+
+    const marked = await page
+      .getByTestId("level-list")
+      .locator("li")
+      .evaluateAll((rows) =>
+        rows.findIndex((one) => (one as HTMLElement).dataset.here === "yes"),
+      );
+
+    expect(marked, "道の点と一覧の現在地がずれている").toBe(here);
+  });
+
+  test("端末の「戻る」で、一覧を閉じられる", async ({ page }) => {
+    await toResult(page);
+    await page.getByTestId("diagnosis-level-open").click();
+    await expect(page.getByTestId("level-sheet")).toBeVisible();
+
+    await page.goBack();
+    await expect(page.getByTestId("level-sheet")).toHaveCount(0);
+    /* 閉じただけ。結果の画面から出ない */
+    await expect(page.locator("main h1").first()).toHaveText("あなたの現在地");
+  });
+
   /** 結果から「直す」を開いて、その回の編集に入る。 */
   async function toEdit(page: Page): Promise<void> {
     await page.getByTestId("diagnosis-reason-open").click();

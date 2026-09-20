@@ -135,16 +135,30 @@ describe("Day1 の段の分かれ方", () => {
       expect(existsSync(`public${image.src}`), `${image.src} が無い`).toBe(true);
 
       /*
-        WebP（VP8L）の頭から実寸を読む。21バイト目から幅-1 を14ビット、
-        高さ-1 を14ビット。教材の絵はすべて可逆で置いてある。
+        WebP の頭から実寸を読む。**可逆と非可逆で並びが違う。**
+
+        ここは長いこと可逆（VP8L）だけを読んでいた。形式を決まりに
+        していたわけではなく、実寸を読む手続きが1つで済んでいたから。
+        教材の絵を非可逆へ入れ替えた（37MB → 7.2MB）ので、両方から
+        読む。見たいのは**実寸が表と合っているか**で、どう圧縮したかでは
+        ない。
       */
       const raw = readFileSync(`public${image.src}`);
-      expect(raw.subarray(12, 16).toString("ascii"), `${image.src} が可逆WebPでない`).toBe(
-        "VP8L",
-      );
-      const bits = raw.readUInt32LE(21);
-      const width = (bits & 0x3fff) + 1;
-      const height = ((bits >> 14) & 0x3fff) + 1;
+      const kind = raw.subarray(12, 16).toString("ascii");
+      let width: number;
+      let height: number;
+      if (kind === "VP8L") {
+        /* 可逆。21バイト目から 幅-1 を14ビット、高さ-1 を14ビット */
+        const bits = raw.readUInt32LE(21);
+        width = (bits & 0x3fff) + 1;
+        height = ((bits >> 14) & 0x3fff) + 1;
+      } else if (kind === "VP8 ") {
+        /* 非可逆。26バイト目から16ビットずつ。上位2ビットは拡大率 */
+        width = raw.readUInt16LE(26) & 0x3fff;
+        height = raw.readUInt16LE(28) & 0x3fff;
+      } else {
+        throw new Error(`${image.src} の形式が読めない: ${kind}`);
+      }
 
       expect({ width, height }, `${image.src} の実寸が表と違う`).toEqual({
         width: image.width,

@@ -49,13 +49,18 @@ async function answerAll(page: Page): Promise<void> {
   await page.getByTestId("primary-action").click();
   await answerRemaining(page);
   /*
-    5問目のあとは、整理中の1枚（1〜1.5秒）を挟んでから現在地が出る。
-    **押すものは無い**ので、待つのではなく移り終わるのを見る。
-    秒数で書かない——長さを変えた日に、ここだけ古い数で落ちる。
+    5問目のあとは、整理中の1枚を挟んでから現在地が出る。**押すものは
+    無い**ので、待つのではなく移り終わるのを見る。
+
+    待ちは長めに取る。ここには 4000 と書いてあった——「秒数で書かない」
+    と書きながら、実際には演出の長さに合わせた数が入っていた。
+    2.8秒から5秒へ伸ばした日に、この1行だけが古い数で落ちた
+    （10件）。**長さの上限ではなく、時間切れを避けるための余裕**として
+    取る。
   */
-  await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 4000 });
+  await expect(page.getByTestId("completion-view")).toBeVisible({ timeout: 12_000 });
   await expect(page.locator("main h1").first()).toHaveText("あなたの現在地", {
-    timeout: 8000,
+    timeout: 12_000,
   });
 }
 

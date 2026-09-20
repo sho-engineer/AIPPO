@@ -49,6 +49,7 @@ import { IconArrow, IconCheck, IconChevronRight } from "../Icons";
 import { MoreSheet } from "./MoreSheet";
 import { DetailSheet } from "./diagnosis/DetailSheet";
 import { GrowthTrack } from "./diagnosis/GrowthTrack";
+import { LevelSheet } from "./diagnosis/LevelSheet";
 import { RadarChart } from "./diagnosis/RadarChart";
 import {
   AXES,
@@ -60,6 +61,7 @@ import {
   traitLines,
 } from "../../course/diagnosisScore";
 import type { DiagnosisPhase } from "../../course/diagnosisFlow";
+import { levelOf } from "../../course/aippoLevel";
 import { lookOf } from "../../course/presentation";
 import {
   recommendLeadParts,
@@ -178,6 +180,7 @@ function StageView({
   onEditAnswer?: (stepId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [levelOpen, setLevelOpen] = useState(false);
   const reason = stageReason(result);
   const lines = traitLines(result, values, 2);
 
@@ -187,8 +190,53 @@ function StageView({
         className="shrink-0 rounded-card border border-line bg-surface px-4 py-3
                    [@media(min-height:700px)]:pb-4 [@media(min-height:700px)]:pt-3.5"
       >
-        {/* 道と段の名前。説明文（`summary`）は出さない——下に要約が来る */}
-        <GrowthTrack stage={result.stage.number} />
+        {/*
+          道だけ。**長い段名はここで出さない。**
+
+          すぐ下の「AIPPO Level 1 試す」が同じことを言うので、出すと
+          「AIを試し始めている段階」と「試す」が並んで出る。呼び名は
+          1つにする——人に話すときも、次を聞くときも、同じ言葉で
+          指せたほうがよい。説明文（`summary`）も出さない（下に要約）。
+        */}
+        <GrowthTrack stage={result.stage.number} showName={false} />
+
+        {/*
+          いまの段に、番号と名前で呼べる名札を付ける。
+
+          道はどこに居るかを**図で**言うが、「それが何と呼ばれるものか」
+          は言っていない。人に話すときにも、次に何があるかを聞くときにも、
+          呼び名が要る。
+
+          押すと5段の一覧が開く（`LevelSheet`）。ここに Lv.1〜5 の説明を
+          並べると、結果の画面がそのぶん縦に伸びる——結果はスクロール
+          なしで収まる形を保つので、詳しいことは一枚のほうへ出す。
+
+          数字は道と同じ `result.stage.number`。別に数えない。
+        */}
+        <button
+          type="button"
+          onClick={() => setLevelOpen(true)}
+          data-testid="diagnosis-level-open"
+          className="mt-2.5 flex w-full items-center justify-between gap-2
+                     rounded-cta border-t border-line pt-2.5 text-left
+                     transition hover:text-brand"
+        >
+          <span className="flex min-w-0 items-baseline gap-2">
+            <span className="text-xs font-bold leading-5 text-ink-muted">
+              AIPPO Level
+            </span>
+            <span className="text-base font-bold leading-6 text-brand-dark">
+              {result.stage.number}
+            </span>
+            <span className="truncate text-xs leading-5 text-ink-muted">
+              {levelOf(result.stage.number).name}
+            </span>
+          </span>
+          <span className="flex shrink-0 items-center gap-0.5 text-xs font-bold text-brand-dark">
+            5段階を見る
+            <IconChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
+        </button>
 
         {/*
           要約。**1文だけ**（`stageReason` の先頭）。
@@ -197,9 +245,8 @@ function StageView({
           よって3〜4行になり、そのぶん画面が伸びる。
         */}
         <p
-          className="mt-2.5 border-t border-line pt-2.5 text-[0.8125rem] leading-6
-                     text-ink [@media(min-height:700px)]:mt-3
-                     [@media(min-height:700px)]:pt-3"
+          className="mt-2.5 text-[0.8125rem] leading-6 text-ink
+                     [@media(min-height:700px)]:mt-3"
           data-testid="diagnosis-stage-reason"
         >
           {reason[0]}
@@ -228,6 +275,20 @@ function StageView({
         固定したまま——近さは意味を持つので、端末の高さで変えない。
       */}
       <div className="min-h-0 flex-1" aria-hidden="true" />
+
+      {/*
+        5段の一覧。
+
+        「おすすめLessonを見る」は渡さない——ここは現在地の画面で、
+        おすすめはまだ2画面先。押した先が無いものを出さない
+        （`LevelSheet` は渡されなければその行を出さない）。
+      */}
+      {levelOpen && (
+        <LevelSheet
+          stage={result.stage.number}
+          onClose={() => setLevelOpen(false)}
+        />
+      )}
 
       {open && (
         <DetailSheet

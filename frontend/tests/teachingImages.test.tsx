@@ -37,24 +37,49 @@ const DAY3 = "explain_topic";
  * いちばん起きやすい。画面には正しい絵が出るので、**目では気づけない**。
  * 気づくのは、読み終わりに下の文とボタンが飛ぶ人になる。
  *
- * 教材の絵はすべて可逆（VP8L）で置いてある。読むのはその1形式だけ。
- * 別の形式が混じったら、そこで落として気づけるようにする。
+ * 2つの形式を読む
+ * ---------------
+ * 前はここが可逆（VP8L）だけを読み、ほかの形式が来たら落としていた。
+ * **形式そのものを決まりにしていたわけではない**——実寸を読むための
+ * 手続きが1つで済んでいたので、そのまま書いてあっただけ。
+ *
+ * 教材の絵を非可逆（VP8）へ入れ替えた（1枚 1.1MB → 0.15MB、全体で
+ * 37MB → 7.2MB。`scripts/shrink-images.py`）。見た目は変えていないが
+ * 先頭の並びが変わるので、両方から読めるようにする。
+ *
+ * ここで見たいのは**実寸が表と合っているか**で、どう圧縮したかでは
+ * ない。絵を差し替えて実寸を直し忘れる、がいちばん起きやすく、
+ * 画面には正しい絵が出るので**目では気づけない**——気づくのは、
+ * 読み終わりに下の文とボタンが飛ぶ人になる。
  */
 function webpSize(path: string): { width: number; height: number } {
   const file = readFileSync(path);
   const kind = file.toString("ascii", 12, 16);
-  if (kind !== "VP8L") {
-    throw new Error(`${path} が可逆WebP（VP8L）ではない: ${kind}`);
+
+  if (kind === "VP8L") {
+    /*
+      可逆は 21バイト目から、幅-1 を14ビット、高さ-1 を14ビット、
+      下位ビットから詰めてある。
+    */
+    const bits = file.readUInt32LE(21);
+    return {
+      width: (bits & 0x3fff) + 1,
+      height: ((bits >> 14) & 0x3fff) + 1,
+    };
   }
-  /*
-    VP8L は 21バイト目から、幅-1 を14ビット、高さ-1 を14ビット、
-    下位ビットから詰めてある。
-  */
-  const bits = file.readUInt32LE(21);
-  return {
-    width: (bits & 0x3fff) + 1,
-    height: ((bits >> 14) & 0x3fff) + 1,
-  };
+
+  if (kind === "VP8 ") {
+    /*
+      非可逆は 26バイト目から 16ビットずつ。上位2ビットは拡大率で、
+      実寸ではないので落とす。
+    */
+    return {
+      width: file.readUInt16LE(26) & 0x3fff,
+      height: file.readUInt16LE(28) & 0x3fff,
+    };
+  }
+
+  throw new Error(`${path} の形式が読めない: ${kind}`);
 }
 
 describe("出し方", () => {
