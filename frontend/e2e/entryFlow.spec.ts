@@ -280,7 +280,27 @@ test.describe("ログインしている人", () => {
   });
 
   test("案内を見たら、サーバーへ残す", async ({ page }) => {
-    const sent: unknown[] = [];
+    /*
+      数え始めるのは、**2回目の読み込みから。**
+
+      `openFresh` は 1回目を開いて保存を消し、読み込み直す——つまり
+      画面は2回立ち上がる。案内は立ち上がるたびに出るので、送るのも
+      1回ずつで**合わせて2回**になる。これは正しい動きで、1回の
+      立ち上がりで2回送っているわけではない。
+
+      前はその2回を1つの数に混ぜていた。走りの速い機械では1回目が
+      出る前に読み込み直しが割り込むので数は1で通り、**遅い機械
+      （CI）でだけ2になって落ちた**——アプリではなく、数え方の問題。
+
+      1回目が終わってから受け口を置いて、2回目のぶんだけ見る。
+    */
+    await stubApi(page, {
+      showEntry: true,
+      signedIn: true,
+      freshAccount: true,
+    });
+
+    let sent: unknown[] = [];
     await page.route("**/api/v1/accounts/profile/", async (route) => {
       sent.push(route.request().postDataJSON());
       await route.fulfill({
@@ -290,7 +310,20 @@ test.describe("ログインしている人", () => {
       });
     });
 
-    await openFresh(page, { signedIn: true, freshAccount: true });
+    /*
+      1回目のぶんが**届き切るのを待ってから**、数え直す。
+
+      「受け口をあとから置く」では足りない。置いた時刻と1回目が出る
+      時刻は競争なので、遅れて出た1回目がそのまま次の数に混ざる。
+      待てば競争にならない。
+    */
+    await page.goto("/");
+    await expect(intro(page)).toBeVisible();
+    await expect.poll(() => sent.length).toBe(1);
+
+    await page.evaluate(() => window.localStorage.clear());
+    sent = [];
+    await page.reload();
     await expect(intro(page)).toBeVisible();
 
     // 出した時点で残す。閉じるのを待たない
