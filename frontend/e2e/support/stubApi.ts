@@ -50,6 +50,8 @@ export interface StubOptions {
   skillDex?: unknown;
   /** 学習マップの中身。既定は「Lv.1 に居て、次の段の技が2つ未取得」。 */
   levelMap?: unknown;
+  /** 開始画面の「今回の技」。既定は「プロンプトが未取得、Lv.2 まであと1つ」。 */
+  lessonReward?: unknown;
   /** 取っておいた成果物。既定は「ゲストなので使えない」。 */
   saved?: unknown;
   /**
@@ -393,6 +395,39 @@ export async function stubApi(
             second,
           ],
           next: second,
+        },
+      ),
+    });
+  });
+
+  /*
+    開始画面の「今回の技」。
+
+    塞いでおかないと、**1画面に収まるかの検査でこの行が消える**——
+    出ない状態で測って通し、実際には出て溢れる、がいちばん困る。
+  */
+  await page.route("**/api/v1/rewards/lesson/*/", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        options.lessonReward ?? {
+          lesson: "rewrite_text",
+          skills: [
+            {
+              slug: "prompt",
+              name: "プロンプト",
+              one_line: "してほしいことをAIに伝える",
+              acquired: false,
+            },
+          ],
+          next_level: {
+            number: 2,
+            name: "頼む",
+            remaining: 2,
+            has_challenge: true,
+          },
+          remaining_after: 1,
         },
       ),
     });

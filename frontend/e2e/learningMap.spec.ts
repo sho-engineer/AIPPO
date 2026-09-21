@@ -64,6 +64,109 @@ test.describe("学習マップ", () => {
     expect(slack, "横スクロールが出ている").toBeLessThanOrEqual(0);
   });
 
+  test("挑戦がまだのうちは、押せない", async ({ page }) => {
+    /*
+      押せるのに何も起きないより、押せないと分かるほうがよい。
+      何をすれば開くかは、字で出ている。
+    */
+    await toMap(page);
+
+    const node = page.getByTestId("map-challenge-2");
+    await expect(node).toHaveAttribute("data-open", "false");
+    await expect(node).toHaveJSProperty("tagName", "DIV");
+  });
+
+  test("技がそろうと、挑戦を開いて段が上がる", async ({ page }) => {
+    /*
+      **上がるのは2つそろったときだけ。** ここは画面の道すじを見る
+      （技がそろっている状態を配り、挑戦を通す）。条件そのものは
+      サーバー側が決めていて、backend の検査が見張っている。
+    */
+    const ready = {
+      number: 2,
+      name: "頼む",
+      description: "目的を伝えて、基本的な仕事をAIに頼める",
+      status: "locked",
+      skipped: false,
+      remaining: 0,
+      has_challenge: true,
+      challenge_open: true,
+      skills: [
+        {
+          slug: "prompt",
+          name: "プロンプト",
+          one_line: "してほしいことをAIに伝える",
+          status: "earned",
+          lessons: ["rewrite_text"],
+        },
+      ],
+    };
+    await stubApi(page, {
+      levelMap: {
+        current_level: 1,
+        reached_by: "diagnosis",
+        levels: [
+          {
+            number: 1,
+            name: "試す",
+            description: "AIに質問したり、簡単な文章生成を試せる",
+            status: "current",
+            skipped: false,
+            skills: [],
+            remaining: 0,
+            has_challenge: false,
+            challenge_open: false,
+          },
+          ready,
+        ],
+        next: ready,
+      },
+    });
+    await page.route("**/api/v1/rewards/challenge/2/", async (route) => {
+      if (route.request().method() === "POST") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            passed: true,
+            missing: [],
+            missing_labels: [],
+            level_up: true,
+            current_level: 2,
+            remaining_skills: 0,
+          }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          level: 2,
+          title: "目的を伝えて、頼んでみる",
+          scenario: "先週の打ち合わせのメモが、そのままでは長くて読めません。",
+          estimated_minutes: 2,
+          check_labels: ["目的"],
+          open: true,
+          remaining: 0,
+        }),
+      });
+    });
+
+    await toMap(page);
+    await page.getByTestId("map-challenge-2").click();
+
+    await expect(page.getByTestId("challenge-scenario")).toBeVisible();
+    await page
+      .getByTestId("challenge-answer")
+      .fill("来週の会議で共有するために、この議事録の要点をまとめてください。");
+    await page.getByTestId("challenge-send").click();
+
+    await expect(page.getByTestId("challenge-levelup")).toContainText(
+      "Lv.2 になりました",
+    );
+  });
+
   test("戻ると、マイ学びへ帰る", async ({ page }) => {
     await toMap(page);
 

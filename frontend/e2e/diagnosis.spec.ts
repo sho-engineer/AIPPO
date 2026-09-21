@@ -1180,6 +1180,40 @@ test.describe("AI活用診断", () => {
     expect(locked).toBe("hidden");
   });
 
+  test("一覧から、学習マップへ行ける", async ({ page }) => {
+    /*
+      **5段を眺めて終わりにしない。** 「次は Lv.3」を読んだ人が、
+      そこへ行く道をその場で持つ。
+    */
+    await toResult(page);
+    await page.getByTestId("diagnosis-level-open").click();
+    await page.getByTestId("level-open-map").click();
+
+    await expect(page.getByTestId("map-levels")).toBeVisible();
+  });
+
+  test("出た段を、地図の開始地点としてサーバーへ預ける", async ({ page }) => {
+    /*
+      **上げ下げを画面で決めない。** 受け直した診断が、実践問題を
+      通って上がった段を取り消さないようにするのはサーバーの役目。
+      ここで見るのは「出た数をそのまま送っていること」だけ。
+    */
+    const sent: string[] = [];
+    await page.route("**/api/v1/rewards/level/", async (route) => {
+      sent.push(route.request().postData() ?? "");
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ current_level: 2 }),
+      });
+    });
+
+    await toResult(page);
+
+    await expect.poll(() => sent.length, { timeout: 5_000 }).toBeGreaterThan(0);
+    expect(JSON.parse(sent[0])).toHaveProperty("level");
+  });
+
   test("一覧の段と、道の点は食い違わない", async ({ page }) => {
     /*
       **同じ数を2か所で数えない。**

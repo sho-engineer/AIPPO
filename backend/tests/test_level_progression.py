@@ -322,3 +322,81 @@ class TestTheWordsMatchTheScreen:
 
     def test_neither_side_has_a_level_the_other_lacks(self):
         assert set(self._screen_levels()) == {seed.number for seed in LEVELS}
+
+
+class TestWhatALessonGivesYou:
+    """開始画面へ返すもの。**約束はしない。数だけ言う。**"""
+
+    def test_it_names_the_skills_the_lesson_teaches(self, seeded, api_client):
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+
+        body = api_client.get("/api/v1/rewards/lesson/rewrite_text/").json()
+
+        slugs = {one["slug"] for one in body["skills"]}
+        assert "prompt" in slugs, "このレッスンで取れる技が返っていない"
+        assert all(one["acquired"] is False for one in body["skills"])
+
+    def test_a_lesson_you_already_did_says_so(self, seeded, api_client):
+        """**「今回はじめて身につきます」と書かせない。**
+
+        やり直しの回に新しく取れるように出すと、嘘になる。
+        """
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+        SkillProgress.objects.create(
+            learner_key=key, skill_key="prompt", lesson_id="rewrite_text"
+        )
+
+        body = api_client.get("/api/v1/rewards/lesson/rewrite_text/").json()
+
+        got = {one["slug"]: one["acquired"] for one in body["skills"]}
+        assert got["prompt"] is True
+
+    def test_it_counts_what_is_still_missing_afterwards(self, seeded, api_client):
+        """終えたあとの残りを数える。**上がるとは言わない。**"""
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+
+        body = api_client.get("/api/v1/rewards/lesson/rewrite_text/").json()
+
+        # Lv.2 は prompt と context の2つ。rewrite_text は prompt だけ
+        assert body["next_level"]["number"] == 2
+        assert body["next_level"]["remaining"] == 2
+        assert body["remaining_after"] == 1
+
+    def test_a_skill_you_already_have_is_not_counted_twice(self, seeded, api_client):
+        """**片方だけで数えない。**
+
+        すでに持っている技を含むレッスンで、残りが二重に減らないこと。
+        """
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+        SkillProgress.objects.create(
+            learner_key=key, skill_key="prompt", lesson_id="rewrite_text"
+        )
+
+        body = api_client.get("/api/v1/rewards/lesson/rewrite_text/").json()
+
+        assert body["next_level"]["remaining"] == 1
+        assert body["remaining_after"] == 1, "持っている分をもう一度引いている"
+
+    def test_a_lesson_without_skills_answers_plainly(self, seeded, api_client):
+        """技がひも付いていないレッスンでも、画面を止めない。"""
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+
+        body = api_client.get("/api/v1/rewards/lesson/diagnosis/").json()
+
+        assert body["skills"] == []
+        assert body["next_level"] is not None
+
+    def test_the_top_of_the_ladder_has_no_next(self, seeded, api_client):
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+        progression.start_from_diagnosis(key, 5)
+
+        body = api_client.get("/api/v1/rewards/lesson/rewrite_text/").json()
+
+        assert body["next_level"] is None
+        assert body["remaining_after"] == 0

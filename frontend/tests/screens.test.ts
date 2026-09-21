@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { SCREENS, canTransition, nextScreen } from "../src/app/screens";
 
 describe("画面遷移", () => {
-  it("12画面（入口が2枚、コースは一覧と中身の2段）", () => {
+  it("13画面（入口が2枚、コースは一覧と中身の2段、学習マップ）", () => {
     expect(SCREENS).toEqual([
       "WELCOME",
       "DIAGNOSIS_INTRO",
@@ -14,6 +14,8 @@ describe("画面遷移", () => {
       "RECIPE",
       "RECORD",
       "SKILLS",
+      // 学習マップ。マイ学びと診断の結果から入る
+      "MAP",
       "WORKS",
       "SAVED",
       "SETTINGS",

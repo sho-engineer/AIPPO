@@ -588,3 +588,51 @@ class RankUpChallengeView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class LessonRewardView(APIView):
+    """GET /api/v1/rewards/lesson/<slug>/
+
+    このレッスンを終えると何が増えるか。**開始画面のための1本。**
+
+    返すのは、身につく技と、そのあと次の段に**まだ足りない数**だけ。
+    「これをやれば上がります」とは返さない——上がる条件は2つあって
+    （技がそろう・実践問題を通る）、レッスンで動くのは片方だけ。
+    約束を先に置くと、終えた人が上がらない理由を探すことになる。
+    """
+
+    def get(self, request: Request, slug: str) -> Response:
+        from apps.rewards import progression
+
+        keys = readable_keys(request)
+        reward = progression.lesson_reward(keys, slug)
+
+        return Response(
+            {
+                "lesson": slug,
+                "skills": [
+                    {
+                        "slug": one.slug,
+                        "name": one.name,
+                        "one_line": one.one_line,
+                        # すでに持っている技。**「今回はじめて」と
+                        # 書かないため**——やり直しの回に「新しく
+                        # 身につきます」と出すと、嘘になる
+                        "acquired": one.status == "earned",
+                    }
+                    for one in reward.skills
+                ],
+                "next_level": (
+                    {
+                        "number": reward.next_level.number,
+                        "name": reward.next_level.name,
+                        "remaining": reward.next_level.remaining,
+                        "has_challenge": reward.next_level.has_challenge,
+                    }
+                    if reward.next_level
+                    else None
+                ),
+                "remaining_after": reward.remaining_after,
+            },
+            status=status.HTTP_200_OK,
+        )

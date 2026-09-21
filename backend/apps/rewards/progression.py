@@ -252,3 +252,70 @@ def skill_for_lesson(lesson_slug: str) -> AiSkill | None:
         .order_by("lesson_links__order", "order")
         .first()
     )
+
+
+def skills_for_lesson(lesson_slug: str) -> list[AiSkill]:
+    """そのレッスンで身につく技、全部。並び順のまま。"""
+    return list(
+        AiSkill.objects.filter(lesson_links__lesson__slug=lesson_slug)
+        .order_by("lesson_links__order", "order")
+        .distinct()
+    )
+
+
+@dataclass(frozen=True)
+class LessonReward:
+    """このレッスンを終えると、何が増えるか。
+
+    開始画面が「今回身につける技」を出すのに使う。**「これをやれば
+    上がる」とは言えない**ので、言えることだけを返す——身につく技と、
+    それが済んだあとに次の段へ**まだ何個残るか**。
+
+    `remaining_after` を返す理由
+    ----------------------------
+    「あと1つ」と言うのと「終われば上がります」と言うのは別のこと。
+    上がる条件は2つあって（技がそろう・実践問題を通る）、技がそろう
+    のは**片方だけ**。数で言えば嘘にならない。
+    """
+
+    skills: list[SkillState]
+    #: 次の段。いちばん上に居れば None。
+    next_level: LevelState | None
+    #: このレッスンを終えたあと、次の段に**まだ足りない**技の数。
+    remaining_after: int
+
+
+def lesson_reward(learner_keys: list[UUID], lesson_slug: str) -> LessonReward:
+    """このレッスンで増えるものと、そのあとの残り。"""
+    earned = earned_skills(learner_keys)
+    gained = skills_for_lesson(lesson_slug)
+
+    states = [
+        SkillState(
+            slug=skill.slug,
+            name=skill.name,
+            one_line=skill.one_line,
+            status="earned" if skill.slug in earned else "locked",
+            lesson_ids=[lesson_slug],
+        )
+        for skill in gained
+    ]
+
+    after = next_level_state(learner_keys)
+    if after is None:
+        return LessonReward(skills=states, next_level=None, remaining_after=0)
+
+    """
+    終えたあとの残りを数える。
+
+    **いま取っている分に、このレッスンで取れる分を足して**から
+    引く。片方だけで数えると、すでに持っている技を含むレッスンで
+    残りが二重に減る。
+    """
+    would_have = earned | {skill.slug for skill in gained}
+    remaining_after = sum(
+        1 for one in after.skills if one.slug not in would_have
+    )
+    return LessonReward(
+        skills=states, next_level=after, remaining_after=remaining_after
+    )

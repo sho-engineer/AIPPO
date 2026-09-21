@@ -7,6 +7,7 @@ from apps.rewards.views import (
     CreditView,
     DiagnosisLevelView,
     LearningPathView,
+    LessonRewardView,
     LevelMapView,
     RankUpChallengeView,
     SkillDexView,
@@ -21,6 +22,7 @@ urlpatterns = [
     path("skills/", SkillDexView.as_view(), name="rewards-skills"),
     path("map/", LevelMapView.as_view(), name="rewards-map"),
     path("level/", DiagnosisLevelView.as_view(), name="rewards-level"),
+    path("lesson/<slug:slug>/", LessonRewardView.as_view(), name="rewards-lesson"),
     path(
         "challenge/<int:level>/",
         RankUpChallengeView.as_view(),

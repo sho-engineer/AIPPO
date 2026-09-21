@@ -73,6 +73,7 @@ import {
   IconChevronRight,
   IconClock,
 } from "../components/Icons";
+import { fetchLevelMap, type LevelMap } from "../api/progression";
 import { useCourse } from "../course/live";
 import { startableLessons } from "../course/availability";
 import { LessonThumbnail } from "../components/lessons/LessonThumbnail";
@@ -89,7 +90,62 @@ export interface HomePageProps {
   onOpenRecord: () => void;
   /** 身についたことの一覧へ。 */
   onOpenSkills: () => void;
+  /** 学習マップへ。渡されなければ、その1行を出さない。 */
+  onOpenMap?: () => void;
   onOpenAccount: () => void;
+}
+
+/**
+ * 次の段までの1行。
+ *
+ * **面は立てない。** ホームで面を立ててよいのは今日の1本だけ
+ * （このファイルの冒頭）。ここは細い1行で、押すと地図へ行く。
+ *
+ * 数は地図と同じところから取る（`GET /rewards/map/`）。別に数えると、
+ * ホームで「あと1つ」、地図で「あと2つ」が出る日が来る。
+ *
+ * 出ないとき
+ * ----------
+ * 読めなかったとき・いちばん上の段に居るとき・行き先が配られて
+ * いないとき。どれも黙って出ない——本筋ではないので、読めないことを
+ * 知らせるために場所を取らない。
+ */
+function NextLevelRow({ onOpenMap }: { onOpenMap?: () => void }) {
+  const [next, setNext] = useState<LevelMap["next"]>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchLevelMap(controller.signal)
+      .then((map) => setNext(map.next))
+      .catch(() => {
+        /* 読めなければ出さない */
+      });
+    return () => controller.abort();
+  }, []);
+
+  if (!next || !onOpenMap) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={onOpenMap}
+      data-testid="home-next-level"
+      className="mt-1 flex min-h-[2.75rem] w-full items-center justify-center gap-1
+                 py-2 text-xs font-bold text-brand transition
+                 hover:text-brand-dark [@media(min-height:600px)]:mt-2"
+    >
+      次は Lv.{next.number} {next.name}
+      <span className="font-normal text-ink-muted">
+        {/*
+          **「あと0つ」とは書かない。** 数が 0 になるのは「技が
+          そろう」であって「上がる」ではない（もう片方は昇段の
+          実践問題）。
+        */}
+        {next.remaining > 0 ? `／必要な技があと${next.remaining}つ` : "／必要な技はそろいました"}
+      </span>
+      <IconChevronRight className="h-3.5 w-3.5" />
+    </button>
+  );
 }
 
 // ---------------------------------------------------------- おかえりなさい
@@ -393,6 +449,7 @@ export function HomePage({
   onSelectLesson,
   onOpenRecord,
   onOpenSkills,
+  onOpenMap,
   onOpenAccount,
 }: HomePageProps) {
   /*
@@ -560,14 +617,22 @@ export function HomePage({
         </div>
 
         {/*
-          診断の入口。**細い1行だけ。**
+          この下は**細い1行が1本だけ**。診断の入口と、次の段までの
+          1行を入れ替わりで出す。
+
+          2本並べない——ホームで面を立ててよいのは今日の1本だけと
+          決めてあり（このファイルの冒頭）、細い1行も2つ重なれば
+          同じことになる。まだ診断を受けていない人には、地図より先に
+          診断のほうが要る（地図は Lv.1 のまま出るだけ）。
+        */}
+        {!showDiagnosisLink && <NextLevelRow onOpenMap={onOpenMap} />}
+
+        {/*
+          診断の入口。
 
           受けた人には出さない（受けるのは1回）。まだの人には、
           飛ばしたあとで思い出せる場所が要る——始めた直後の案内
           （`DiagnosisIntroPage`）を「あとで」で閉じた人の、次の入口。
-
-          面は立てない。ホームで面を立ててよいのは今日の1本だけと
-          決めてある（このファイルの冒頭）。
         */}
         {showDiagnosisLink && (
           <button

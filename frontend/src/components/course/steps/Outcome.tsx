@@ -45,6 +45,7 @@ import {
   LessonOverviewModal,
 } from "../LessonIntro";
 import { IconDocument } from "../../Icons";
+import { LessonSkillLine } from "../LessonSkillLine";
 import { LessonThumbnail } from "../../lessons/LessonThumbnail";
 import { TeachingImage } from "../../lessons/TeachingImage";
 import type { TeachingImageEntry } from "../../../course/teachingImages";
@@ -67,6 +68,7 @@ export function OutcomePreview({
   onStart,
   introSeen = false,
   onIntroSeen,
+  lessonId,
 }: {
   minutes?: number;
   /** ねらい。1行。 */
@@ -98,6 +100,11 @@ export function OutcomePreview({
   description?: string;
   /** ポーのひとこと。 */
   poMessage: string;
+  /**
+   * どの教材か。**今回の技の1行**を引くのに使う
+   * （`LessonSkillLine`）。渡さなければ、その行は出ない。
+   */
+  lessonId?: string;
   /**
    * 「さっそく試す」を押したとき。
    *
@@ -177,7 +184,20 @@ export function OutcomePreview({
         同じ重さにはしない——ここは「先に中身を見たい人」のための道で、
         押さずに始めてよい。
       */}
-      <div className="mt-auto shrink-0">
+      {/*
+        今回の技と、次の段までの残り。**1行だけ。**
+
+        入口で決めたいのは「始めてよいか」なので、札を積まない。
+        技がひも付いていない教材・読めなかったとき・いちばん上の段
+        では、行ごと出ない（`LessonSkillLine`）。
+      */}
+      {lessonId && (
+        <div className="mt-auto shrink-0">
+          <LessonSkillLine lessonId={lessonId} />
+        </div>
+      )}
+
+      <div className={`shrink-0 ${lessonId ? "mt-2" : "mt-auto"}`}>
         <MoreButton testId="outcome-intro-open" onClick={() => setIntroOpen(true)}>
           <IconDocument className="h-4 w-4 shrink-0" />
           今日やることを見る

@@ -83,6 +83,8 @@ export interface StepRendererProps {
    * いて、そこを通らずに移ると**受けたことが残らない**。
    */
   onPickLesson?: (lessonId: string) => void;
+  /** 診断の結果から、学習マップへ。 */
+  onOpenMap?: () => void;
   /**
    * 診断の結果の、いまの画面（`course/diagnosisFlow.ts`）。
    *
@@ -135,6 +137,7 @@ export function StepRenderer({
   onOpenCourseCatalog,
   onOpenRecipe,
   onPickLesson,
+  onOpenMap,
   diagnosisPhase = "stage",
   onEditAnswer,
 }: StepRendererProps) {
@@ -414,6 +417,7 @@ export function StepRenderer({
           outcomes={lesson.outcomes}
           overview={lessonOverview(lesson)}
           thumbnail={lessonOverviewFallback(lesson)}
+          lessonId={lesson.id}
         />
       );
 
@@ -1038,6 +1042,7 @@ export function StepRenderer({
             phase={diagnosisPhase}
             onEditAnswer={onEditAnswer}
             onPickLesson={onPickLesson}
+            onOpenMap={onOpenMap}
           />
         );
       }

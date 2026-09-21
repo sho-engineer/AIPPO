@@ -106,6 +106,59 @@ for (const size of SIZES) {
   });
 }
 
+/*
+  診断を受けた人のホーム。
+
+  細い1行が**入れ替わる**（診断の入口 → 次の段までの1行）ので、
+  そちらでも収まることを見る。片方だけ測ると、入れ替わった先が
+  溢れていても気づかない。
+*/
+test.describe("診断を受けた人のホーム", () => {
+  test.use({ viewport: { width: 402, height: 660 } });
+
+  test("次の段の1行が出ても、送らずに全部見える", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
+    await stubApi(page);
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "aippo:completed",
+        JSON.stringify({ lessons: ["diagnosis"], updatedAt: Date.now() }),
+      );
+    });
+    await page.goto("/");
+    await expect(page.getByTestId("tab-bar")).toBeVisible();
+
+    const row = page.getByTestId("home-next-level");
+    await expect(row).toBeVisible();
+    await expect(row).toContainText("次は Lv.2");
+    /* 診断の入口とは入れ替わりで出る。2本並べない */
+    await expect(page.getByTestId("open-diagnosis")).toHaveCount(0);
+
+    const seen = await fit(page);
+    expect(seen.over, `${seen.over}px 送れる`).toBeLessThanOrEqual(0);
+    expect(
+      seen.under,
+      `いちばん下の行が下タブに ${seen.under}px 潜っている`,
+    ).toBeLessThanOrEqual(SLACK);
+  });
+
+  test("押すと、学習マップへ行く", async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== "mobile", "スマホの見え方だけ見る");
+    await stubApi(page);
+    await page.addInitScript(() => {
+      window.localStorage.setItem(
+        "aippo:completed",
+        JSON.stringify({ lessons: ["diagnosis"], updatedAt: Date.now() }),
+      );
+    });
+    await page.goto("/");
+
+    await page.getByTestId("home-next-level").click();
+
+    await expect(page.getByTestId("map-levels")).toBeVisible();
+  });
+});
+
 test.describe("いちばん低い持ち方で畳むもの", () => {
   test.use({ viewport: { width: 402, height: 660 } });
 

@@ -301,6 +301,18 @@ class LearningEventType(models.TextChoices):
     DAY_COMPLETED = "day_completed"
     DAY_COMPLETE_NEXT_CLICKED = "day_complete_next_clicked"
 
+    """学習マップを開いた回。
+
+    見たい問いは「置き場所が合っているか」——結果の画面とマイ学びの
+    どちらから来るかで、次に導線を足す場所が決まる。開かれないなら、
+    地図の中身ではなく入口が悪い。
+
+    **段が上がった回はここに無い。** 上げたのはサーバーなので、
+    サーバーが記録している（`ChallengeAttempt`）。画面からも送ると
+    二重に数える。
+    """
+    LEARNING_MAP_OPENED = "learning_map_opened"
+
     """第一リリースの見張り（Analytics 14種）。
 
     足りていなかったのは、**詰まる場所と、続く理由**の両方。

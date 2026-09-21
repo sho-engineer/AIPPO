@@ -194,6 +194,24 @@ test.describe("レッスンを最後まで進める", () => {
     await expect(page.getByText("初級")).toHaveCount(0);
   });
 
+  test("開始画面に、今回の技と次の段までの残りが出る", async ({ page }) => {
+    /*
+      **「これをやれば上がる」とは書かない。** 上がる条件は2つあって
+      （技がそろう・昇段の実践問題を通る）、レッスンで動くのは片方
+      だけ。出るのは技の名前と、あといくつ残るかという数だけ。
+
+      入口を1つ増やしていないことも一緒に見る——ここは押せる行では
+      なく、読むだけの1行。
+    */
+    await openLessonById(page, flowLessonId());
+
+    const line = page.getByTestId("lesson-skill-line");
+    await expect(line).toBeVisible();
+    await expect(line).toContainText("プロンプト");
+    await expect(line).toContainText("あと1つ");
+    await expect(line.locator("button")).toHaveCount(0);
+  });
+
   test("最後まで進んで、完了画面が出る", async ({ page }) => {
     await openRewrite(page);
     await runToEnd(page);

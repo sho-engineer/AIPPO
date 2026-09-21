@@ -47,9 +47,21 @@ export interface LevelSheetProps {
    * 起きないのは、見えているだけで届かない道になる。
    */
   onSeeLesson?: () => void;
+  /**
+   * 「学習マップを見る」を押したとき。
+   *
+   * 渡されなければ、その行を出さない。**5段を眺めて終わりにしない**
+   * ——「次は Lv.3」を読んだ人が、そこへ行く道をその場で持つ。
+   */
+  onOpenMap?: () => void;
 }
 
-export function LevelSheet({ stage, onClose, onSeeLesson }: LevelSheetProps) {
+export function LevelSheet({
+  stage,
+  onClose,
+  onSeeLesson,
+  onOpenMap,
+}: LevelSheetProps) {
   const now = levelOf(stage);
   const next = nextLevel(stage);
 
@@ -173,6 +185,27 @@ export function LevelSheet({ stage, onClose, onSeeLesson }: LevelSheetProps) {
             </button>
           )}
         </div>
+      )}
+
+      {/*
+        学習マップへ。**次の段の枠の外に置く。**
+
+        いちばん上の段に居る人（`next` が null）にも要る行なので、
+        「次は Lv.N」の枠の中には入れない。入れると、5段目まで来た
+        人だけ地図へ行けなくなる。
+      */}
+      {onOpenMap && (
+        <button
+          type="button"
+          onClick={onOpenMap}
+          data-testid="level-open-map"
+          className="mt-3 flex min-h-[2.75rem] w-full items-center justify-center
+                     gap-1 rounded-cta border border-brand-line px-4 text-sm
+                     font-bold text-brand-dark transition hover:bg-brand-soft"
+        >
+          学習マップを見る
+          <IconChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+        </button>
       )}
     </MoreSheet>
   );

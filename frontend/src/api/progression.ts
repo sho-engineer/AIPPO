@@ -14,7 +14,7 @@
  * 画面と記録が食い違う。押せるかどうかは `challenge_open` をそのまま使う。
  */
 
-import { getJson } from "./http";
+import { getJson, sendJson } from "./http";
 
 /** 1つの技の、その人にとっての状態。 */
 export interface MapSkill {
@@ -61,4 +61,114 @@ export interface LevelMap {
 
 export function fetchLevelMap(signal?: AbortSignal): Promise<LevelMap> {
   return getJson<LevelMap>("/api/v1/rewards/map/", signal);
+}
+
+/** このレッスンを終えると、何が増えるか。 */
+export interface LessonReward {
+  lesson: string;
+  skills: {
+    slug: string;
+    name: string;
+    one_line: string;
+    /** すでに持っている技。やり直しの回に「新しく身につく」と書かないため */
+    acquired: boolean;
+  }[];
+  next_level: {
+    number: number;
+    name: string;
+    /** いま足りない技の数 */
+    remaining: number;
+    has_challenge: boolean;
+  } | null;
+  /**
+   * このレッスンを終えたあと、次の段に**まだ足りない**技の数。
+   *
+   * 0 になっても「上がる」ではない。上がる条件は2つあって、技が
+   * そろうのは片方だけ（もう片方は昇段の実践問題）。
+   */
+  remaining_after: number;
+}
+
+export function fetchLessonReward(
+  lessonId: string,
+  signal?: AbortSignal,
+): Promise<LessonReward> {
+  return getJson<LessonReward>(
+    `/api/v1/rewards/lesson/${encodeURIComponent(lessonId)}/`,
+    signal,
+  );
+}
+
+/** 昇段の実践問題。 */
+export interface RankUpChallenge {
+  level: number;
+  title: string;
+  scenario: string;
+  estimated_minutes: number;
+  /**
+   * 見る観点の名前（「目的」「誰向けか」…）。
+   *
+   * **見分け方そのものは来ない。** 言い回しの一覧が手元にあると、
+   * 答えではなく一覧を写せば通ってしまう。
+   */
+  check_labels: string[];
+  /** いま受けられるか。技がそろい、かつ**すぐ次の段**であること */
+  open: boolean;
+  /** そろっていない技の数 */
+  remaining: number;
+}
+
+/** 書いた指示文を見てもらった結果。 */
+export interface ChallengeVerdict {
+  passed: boolean;
+  /** 足りなかった観点の鍵。通ったときは空 */
+  missing: string[];
+  /** 足りなかった観点の、人に見せる名前 */
+  missing_labels: string[];
+  /** この回で段が上がったか */
+  level_up: boolean;
+  current_level: number;
+  /** 通っても上がらなかったとき、あといくつ技が要るか */
+  remaining_skills: number;
+}
+
+export function fetchChallenge(
+  level: number,
+  signal?: AbortSignal,
+): Promise<RankUpChallenge> {
+  return getJson<RankUpChallenge>(
+    `/api/v1/rewards/challenge/${level}/`,
+    signal,
+  );
+}
+
+/**
+ * 書いた指示文を送る。
+ *
+ * **判定はサーバー。** 画面で見ると観点の一覧が手元に渡るので、
+ * 答えを読まずに通せる。
+ */
+export function submitChallenge(
+  level: number,
+  answer: string,
+): Promise<ChallengeVerdict> {
+  return sendJson<ChallengeVerdict>(`/api/v1/rewards/challenge/${level}/`, {
+    answer,
+  });
+}
+
+/**
+ * 診断の結果を、地図の開始地点として記録する。
+ *
+ * **下げない。** 受け直した診断が、実践問題を通って上がった段を
+ * 取り消す形にすると、やったことが消える——判断はサーバー側
+ * （`start_from_diagnosis`）。画面はただ出た段を送るだけで、
+ * 上げ下げを決めない。
+ */
+export function recordDiagnosisLevel(
+  level: number,
+): Promise<{ current_level: number }> {
+  return sendJson<{ current_level: number }>("/api/v1/rewards/level/", {
+    level,
+  });
 }

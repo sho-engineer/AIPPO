@@ -609,6 +609,7 @@ export function App() {
             onSelectLesson={(id) => openLesson(id, "HOME")}
             onOpenRecord={() => navigate(nextScreen("HOME", "OPEN_RECORD"))}
             onOpenSkills={() => navigate(nextScreen("HOME", "OPEN_SKILLS"))}
+            onOpenMap={() => navigate(nextScreen("HOME", "OPEN_MAP"))}
             onOpenAccount={() => navigate(nextScreen("HOME", "OPEN_SETTINGS"))}
           />
         );
@@ -772,6 +773,8 @@ export function App() {
             onOpenRecipe={(tipId) => {
               navigate(nextScreen("LESSON", "OPEN_RECIPE"), { recipeId: tipId });
             }}
+            // 診断の結果の「AIPPO Level」一覧から、学習マップへ
+            onOpenMap={() => navigate(nextScreen("LESSON", "OPEN_MAP"))}
           />
         );
       }

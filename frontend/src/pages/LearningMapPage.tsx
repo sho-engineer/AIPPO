@@ -42,6 +42,7 @@ import {
   IconLock,
   IconMedal,
 } from "../components/Icons";
+import { ChallengeSheet } from "../components/course/diagnosis/ChallengeSheet";
 import { lookupLesson } from "../course/live";
 import { EVENTS, track } from "../lib/analytics";
 
@@ -204,11 +205,17 @@ function SkillNode({
  * **「Fail」とは書かない。** 受けられないときも、足りない数を言う
  * だけにする——落ちた・できなかった、と読める言葉を置かない。
  *
- * まだ画面が無いので、ここは押せない（Phase 4）。押せない代わりに、
- * **何をすれば開くか**を字で言う。押せるのに何も起きないより、
+ * 押せるのは、**いま受けられるときだけ**。まだのときは押せない
+ * 代わりに、何をすれば開くかを字で言う。押せるのに何も起きないより、
  * 押せないと分かるほうがよい。
  */
-function ChallengeNode({ level }: { level: MapLevel }) {
+function ChallengeNode({
+  level,
+  onOpen,
+}: {
+  level: MapLevel;
+  onOpen: (level: number) => void;
+}) {
   /*
     もう通り過ぎた段では、**残りの数を言わない。**
 
@@ -227,16 +234,8 @@ function ChallengeNode({ level }: { level: MapLevel }) {
             ? `技があと${level.remaining}つ`
             : "この段まで進むと開きます";
 
-  return (
-    <div
-      data-testid={`map-challenge-${level.number}`}
-      data-open={level.challenge_open}
-      className={`mt-2 flex items-center gap-3 rounded-card border px-3 py-3 ${
-        level.challenge_open
-          ? "border-brand-line bg-brand-soft/50"
-          : "border-line bg-canvas"
-      }`}
-    >
+  const body = (
+    <>
       <span
         className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
           level.challenge_open ? "bg-brand text-white" : "bg-surface text-ink-muted"
@@ -245,7 +244,7 @@ function ChallengeNode({ level }: { level: MapLevel }) {
       >
         <IconMedal className="h-4 w-4" />
       </span>
-      <span className="min-w-0 flex-1">
+      <span className="min-w-0 flex-1 text-left">
         <span className="block text-sm font-bold">Lv.{level.number} への挑戦</span>
         <span className="mt-0.5 block text-xs leading-6 text-ink-muted">
           {level.has_challenge
@@ -254,6 +253,34 @@ function ChallengeNode({ level }: { level: MapLevel }) {
         </span>
       </span>
       <span className="shrink-0 text-xs font-bold text-ink-muted">{label}</span>
+    </>
+  );
+
+  const shell =
+    "mt-2 flex w-full items-center gap-3 rounded-card border px-3 py-3";
+
+  if (level.challenge_open) {
+    return (
+      <button
+        type="button"
+        data-testid={`map-challenge-${level.number}`}
+        data-open="true"
+        onClick={() => onOpen(level.number)}
+        className={`${shell} min-h-[2.75rem] border-brand-line bg-brand-soft/50
+                    transition hover:bg-brand-soft active:scale-[0.99]`}
+      >
+        {body}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      data-testid={`map-challenge-${level.number}`}
+      data-open="false"
+      className={`${shell} border-line bg-canvas`}
+    >
+      {body}
     </div>
   );
 }
@@ -263,11 +290,13 @@ function LevelSection({
   level,
   current,
   onSelectLesson,
+  onOpenChallenge,
   last,
 }: {
   level: MapLevel;
   current: number;
   onSelectLesson: (lessonId: string) => void;
+  onOpenChallenge: (level: number) => void;
   last: boolean;
 }) {
   /*
@@ -343,7 +372,7 @@ function LevelSection({
             問題だけ先に置いた**ときに、それが消えないようにするため。
           */}
           {(level.skills.length > 0 || level.has_challenge) && (
-            <ChallengeNode level={level} />
+            <ChallengeNode level={level} onOpen={onOpenChallenge} />
           )}
         </div>
       </div>
@@ -354,6 +383,8 @@ function LevelSection({
 export function LearningMapPage({ onSelectLesson }: LearningMapPageProps) {
   const [map, setMap] = useState<LevelMap | null>(null);
   const [failed, setFailed] = useState(false);
+  /* いま開いている挑戦。閉じれば地図へ戻る（画面を増やさない） */
+  const [challengeAt, setChallengeAt] = useState<number | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     setFailed(false);
@@ -433,6 +464,7 @@ export function LearningMapPage({ onSelectLesson }: LearningMapPageProps) {
                   level={level}
                   current={map.current_level}
                   onSelectLesson={onSelectLesson}
+                  onOpenChallenge={setChallengeAt}
                   last={at === map.levels.length - 1}
                 />
               ))}
@@ -440,6 +472,18 @@ export function LearningMapPage({ onSelectLesson }: LearningMapPageProps) {
           </>
         )}
       </main>
+
+      {challengeAt !== null && (
+        <ChallengeSheet
+          level={challengeAt}
+          onClose={() => setChallengeAt(null)}
+          /*
+            上がったら、地図を読み直す。**画面側で段を1つ足さない**
+            ——足すと、技の状態や次の段の残りが古いまま残る。
+          */
+          onLevelUp={() => void load()}
+        />
+      )}
     </>
   );
 }

@@ -186,6 +186,13 @@ export interface LessonRunnerProps {
   /** 「やり方をくわしく見る」を押したとき。 */
   onOpenRecipe?: (tipId: string) => void;
   /**
+   * 診断の結果から、学習マップへ。
+   *
+   * 下のボタンと同じ道を通す（`finalizeCompletion` を先に走らせる）
+   * ——飛ばすと、診断を受けたのに受けていないことになる。
+   */
+  onOpenMap?: () => void;
+  /**
    * 下書きが無いときに、始める回。
    *
    * ホームの診断の案内から入った人だけが持って来る（開始説明を
@@ -208,6 +215,7 @@ export function LessonRunner({
   onSelectLesson,
   onOpenCourseCatalog,
   onOpenRecipe,
+  onOpenMap,
   startAtStepId,
   onLeave,
 }: LessonRunnerProps) {
@@ -780,6 +788,19 @@ export function LessonRunner({
         直したあと残りの問いをもう一度通ることになる。
       */
       onEditAnswer={beginEdit}
+      /*
+        5段の一覧から学習マップへ。**`onPickLesson` と同じ扱い。**
+        診断を終えた記録を飛ばして出ていくと、受けたのに受けていない
+        ことになる（すぐ上の註）。
+      */
+      onOpenMap={
+        onOpenMap
+          ? () => {
+              finalizeCompletion();
+              onOpenMap();
+            }
+          : undefined
+      }
     />
   );
 

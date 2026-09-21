@@ -43,13 +43,14 @@
  * 見えるが、5問から出した数字にその精度は無い。段は5つまで。
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { IconArrow, IconCheck, IconChevronRight } from "../Icons";
 import { MoreSheet } from "./MoreSheet";
 import { DetailSheet } from "./diagnosis/DetailSheet";
 import { GrowthTrack } from "./diagnosis/GrowthTrack";
 import { LevelSheet } from "./diagnosis/LevelSheet";
+import { recordDiagnosisLevel } from "../../api/progression";
 import { RadarChart } from "./diagnosis/RadarChart";
 import {
   AXES,
@@ -92,6 +93,13 @@ export interface DiagnosisResultProps {
    * 押せる形にしてあるのに押せないと、見えているだけで届かない道になる。
    */
   onPickLesson?: (lessonId: string) => void;
+  /**
+   * 学習マップへ。5段の一覧から入れるようにする。
+   *
+   * 渡されなければ、その行を出さない。押せる形にしてあるのに何も
+   * 起きないのは、見えているだけで届かない道になる。
+   */
+  onOpenMap?: () => void;
 }
 
 export function DiagnosisResult({
@@ -100,8 +108,20 @@ export function DiagnosisResult({
   phase,
   onEditAnswer,
   onPickLesson,
+  onOpenMap,
 }: DiagnosisResultProps) {
   const result = scoreDiagnosis(values);
+  /*
+    出た段を、地図の開始地点としてサーバーへ預ける。
+
+    **ここで上げ下げを決めない。** 受け直した診断が、実践問題を
+    通って上がった段を取り消さないようにするのはサーバーの役目
+    （`start_from_diagnosis`）。画面は出た数を送るだけ。
+
+    届かなくても、この画面は何も変わらない——診断の結果は手元の
+    回答から出しているので、記録が失敗しても読めるものは同じ。
+  */
+  useRecordedLevel(result.stage.number);
   /*
     サーバーから届いた一覧で決める。公開状態を持っているのはこちら
     ——同梱データを見ていると、1本開いた日に診断だけが古い範囲で止まる。
@@ -124,7 +144,12 @@ export function DiagnosisResult({
       data-phase={phase}
     >
       {phase === "stage" && (
-        <StageView result={result} values={values} onEditAnswer={onEditAnswer} />
+        <StageView
+          result={result}
+          values={values}
+          onEditAnswer={onEditAnswer}
+          onOpenMap={onOpenMap}
+        />
       )}
       {phase === "axes" && <AxesView result={result} />}
       {phase === "lesson" && (
@@ -170,14 +195,36 @@ export function DiagnosisResult({
  * 前は同じ画面に「次の一歩 ＋ おすすめ Day1」が並んでいて、現在地を
  * 読み終える前に目がそちらへ行っていた。次の話は2画面あと。
  */
+/**
+ * 出た段を、1回だけサーバーへ預ける。
+ *
+ * 結果の3画面は行き来するので、描き直すたびに送ると同じ数を何度も
+ * 送ることになる。段が変わったときだけ送る（「直す」で結果が
+ * 変わった回は、新しい数を送りたい）。
+ */
+function useRecordedLevel(stage: number): void {
+  const sent = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (sent.current === stage) return;
+    sent.current = stage;
+    void recordDiagnosisLevel(stage).catch(() => {
+      /* 届かなくても、この画面は変わらない。次に開いたときに送り直す */
+      sent.current = null;
+    });
+  }, [stage]);
+}
+
 function StageView({
   result,
   values,
   onEditAnswer,
+  onOpenMap,
 }: {
   result: ReturnType<typeof scoreDiagnosis>;
   values: Record<string, string>;
   onEditAnswer?: (stepId: string) => void;
+  onOpenMap?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [levelOpen, setLevelOpen] = useState(false);
@@ -287,6 +334,11 @@ function StageView({
         <LevelSheet
           stage={result.stage.number}
           onClose={() => setLevelOpen(false)}
+          /*
+            一覧から学習マップへ。**5段を眺めて終わりにしない**
+            ——「次は Lv.3」を読んだ人が、そこへ行く道をその場で持つ。
+          */
+          onOpenMap={onOpenMap}
         />
       )}
 
