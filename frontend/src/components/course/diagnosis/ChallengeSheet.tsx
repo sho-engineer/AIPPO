@@ -39,8 +39,9 @@ import {
   type ChallengeVerdict,
   type RankUpChallenge,
 } from "../../../api/progression";
+import { LevelUpView } from "./LevelUpView";
 import { MoreSheet } from "../MoreSheet";
-import { IconCheck, IconMedal, IconSparkle } from "../../Icons";
+import { IconCheck, IconSparkle } from "../../Icons";
 
 export interface ChallengeSheetProps {
   level: number;
@@ -97,7 +98,20 @@ export function ChallengeSheet({ level, onClose, onLevelUp }: ChallengeSheetProp
 
   return (
     <MoreSheet
-      title={challenge ? challenge.title : "昇段の挑戦"}
+      /*
+        題は、いま出ている中身に合わせる。
+
+        上がったあとも問題の題（「目的を伝えて、頼んでみる」）のまま
+        にしていた。帯と中身が別のことを言っている状態で、読み上げで
+        開いたときにも**問題を解く画面**として案内されてしまう。
+      */
+      title={
+        verdict?.level_up
+          ? "段が上がりました"
+          : challenge
+            ? challenge.title
+            : "昇段の挑戦"
+      }
       placement="full"
       testId="challenge-sheet"
       onClose={onClose}
@@ -238,31 +252,8 @@ function Verdict({
   onClose: () => void;
 }) {
   if (verdict.level_up) {
-    return (
-      <div className="text-center" data-testid="challenge-levelup">
-        <span
-          aria-hidden="true"
-          className="mx-auto flex h-16 w-16 items-center justify-center rounded-full
-                     bg-brand text-white"
-        >
-          <IconMedal className="h-8 w-8" />
-        </span>
-        <p className="mt-4 text-lg font-bold">Lv.{verdict.current_level} になりました</p>
-        <p className="mt-2 text-sm leading-7 text-ink-muted">
-          覚えた技を、まとめて1回で使えました。次の段でできることが増えます。
-        </p>
-        <button
-          type="button"
-          data-testid="challenge-done"
-          onClick={onClose}
-          className="mt-6 min-h-[3rem] w-full rounded-cta bg-brand px-6 py-2 text-sm
-                     font-bold text-white shadow-cta transition hover:brightness-110
-                     active:scale-[0.98]"
-        >
-          学習マップへ
-        </button>
-      </div>
-    );
+    /* 祝う一枚は別のところ（`LevelUpView`）。ここは振り分けだけ */
+    return <LevelUpView verdict={verdict} onClose={onClose} />;
   }
 
   if (verdict.passed) {

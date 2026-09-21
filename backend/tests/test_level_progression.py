@@ -521,3 +521,84 @@ class TestTheLaterChallenges:
             ["purpose", "audience", "condition", "format"],
         )
         assert "audience" in verdict.missing
+
+
+class TestWhatComesBackWhenYouRise:
+    """上がった回に、**祝う材料**が一緒に返ること。
+
+    「Lv.2 になりました」だけでは、何ができるようになったのかが
+    出てこない。段の名前も説明も画面側に写しを持たせない（段を足した
+    日に片方だけ古くなる）ので、ここで一緒に返す。
+    """
+
+    def _rise(self, api_client, key):
+        _earn(key, 2)
+        return api_client.post(
+            "/api/v1/rewards/challenge/2/",
+            {
+                "answer": "来週の会議で共有するために、この議事録の要点を"
+                "まとめてください。",
+            },
+            format="json",
+        ).json()
+
+    def test_it_names_the_level_you_reached(self, seeded, api_client):
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+
+        body = self._rise(api_client, key)
+
+        assert body["level_up"] is True
+        assert body["reached"]["number"] == 2
+        assert body["reached"]["name"] == "頼む"
+        assert body["reached"]["description"] != ""
+
+    def test_it_says_what_comes_next(self, seeded, api_client):
+        """次の段と、そこへ要る技の数。**行き止まりにしない。**"""
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+
+        body = self._rise(api_client, key)
+
+        assert body["next"]["number"] == 3
+        assert body["next"]["name"] == "条件をつける"
+        assert body["next"]["remaining"] > 0
+
+    def test_a_round_that_did_not_rise_gets_nothing_to_celebrate(
+        self, seeded, api_client
+    ):
+        """**祝う材料を、祝わない回に渡さない。**"""
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+
+        body = api_client.post(
+            "/api/v1/rewards/challenge/2/",
+            {"answer": "来週の会議で共有するために、要点をまとめてください。"},
+            format="json",
+        ).json()
+
+        assert body["level_up"] is False
+        assert body["reached"] is None
+        assert body["next"] is None
+
+    def test_the_top_of_the_ladder_has_no_next(self, seeded, api_client):
+        """いちばん上まで来た人に「次は Lv.6」と出さない。"""
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+        progression.start_from_diagnosis(key, 4)
+        _earn(key, 5)
+
+        body = api_client.post(
+            "/api/v1/rewards/challenge/5/",
+            {
+                "answer": "手順書を作ります。まず全体の流れを5つの段階に"
+                "分けてください。次の回では、その結果をもとに各段階の"
+                "中身を書きます。最後に、そのまま配れる手順書の形で"
+                "まとめてください。",
+            },
+            format="json",
+        ).json()
+
+        assert body["level_up"] is True
+        assert body["reached"]["number"] == 5
+        assert body["next"] is None

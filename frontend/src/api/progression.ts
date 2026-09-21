@@ -130,6 +130,24 @@ export interface ChallengeVerdict {
   current_level: number;
   /** 通っても上がらなかったとき、あといくつ技が要るか */
   remaining_skills: number;
+  /**
+   * 上がった段。上がらなかった回は null。
+   *
+   * 名前も説明も**サーバーが返す**。画面に写しを持つと、段を足した
+   * 日に片方だけ古くなる。
+   */
+  reached: { number: number; name: string; description: string } | null;
+  /**
+   * その次の段。いちばん上まで来ていれば null。
+   *
+   * 祝ったあとに行き先が無いと、そこで止まる。
+   */
+  next: {
+    number: number;
+    name: string;
+    remaining: number;
+    has_challenge: boolean;
+  } | null;
 }
 
 export function fetchChallenge(

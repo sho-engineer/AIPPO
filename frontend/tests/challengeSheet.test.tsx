@@ -35,6 +35,26 @@ const CHALLENGE: RankUpChallenge = {
 const GOOD_ANSWER =
   "来週の会議で共有するために、この議事録の要点をまとめてください。";
 
+/**
+ * 判定の雛形。
+ *
+ * `reached` / `next` は**上がった回だけ**入る。既定を null にして
+ * おくことで、祝う材料を祝わない回へ渡していないかも一緒に見える。
+ */
+function verdictOf(over: Partial<ChallengeVerdict>): ChallengeVerdict {
+  return {
+    passed: false,
+    missing: [],
+    missing_labels: [],
+    level_up: false,
+    current_level: 1,
+    remaining_skills: 0,
+    reached: null,
+    next: null,
+    ...over,
+  };
+}
+
 /** 問題だけを返す（まだ送っていない場面）。 */
 function serveChallenge() {
   return vi.spyOn(globalThis, "fetch").mockImplementation(
@@ -43,7 +63,8 @@ function serveChallenge() {
 }
 
 /** GET は問題、POST は判定を返す。 */
-function serveBoth(verdict: ChallengeVerdict) {
+function serveBoth(over: Partial<ChallengeVerdict>) {
+  const verdict = verdictOf(over);
   const sent: string[] = [];
   const spy = vi
     .spyOn(globalThis, "fetch")
@@ -110,8 +131,8 @@ describe("昇段の実践問題", () => {
   });
 
   describe("見てもらったあと", () => {
-    async function send(verdict: ChallengeVerdict) {
-      const served = serveBoth(verdict);
+    async function send(over: Partial<ChallengeVerdict>) {
+      const served = serveBoth(over);
       render(<ChallengeSheet level={2} onClose={() => {}} />);
       const box = await screen.findByTestId("challenge-answer");
       await userEvent.type(box, GOOD_ANSWER);

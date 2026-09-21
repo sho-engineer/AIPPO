@@ -134,6 +134,17 @@ test.describe("学習マップ", () => {
             level_up: true,
             current_level: 2,
             remaining_skills: 0,
+            reached: {
+              number: 2,
+              name: "頼む",
+              description: "目的を伝えて、基本的な仕事をAIに頼める",
+            },
+            next: {
+              number: 3,
+              name: "条件をつける",
+              remaining: 4,
+              has_challenge: true,
+            },
           }),
         });
         return;
@@ -162,9 +173,23 @@ test.describe("学習マップ", () => {
       .fill("来週の会議で共有するために、この議事録の要点をまとめてください。");
     await page.getByTestId("challenge-send").click();
 
-    await expect(page.getByTestId("challenge-levelup")).toContainText(
-      "Lv.2 になりました",
+    /*
+      **番号だけで終わらせない。** 何ができる段になったのかと、
+      次は何かまで出る。
+    */
+    await expect(page.getByTestId("levelup-name")).toContainText(
+      "Lv.2 頼む になりました",
     );
+    await expect(page.getByTestId("levelup-can")).toContainText(
+      "目的を伝えて、基本的な仕事をAIに頼める",
+    );
+    await expect(page.getByTestId("levelup-next")).toContainText(
+      "Lv.3 条件をつける",
+    );
+
+    /* 祝って終わりにしない。地図へ戻れる */
+    await page.getByTestId("challenge-done").click();
+    await expect(page.getByTestId("map-levels")).toBeVisible();
   });
 
   test("戻ると、マイ学びへ帰る", async ({ page }) => {

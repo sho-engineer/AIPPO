@@ -574,6 +574,38 @@ class RankUpChallengeView(APIView):
             progression.record_rankup(key, level)
 
         now, _ = progression.current_level(readable_keys(request))
+
+        """
+        上がった回だけ、**上がった先と、その次**を添える。
+
+        祝う画面が「Lv.2 になりました」だけでは、何ができるように
+        なったのかが出てこない。段の名前も説明も**画面側に写しを
+        持たせない**ので（段を足した日に片方だけ古くなる）、ここで
+        一緒に返す。
+
+        上がっていない回は両方 null。祝う材料を、祝わない回にまで
+        渡さない。
+        """
+        reached = None
+        after = None
+        if rose:
+            fresh = progression.build_map(readable_keys(request))
+            here = next((one for one in fresh if one.number == now), None)
+            if here is not None:
+                reached = {
+                    "number": here.number,
+                    "name": here.name,
+                    "description": here.description,
+                }
+            ahead = next((one for one in fresh if one.number == now + 1), None)
+            if ahead is not None:
+                after = {
+                    "number": ahead.number,
+                    "name": ahead.name,
+                    "remaining": ahead.remaining,
+                    "has_challenge": ahead.has_challenge,
+                }
+
         return Response(
             {
                 "passed": verdict.passed,
@@ -585,6 +617,9 @@ class RankUpChallengeView(APIView):
                 "current_level": now,
                 # 通ったのに上がらなかったとき、何が足りないかを言う
                 "remaining_skills": state.remaining if state else 0,
+                # 上がった段と、その次。上がっていない回は null
+                "reached": reached,
+                "next": after,
             },
             status=status.HTTP_200_OK,
         )
