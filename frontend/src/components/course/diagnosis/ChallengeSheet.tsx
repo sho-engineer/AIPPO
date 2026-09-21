@@ -127,9 +127,17 @@ export function ChallengeSheet({ level, onClose, onLevelUp }: ChallengeSheetProp
 
       {challenge && verdict === null && (
         <>
+          {/*
+            場面は**改行をそのまま出す**（`whitespace-pre-line`）。
+
+            状況と「何を入れて書くか」を1段落にまとめると、読む人は
+            どこまでが状況でどこからが指示なのか分からなくなる。
+            教材データ側が空行で分けているので、それを潰さない。
+          */}
           <p
             data-testid="challenge-scenario"
-            className="rounded-card border border-line bg-canvas px-4 py-3 text-sm leading-7"
+            className="whitespace-pre-line rounded-card border border-line bg-canvas
+                       px-4 py-3 text-sm leading-7"
           >
             {challenge.scenario}
           </p>

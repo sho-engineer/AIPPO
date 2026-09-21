@@ -30,8 +30,13 @@ from django.core.management import call_command
 from apps.lessons.models import SkillProgress
 from apps.rewards import progression
 from apps.rewards.levels import LEVELS
-from apps.rewards.models import AippoLevel, LevelRequirement, UserLevel
-from apps.rewards.rankup import MIN_LENGTH, judge
+from apps.rewards.models import (
+    AippoLevel,
+    LevelRequirement,
+    RankUpChallenge,
+    UserLevel,
+)
+from apps.rewards.rankup import CHECKS, MIN_LENGTH, judge
 
 pytestmark = pytest.mark.django_db
 
@@ -81,11 +86,42 @@ class TestTheSeedFillsTheLadder:
         """Lv.1 は始まりの段。ここへ「上がる」ことは無い。"""
         assert LevelRequirement.objects.get(level_id=1).required_skills.count() == 0
 
+    def test_every_level_above_the_first_has_a_challenge(self, seeded):
+        """Lv.2〜Lv.5 の問題が、4つそろっていること。
+
+        1つでも欠けると、その段だけ**永久に上がれない**——技をそろえても
+        通る相手がいない。地図には「準備中」と出るので、画面は壊れて
+        いるように見えず、外からは気づけない。
+        """
+        for number in range(2, len(LEVELS) + 1):
+            assert RankUpChallenge.objects.filter(level_id=number).exists(), (
+                f"Lv.{number} への実践問題が無い"
+            )
+
+    def test_every_check_a_challenge_names_actually_exists(self, seeded):
+        """問題が挙げた観点が、判定側に実在すること。
+
+        鍵を書き間違えると `judge` がその観点を**黙って飛ばす**
+        （`wanted` から外れる）。全部書けていなくても通ってしまい、
+        しかも画面は何も言わない。
+        """
+        for challenge in RankUpChallenge.objects.all():
+            unknown = [key for key in challenge.checks if key not in CHECKS]
+            assert unknown == [], (
+                f"Lv.{challenge.level_id} が知らない観点を挙げている: {unknown}"
+            )
+
     def test_a_level_without_a_challenge_says_so(self, seeded):
         """問題を用意していない段は、**空の問題を置かない。**
 
         押しても何も無い項目を作るより、地図に「準備中」と出す。
+
+        いまは Lv.2〜Lv.5 の4つそろっているので、**その状態を作って**
+        見る——データの隙間に頼ると、問題を1つ足した日に、この道が
+        検査されなくなる。
         """
+        RankUpChallenge.objects.filter(level_id=5).delete()
+
         assert _state(uuid.uuid4(), 5).has_challenge is False
 
 
@@ -271,6 +307,12 @@ class TestTheMapApi:
         assert "箇条書き" not in str(body), "見分け方の語が漏れている"
 
     def test_a_level_without_a_challenge_answers_plainly(self, seeded, api_client):
+        """問題が無い段を聞かれたら、素直に無いと答える。
+
+        ここも状態を作って見る（上の註と同じ理由）。
+        """
+        RankUpChallenge.objects.filter(level_id=5).delete()
+
         assert api_client.get("/api/v1/rewards/challenge/5/").status_code == 404
 
     def test_the_diagnosis_endpoint_moves_the_starting_point(
@@ -400,3 +442,82 @@ class TestWhatALessonGivesYou:
 
         assert body["next_level"] is None
         assert body["remaining_after"] == 0
+
+
+class TestTheLaterChallenges:
+    """Lv.4「使い分ける」と Lv.5「組み立てる」の観点。
+
+    上の4つ（目的・誰向けか・条件・出力形式）は「1回の指示をどう書くか」で、
+    Lv.3 までで身につく。ここから先は**使い分け**と**組み立て**を見るので、
+    見る語が別になる。
+
+    ここで確かめたいのは2つ。**素直に書いた答えが通ること**と、
+    **ぼんやりした答えが通らないこと**。前者が落ちると、何を直せばよいか
+    分からないまま繰り返すことになる。
+    """
+
+    LV4 = ["basis", "verify", "safety"]
+    LV5 = ["steps", "handoff", "deliverable"]
+
+    def test_a_plain_lv4_answer_passes(self):
+        verdict = judge(
+            "2社の見積もりを、費用と納期の2つで比べてください。"
+            "社名はA社・B社に置き換えます。金額が合っているかは"
+            "自分で元の見積書と確かめます。",
+            self.LV4,
+        )
+        assert verdict.passed is True, f"書けているのに落ちた: {verdict.missing}"
+
+    def test_a_vague_lv4_answer_says_what_is_missing(self):
+        verdict = judge(
+            "2社の見積もりについて、いい感じにまとめてください。"
+            "よろしくお願いします。",
+            self.LV4,
+        )
+        assert verdict.passed is False
+        assert set(verdict.missing) == set(self.LV4)
+
+    def test_lv4_names_what_is_missing_one_by_one(self):
+        """足りない観点だけを返す。**書けている分まで巻き添えにしない。**"""
+        verdict = judge(
+            "2社の見積もりを、費用と納期で比べてください。"
+            "数字が合っているかは自分で確かめます。",
+            self.LV4,
+        )
+        assert verdict.missing == ["safety"]
+        assert verdict.missing_labels == ["渡さない情報"]
+
+    def test_a_plain_lv5_answer_passes(self):
+        verdict = judge(
+            "手順書を作ります。まず全体の流れを5つの段階に分けてください。"
+            "次の回では、その結果をもとに各段階の中身を書きます。"
+            "最後に、そのまま配れる手順書の形でまとめてください。",
+            self.LV5,
+        )
+        assert verdict.passed is True, f"書けているのに落ちた: {verdict.missing}"
+
+    def test_a_one_shot_lv5_answer_does_not_pass(self):
+        """**1回で全部頼む書き方は、まだ組み立てではない。**
+
+        「手順書を作ってください」だけでは、分けることも、前の結果を
+        次へ渡すことも出てこない。
+        """
+        verdict = judge(
+            "新しい業務の手順書を作ってください。よろしくお願いします。",
+            self.LV5,
+        )
+        assert verdict.passed is False
+        assert "steps" in verdict.missing
+        assert "handoff" in verdict.missing
+
+    def test_the_later_checks_do_not_leak_into_the_earlier_ones(self):
+        """Lv.3 までの問題が、あとの段の語で通らないこと。
+
+        観点は鍵で選ぶので混ざらないはずだが、**混ざると Lv.3 が
+        易しくなる**方向の事故なので、ここで押さえておく。
+        """
+        verdict = judge(
+            "まず3つの段階に分けて、その結果を次に渡してください。",
+            ["purpose", "audience", "condition", "format"],
+        )
+        assert "audience" in verdict.missing
