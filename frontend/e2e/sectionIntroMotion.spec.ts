@@ -159,9 +159,19 @@ test.describe("章扉が出るとき", () => {
 
       `animation: none` にしていないのは、遅らせて出す要素が
       現れないまま消えるのを避けるため（同ファイルに註がある）。
+
+      **終わるのを待ってから読む。**
+      `both` は「始まる前」にも `from`（opacity 0）を当てるので、
+      始まる前の1フレームを読むと 0 が返る。0.01ms なので目には
+      見えないが、機械は掴める——実際、全件を回したときにここだけ
+      1件落ちた（8回単独で回すと毎回通る、という出方をした）。
+      秒数で待たず、アニメーションそのものの終わりを待つ。
     */
-    const state = await page.evaluate(() => {
+    const state = await page.evaluate(async () => {
       const node = document.querySelector("[data-testid='section-intro-content']")!;
+      await Promise.all(
+        node.getAnimations().map((one) => one.finished.catch(() => undefined)),
+      );
       const style = getComputedStyle(node);
       return {
         duration: style.animationDuration,
