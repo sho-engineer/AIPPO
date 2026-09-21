@@ -49,12 +49,16 @@ await p.route("**/api/v1/rewards/map/", (r) => {
   const second = {
     number: 2, name: "頼む",
     description: "目的を伝えて、基本的な仕事をAIに頼める",
-    status: "locked", skipped: false, remaining: 1,
-    has_challenge: true, challenge_open: false,
+    /*
+      挑戦を**開いた状態**で配る。閉じていると、昇段の一枚が
+      一度も開かず検査されない（押せないので辿り着けない）。
+    */
+    status: "locked", skipped: false, remaining: 0,
+    has_challenge: true, challenge_open: true,
     skills: [{
       slug: "prompt", name: "プロンプト",
       one_line: "してほしいことをAIに伝える",
-      status: "locked", lessons: ["rewrite_text"],
+      status: "earned", lessons: ["rewrite_text"],
     }],
   };
   return r.fulfill({
@@ -73,6 +77,32 @@ await p.route("**/api/v1/rewards/map/", (r) => {
     },
   });
 });
+await p.route("**/api/v1/rewards/challenge/*/", (r) =>
+  r.fulfill({
+    json: {
+      level: 2,
+      title: "目的を伝えて、頼んでみる",
+      scenario: "先週の打ち合わせのメモが、そのままでは長くて読めません。",
+      estimated_minutes: 2,
+      check_labels: ["目的"],
+      open: true,
+      remaining: 0,
+    },
+  }));
+await p.route("**/api/v1/rewards/lesson/*/", (r) =>
+  r.fulfill({
+    json: {
+      lesson: "rewrite_text",
+      skills: [{
+        slug: "prompt", name: "プロンプト",
+        one_line: "してほしいことをAIに伝える", acquired: false,
+      }],
+      next_level: { number: 2, name: "頼む", remaining: 1, has_challenge: true },
+      remaining_after: 0,
+    },
+  }));
+await p.route("**/api/v1/rewards/level/", (r) =>
+  r.fulfill({ json: { current_level: 1 } }));
 await p.route("**/api/v1/ai/models/", (r) =>
   r.fulfill({
     json: {
@@ -140,6 +170,16 @@ if (await p.getByTestId("skills-open-map").count()) {
   await p.getByTestId("skills-open-map").click();
   await p.waitForTimeout(700);
   await scan("学習マップ");
+
+  // 昇段の一枚。地図の挑戦から開く
+  if (await p.getByTestId("map-challenge-2").count()) {
+    await p.getByTestId("map-challenge-2").click();
+    await p.waitForTimeout(700);
+    await scan("昇段の挑戦");
+    await p.getByTestId("challenge-close").click();
+    await p.waitForTimeout(400);
+  }
+
   await p.goBack();
   await p.waitForTimeout(500);
 }
