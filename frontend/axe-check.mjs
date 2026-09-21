@@ -77,8 +77,25 @@ await p.route("**/api/v1/rewards/map/", (r) => {
     },
   });
 });
-await p.route("**/api/v1/rewards/challenge/*/", (r) =>
-  r.fulfill({
+await p.route("**/api/v1/rewards/challenge/*/", (r) => {
+  // 送ったあと（POST）は、段が上がった一枚を出す
+  if (r.request().method() === "POST") {
+    return r.fulfill({
+      json: {
+        passed: true, missing: [], missing_labels: [],
+        level_up: true, current_level: 2, remaining_skills: 0,
+        reached: {
+          number: 2, name: "頼む",
+          description: "目的を伝えて、基本的な仕事をAIに頼める",
+        },
+        next: {
+          number: 3, name: "条件をつける",
+          remaining: 4, has_challenge: true,
+        },
+      },
+    });
+  }
+  return r.fulfill({
     json: {
       level: 2,
       title: "目的を伝えて、頼んでみる",
@@ -88,7 +105,8 @@ await p.route("**/api/v1/rewards/challenge/*/", (r) =>
       open: true,
       remaining: 0,
     },
-  }));
+  });
+});
 await p.route("**/api/v1/rewards/lesson/*/", (r) =>
   r.fulfill({
     json: {
@@ -176,6 +194,15 @@ if (await p.getByTestId("skills-open-map").count()) {
     await p.getByTestId("map-challenge-2").click();
     await p.waitForTimeout(700);
     await scan("昇段の挑戦");
+
+    // 送って、段が上がった一枚も検査する
+    await p.getByTestId("challenge-answer").fill(
+      "来週の会議で共有するために、この議事録の要点をまとめてください。",
+    );
+    await p.getByTestId("challenge-send").click();
+    await p.waitForTimeout(900);
+    await scan("段が上がった一枚");
+
     await p.getByTestId("challenge-close").click();
     await p.waitForTimeout(400);
   }
