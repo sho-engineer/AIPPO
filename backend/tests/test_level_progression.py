@@ -602,3 +602,80 @@ class TestWhatComesBackWhenYouRise:
         assert body["level_up"] is True
         assert body["reached"]["number"] == 5
         assert body["next"] is None
+
+
+class TestCanYouActuallyClimb:
+    """**その段へ、いま本当に上がれるか。**
+
+    段に要る技が決まっていても、その技を教える Lesson が閉じていれば
+    （`coming_soon`）、誰もその段へ上がれない。地図には「あと4つ」と
+    出るのに、押せる先が1つも無い状態になる。
+
+    ここが守る事故
+    --------------
+    段・技・Lesson・公開範囲は別々の場所で決まる。どれか1つを動かした
+    日に、**梯子の途中が抜ける**。抜けても画面は動き続けるし、検査も
+    緑のままなので、外からは気づけない。
+
+    いまの穴を、数で固定しておく
+    ----------------------------
+    直すには Lesson を開く（`published` にする）必要があり、それは
+    **人にしかできない**（`docs/aippo/lesson-release-gates.md`）。
+    だから「全部たどれる」ではなく「**いまたどれない段はこれだけ**」
+    を書いて留める。増えたら落ちるし、開いて解消したらここも直る。
+    """
+
+    #: いま上がれない段と、その理由。**Lv.2 までしか上がれない。**
+    #:
+    #: Lv.3 … length / output_format は summarize_text・explain_topic
+    #:        でしか取れない。どちらも coming_soon（開けば解消する）
+    #: Lv.4 … comparison は compare_options だけ（coming_soon）。
+    #:        data_safety は use_ai_safely だけで、こちらは **archived**
+    #:        ——非公開の保管コースへ移してある
+    #: Lv.5 … task_framing は final_challenge だけで、これも archived
+    #:
+    #: coming_soon は「まだ開けていない」だが、archived は「引っ込めた」。
+    #: 後者は開き直すかどうかから決める話で、どちらも**人が決める**
+    #: （`docs/aippo/lesson-release-gates.md`）。
+    KNOWN_GAPS = {3, 4, 5}
+
+    def _reachable(self, number: int) -> bool:
+        from apps.catalog.models import AvailabilityStatus, Lesson, PublishStatus
+
+        requirement = LevelRequirement.objects.get(level_id=number)
+        for skill in requirement.required_skills.all():
+            slugs = [link.lesson.slug for link in skill.lesson_links.all()]
+            if not Lesson.objects.filter(
+                slug__in=slugs,
+                status=PublishStatus.PUBLISHED,
+                availability_status=AvailabilityStatus.AVAILABLE,
+            ).exists():
+                return False
+        return True
+
+    def test_the_gaps_are_where_we_think_they_are(self, seeded):
+        gaps = {
+            seed.number
+            for seed in LEVELS
+            if seed.skills and not self._reachable(seed.number)
+        }
+        assert gaps == self.KNOWN_GAPS, (
+            "上がれない段が変わった。"
+            f"いま {sorted(gaps)} / 控えてあるのは {sorted(self.KNOWN_GAPS)}。"
+            "増えたなら梯子が抜けている。減ったなら Lesson が開いたので、"
+            "ここの控えも直すこと"
+        )
+
+    def test_every_required_skill_has_a_lesson_somewhere(self, seeded):
+        """**教材が1本も無い技を、要件に置かない。**
+
+        閉じているのは運用の都合で戻せるが、そもそも教材が無いと
+        永久に取れない。ここは穴ではなく、はっきりした誤り。
+        """
+        for seed in LEVELS:
+            requirement = LevelRequirement.objects.get(level_id=seed.number)
+            for skill in requirement.required_skills.all():
+                assert skill.lesson_links.exists(), (
+                    f"技「{skill.name}」を教える Lesson が1本も無い"
+                    f"（Lv.{seed.number} の要件）"
+                )
