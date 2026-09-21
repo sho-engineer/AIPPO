@@ -212,6 +212,26 @@ test.describe("レッスンを最後まで進める", () => {
     await expect(line.locator("button")).toHaveCount(0);
   });
 
+  test("終えたあと、次の段までの残りが出る", async ({ page }) => {
+    /*
+      技を受け取る画面はあるが、それが**段のどこに効いたのか**は
+      出ていなかった。1本終えるたびに地図を開き直させない。
+
+      増えた分（`awarded`）が届いてから聞く。届く前に聞くと、たった
+      いま取った技が数に入らない。
+    */
+    await stubApi(page, { award: { xp: 10, skills: ["prompt"] } });
+    await openRewrite(page);
+    await runToEnd(page);
+
+    const row = page.getByTestId("completion-next-level");
+    await expect(row).toBeVisible();
+    await expect(row).toContainText("次は Lv.2 頼む");
+
+    await row.click();
+    await expect(page.getByTestId("map-levels")).toBeVisible();
+  });
+
   test("最後まで進んで、完了画面が出る", async ({ page }) => {
     await openRewrite(page);
     await runToEnd(page);

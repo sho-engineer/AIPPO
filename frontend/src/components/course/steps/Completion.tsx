@@ -15,6 +15,7 @@ import { Card, IconBadge } from "../../AppShell";
 import { SaveProgressCard } from "../../auth/SaveProgressCard";
 import { CourseCheckpoint } from "../CourseCheckpoint";
 import { LessonAwardCard } from "../LessonAwardCard";
+import { NextLevelAfterLesson } from "../NextLevelAfterLesson";
 import { playSuccessSound } from "../../../course/sound";
 import { KeepArtifactButton } from "../KeepArtifactButton";
 import { SurveyCard } from "../SurveyCard";
@@ -82,6 +83,7 @@ export function CompletionView({
   onSelectLesson,
   onOpenCourseCatalog,
   onOpenRecipe,
+  onOpenMap,
   award = null,
   reusablePrompt,
 }: {
@@ -115,6 +117,8 @@ export function CompletionView({
   onOpenCourseCatalog?: () => void;
   /** 「やり方をくわしく見る」を押したとき。 */
   onOpenRecipe?: (tipId: string) => void;
+  /** 学習マップへ。「次は Lv.N」の1行を出すのに要る。 */
+  onOpenMap?: () => void;
   /**
    * 終えたときに増えた分（XPとAI技）。サーバーが決める。
    *
@@ -571,6 +575,18 @@ export function CompletionView({
           */}
           <div className="mt-5">
             <LessonAwardCard award={award} />
+          </div>
+
+          {/*
+            いま取った技で、地図がどこまで進んだか。
+
+            技を受け取る画面はあるが、それが**段のどこに効いたのか**は
+            出ていなかった。1本終えるたびに地図を開き直させない。
+            数はサーバーが数えた分をそのまま出す（地図・ホーム・
+            開始画面と同じ `remaining`）。
+          */}
+          <div className="mt-3">
+            <NextLevelAfterLesson onOpenMap={onOpenMap} award={award} />
           </div>
 
           {/*

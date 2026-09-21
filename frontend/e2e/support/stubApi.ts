@@ -52,6 +52,14 @@ export interface StubOptions {
   levelMap?: unknown;
   /** 開始画面の「今回の技」。既定は「プロンプトが未取得、Lv.2 まであと1つ」。 */
   lessonReward?: unknown;
+  /**
+   * レッスンを終えたときに返す「増えた分」。
+   *
+   * 既定は**返さない**（204）。本物のサーバーは `{"awarded": ...}` を
+   * 返すが、既定で返すようにすると完了画面に札が増え、**高さを見て
+   * いる検査が一斉に動く**。増えた分を見たい検査だけが渡す。
+   */
+  award?: unknown;
   /** 取っておいた成果物。既定は「ゲストなので使えない」。 */
   saved?: unknown;
   /**
@@ -198,6 +206,14 @@ export async function stubApi(
   await page.route("**/api/learning-events/", async (route: Route) => {
     if (route.request().method() === "POST") {
       handle.events.push(route.request().postDataJSON());
+    }
+    if (options.award !== undefined) {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ awarded: options.award }),
+      });
+      return;
     }
     await route.fulfill({ status: 204, body: "" });
   });
