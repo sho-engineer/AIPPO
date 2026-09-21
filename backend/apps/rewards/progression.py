@@ -159,9 +159,16 @@ def build_map(learner_keys: list[UUID]) -> list[LevelState]:
                 # 挑戦できるのは、**いまの段のすぐ次**で、技がそろって
                 # いるときだけ。先の段の問題を先取りできると、途中を
                 # 飛ばして上がれてしまう。
+                #
+                # **要件が空の段は開けない。** 技が0個なら「そろって
+                # いる」ことになり（remaining == 0）、誰でも素通りで
+                # 上がれてしまう。要件をまだ入れていない環境——たとえば
+                # 段だけ先に入って技がまだ、という途中の状態——で
+                # 起きる。データの入り順に、昇段の可否を預けない。
                 challenge_open=(
                     level.number == now + 1
                     and remaining == 0
+                    and bool(skills)
                     and level.number in challenges
                 ),
             )

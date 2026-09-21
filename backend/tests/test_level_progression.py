@@ -32,6 +32,7 @@ from apps.rewards import progression
 from apps.rewards.levels import LEVELS
 from apps.rewards.models import (
     AippoLevel,
+    AiSkill,
     LevelRequirement,
     RankUpChallenge,
     UserLevel,
@@ -679,3 +680,90 @@ class TestCanYouActuallyClimb:
                     f"技「{skill.name}」を教える Lesson が1本も無い"
                     f"（Lv.{seed.number} の要件）"
                 )
+
+
+class TestAnEmptyRequirementNeverOpensAChallenge:
+    """**要件が空の段は、開かない。**
+
+    技が0個だと「そろっている」ことになり（`remaining == 0`）、誰でも
+    素通りで上がれてしまう。段だけ先に入って技がまだ、という**途中の
+    状態**で起きる——新しい環境の立ち上げや、本番へ順に入れていく
+    ときに通る道。
+
+    データの入り順に、昇段の可否を預けない。
+    """
+
+    def test_a_level_with_no_required_skills_stays_shut(self, seeded):
+        key = uuid.uuid4()
+        LevelRequirement.objects.get(level_id=2).required_skills.clear()
+
+        state = next(
+            one for one in progression.build_map([key]) if one.number == 2
+        )
+
+        assert state.remaining == 0, "技が0個なら、残りも0"
+        assert state.challenge_open is False, "要件が空なのに挑戦が開いた"
+
+    def test_the_api_refuses_to_raise_you_through_an_empty_level(
+        self, seeded, api_client
+    ):
+        """素通りで上がれないこと。**入り口だけでなく、結果も見る。**"""
+        key = uuid.uuid4()
+        api_client.cookies["learner_key"] = str(key)
+        LevelRequirement.objects.get(level_id=2).required_skills.clear()
+
+        body = api_client.post(
+            "/api/v1/rewards/challenge/2/",
+            {
+                "answer": "来週の会議で共有するために、この議事録の要点を"
+                "まとめてください。",
+            },
+            format="json",
+        ).json()
+
+        assert body["passed"] is True
+        assert body["level_up"] is False, "要件が空の段を素通りで上がった"
+
+
+class TestTheLevelOnlySeedCommand:
+    """`seed_levels` が、**新しい4つの表だけ**を触ること。
+
+    `seed_catalog` は教材の本文まで上書きする（`_upsert_lesson`）。
+    本番で流すと、管理画面から直した文言が同梱データへ巻き戻る。
+    段の仕組みを入れたいだけのときに、そこまで動かす理由は無い。
+    """
+
+    def test_it_fills_the_ladder(self, seeded):
+        AippoLevel.objects.all().delete()
+
+        call_command("seed_levels", verbosity=0)
+
+        assert AippoLevel.objects.count() == len(LEVELS)
+        assert RankUpChallenge.objects.count() == len(
+            [one for one in LEVELS if one.number >= 2]
+        )
+
+    def test_it_does_not_touch_the_lessons(self, seeded):
+        """教材の本文に触らないこと。**巻き戻しを起こさない。**"""
+        from apps.catalog.models import Lesson
+
+        lesson = Lesson.objects.get(slug="rewrite_text")
+        Lesson.objects.filter(pk=lesson.pk).update(title="運用で直した題")
+
+        call_command("seed_levels", verbosity=0)
+
+        lesson.refresh_from_db()
+        assert lesson.title == "運用で直した題", "seed_levels が教材を書き戻した"
+
+    def test_it_refuses_to_fill_an_empty_ladder_without_skills(self, seeded):
+        """図鑑が空なら、**何もせずに終わる。**
+
+        歯抜けの要件を残すほうが危ない——技0個は「そろっている」
+        ことになり、素通りで上がれてしまう。
+        """
+        AippoLevel.objects.all().delete()
+        AiSkill.objects.all().delete()
+
+        call_command("seed_levels", verbosity=0)
+
+        assert AippoLevel.objects.count() == 0, "技が無いのに段を入れた"
