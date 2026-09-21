@@ -102,11 +102,13 @@ export function AssembleStep({ step, value, onChange }: AssembleStepProps) {
         札どうしと同じ距離なので、**3つの枠が3つに見えない**。
         どこまでが1つの場面なのかを、目で追って数えることになる。
 
-        広げるぶんは、進み具合の帯から返ってきた 32px を使う
-        （`LessonProgress` で帯と数を1行にまとめた）。低い持ち方でも
-        枠の区切りだけは残す——ここを詰めると、詰めた意味が消える。
+        広げるぶんは、進み具合の帯から返ってきた 10px を使う
+        （`LessonProgress` で帯と数を1行にまとめた）。**返ってきた分
+        より広げない。** 一度 12px まで広げたら、320×568 と iPhone の
+        Safari で質問3が 76px あふれた（実測）。低い持ち方では 8px に
+        とどめる——中の 4px の倍あれば、枠は枠に見える。
       */
-      className="flex min-h-0 flex-1 flex-col gap-3 [@media(min-height:700px)]:gap-4"
+      className="flex min-h-0 flex-1 flex-col gap-2 [@media(min-height:700px)]:gap-4"
       data-testid="assemble"
     >
       {parts.map((part, index) => (
@@ -144,17 +146,17 @@ export function AssembleStep({ step, value, onChange }: AssembleStepProps) {
           </legend>
 
           {/*
-            札は**2列に決め打つ**。
+            札は**折り返しに任せる。**
 
-            前は折り返しに任せていた（`flex-wrap`）ので、3つの札が
-            2枚＋1枚に割れ、その割れ方が枠ごとに揃っていなかった。
-            列を決めると、どの枠も同じ形（上に2枚、下に1枚）になり、
-            縦に目を落とすだけで読める。
+            一度2列に決め打った。どの枠も同じ形になって読みやすいが、
+            **短い札が詰めて並べられなくなる**——質問3の「どんな言い方？」
+            は5つとも4〜7字で、折り返しなら3つ並ぶところが2つで
+            改行する。行が増えたぶん、320×568 と iPhone の Safari で
+            質問3が 76px あふれた（実測して戻した）。
 
-            1列にはしない——3枠×3札で 396px になり、低い持ち方では
-            最後の枠が画面から出る。
+            枠の区切りは、枠どうしの間（上の `gap-2`）が持つ。
           */}
-          <div className="mt-1 grid grid-cols-2 gap-1.5">
+          <div className="flex flex-wrap gap-1">
             {part.options.map((option) => {
               const on = picked[index] === option.value;
               return (
