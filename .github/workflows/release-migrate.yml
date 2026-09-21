@@ -88,22 +88,6 @@ jobs:
           DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
         run: python manage.py migrate --noinput
 
-      # 段（AIPPO Level）の中身を入れる。
-      #
-      # migrate は**表を作るだけ**なので、これを走らせないと段が0件の
-      # まま本番へ出る——地図は空、昇段の実践問題は 404、ホームの
-      # 「次は Lv.N」も出ない。**機能が死んだまま公開される**という、
-      # 気づきにくい出方をする。
-      #
-      # `seed_catalog` ではなく `seed_levels` を使う。あちらは教材の
-      # 本文まで上書きするので（`_upsert_lesson`）、管理画面から直した
-      # 文言が同梱データへ巻き戻る。こちらが触るのは新しい4つの表だけで、
-      # 教材にも学習者の記録にも触らない。何度流しても同じ結果になる。
-      - name: Seed the AIPPO Level ladder
-        env:
-          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
-        run: python manage.py seed_levels
-
       # 教材・学習パス・スタンプ定義・AI単価の初期データ。
       # 何度実行しても同じ結果になる（apps/rewards/seeding.py）ので、
       # 既に入っている本番でそのまま実行してよい。
