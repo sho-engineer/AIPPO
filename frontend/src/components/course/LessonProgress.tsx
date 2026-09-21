@@ -149,19 +149,44 @@ export function LessonProgress({
         入るぶん、同じ太さだと細切れに見えて読みにくい。
       */}
       {segments ? (
-        <ul className="flex gap-1" role="list" data-testid="progress-segments">
-          {Array.from({ length: segments.total }, (_, at) => (
-            <li
-              key={at}
-              aria-hidden="true"
-              data-done={at < segments.done ? "true" : "false"}
-              className={`h-1 flex-1 rounded-full ${
-                at < segments.done ? "bg-brand" : "bg-brand-line"
-              }`}
-              style={{ transition: `background-color ${MOTION.normal}ms ${EASING}` }}
-            />
-          ))}
-        </ul>
+        /*
+          帯と「質問 4 / 5」を、**1行にまとめる。**
+
+          前は帯の下にもう1行を敷いて数を右端へ置いていた。同じ
+          ひとつのこと（いまどこ）を2行で言っていることになり、
+          問いの画面ではそこに 32px 使っていた（実測）——その 32px は
+          そのまま選択肢から引かれる。
+
+          数は帯の右に置く。段に割った帯は「埋まった数＝問い数」なので、
+          数と帯は隣り合っているほうが読み合わせやすい。
+        */
+        <div className="flex items-center gap-3">
+          <ul
+            className="flex flex-1 gap-1"
+            role="list"
+            data-testid="progress-segments"
+          >
+            {Array.from({ length: segments.total }, (_, at) => (
+              <li
+                key={at}
+                aria-hidden="true"
+                data-done={at < segments.done ? "true" : "false"}
+                className={`h-1 flex-1 rounded-full ${
+                  at < segments.done ? "bg-brand" : "bg-brand-line"
+                }`}
+                style={{ transition: `background-color ${MOTION.normal}ms ${EASING}` }}
+              />
+            ))}
+          </ul>
+          {count !== undefined && count !== "" && (
+            <span
+              className="shrink-0 text-xs tabular-nums text-ink-muted"
+              data-testid="lesson-mission-count"
+            >
+              {count}
+            </span>
+          )}
+        </div>
       ) : (
       <>
       {/*
@@ -204,9 +229,10 @@ export function LessonProgress({
         区切りの名前も何問目も無く、そこだけで 22px を空の行に使って
         いた——1画面に収める柱では、その 22px が図から引かれる。
       */}
-      {(label ?? here?.label ?? "") !== "" ||
-      (count ?? (missions.length > 1 ? `${currentMission} / ${missions.length}` : "")) !==
-        "" ? (
+      {!segments &&
+      ((label ?? here?.label ?? "") !== "" ||
+        (count ?? (missions.length > 1 ? `${currentMission} / ${missions.length}` : "")) !==
+          "") ? (
       <div className="mt-1.5 flex items-baseline justify-between gap-3">
         {/*
           いまどの区切りにいるか。名前だけを出す。

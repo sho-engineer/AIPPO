@@ -95,10 +95,18 @@ export function AssembleStep({ step, value, onChange }: AssembleStepProps) {
     */
     <div
       /*
-        枠どうしの間も、低い持ち方では詰める。札を 44px にしたぶん
-        （6行で 36px 増）を、読めなくならないところから返す。
+        **枠どうしの間は、枠の中の間より広くする。**
+
+        前はどちらも 4px だった（実測）。そうすると、1つ目の枠の
+        最後の札と、2つ目の枠の名前が 4px しか離れていない——中の
+        札どうしと同じ距離なので、**3つの枠が3つに見えない**。
+        どこまでが1つの場面なのかを、目で追って数えることになる。
+
+        広げるぶんは、進み具合の帯から返ってきた 32px を使う
+        （`LessonProgress` で帯と数を1行にまとめた）。低い持ち方でも
+        枠の区切りだけは残す——ここを詰めると、詰めた意味が消える。
       */
-      className="flex min-h-0 flex-1 flex-col gap-1 [@media(min-height:700px)]:gap-2"
+      className="flex min-h-0 flex-1 flex-col gap-3 [@media(min-height:700px)]:gap-4"
       data-testid="assemble"
     >
       {parts.map((part, index) => (
@@ -135,7 +143,18 @@ export function AssembleStep({ step, value, onChange }: AssembleStepProps) {
             {part.label}
           </legend>
 
-          <div className="flex flex-wrap gap-1">
+          {/*
+            札は**2列に決め打つ**。
+
+            前は折り返しに任せていた（`flex-wrap`）ので、3つの札が
+            2枚＋1枚に割れ、その割れ方が枠ごとに揃っていなかった。
+            列を決めると、どの枠も同じ形（上に2枚、下に1枚）になり、
+            縦に目を落とすだけで読める。
+
+            1列にはしない——3枠×3札で 396px になり、低い持ち方では
+            最後の枠が画面から出る。
+          */}
+          <div className="mt-1 grid grid-cols-2 gap-1.5">
             {part.options.map((option) => {
               const on = picked[index] === option.value;
               return (

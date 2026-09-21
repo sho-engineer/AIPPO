@@ -169,7 +169,7 @@
           "type": "assemble",
           "primaryLabel": "次へ",
           "title": "こんなとき、AIに何を頼む？",
-          "instruction": "3つの場面に、合いそうな使い方をひとつずつ。",
+          "instruction": "場面ごとに1つずつ選びます。",
           "poMessage": "迷ったら、近いと思うほうで大丈夫です。",
           "poEmotion": "question",
           "key": "match_purpose",

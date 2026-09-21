@@ -1180,6 +1180,76 @@ test.describe("AI活用診断", () => {
     expect(locked).toBe("hidden");
   });
 
+  test("進み具合は、1行にまとまっている", async ({ page }) => {
+    /*
+      帯と「質問 4 / 5」は**同じひとつのこと**（いまどこ）を言って
+      いる。2行に分けると、問いの画面でそこに 32px 使うことになり、
+      その分がそのまま選択肢から引かれる（実測で 32px → 22px）。
+    */
+    await openDiagnosis(page);
+    await answerOne(page);
+
+    const shape = await page.evaluate(() => {
+      const bar = document.querySelector("[data-testid='progress-segments']");
+      const count = document.querySelector("[data-testid='lesson-mission-count']");
+      if (!bar || !count) return null;
+      const a = bar.getBoundingClientRect();
+      const b = count.getBoundingClientRect();
+      return {
+        /* 同じ行に居るなら、縦の中心はほぼ重なる */
+        apart: Math.abs((a.top + a.bottom) / 2 - (b.top + b.bottom) / 2),
+        countIsRight: b.left > a.right - 1,
+      };
+    });
+
+    expect(shape, "帯か数が見つからない").not.toBeNull();
+    expect(shape!.apart, "帯と数が別の行にある").toBeLessThanOrEqual(4);
+    expect(shape!.countIsRight, "数が帯の右に無い").toBe(true);
+  });
+
+  test("Q4 は、枠どうしのほうが枠の中より離れている", async ({ page }) => {
+    /*
+      **3つの枠が3つに見えること。**
+
+      前はどちらも 4px で、1つ目の枠の最後の札と2つ目の枠の名前が、
+      中の札どうしと同じ距離にあった。どこまでが1つの場面なのかを、
+      目で追って数えることになる。
+
+      数そのものは書かない（余白を1px 変えるたびに落ちる）。
+      **中より外が広い**という関係だけを見る。
+    */
+    await openDiagnosis(page);
+    for (let at = 0; at < 3; at += 1) await answerOne(page);
+    await expect(page.locator("main h1").first()).toHaveText(
+      "こんなとき、AIに何を頼む？",
+    );
+
+    const gaps = await page.evaluate(() => {
+      const parts = [
+        ...document.querySelectorAll("[data-testid='assemble-part']"),
+      ];
+      const boxes = parts.map((one) => one.getBoundingClientRect());
+      const between = boxes
+        .slice(1)
+        .map((box, at) => Math.round(box.top - boxes[at].bottom));
+      const first = parts[0];
+      const legend = first.querySelector("legend")!;
+      const chip = first.querySelector("[data-testid='assemble-choice']")!;
+      return {
+        between,
+        inside: Math.round(
+          chip.getBoundingClientRect().top - legend.getBoundingClientRect().bottom,
+        ),
+      };
+    });
+
+    expect(gaps.between.length).toBe(2);
+    for (const gap of gaps.between) {
+      expect(gap, `枠のあいだ ${gap}px が、枠の中 ${gaps.inside}px より狭い`)
+        .toBeGreaterThan(gaps.inside);
+    }
+  });
+
   test("一覧から、学習マップへ行ける", async ({ page }) => {
     /*
       **5段を眺めて終わりにしない。** 「次は Lv.3」を読んだ人が、
