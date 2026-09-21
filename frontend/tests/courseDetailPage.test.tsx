@@ -12,7 +12,7 @@
  *      戻すと、また読み下さないと次の1本に辿り着けなくなる。
  */
 
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -64,11 +64,19 @@ function reply(body: unknown): Response {
   return { ok: true, status: 200, json: async () => body } as Response;
 }
 
-/** 進み具合だけを返す。ほかは届かない場所と同じにする。 */
+/**
+ * 進み具合だけを返す。ほかは届かない場所と同じにする。
+ *
+ * **返事は1拍あとに返す。** その場で返すと、押した人には起きない
+ * 順番——描き終わる前に届く——でしか試せなくなる。実際それで、
+ * 中身を見ていない待ち方（下）が1年近く通り続け、混んだ CI で
+ * 初めて落ちた。
+ */
 function serve(completed: string[] = [], skills = 0) {
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const url = String(typeof input === "string" ? input : (input as Request).url);
     if (url.includes("/progress/")) {
+      await new Promise((done) => setTimeout(done, 0));
       return reply({
         lessons: completed.map((id) => ({ lesson_id: id, completed: true })),
         completed_count: completed.length,
@@ -119,7 +127,14 @@ describe("出るもの", () => {
     serve(["d1", "d2"]);
     show();
 
-    expect(await screen.findByTestId("course-progress-count")).toHaveTextContent("2 / 6");
+    /*
+      **中身がそろうまで待つ。** 枠は届く前から「0 / 6」で出ている
+      ので、`findByTestId` だと置かれた瞬間に返ってくる——数が入る
+      前の姿を見て通してしまう。
+    */
+    await waitFor(() =>
+      expect(screen.getByTestId("course-progress-count")).toHaveTextContent("2 / 6"),
+    );
   });
 
   it("準備中が何本あるかは、黙って隠さない", async () => {
