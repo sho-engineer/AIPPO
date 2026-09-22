@@ -247,7 +247,17 @@ export function useCourseLesson(
   const [findings, setFindings] = useState<PrivacyFinding[]>([]);
   const [hintIndex, setHintIndex] = useState(0);
   const [realTaskSkipped, setRealTaskSkipped] = useState(false);
-  /* 終えたときに増えた分。サーバーが決める（画面では数えない） */
+  /*
+    終えたときに増えた分。サーバーが決める（画面では数えない）。
+
+    **いまは、どの画面も出していない。**届くのは `complete()` の
+    あと、つまりレッスンを**出たとき**なので、完了画面が見えている
+    あいだは必ず null。長くそこに札を置いていたが、一度も描かれて
+    いなかった（`steps/Completion.tsx` に経緯）。
+
+    受け取り続けるのは、記録そのものはサーバー側で要るから。
+    出すなら、確定したあとの画面で。
+  */
   const [award, setAward] = useState<LessonAward | null>(null);
   const [restored, setRestored] = useState(false);
 

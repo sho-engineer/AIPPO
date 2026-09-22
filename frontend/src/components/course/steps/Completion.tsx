@@ -14,7 +14,6 @@ import { useEffect, useState } from "react";
 import { Card, IconBadge } from "../../AppShell";
 import { SaveProgressCard } from "../../auth/SaveProgressCard";
 import { CourseCheckpoint } from "../CourseCheckpoint";
-import { LessonAwardCard } from "../LessonAwardCard";
 import { playSuccessSound } from "../../../course/sound";
 import { KeepArtifactButton } from "../KeepArtifactButton";
 import { SurveyCard } from "../SurveyCard";
@@ -37,7 +36,6 @@ import {
   IconStar,
 } from "../../Icons";
 import type { Course } from "../../../course/types";
-import type { LessonAward } from "../../../api/lesson";
 
 // ------------------------------------------------------------- 完了画面
 
@@ -82,7 +80,6 @@ export function CompletionView({
   onSelectLesson,
   onOpenCourseCatalog,
   onOpenRecipe,
-  award = null,
   reusablePrompt,
 }: {
   /** スタンプの絵と、節目の中身を決めるのに使う。 */
@@ -115,12 +112,6 @@ export function CompletionView({
   onOpenCourseCatalog?: () => void;
   /** 「やり方をくわしく見る」を押したとき。 */
   onOpenRecipe?: (tipId: string) => void;
-  /**
-   * 終えたときに増えた分（XPとAI技）。サーバーが決める。
-   *
-   * 無い回（やり直し・届かなかったとき）は、その節ごと出さない。
-   */
-  award?: LessonAward | null;
   /**
    * 仕事でそのまま使える形（`day1Steps.ts` の `reusablePrompt`）。
    *
@@ -566,12 +557,25 @@ export function CompletionView({
           )}
 
           {/*
-            XP はいちばん下。増えた数は励みになるが、主役ではない。
-            「+100 XP!!!」が完了の主役、という形にしない。
+            増えた分（XP）は、ここには置けない
+            ------------------------------------
+            長く `LessonAwardCard` を置いていたが、**一度も描かれて
+            いなかった。**呼び出し側（`StepRenderer`）が `award` を
+            渡しておらず、既定の `null` のままだったので、札は毎回
+            何も返さずに終わっていた。単体テストは5本とも通っていた
+            ——部品だけを試していて、画面に繋がっているかは見ていない。
+
+            渡せば直る、という話ではない。増えた分を決めるのは
+            サーバーで、それを記録するのは**この画面を出るとき**
+            （`finalizeCompletion`）。この画面が見えているあいだ、
+            サーバーはまだ何も記録していないので、**渡すものが無い。**
+
+            数を出したければ、記録が確定したあとの画面になる。
+            ただし Day 完了の画面は「数はここの主役ではない」と決めて
+            XP を外してある（`DayCompletePage.tsx`）ので、いまは
+            どこにも出さない。**出ない札を置いておくより、無いほうが
+            正しい。**
           */}
-          <div className="mt-5">
-            <LessonAwardCard award={award} />
-          </div>
 
           {/*
             「これで何ができるか」。練習しただけで終わらせず、
