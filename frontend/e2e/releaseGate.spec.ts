@@ -1,9 +1,13 @@
 /**
- * 第1リリースの公開範囲。**Day1 だけが開いている。**
+ * 公開範囲を止める仕組み。
  *
  * 公開を決めるのは1か所（`src/course/catalog.ts` の
  * RELEASE_COMING_SOON と、サーバー側の同名の集合）。ここで見るのは
  * 「その1か所が、画面の全部の入口に効いているか」。
+ *
+ * **いまの公開範囲を書かない。** 書くと、公開したときに落ちる検査に
+ * なる——止める仕組みが壊れても気づけないまま、教材を1本開いた日だけ
+ * 赤くなる。閉じた1本はこちらで作る（下の `WITH_A_GATED_LESSON`）。
  *
  * 入口はいくつもある——教材の行・ホームの今日の1本・診断の結果・
  * 完了画面の次・URL の直打ち。**押せるボタンが1つ残るだけで、
@@ -15,20 +19,69 @@ import { expect, test, type Page } from "@playwright/test";
 import { dismissLessonIntro } from "./support/lessonIntro";
 import { stubApi } from "./support/stubApi";
 
-/** 第1リリースで開いている教材。 */
+/** 開いている教材。同梱データの本文がそのまま出る。 */
 const OPEN = "rewrite_text";
-/** 準備中の代表。Day2。 */
-const GATED = "summarize_text";
 
-async function toHome(page: Page) {
-  await stubApi(page);
+/**
+ * 準備中の代表。**こちらで閉じる。**
+ *
+ * 長く `summarize_text`（Day2）と書き、それが公開範囲の外に
+ * あることにもたれていた。Day2・Day3・Day4 を開いた日、この検査は
+ * **開いている教材を「始まらないはず」として試す**ことになって
+ * 落ちた。薄さとURL直打ちの2本は、落ちずに**素通り**していた
+ * ——止める仕組みを何も試さないまま緑だった。
+ *
+ * 公開範囲は動く。動くものに寄せると、仕組みが壊れたときではなく
+ * **公開したときに**落ちる。だから閉じた1本はここで作る。
+ */
+const GATED = "gated_lesson";
+
+/** 開いた1本と、閉じた1本。コースの3段を降りられる最小の形。 */
+const WITH_A_GATED_LESSON = {
+  courses: [
+    {
+      id: "first_step_7days",
+      title: "7日でAIの最初の一歩",
+      description: "公開範囲を確かめるためのコース",
+      lessons: [
+        {
+          id: OPEN,
+          number: 1,
+          title: "文章を分かりやすくする",
+          goal: "伝わる文章にする",
+          outcomes: [],
+          tags: [],
+          usesAi: true,
+          availability: "available",
+          steps: [
+            { id: "intro", type: "intro", title: "はじめに", instruction: "始めます" },
+          ],
+        },
+        {
+          id: GATED,
+          number: 2,
+          title: "準備中の教材",
+          goal: "まだ開いていない",
+          outcomes: [],
+          tags: [],
+          usesAi: true,
+          availability: "coming_soon",
+          steps: [],
+        },
+      ],
+    },
+  ],
+};
+
+async function toHome(page: Page, catalog?: unknown) {
+  await stubApi(page, catalog === undefined ? {} : { catalog });
   await page.goto("/");
   await page.evaluate(() => window.localStorage.clear());
   await page.reload();
 }
 
-async function toCourse(page: Page) {
-  await toHome(page);
+async function toCourse(page: Page, catalog?: unknown) {
+  await toHome(page, catalog);
   await page.getByRole("button", { name: "コース" }).first().click();
   await page.getByTestId("current-course-open").click();
 }
@@ -37,7 +90,7 @@ test.setTimeout(120_000);
 
 test.describe("公開していない教材", () => {
   test("一覧には出るが、押しても教材は始まらない", async ({ page }) => {
-    await toCourse(page);
+    await toCourse(page, WITH_A_GATED_LESSON);
 
     const soon = page.getByTestId(`lesson-${GATED}`);
     await expect(soon).toBeVisible();
@@ -67,7 +120,7 @@ test.describe("公開していない教材", () => {
       区別は付けるが、**利用不能な画面には見せない**。
       前は `opacity-55` で、文字が読めないまま8行並んでいた。
     */
-    await toCourse(page);
+    await toCourse(page, WITH_A_GATED_LESSON);
 
     const opacity = await page
       .getByTestId(`lesson-${GATED}`)
@@ -95,7 +148,7 @@ test.describe("URL を直に叩く", () => {
       止める（`App.tsx` の `openLesson`／描画側の両方）。
       最後の砦はサーバー（`apps/catalog/access.py`）。
     */
-    await stubApi(page);
+    await stubApi(page, { catalog: WITH_A_GATED_LESSON });
     await page.goto("/");
     await page.evaluate(
       (id) =>
@@ -164,7 +217,23 @@ test.describe("診断の結果", () => {
       押せる1本は、必ず開いているもの。**準備中へは渡さない。**
     */
     await expect(page.getByTestId("primary-action")).toHaveText(/Day 1をはじめる/);
-    // 逃げ道の一覧も、開いているものが無ければ入口ごと出さない
-    await expect(page.getByTestId("diagnosis-also-open")).toHaveCount(0);
+
+    /*
+      逃げ道の一覧も、**押した先が本当に開くこと**まで見る。
+
+      長く「入口ごと出ていない」（`toHaveCount(0)`）を見ていた。
+      当時は開いているのが Day1 だけで、逃げ道が1本も無かったから
+      成り立っていただけ——**混ざらないことは何も試していない。**
+      Day2・Day3・Day4 を開いた日に落ちた。
+
+      いまは開けて、先頭を押して、そのまま始まることを見る。
+      準備中が混ざっていれば、ここで一言（toast）が返って止まる。
+    */
+    await page.getByTestId("diagnosis-also-open").click();
+    await page.getByTestId("diagnosis-also-pick").first().click();
+    await dismissLessonIntro(page);
+
+    await expect(page.getByTestId("lesson-header")).toBeVisible();
+    await expect(page.getByTestId("toast")).toHaveCount(0);
   });
 });
