@@ -72,10 +72,7 @@ START_CURRICULUM: dict[str, tuple[int, str, str]] = {
 #: URL を直接叩かれても始まらない。
 RELEASE_COMING_SOON: frozenset[str] = frozenset(
     {
-        "summarize_text",
-        "explain_topic",
         "brainstorm_ideas",
-        "compare_options",
         "organize_information",
         "image_generation",
         "image_edit",

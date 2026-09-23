@@ -18,9 +18,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ReviewPrompt } from "../src/components/ReviewPrompt";
 import { COURSE } from "../src/course/catalog";
+import { resetCatalog } from "../src/course/live";
 
 const READY = COURSE.lessons[1].id;
-const ALSO_READY = COURSE.lessons[2].id;
+
+/*
+  準備中の1本は、**こちらで用意する。**
+
+  長く `COURSE.lessons[2]` と書いて、そこが準備中であることに
+  もたれていた。Day2・Day3・Day4 を開いた日、同梱データから
+  準備中が1本も無くなって、この検査は**試す相手を失った**
+  （開いている教材を「出ないはず」として試していた）。
+
+  公開範囲は動く。動くものを土台にすると、止める仕組みが
+  壊れたときではなく、**公開したときに**落ちる。
+*/
+const WAITING = "waiting_lesson";
 
 function item(lessonId: string, over: Record<string, unknown> = {}) {
   return {
@@ -76,20 +89,53 @@ describe("見返しどき", () => {
 
   it("準備中の教材は、見返しどきでも出さない", async () => {
     /*
-      サーバーは「間があいた教材」をそのまま返す。第1リリースでは
-      Day2 以降が準備中なので、**返ってきたものをそのまま並べると
-      押せない行が出る**。見返すには開く必要があるので、ここは
-      開けるものだけに絞る（`course/availability.ts`）。
+      サーバーは「間があいた教材」をそのまま返す。準備中の1本が
+      混ざったまま並べると、**押せない行が出る**。見返すには開く
+      必要があるので、ここは開けるものだけに絞る
+      （`course/availability.ts`）。
 
       終えたことを無かったことにするのとは違う——記録は残っていて、
       もう一度やる道が、公開まで開かないだけ。
     */
-    serve({ items: [item(READY), item(ALSO_READY)], due_count: 2 });
+    resetCatalog();
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(typeof input === "string" ? input : (input as Request).url);
+      if (url.includes("/catalog/")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            courses: [
+              {
+                ...COURSE,
+                lessons: [
+                  ...COURSE.lessons,
+                  {
+                    ...COURSE.lessons[1],
+                    id: WAITING,
+                    number: 99,
+                    availability: "coming_soon",
+                  },
+                ],
+              },
+            ],
+          }),
+        } as Response;
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          items: [item(READY), item(WAITING)],
+          due_count: 2,
+        }),
+      } as Response;
+    });
 
     render(<ReviewPrompt onSelectLesson={() => {}} />);
 
     await screen.findByTestId(`review-${READY}`);
-    expect(screen.queryByTestId(`review-${ALSO_READY}`)).not.toBeInTheDocument();
+    expect(screen.queryByTestId(`review-${WAITING}`)).not.toBeInTheDocument();
   });
 });
 

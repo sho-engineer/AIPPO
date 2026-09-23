@@ -18,9 +18,9 @@ import type { Lesson } from "../src/course/types";
 /**
  * 近日公開の教材は、一覧に出すが始められないこと。
  *
- * 第1リリースで開くのは**診断と Day1 だけ**（catalog.ts の
- * RELEASE_COMING_SOON）。中身も画面も出来ているが、リリース判定が
- * 済んでいないものは「準備中」として一覧に出す。
+ * 開く範囲を決めているのは catalog.ts の RELEASE_COMING_SOON。
+ * 中身も画面も出来ているが、リリース判定が済んでいないものは
+ * 「準備中」として一覧に出す。
  *
  * そこでこのテストは「どの教材が開いているか」ではなく、
  * **近日公開にしたら本当に止まるか**を見る。以前は
@@ -144,21 +144,31 @@ describe("近日公開の判定", () => {
 });
 
 describe("同梱データの既定", () => {
-  it("第1リリースで開くのは、診断と Day1 だけ", () => {
+  it("開いているのは、この並びだけ", () => {
     /*
-      **ここだけは本数を決め打ちにする。**
+      **ここだけは並びを決め打ちにする。**
 
       ふだん公開範囲を検査に書くのは避ける（教材が1本増えるたびに
       落ちるだけで、止める仕組みが壊れても気づけない）。ただし
-      「第1リリースは Day1 のみ」はリリースの約束そのもので、
-      うっかり別の教材を開いたまま出すのがいちばん困る。
+      どこまで開いているかはリリースの約束そのもので、うっかり
+      別の教材を開いたまま出すのがいちばん困る。
 
       教材を公開するときは、`catalog.ts` の RELEASE_COMING_SOON から
       id を1行消して、ここも一緒に直す——**2か所で済む**ように
       してある。画面側は触らない。
+
+      第1リリースは診断と Day1 の2本だった。そのあと Day2・Day3・
+      Day4 を開いている（段の梯子が Lv.2 で行き止まりだったため。
+      `backend/tests/test_level_progression.py` に経緯）。
     */
     const open = startableLessons(COURSE.lessons).map((one) => one.id);
-    expect(open).toEqual(["diagnosis", "rewrite_text"]);
+    expect(open).toEqual([
+      "diagnosis",
+      "rewrite_text",
+      "summarize_text",
+      "explain_topic",
+      "compare_options",
+    ]);
   });
 
   it("準備中にしても、教材は消えない", () => {

@@ -1,9 +1,10 @@
 # Day2｜長い文章を短くまとめる
 #
-# **まだ公開しない。** 第1リリースで開けるのは診断と Day1 だけ
-# （`backend/apps/catalog/release_seeding.py` の RELEASE_COMING_SOON）。
-# 実装が終わって検査が通っても、`published` にできるのは人だけ
-# （`docs/aippo/lesson-release-gates.md`）。
+# **公開ずみ。** 人の承認を受けて開いた（下の `release`）。
+# 公開範囲を決めているのは
+# `backend/apps/catalog/release_seeding.py` の RELEASE_COMING_SOON と、
+# 画面側の控え（`frontend/src/course/catalog.ts`）の2か所だけ。
+# `published` にできるのは人だけ（`docs/aippo/lesson-release-gates.md`）。
 #
 # この Spec は実装の正本ではない
 # ------------------------------
@@ -24,9 +25,9 @@ implementation_id: summarize_text
 slug: summarize-long-text
 title: 長い文章を短くまとめる
 
-#: 検査と実ブラウザQAが済んだ。**published にできるのは人だけ**
-#: （`docs/aippo/lesson-release-gates.md`）。AI も CI も上げない。
-status: review
+#: 人の承認を受けて公開した（下の `release`）。
+#: **published にできるのは人だけ**（`docs/aippo/lesson-release-gates.md`）。
+status: published
 version: 2
 
 learning_goal: 長い文章から必要な情報を残し、読む目的に合った短い要約を作れる
@@ -130,22 +131,23 @@ assets:
   completion_visual: null
 
 release:
-  #: 自動検査と、Chromium（実ブラウザ）での完走QAが済んだ状態
-  qa_status: automated_and_browser_done
-  #: **人のレビューはまだ。** ここが埋まるまで published にしない
-  reviewed_by: null
-  reviewed_at: null
+  qa_status: passed
+  reviewed_by: sho-engineer
+  reviewed_at: "2026-09-23"
   release_notes: >-
+    公開の理由: 段の梯子が Lv.2 で行き止まりになっていた。Lv.3 に要る
+    「長さの指定」と「出力形式の指定」は、この Day2 でしか取れない
+    （backend/tests/test_level_progression.py の TestCanYouActuallyClimb）。
+    Day3・Day4 と同時に開いた。
     済んだこと: 4サイズ（320×568 / 375×667 / 390×844 / 430×932）で
     横あふれ・カード内スクロール・押し場所の被りを検査で見張り、
     390×844 と 320×568 は実ブラウザで最初からHome復帰まで通した。
     例文の道と自分の文章の道の両方。
-    残っていること: (1) **人による最終承認**——Release Gate の
-    「判定」（docs/aippo/lesson-release-gates.md）はここだけが未了。
-    (2) iPhone 実機（Safari）での確認。Chromium と Safari では
+    **承認したうえで残っていること**（知って開いた。消していない）:
+    (1) iPhone 実機（Safari）での確認。Chromium と Safari では
     safe-area と 100dvh の扱いが違う。
-    (3) 320×568 では完了画面が縦に収まらず、画面の逃げ道
+    (2) 320×568 では完了画面が縦に収まらず、画面の逃げ道
     （step-stage）で送ることになる。Day1 も同じ（123px / 138px）。
-    (4) `compare_04_context` に当たる図が Repository に無い。Section 3
+    (3) `compare_04_context` に当たる図が Repository に無い。Section 3
     は実結果のCompareだけで成り立っているので不足ではないが、
     足すなら作る判断が要る。

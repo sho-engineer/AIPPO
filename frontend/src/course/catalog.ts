@@ -1460,10 +1460,7 @@ const FINAL: Lesson = {
  * 「押させない・見せ方を変える」ためのもので、守りの本体ではない。
  */
 const RELEASE_COMING_SOON = new Set<string>([
-  "summarize_text",
-  "explain_topic",
   "brainstorm_ideas",
-  "compare_options",
   "organize_information",
   "image_generation",
   "image_edit",

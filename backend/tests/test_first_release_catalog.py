@@ -86,8 +86,8 @@ class TestFirstReleaseCatalog:
             assert lesson.availability_status == AvailabilityStatus.COMING_SOON
             assert lesson.coming_soon_message
 
-    def test_the_first_release_opens_only_the_check_and_day1(self, released):
-        """第1リリースで開けるのは、診断と Day1 だけ。
+    def test_the_course_opens_exactly_these_lessons(self, released):
+        """スタートコースで開いているのは、この並びだけ。
 
         **公開を決めるのは1か所**（`release_seeding.RELEASE_COMING_SOON`）。
         教材を1本公開するときは、あの集合から slug を1行消す——
@@ -96,6 +96,11 @@ class TestFirstReleaseCatalog:
         ここで開く範囲を決め打ちにしているのは、リリースの約束
         そのものだから。うっかり別の教材を開いたまま出すのが
         いちばん困る。
+
+        第1リリースは診断と Day1 の2本だった。そのあと Day2・Day3・
+        Day4 を開いた——段の梯子が Lv.2 で行き止まりになっていて、
+        length / output_format / comparison がこの3本でしか取れない
+        ため（`test_level_progression.py::TestCanYouActuallyClimb`）。
         """
         course = Course.objects.get(slug="first_step_7days")
         assert list(
@@ -104,7 +109,13 @@ class TestFirstReleaseCatalog:
             )
             .order_by("sort_order")
             .values_list("slug", flat=True)
-        ) == ["diagnosis", "rewrite_text"]
+        ) == [
+            "diagnosis",
+            "rewrite_text",
+            "summarize_text",
+            "explain_topic",
+            "compare_options",
+        ]
 
     def test_unopened_lessons_keep_their_content(self, released):
         """準備中にしても、中身は消さない。
@@ -117,7 +128,7 @@ class TestFirstReleaseCatalog:
         waiting = course.lessons.filter(
             availability_status=AvailabilityStatus.COMING_SOON
         )
-        assert waiting.count() >= 5
+        assert waiting.count() >= 2
         for lesson in waiting:
             assert lesson.status == PublishStatus.PUBLISHED, lesson.slug
             assert lesson.title, lesson.slug
@@ -158,7 +169,11 @@ class TestFirstReleaseCatalog:
         body = re.sub(r"//[^\n]*", "", block.group(1))
         mirrored = set(re.findall(r'"([a-z_]+)"', body))
 
-        assert len(mirrored) >= 5, "控えから id を読み出せていない"
+        #: 読み出せたかどうかだけを見る。**件数を決め打ちにしない**
+        #: ——教材を開くたびに減るので、開いた日に「読めていない」と
+        #: 言い出す（Day2・Day3・Day4 を開いて実際にそうなった）。
+        #: 空振りは下の突き合わせが捕まえる（本物は空ではない）。
+        assert mirrored, "控えから id を読み出せていない"
         assert mirrored == set(RELEASE_COMING_SOON)
 
     def test_practical_course_marks_unfinished_lessons_coming_soon(self, released):

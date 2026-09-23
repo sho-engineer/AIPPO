@@ -912,13 +912,34 @@ describe("結果の5画面", () => {
       押すと出せるようにしてある。そこに準備中の教材を混ぜない
       ——押した先で止まる道は、道ではない。
 
-      第1リリースでは開いているのが Day1 だけなので、逃げ道は
-      1本も無い。**入口ごと出さない**（押しても空の一枚が開くだけ
-      になるため）。教材を公開すれば自然に出てくる。
+      **準備中の1本は、こちらで用意する。**長く `rest` が空である
+      ことだけを見ていたが、それは「開いているのが Day1 だけ」と
+      いう当時の状況をなぞっていただけで、混ざらないことは確かめて
+      いなかった。Day2・Day3・Day4 を開いた日に、空ではなくなって
+      落ちた——公開範囲は動くので、そこへもたれない。
     */
-    show("lesson");
+    const half = COURSE.lessons.map((lesson) =>
+      lesson.id === "compare_options"
+        ? { ...lesson, availability: "coming_soon" as const }
+        : lesson,
+    );
 
-    expect(recommendPlan(values).rest).toEqual([]);
+    expect(recommendPlan(values, half).rest).not.toContain("compare_options");
+  });
+
+  it("逃げ道が1本も無いときは、入口ごと出さない", () => {
+    /*
+      押しても空の一枚が開くだけになる。候補が出てきたら、入口も
+      一緒に出る。
+    */
+    const alone = COURSE.lessons.map((lesson) =>
+      lesson.id === "rewrite_text"
+        ? lesson
+        : { ...lesson, availability: "coming_soon" as const },
+    );
+
+    expect(recommendPlan(values, alone).rest).toEqual([]);
+    show("lesson", { lessons: alone });
     expect(screen.queryByTestId("diagnosis-also-open")).toBeNull();
   });
 
@@ -936,14 +957,23 @@ describe("結果の5画面", () => {
       ...lesson,
       availability: "available" as const,
     }));
+    /*
+      渡した一覧で決まることを見たいので、**閉じた側もこちらで作る。**
+      同梱データをそのまま「閉じた側」として使っていたが、Day2・
+      Day3・Day4 を開いたら同梱データも開いてしまい、両方が同じ
+      ものになって差が出なくなった。
+    */
+    const shut = COURSE.lessons.map((lesson) =>
+      lesson.id === "diagnosis" || lesson.id === "rewrite_text"
+        ? lesson
+        : { ...lesson, availability: "coming_soon" as const },
+    );
 
-    const closed = recommendPlan(values);
+    const closed = recommendPlan(values, shut);
     const open = recommendPlan(values, opened);
 
-    // 同梱データのままなら、逃げ道は無い（上の回と同じ）
-    expect(closed.rest).toEqual([]);
-    // 全部開けば、逃げ道が出てくる
-    expect(open.rest.length).toBeGreaterThan(0);
+    // 全部開けば、いまより逃げ道が増える
+    expect(open.rest.length).toBeGreaterThan(closed.rest.length);
     // 本来のおすすめも「準備中」ではなくなる
     expect(open.waiting).toBeUndefined();
   });

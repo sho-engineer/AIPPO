@@ -82,15 +82,34 @@ LEVELS: tuple[LevelSeed, ...] = (
         number=4,
         name="使い分ける",
         description="仕事の内容に応じて、AIへの頼み方や使い方を選べる",
-        skills=("comparison", "iteration", "fact_check", "data_safety"),
+        # `data_safety` は外してある。下の「取れない技を要件にしない」。
+        skills=("comparison", "iteration", "fact_check"),
     ),
     LevelSeed(
         number=5,
         name="組み立てる",
         description="AIを仕事の流れに組み込み、複数のステップを組み立てて使える",
-        skills=("decomposition", "follow_up", "task_framing"),
+        # `task_framing` は外してある。同上。
+        skills=("decomposition", "follow_up"),
     ),
 )
+
+#: 取れない技を、要件にしない
+#: ---------------------------
+#: `data_safety` は `use_ai_safely`、`task_framing` は `final_challenge`
+#: にしかひも付いていない。**どちらもコースから外して旧教材
+#: （`foundation_legacy`）へ移した本**なので、これから始める人は
+#: 取りようがない。要件に残すと、Lv.4 と Lv.5 は**誰も届かない段**
+#: として地図に並び続ける——「あと1つ」と出ているのに、その1つを
+#: 取る道がどこにも無い。
+#:
+#: 技そのものは図鑑から消していない。過去にあの2本を終えた人は
+#: 実際に身につけていて、その記録は本人のものだから（公開範囲は
+#: こちら側の都合、`lesson-status-rule.md`）。
+#:
+#: 旧教材を現役へ戻すなら、ここへ戻す。そのときは
+#: `test_level_progression.py::TestCanYouActuallyClimb` が
+#: 届くかどうかを実際に数えて教える。
 
 
 @dataclass(frozen=True)

@@ -618,27 +618,29 @@ class TestCanYouActuallyClimb:
     日に、**梯子の途中が抜ける**。抜けても画面は動き続けるし、検査も
     緑のままなので、外からは気づけない。
 
-    いまの穴を、数で固定しておく
-    ----------------------------
-    直すには Lesson を開く（`published` にする）必要があり、それは
-    **人にしかできない**（`docs/aippo/lesson-release-gates.md`）。
-    だから「全部たどれる」ではなく「**いまたどれない段はこれだけ**」
-    を書いて留める。増えたら落ちるし、開いて解消したらここも直る。
+    いまは、穴が無い
+    ----------------
+    長いあいだ Lv.3 以上へ上がれなかった。ここはその穴を数で留めて
+    いた場所で、**いまは空**。
+
+    どう塞いだか（2つある）
+
+      * Day2・Day3・Day4 を開いた。length / output_format /
+        comparison が取れるようになった
+      * `data_safety` と `task_framing` を要件から外した。あの2つは
+        旧教材（`foundation_legacy`）でしか取れず、**これから始める
+        人には道が無い**（`apps/rewards/levels.py` に経緯）
+
+    空のままにしておくのが正しい。ここに段番号が増えたら、それは
+    **梯子の途中が抜けた**ということ——画面は動き続けるし他の検査も
+    緑のままなので、外からは気づけない。
     """
 
-    #: いま上がれない段と、その理由。**Lv.2 までしか上がれない。**
+    #: 上がれない段。**無い。**
     #:
-    #: Lv.3 … length / output_format は summarize_text・explain_topic
-    #:        でしか取れない。どちらも coming_soon（開けば解消する）
-    #: Lv.4 … comparison は compare_options だけ（coming_soon）。
-    #:        data_safety は use_ai_safely だけで、こちらは **archived**
-    #:        ——非公開の保管コースへ移してある
-    #: Lv.5 … task_framing は final_challenge だけで、これも archived
-    #:
-    #: coming_soon は「まだ開けていない」だが、archived は「引っ込めた」。
-    #: 後者は開き直すかどうかから決める話で、どちらも**人が決める**
-    #: （`docs/aippo/lesson-release-gates.md`）。
-    KNOWN_GAPS = {3, 4, 5}
+    #: 増やすときは、なぜ上がれないのかを1行ずつ書くこと。
+    #: 理由の書いていない番号は、直し忘れと見分けが付かない。
+    KNOWN_GAPS: set[int] = set()
 
     def _reachable(self, number: int) -> bool:
         from apps.catalog.models import AvailabilityStatus, Lesson, PublishStatus
