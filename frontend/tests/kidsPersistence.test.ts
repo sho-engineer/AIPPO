@@ -79,8 +79,11 @@ describe("Kids records reflect verified persistence outcomes", () => {
   it("retains the displayed profile when readback throws after a successful write", () => {
     api().go("settings");
     const read = Storage.prototype.getItem;
+    let settingsReads = 0;
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (this: Storage, key: string) {
-      if (key === settingsKey) throw new Error("read denied");
+      // The first read is the compare-and-set guard, before any write.
+      // Fail only the second read, which verifies the completed write.
+      if (key === settingsKey && ++settingsReads === 2) throw new Error("readback denied");
       return read.call(this, key);
     });
     document.querySelector<HTMLInputElement>("#child-nick")!.value = "child-B";

@@ -45,7 +45,7 @@ describe("Kids entry preserves a child's selected learning route", () => {
   });
   it("replays the saved task and conditions rather than starting different choices", () => {
     const conditions = { budget: "500円", time: "90分", place: "屋外" };
-    boot({ guardianAccepted: true, ageBand: "10-12" }, { schema: 3, done: {}, challenges: [{ mode: "advanced", task: "outing", conditions }] });
+    boot({ guardianAccepted: true, ageBand: "10-12" }, { schema: 3, done: {}, challenges: [{ mode: "advanced", task: "outing", at: "2026-10-14T00:00:00Z", conditions }] });
     click('[data-action="retry"]');
     expect(document.querySelector('[data-ch-task]')).toBeNull();
     expect(document.querySelector('[data-ch-compare]')).not.toBeNull();
