@@ -60,6 +60,12 @@ async function childScreen(page: Page, frame: FrameLocator) {
   await expect.poll(() => frame.locator('.app').evaluate(el => el.getBoundingClientRect().bottom - innerHeight)).toBeLessThanOrEqual(2);
   await expect.poll(() => frame.locator('.view').evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(2);
   if (await frame.locator('.worldView').count()) {
+    for (const tab of await frame.locator('.worldRail [data-world]').all()) {
+      await expect.poll(() => tab.evaluate(el => {
+        const r = el.getBoundingClientRect();
+        return r.width >= 44 && r.height >= 44;
+      })).toBe(true);
+    }
     await expect.poll(() => frame.locator('.mapWorld').evaluate(el => {
       const story = el.querySelector('.mapStory')!.getBoundingClientRect();
       return [...el.querySelectorAll('.trailNode')].filter(node => {

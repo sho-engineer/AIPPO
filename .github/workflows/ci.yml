@@ -112,7 +112,7 @@ jobs:
       - name: Build and check Kids screens
         env:
           E2E_TARGET: build
-        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts e2e/kidsNextPurpose.spec.ts e2e/kidsOrientation.spec.ts e2e/kidsTitleOpening.spec.ts --max-failures=8
+        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts e2e/kidsNextPurpose.spec.ts e2e/kidsOrientation.spec.ts --max-failures=8
 
       - name: Upload Kids responsive evidence
         if: always()
@@ -132,6 +132,38 @@ jobs:
           path: |
             frontend/test-results/**/*.png
             frontend/test-results/**/error-context.md
+          retention-days: 7
+
+  title-quality:
+    name: Title opening quality (production build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Check title, native video and recovery
+        env:
+          E2E_TARGET: build
+        run: npx playwright test e2e/kidsTitleOpening.spec.ts
+      - name: Upload title screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: title-opening-evidence
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
           retention-days: 7
 
   a11y:
@@ -281,6 +313,9 @@ jobs:
         working-directory: frontend
         env:
           E2E_TARGET: build
+          # The Kids and title jobs run the same excluded suites independently.
+          # This avoids duplicate execution without omitting any test cases.
+          E2E_KIDS_SEPARATE: "1"
         run: npx playwright test
 
       - name: Upload the report on failure
