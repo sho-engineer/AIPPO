@@ -74,7 +74,7 @@ describe("Kids entry preserves a child's selected learning route", () => {
   it("separates parent's recent simulation record from household self-report and opens the existing details", () => {
     boot({ guardianAccepted: true, ageBand: "10-12" }, {
       schema: 3, done: { 0: { at: "2026-10-13" } },
-      challenges: [{ task: "outing", mode: "advanced", at: "2026-10-14", support: "self", hints: 0, errors: 1, selectedRevision: "0円・60分・屋内", evidence: { sourceMethodSelected: true } }],
+      challenges: [{ task: "outing", mode: "advanced", at: "2026-10-14T02:00:00.000Z", completedAtISO: "2026-10-14T02:00:00.000Z", localDay: "2026-10-14", timeZone: "Asia/Kuala_Lumpur", sequence: 1, support: "self", hints: 0, errors: 1, selectedRevision: "0円・60分・屋内", evidence: { sourceMethodSelected: true } }],
       daily: [{ title: "家族の計画", at: "2026-10-14", mode: "ai", outcome: "revised", support: "together" }],
     });
     api().go("parent"); click('[data-action="recent"]');
@@ -85,7 +85,7 @@ describe("Kids entry preserves a child's selected learning route", () => {
     expect(summary.textContent).toContain("直して使った");
     expect(summary.textContent).toContain("未検証");
     click('[data-recent-record]');
-    expect(document.querySelector(".summaryModal")).toBeNull();
+    expect(document.querySelector("#recent-title")).toBeNull();
     expect(document.querySelector("#record-title")!.textContent).toBe("クリアしたこと");
   });
   it("shows empty recent records and opens a challenge without clearing legacy stamps", () => {

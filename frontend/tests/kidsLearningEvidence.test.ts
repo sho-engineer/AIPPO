@@ -34,7 +34,9 @@ function compare(task: string) {
 }
 
 function finish() {
-  click('[data-ch-fix="correct"]');
+  const revise = !!document.querySelector('[data-ch-decision="revise"]') && !document.querySelector('.challengeModal')!.textContent!.includes('情報源を比較');
+  click(`[data-ch-decision="${revise ? 'revise' : 'hold'}"]`);
+  if (revise) click('[data-ch-fix="correct"]');
   click('[data-ch-reason="correct"]');
   click('[data-ch-verify="correct"]');
   click('[data-ch-support="self"]');
@@ -63,7 +65,7 @@ describe("Kids concrete learning evidence stays within simulation", () => {
         expect(Object.values(record.conditions)).toEqual(values);
         expect(record.rubricVersion).toBe(2);
         expect(record.scope).toBe("simulation");
-        expect(record.evidence.concreteRevisionSelected).toBe(true);
+        expect(record.evidence.concreteRevisionSelected).toBe(task === "outing");
         expect(record.evidence.sourceCardsCompared).toBe(task === "sources");
         expect(record.evidence.sourceCheck).toBeUndefined();
         expect(record.selectedRevision).toBeTruthy();
@@ -89,6 +91,7 @@ describe("Kids concrete learning evidence stays within simulation", () => {
     expect(document.querySelector("[data-ch-fix]")).toBeNull();
     click('[data-ch-issue="place"]');
     click("[data-ch-compare]");
+    click('[data-ch-decision="revise"]');
     const wrong = document.querySelector('[data-ch-fix="incorrect"]')!.textContent!;
     const right = document.querySelector('[data-ch-fix="correct"]')!.textContent!;
     expect(wrong.length).toBeGreaterThan(right.length);

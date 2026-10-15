@@ -41,6 +41,7 @@ describe("Kids source evaluation and historical recovery", () => {
     const actual = [Number(values[1].replaceAll(",", "")) > 500 ? "budget" : null, Number(values[2]) > 90 ? "time" : null, values[3] !== "屋外" ? "place" : null].filter(Boolean);
     expect(actual).toEqual([expectedIssue]);
     click(`[data-ch-issue="${expectedIssue}"]`); click('[data-ch-compare]');
+    click('[data-ch-decision="revise"]');
     for (const key of ["fix", "reason", "verify"]) click(`[data-ch-${key}="correct"]`);
     click('[data-ch-support="self"]');
     const current = JSON.parse(localStorage.getItem(store)!).challenges.at(-1);
@@ -63,11 +64,12 @@ describe("Kids source evaluation and historical recovery", () => {
     expect(document.querySelector('[data-ch-fix]')).toBeNull();
     click(`[data-ch-issue="${wrongKey}"]`);
     click(`[data-ch-issue="${actualIssues[0]}"]`); click('[data-ch-compare]');
-    for (const key of ["fix", "reason", "verify"]) click(`[data-ch-${key}="correct"]`);
+    click('[data-ch-decision="hold"]');
+    for (const key of ["reason", "verify"]) click(`[data-ch-${key}="correct"]`);
     click('[data-ch-support="self"]');
     const records = JSON.parse(localStorage.getItem(store)!).challenges;
     expect(records).toHaveLength(2);
-    expect(records[1].comparisonVersion).toBe(3);
+    expect(records[1].comparisonVersion).toBe(4);
     expect(records[1].issueKeys).toEqual(actualIssues);
     expect(records[1].referenceSnapshot[1].when === "不明").toBe(actualIssues[0] === "when");
     expect(records[0].issueKeys).toEqual([previousIssue]);
@@ -84,11 +86,11 @@ describe("Kids source evaluation and historical recovery", () => {
     boot(); sources();
     expect(document.querySelector(".challengeModal h3")!.textContent).toContain("資料B");
     click('[data-ch-issue="when"]'); click('[data-ch-compare]');
-    expect(document.querySelector('[data-ch-fix]')).not.toBeNull();
+    expect(document.querySelector('[data-ch-decision="hold"]')).not.toBeNull();
   });
   it("explains the selected source-check mistake instead of an unrelated repeated-answer mistake", () => {
     boot(); sources(); click('[data-ch-issue="when"]'); click('[data-ch-compare]');
-    click('[data-ch-fix="correct"]'); click('[data-ch-reason="correct"]'); click('[data-ch-verify="wrong"]');
+    click('[data-ch-decision="hold"]'); click('[data-ch-reason="correct"]'); click('[data-ch-verify="wrong"]');
     const feedback = document.querySelector(".challengeFeedback")!.textContent!;
     expect(feedback).toMatch(/日時|資料|発信元/);
     expect(feedback).not.toContain("同じ回答を繰り返し");
