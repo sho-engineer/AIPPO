@@ -83,7 +83,7 @@ for (const viewport of sizes) {
     const frame = page.frameLocator(iframe);
     await expect(frame.locator(".homeTitle")).toContainText("AI");
     await ordinaryScreen(frame, page, ".homeView button");
-    if (viewport.width === 844 && testInfo.project.name === 'desktop') await page.screenshot({ path: testInfo.outputPath('landscape-home.png') });
+    if (viewport.width > viewport.height && testInfo.project.name === 'desktop') await page.screenshot({ path: testInfo.outputPath('landscape-home.png') });
 
     await frame.locator('[data-action="start"]').click();
     await expect(frame.locator(".guardianDialog")).toBeVisible();
@@ -95,7 +95,7 @@ for (const viewport of sizes) {
 
     await expect(frame.locator(".worldView")).toBeVisible();
     await ordinaryScreen(frame, page, ".worldView button");
-    if (viewport.width === 844 && testInfo.project.name === 'desktop') await page.screenshot({ path: testInfo.outputPath('landscape-map.png') });
+    if (viewport.width > viewport.height && testInfo.project.name === 'desktop') await page.screenshot({ path: testInfo.outputPath('landscape-map.png') });
     await frame.locator('[data-action="current"]').click();
     await expect(frame.locator(".questTitle")).toContainText("いろ");
     await ordinaryScreen(frame, page, '.view [data-select], .view [data-nav], .view .actionBar button');

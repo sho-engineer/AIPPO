@@ -1,6 +1,8 @@
 import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
 import { kidsPhonePairs } from "./kidsViewportMatrix";
 
+test.use({ actionTimeout: 10_000 });
+
 const iframe = 'iframe[title="AIPPO Kids AIぼうけん・学習プレビュー"]';
 const pairs = [...kidsPhonePairs, { width: 768, height: 1024 }];
 async function fits(control: Locator) {
@@ -52,6 +54,15 @@ async function childScreen(page: Page, frame: FrameLocator) {
   await expect.poll(() => frame.locator('html').evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth)).toBeLessThanOrEqual(2);
   await expect.poll(() => frame.locator('.app').evaluate(el => el.getBoundingClientRect().bottom - innerHeight)).toBeLessThanOrEqual(2);
   await expect.poll(() => frame.locator('.view').evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(2);
+  if (await frame.locator('.worldView').count()) {
+    await expect.poll(() => frame.locator('.mapWorld').evaluate(el => {
+      const story = el.querySelector('.mapStory')!.getBoundingClientRect();
+      return [...el.querySelectorAll('.trailNode')].filter(node => {
+        const r = node.getBoundingClientRect();
+        return Math.min(r.right, story.right) - Math.max(r.left, story.left) > 2 && Math.min(r.bottom, story.bottom) - Math.max(r.top, story.top) > 2;
+      }).map(node => node.textContent);
+    })).toEqual([]);
+  }
   await fits(frame.locator('.brandLogo'));
   await expect.poll(() => frame.locator('.brandLogo').evaluate(el => {
     const r = el.getBoundingClientRect(), p = el.closest('.top')!.getBoundingClientRect();
