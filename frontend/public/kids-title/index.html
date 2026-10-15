@@ -1,0 +1,795 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#5ec5ff" />
+<meta name="description" content="AIPPO Kids。ポーといっしょに、AIにお願いして、見て、直そう。" />
+<title>AIPPO Kids | ポーちゃんとAIぼうけん！</title>
+<style>:root{--blue:#1268e8;--blue2:#2bb0ee;--ink:#102c52;--slate:#55708e;--line:#dceaf8;--light:#eff6ff;--bg:#f5f8fc;--surface:#fff;--mint:#c1f1e9;--sun:#ffdd86;--pink:#fed5e5;--shadow:0 12px 38px rgba(27,88,151,.11);font-family:ui-rounded,"Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif;color:var(--ink);font-synthesis:none}
+*{box-sizing:border-box}html,body{margin:0;min-width:300px;min-height:100%;height:100%}body{background:var(--bg);overscroll-behavior:none}button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}button:focus-visible,[tabindex]:focus-visible{outline:3px solid #e2a62e;outline-offset:3px}button:disabled{cursor:default}svg{display:block}.app{height:100dvh;min-height:400px;max-width:930px;margin:0 auto;display:flex;flex-direction:column;gap:9px;padding:max(8px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));background:radial-gradient(ellipse at 10% 0%,#e5f2ff,transparent 50%),#f5f8fc}
+.top{height:55px;min-height:55px;display:flex;align-items:center;justify-content:space-between;gap:9px;padding:0 5px}.brand{position:relative;display:flex;align-items:center;gap:6px;min-width:0}.brandName{display:inline-flex;flex:none;height:38px;align-items:center}.brandLogo{display:none;position:static;height:38px;width:116px;max-width:100%;object-fit:contain;object-position:left center;flex:none}.brandName{font-size:25px;font-weight:1000;letter-spacing:-.07em;color:var(--blue)}.brandLabel{margin-left:4px;font-size:10px;font-weight:1000;letter-spacing:.1em;color:#1268e8;padding:5px 6px;border:1px solid #cbddf6;border-radius:7px;background:#ecf5ff}.topRight{display:flex;min-width:0;flex:none;gap:7px;align-items:center}.miniStat{font-size:12px;font-weight:950;border:1px solid #dfebf9;padding:8px 10px;border-radius:12px;background:#fff;color:#325c8b;white-space:nowrap}.topBtn{height:41px;min-width:41px;border-radius:13px;background:#fff;color:#1f66b6;border:1px solid #c9defb;box-shadow:0 3px 0 #e5eefa;padding:0 11px;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:900;font-size:13px}.topBtn svg{width:19px;height:19px;flex:none}.shell{flex:1;min-height:0;display:flex;position:relative;overflow:hidden;border:1.5px solid #e0ebf9;border-radius:26px;background:#fff;box-shadow:var(--shadow)}.shell:before{content:"";position:absolute;top:0;left:0;right:0;height:5px;background:linear-gradient(90deg,#1268e8,#2bb0ee 62%,#74d4c5);z-index:2;pointer-events:none}.view{height:100%;width:100%;min-height:0;display:flex;flex-direction:column;animation:fadeIn .26s ease both}.foot{min-height:12px;text-align:center;color:#7b8da4;font-size:10px;font-weight:700}.screenHead{padding:21px 20px 7px;display:flex;align-items:center;justify-content:space-between;gap:9px;min-height:58px}.eyebrow{color:#4880b3;letter-spacing:.08em;font-size:11px;font-weight:1000}.h1{font-size:clamp(23px,6.2vw,33px);font-weight:1000;line-height:1.25;letter-spacing:-.052em;margin:0;color:#102c52}.h2{font-size:20px;font-weight:1000;line-height:1.32;margin:0;letter-spacing:-.045em}.sub{font-size:12px;font-weight:700;color:#607b98;line-height:1.5}.muted{color:#63809b}.grow{flex:1;min-height:0}.actionBar{padding:11px 17px 18px;flex:none;display:flex;align-items:center;gap:10px}.primary{width:100%;min-height:56px;border:0;border-radius:16px;background:var(--blue);color:#fff;box-shadow:0 5px 0 #0a4da9,0 8px 14px #1268e825;font-size:18px;font-weight:1000;letter-spacing:-.02em;display:flex;align-items:center;justify-content:center;gap:10px;transition:transform .13s,box-shadow .13s}.primary svg{height:21px;width:21px}.primary:active:not(:disabled){transform:translateY(3px);box-shadow:0 2px 0 #0a4da9}.primary:disabled{background:#adc9e9;box-shadow:0 3px 0 #84adce;color:#fff}.secondary{min-height:47px;border:1.5px solid #c4dafa;border-radius:14px;background:#fff;color:#1358af;font-size:15px;font-weight:900;padding:8px 14px;display:flex;align-items:center;justify-content:center;gap:7px}.secondary svg{width:18px;height:18px}.secondary:active{transform:scale(.98)}.back{height:35px;min-width:35px;border:0;border-radius:11px;background:#edf5ff;color:#1968b7;display:grid;place-items:center}.back svg{height:18px;width:18px}
+/* The home is deliberately one action */
+.homeHead{padding:18px 20px 3px;display:flex;align-items:center;justify-content:space-between}.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:1000;background:#eaf5ff;color:#0c6bb6;border-radius:10px;padding:7px 10px}.homeTitle{text-align:center;font-size:clamp(27px,7.2vw,43px);font-weight:1000;line-height:1.2;letter-spacing:-.055em;margin:9px 14px 0}.homeSubtitle{text-align:center;color:#587792;font-weight:800;font-size:13px;margin:7px 0 9px}.poTalk{display:flex;align-items:center;gap:9px;justify-content:center;padding:0 22px;min-height:74px}.po{width:70px;height:70px;flex:0 0 70px;position:relative;display:grid;place-items:center;filter:drop-shadow(0 4px 2px #b4d8f5a6)}.po:before{content:"";position:absolute;inset:3px;border-radius:22px;background:#dff3ff}.po img{position:relative;width:100%;height:100%;object-fit:contain}.poFallback{position:absolute;color:var(--blue);font-size:22px;font-weight:1000}.bubble{position:relative;border:1.5px solid #d8e9fa;background:#eef6ff;padding:12px 14px;border-radius:17px 17px 17px 5px;max-width:250px;font-weight:950;font-size:clamp(14px,3.8vw,18px);line-height:1.5}.heroSpace{flex:1;min-height:160px;position:relative;overflow:hidden;margin:10px 18px 0;border-radius:23px;background:radial-gradient(circle at 60% 30%,#4c96d9 0,#163e8a 60%,#0d285d 100%);display:flex;align-items:center;justify-content:center;isolation:isolate}.spaceStars{position:absolute;inset:0;opacity:.65;background-image:radial-gradient(circle,#fff 1.1px,transparent 1.3px);background-size:36px 39px}.moon{position:absolute;top:11%;right:15%;width:70px;height:70px;background:#fff2c7;border-radius:50%;box-shadow:0 0 0 12px #fff2c71a,0 0 44px #ffedbc95}.moon:after{content:"";position:absolute;left:15px;top:15px;width:13px;height:13px;border-radius:50%;background:#e8d6ac;box-shadow:24px 20px 0 4px #e8d6ac}.rocket{height:100%;width:100%;max-width:180px;max-height:215px;position:relative;z-index:1;filter:drop-shadow(0 10px 8px #07194380);transform:rotate(18deg)}.flying{animation:floatRocket 2.4s ease-in-out infinite}.heroNote{position:absolute;z-index:2;bottom:12px;left:14px;font-size:11px;font-weight:950;background:#ffffffeb;color:#24517c;padding:7px 10px;border-radius:11px}
+/* Map */
+.mapIntro{padding:18px 21px 8px}.mapIntro .h1{font-size:clamp(23px,6vw,32px)}.mapProgress{width:100%;height:9px;border-radius:100px;background:#e9f1f9;overflow:hidden;margin-top:11px}.mapProgress span{height:100%;display:block;border-radius:100px;background:linear-gradient(90deg,#1268e8,#43c9bc);transition:width .4s}.mapScroll{flex:1;min-height:0;overflow-y:auto;padding:9px 15px 15px;scrollbar-width:thin;scrollbar-color:#c8dced transparent;overscroll-behavior:contain}.mapGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.questCard{border:2px solid #e0ebfa;background:#fff;text-align:left;min-width:0;min-height:129px;border-radius:18px;padding:11px 10px;display:flex;flex-direction:column;justify-content:space-between;position:relative;transition:transform .16s,border-color .16s,box-shadow .16s}.questCard.open{border-color:#b2d3fa;box-shadow:0 5px 0 #e2efff}.questCard.current{border-color:#367fe8;background:#f4faff;box-shadow:0 5px 0 #cbe3fc}.questCard.done{border-color:#a8e3d6;background:#f6fffb}.questCard:active:not(:disabled){transform:scale(.975)}.questCard:disabled{opacity:1;border-color:#dbe5f0;background:#f8fafc;color:#60768e}.questCard:disabled .qIcon{color:#6a91b6;background:#edf3fa}.questCard:disabled .qStatus{color:#687f98}.qIcon{width:48px;height:48px;border-radius:15px;background:#e6f1ff;color:#1268e8;display:grid;place-items:center}.qIcon svg{width:28px;height:28px}.questCard.done .qIcon{background:#e0f7ee;color:#238365}.qNum{position:absolute;right:10px;top:10px;font-size:11px;color:#7490a7;font-weight:1000}.qName{font-weight:1000;font-size:13px;letter-spacing:-.035em}.qStatus{font-size:10px;color:#587995;font-weight:900;white-space:nowrap}.mapFooter{padding:8px 16px 15px;background:#fff}.mapFooter .primary{min-height:50px;font-size:16px}
+/* Quest interactive */
+.questHead{display:flex;flex-direction:column;gap:5px;padding:14px 17px 8px;flex:none}.questHeadTop{display:flex;align-items:center;gap:9px;justify-content:space-between}.dots{display:flex;gap:4px;align-items:center}.dot{height:7px;width:14px;background:#e0eaf6;border-radius:9px}.dot.active{background:#1268e8;width:25px}.dot.done{background:#6ac9b7}.questTitle{font-weight:1000;font-size:clamp(22px,6.3vw,32px);line-height:1.26;letter-spacing:-.06em;margin:2px 0 0;text-align:center}.questSub{text-align:center;color:#6482a0;font-weight:800;font-size:12px;margin:1px 0 2px;min-height:18px}.playBody{flex:1;min-height:0;display:flex;flex-direction:column;padding:0 14px;gap:9px}.preview{position:relative;flex:1;min-height:115px;overflow:hidden;border-radius:18px;background:radial-gradient(circle at 60% 24%,#4389d0,#174389 67%,#082b65);display:flex;align-items:center;justify-content:center}.preview.place-sea{background:linear-gradient(#93dffc 0 60%,#2c9bd5 60%)}.preview.place-forest{background:linear-gradient(#a3e9e6 0 62%,#6bc89b 62%)}.preview.place-sea .spaceStars,.preview.place-forest .spaceStars,.preview.place-sea .moon,.preview.place-forest .moon{display:none}.preview .rocket{height:min(100%,210px);width:auto;max-width:140px}.preview .moon{width:51px;height:51px}.preview .moon:after{left:12px;top:9px;width:10px;height:10px;box-shadow:17px 18px 0 3px #e8d6ac}.previewLabel{position:absolute;left:9px;top:9px;background:#fffffff0;padding:6px 8px;border-radius:9px;font-size:11px;font-weight:950;color:#2a6094;z-index:2}.botPreview{width:84px;height:84px;background:#b6eaff;border:3px solid #f1fbff;border-radius:25px;display:grid;place-items:center;position:relative;z-index:1;box-shadow:0 8px 0 #053469}.botPreview svg{width:54px;height:54px;color:#1268e8}.target{border:2.5px dashed #9ac6f5;border-radius:14px;min-height:59px;display:flex;align-items:center;justify-content:center;gap:8px;background:#edf6ff;color:#245a91;font-size:13px;font-weight:1000;padding:7px 10px;text-align:center;transition:background .15s,transform .15s}.target svg{width:25px;height:25px;flex:none}.target.hover{background:#d3eeff;transform:scale(1.015)}.target.filled{border-style:solid;background:#eaf8f5;border-color:#79d5ba;color:#1b6861}.choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;flex:none}.choice{border:2px solid #dce9fa;border-bottom-width:4px;background:#fff;border-radius:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:8px 3px;min-width:0;min-height:84px;touch-action:none;user-select:none;position:relative;transition:transform .13s,border-color .13s,background .13s}.choice:active{transform:scale(.96)}.choice.selected{border-color:#438cde;background:#edf6ff}.choice.hint{animation:hintPulse 2.1s infinite}.choiceIcon{height:37px;display:grid;place-items:center;color:#377bbb}.choiceIcon svg{height:34px;width:34px}.colorChip{height:33px;width:33px;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 1px #c8daed}.choiceLabel{font-size:12px;font-weight:1000;white-space:normal;overflow-wrap:anywhere;line-height:1.3;text-align:center}.choices.twoRows{grid-template-columns:repeat(3,minmax(0,1fr));flex:1;overflow-y:auto;align-content:center}.choices.twoRows .choice{min-height:69px}.dragGhost{position:fixed;pointer-events:none;z-index:99;width:96px;height:86px;transform:translate(-50%,-50%) scale(1.05);box-shadow:0 10px 40px #073e7f4d;border:3px solid #1268e8;border-radius:17px;background:#fff;opacity:.92}.dragGhost .choiceIcon{margin-top:9px}.dragGhost .choiceLabel{display:block;text-align:center}.resultCompare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;flex:1;min-height:0}.resultCompare .preview{min-height:0}.resultCompare .preview .rocket{max-width:93px;max-height:155px}.resultNotice{text-align:center;font-weight:1000;font-size:15px;color:#286b9a;padding:3px 0}.resultNotice.good{color:#218069}.answerPanel{background:#e9f7f2;border:1px solid #b4e4d5;border-radius:14px;color:#1b6e60;padding:10px;text-align:center;font-weight:900;font-size:13px}.choiceNote{font-size:11px;text-align:center;color:#627e98;font-weight:750}
+/* Two conditions and creator */
+.builder{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px}.builderHead{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;color:#567897;font-weight:900}.builderHead strong{color:#1f64b5}.builderPreview{flex:1;min-height:100px}.builderSlots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.builderSlots.triple{grid-template-columns:repeat(3,minmax(0,1fr))}.builderSlots .target{min-height:54px;font-size:11px;padding:3px}.builderSlots .target svg{width:20px;height:20px}.groupLabel{color:#567a9b;font-size:12px;font-weight:1000;padding-left:1px;margin:0}.builderGroup{display:flex;flex-direction:column;gap:5px}.builderGroup .choice{min-height:64px;padding:4px}.builderGroup .choiceIcon{height:26px}.builderGroup .choiceIcon svg{height:27px;width:27px}.builderGroup .colorChip{height:25px;width:25px}.builderGroup .choiceLabel{font-size:11px}.creatorGroups{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;scrollbar-width:thin}.creatorGroups .builderGroup{flex:none}.creatorGroups .choices{grid-template-columns:repeat(3,1fr)}
+/* order puzzle */
+.orderBody{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px;justify-content:center}.orderSlots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.orderSlots .target{min-height:88px;padding:6px 1px;flex-direction:column}.orderSlots .target svg{width:30px;height:30px}.orderChoices .choice{min-height:102px}.orderNum{font-size:11px;font-weight:1000;color:#7596b4}.orderArrow{align-self:center;color:#88b2db}.orderArrow svg{width:22px;height:22px}.orderSlots .target.filled{cursor:pointer}
+/* success */
+.success{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:12px 16px;gap:9px;text-align:center}.successBadge{width:74px;height:74px;border-radius:24px;display:grid;place-items:center;background:#e7f9f3;border:3px solid #a2e0ca;color:#288269;animation:pop .45s cubic-bezier(.2,1.8,.3,1)}.successBadge svg{width:42px;height:42px}.success h1{font-size:clamp(26px,7vw,40px);font-weight:1000;letter-spacing:-.055em;line-height:1.2;margin:0}.success p{font-size:15px;font-weight:900;max-width:320px;color:#456e8d;margin:0}.successVisual{flex:1;min-height:90px;max-height:270px;width:100%;border-radius:20px;background:linear-gradient(135deg,#edf9ff,#f8fcff);display:flex;align-items:center;justify-content:center;gap:9px}.successVisual .po{width:95px;height:95px;flex-basis:95px}.successVisual .rocket{width:105px;height:160px}.unlockNote{font-size:12px;color:#3c876e;font-weight:1000;background:#e8f8f1;padding:8px 12px;border-radius:12px}.confetti{position:absolute;top:-20px;width:8px;height:17px;border-radius:4px;z-index:10;pointer-events:none;animation:fall 1.3s forwards}
+/* pyramid */
+.parentView{background:linear-gradient(180deg,#ffffff,#f5faff 95%)}.parentTop{padding:17px 18px 9px;display:flex;align-items:flex-start;gap:10px}.parentTitles{flex:1;min-width:0}.parentTop .h1{font-size:clamp(19px,5.3vw,30px);line-height:1.3;overflow-wrap:anywhere}.parentIntro{padding:0 20px 10px;color:#607a94;font-weight:750;font-size:12px;line-height:1.55}.pyramidWrap{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:4px;padding:2px 16px 8px}.tier{border:0;width:var(--w);min-height:53px;max-height:75px;background:linear-gradient(110deg,#dde9f5,#ebf1f8);color:#637992;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:3px;border-radius:9px;position:relative;transition:transform .14s,box-shadow .14s;padding:5px 8px;text-align:center}.tier:active{transform:scale(.98)}.tier.mastered{background:linear-gradient(100deg,#1268e8,#2bb0ee);color:#fff;box-shadow:0 3px 0 #a3cde9}.tier.current{background:linear-gradient(100deg,#69cbbb,#b9eade);color:#0f5d62;box-shadow:0 3px 0 #c8ecdf}.tier.selected{outline:3px solid #ffc654;outline-offset:1px;z-index:2}.tierNo{font-size:9px;font-weight:1000;letter-spacing:.1em;opacity:.87}.tierTitle{font-size:clamp(10px,2.85vw,15px);font-weight:1000;line-height:1.2;white-space:normal;overflow-wrap:anywhere}.tierNote{position:absolute;right:8px;top:8px;font-size:11px;font-weight:900}.evidence{flex:none;padding:12px 16px;margin:0 13px 11px;background:#fff;border:1.5px solid #d7e7f8;border-radius:16px;box-shadow:0 3px 16px #1049970e;display:flex;flex-direction:column;gap:5px;min-height:92px}.evidenceTitle{font-weight:1000;font-size:14px}.evidenceBody{font-size:12px;line-height:1.5;color:#50708e;font-weight:750}.evidenceStatus{font-size:11px;font-weight:950;color:#1e7b66}.parentBottom{display:flex;gap:7px;padding:0 13px 14px}.parentBottom button{flex:1;font-size:12px;min-height:45px}
+/* overlays and microinteraction */
+.overlay{position:absolute;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:14px;background:#0b2859b3}.modal{width:100%;max-width:420px;max-height:92%;overflow-y:auto;background:#fff;border-radius:22px;padding:21px 16px 16px;box-shadow:0 30px 65px #0a265d55;text-align:center}.modal h2{margin:0 0 8px;font-size:24px;font-weight:1000}.modal p{font-size:14px;line-height:1.65;font-weight:750;color:#58738e}.modal .secondary,.modal .primary{width:100%;margin-top:9px}.helperRow{display:flex;justify-content:center;gap:9px;align-items:center;background:#f0f7ff;padding:10px;border-radius:14px;margin:12px 0}.helperRow span{display:flex;flex-direction:column;align-items:center;gap:4px;color:#2868a8;font-size:12px;font-weight:900}.helperRow svg{width:25px;height:25px}.toast{position:fixed;left:50%;top:max(env(safe-area-inset-top),60px);z-index:90;transform:translateX(-50%);background:#fff;border:2px solid #aed2f5;border-radius:13px;padding:10px 15px;white-space:nowrap;max-width:95vw;font-weight:950;color:#2b689a;box-shadow:0 6px 25px #16518a3a;font-size:13px}.think{position:absolute;inset:0;background:#f7fbffef;z-index:30;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:13px;font-weight:1000;font-size:17px;color:#1e63ab}.thinkIcon{width:79px;height:79px;border-radius:23px;background:#d8ecff;display:grid;place-items:center;animation:pulse .7s ease-in-out infinite alternate}.thinkIcon svg{height:46px;width:46px}.hide{display:none!important}
+@keyframes fadeIn{from{opacity:.68;transform:translateY(6px)}to{opacity:1;transform:none}}@keyframes hintPulse{50%{box-shadow:0 0 0 3px #a8d5f7}}@keyframes floatRocket{50%{transform:translateY(-9px) rotate(18deg)}}@keyframes pop{0%{transform:scale(.4) rotate(-8deg)}70%{transform:scale(1.1)}100%{transform:scale(1)}}@keyframes fall{to{transform:translate(var(--dx),90vh) rotate(var(--rot));opacity:0}}
+@media(max-height:730px) and (max-width:699px){.app{gap:4px;padding-top:3px;padding-bottom:3px}.top{height:43px;min-height:43px}.brandLogo{height:30px;width:99px}.brandLabel{font-size:9px}.topBtn{height:34px;min-width:34px}.miniStat{font-size:10px;padding:5px 8px}.shell{border-radius:18px}.screenHead{padding:10px 12px 4px;min-height:45px}.h1{font-size:23px}.homeHead{padding:9px 14px 1px}.homeTitle{font-size:26px;margin-top:5px}.homeSubtitle{font-size:11px;margin:4px 0}.poTalk{min-height:56px}.poTalk .po{width:53px;height:53px;flex-basis:53px}.bubble{font-size:13px;padding:8px 10px}.heroSpace{margin:5px 11px 0;min-height:110px}.heroSpace .rocket{max-height:160px}.heroSpace .moon{width:51px;height:51px}.actionBar{padding:8px 12px 13px}.primary{min-height:45px;font-size:16px}.mapIntro{padding:11px 15px 5px}.mapGrid{gap:7px}.questCard{min-height:102px;padding:7px}.qIcon{width:37px;height:37px}.qIcon svg{width:24px;height:24px}.mapFooter{padding:6px 10px 10px}.mapFooter .primary{min-height:44px}.questHead{padding:7px 12px 4px;gap:3px}.questTitle{font-size:23px}.questSub{font-size:10px}.playBody{padding:0 10px;gap:5px}.preview{min-height:74px}.preview .rocket{max-height:128px}.preview .moon{width:38px;height:38px}.target{min-height:49px;font-size:12px}.choices{gap:5px}.choice{min-height:65px;padding:4px}.choiceIcon{height:28px}.choiceIcon svg{height:26px;width:26px}.colorChip{width:27px;height:27px}.choiceLabel{font-size:11px}.builderGroup .choice{min-height:53px}.builderGroup .colorChip{height:20px;width:20px}.builderGroup .choiceIcon{height:21px}.builderGroup .choiceIcon svg{height:22px;width:22px}.builder{gap:4px}.creatorGroups{gap:4px}.orderBody{gap:8px}.orderChoices .choice{min-height:75px}.orderSlots .target{min-height:68px}.resultCompare .preview .rocket{max-height:123px}.resultNotice{font-size:13px}.success{gap:6px;padding:5px 12px}.successBadge{width:55px;height:55px}.successBadge svg{height:31px;width:31px}.success h1{font-size:26px}.success p{font-size:12px}.successVisual .po{width:72px;height:72px;flex-basis:72px}.successVisual .rocket{height:115px;width:78px}.parentTop{padding:10px 13px 4px}.parentIntro{padding:0 13px 4px;font-size:10px}.pyramidWrap{gap:3px;padding:0 12px 4px}.tier{min-height:39px;padding:3px}.tierNo{font-size:8px}.tierTitle{font-size:clamp(9px,2.8vw,13px)}.evidence{padding:8px 11px;margin:0 10px 6px;min-height:75px}.evidenceTitle{font-size:12px}.evidenceBody{font-size:11px}.parentBottom{padding:0 10px 9px}}
+@media(max-width:355px){.top{gap:3px}.brandName{font-size:21px}.brand{gap:3px}.brandLabel{font-size:8px;padding:3px 4px}.miniStat{font-size:10px;padding:6px 7px}.topBtn{font-size:11px;gap:4px;padding:0 6px}.topBtn svg{width:17px;height:17px}.brandLogo{width:88px}.brandLabel{padding:4px}.topBtn{padding:0 8px}.miniStat{padding:6px}.mapGrid{gap:6px}.mapScroll{padding:6px}.qName{font-size:12px}.questCard{min-height:104px}.homeTitle{font-size:24px}.questTitle{font-size:21px}.tierTitle{font-size:10px}}
+@media(min-width:700px){.app{padding:18px 29px;gap:12px}.top{height:63px;min-height:63px}.brandLogo{display:block;height:47px;width:143px}.brandName{display:none}.shell{border-radius:30px}.homeTitle{font-size:43px;margin-top:15px}.homeSubtitle{font-size:16px}.poTalk{min-height:120px}.poTalk .po{width:112px;height:112px;flex-basis:112px}.bubble{max-width:400px;font-size:22px}.heroSpace{margin:13px 38px 0}.heroSpace .rocket{max-width:235px;max-height:320px}.heroSpace .moon{width:105px;height:105px}.actionBar{padding:16px 38px 24px}.primary{min-height:65px;font-size:20px}.mapIntro{padding:25px 34px 12px}.mapScroll{padding:16px 32px}.mapGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:15px}.questCard{min-height:173px;padding:14px}.qName{font-size:16px}.qIcon{width:60px;height:60px}.qIcon svg{width:38px;height:38px}.mapFooter{padding:11px 32px 25px}.mapFooter .primary{min-height:58px}.questHead{padding:20px 33px 8px}.questTitle{font-size:37px}.questSub{font-size:15px}.playBody{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;padding:0 33px;gap:14px}.playBody .preview{grid-row:1/3;grid-column:1;min-height:260px}.playBody .target{grid-column:2;grid-row:1;align-self:end;min-height:70px}.playBody .choices{grid-column:2;grid-row:2;align-self:start}.choice{min-height:122px}.choiceIcon{height:56px}.choiceIcon svg{height:52px;width:52px}.colorChip{height:52px;width:52px}.choiceLabel{font-size:16px}.playBody .resultCompare{grid-column:1/3}.playBody .resultNotice{grid-column:1/3}.builder{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr auto;gap:16px}.builderPreview{grid-column:1;grid-row:1/3;min-height:270px}.builderSlots{grid-column:2;grid-row:1;align-self:end}.builder .creatorGroups{grid-column:2;grid-row:2;align-self:start;overflow:visible}.builder .creatorGroups .choice{min-height:68px}.orderBody{padding:12px 60px;gap:32px}.orderChoices .choice{min-height:138px}.orderSlots .target{min-height:125px}.success{padding:30px 40px;gap:18px}.successBadge{width:96px;height:96px}.success h1{font-size:40px}.successVisual{max-width:600px}.successVisual .po{width:150px;height:150px;flex-basis:150px}.successVisual .rocket{height:220px;width:148px}.parentTop{padding:24px 30px 13px}.parentIntro{padding:0 30px 16px;font-size:15px}.pyramidWrap{gap:7px}.tier{min-height:70px}.tierTitle{font-size:19px}.tierNo{font-size:11px}.evidence{margin:0 35px 18px;padding:16px 20px}.evidenceTitle{font-size:18px}.evidenceBody{font-size:15px}.parentBottom{padding:0 35px 25px}}
+
+/* Kids interaction: one task per screen, never put options underneath CTA */
+.wizardBody{display:flex!important;flex-direction:column!important;min-height:0}
+.builderWizard{flex:1;min-height:0;display:flex;flex-direction:column;gap:9px}
+.builderWizard .builderPreview{flex:1 1 0%;min-height:95px;display:flex}
+.builderWizard .builderPreview>.preview{width:100%;min-height:0}.builderWizard .builderPreview>.preview .rocket{height:76%;max-height:calc(100% - 22px);width:auto}
+.builderWizard .builderSlots{flex:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;align-self:stretch;width:100%;grid-column:auto;grid-row:auto}
+.builderWizard .builderSlots.triple{grid-template-columns:repeat(3,minmax(0,1fr))}
+.builderWizard .builderSlot{width:100%;min-width:0;min-height:49px;display:flex;justify-content:center;padding:6px 3px;border-radius:12px}
+.builderWizard .builderSlot.active{outline:2px solid #246ac8;outline-offset:-2px}
+.builderWizard .slotValue{display:flex;align-items:center;justify-content:center;gap:5px;min-width:0;font-weight:950;font-size:12px;line-height:1.3;white-space:normal}
+.builderWizard .slotValue svg{width:19px;height:19px;flex:none}
+.builderWizard .slotValue .colorChip{width:18px;height:18px;flex:none}
+.builderWizard .wizardGroup{flex:none;min-height:0;padding-bottom:2px}
+.builderWizard .groupLabel{display:flex;align-items:center;justify-content:center;gap:9px;font-size:14px;text-align:center;padding-bottom:9px;color:#245a8b}
+.builderWizard .stepNumber{display:inline-flex;align-items:center;justify-content:center;border-radius:7px;background:#e6f1fc;padding:3px 8px;font-size:12px;color:#1359ac}
+.builderWizard .wizardGroup .choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.builderWizard .wizardGroup .choice{min-height:74px}
+@media(max-height:700px) and (max-width:699px){
+ .builderWizard{gap:5px}
+ .builderWizard .builderPreview{min-height:80px}
+ .builderWizard .builderSlot{min-height:40px;padding:3px 1px}
+ .builderWizard .slotValue{font-size:10px;gap:3px}
+ .builderWizard .slotValue svg{width:16px;height:16px}
+ .builderWizard .slotValue .colorChip{width:16px;height:16px}
+ .builderWizard .groupLabel{font-size:12px;padding-bottom:4px}
+ .builderWizard .wizardGroup .choice{min-height:61px}
+ .mapIntro{padding:9px 13px 4px}
+ .mapIntro .h1{font-size:22px}
+ .mapProgress{height:6px;margin-top:5px}
+ .mapGrid{gap:5px}
+ .questCard{min-height:62px;padding:5px 7px;display:grid;grid-template-columns:27px minmax(0,1fr);grid-template-rows:1fr;column-gap:5px;align-items:center;justify-content:stretch;border-radius:13px}
+ .questCard .qIcon{width:26px;height:26px;border-radius:8px;grid-column:1;grid-row:1}
+ .questCard .qIcon svg{width:17px;height:17px}
+ .questCard .qName{grid-column:2;grid-row:1;font-size:10px;line-height:1.25;max-width:100%;overflow-wrap:anywhere;padding-right:3px}
+ .questCard .qNum{right:5px;top:4px;font-size:8px;opacity:.8}
+ .questCard .qStatus{display:none}
+ .mapScroll{padding:5px 8px 8px}
+}
+@media(min-width:700px){
+ .builderWizard{flex-direction:column;max-width:650px;width:100%;margin:0 auto;gap:14px}
+ .builderWizard .builderPreview{min-height:160px}
+ .builderWizard .builderSlots{gap:10px}
+ .builderWizard .builderSlot{min-height:62px}
+ .builderWizard .wizardGroup .choice{min-height:110px}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* Authentic game title – decorated illustration, genuine official Po, separate interactive UI */
+.app.titleMode{min-height:0!important}
+.app.titleMode .shell{min-height:0;border:none;overflow:hidden;border-radius:0;box-shadow:none;background:transparent}
+.app.titleMode .shell:before{display:none}
+.gameEntry{position:relative;isolation:isolate;overflow:hidden;height:100%;width:100%;display:block;min-height:0;background:#5ec5ff;color:#fff;animation:none}
+.entryScenery{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 45%;pointer-events:none;z-index:0;user-select:none}
+.entrySkyGlow{position:absolute;inset:0;pointer-events:none;z-index:1;background:linear-gradient(180deg,rgba(13,117,217,.04) 1%,transparent 21%,#ffffff0c 43%,#ffffff00 72%,rgba(0,86,164,.08) 100%)}
+.entryBrand{position:absolute;z-index:7;left:50%;top:max(9px,env(safe-area-inset-top));transform:translateX(-50%);width:min(55vw,255px);display:flex;flex-direction:column;align-items:center;pointer-events:none;filter:drop-shadow(0 3px 5px #1678c786)}
+.entryBrand img{width:100%;height:clamp(40px,10.7vw,69px);object-fit:contain}
+.entryKids{display:flex;gap:1px;font-size:clamp(18px,6.4vw,35px);font-weight:1000;line-height:1;letter-spacing:.045em;text-shadow:0 2px 2px #0b68b99c,-1px -1px #fff,1px 1px #fff;-webkit-text-stroke:.8px #fff}
+.entryKids b:nth-child(1){color:#f85b9e}.entryKids b:nth-child(2){color:#ffba24}.entryKids b:nth-child(3){color:#60d23e}.entryKids b:nth-child(4){color:#2d9bf5}
+.entrySettings{position:absolute;z-index:15;right:max(10px,env(safe-area-inset-right));top:max(12px,env(safe-area-inset-top));height:clamp(40px,10vw,52px);width:clamp(40px,10vw,52px);display:grid;place-items:center;border-radius:50%;background:linear-gradient(180deg,#fff,#e8f8ff);border:3px solid #fff;color:#1979cf;box-shadow:0 3px 0 #8acafa,0 7px 15px #226fbd80;cursor:pointer}
+.entrySettings svg{height:24px;width:24px}.entrySettings:active{transform:translateY(2px)}
+.entryHeading{position:absolute;z-index:8;top:21%;width:100%;text-align:center;pointer-events:none;filter:drop-shadow(0 5px 8px #064e8e50)}
+.entryHeading h1,.entryHeading h2{font-weight:1000;margin:0;line-height:1.1;letter-spacing:-.07em;color:white;white-space:nowrap;-webkit-text-stroke:clamp(2px,.8vw,4px) #013c91;paint-order:stroke fill;text-shadow:0 4px #063b98,0 7px #ffffffdf,0 10px 12px #043b9d99}
+.entryHeading h1{font-size:clamp(30px,8.8vw,70px)}.entryHeading h2{font-size:clamp(30px,9.8vw,79px)}
+.entryHeading .blue{color:#4de5ff}.entryHeading .yellow{color:#ffdf35}.entryHeading p{display:inline-block;max-width:94%;margin:10px 0 0;padding:6px 11px;border-radius:100px;background:#fffffff2;color:#0a5aa7;border:2px solid #fff;font-size:clamp(10px,3.15vw,17px);font-weight:1000;letter-spacing:-.045em;text-shadow:none;box-shadow:0 5px 12px #3e96cc53;white-space:nowrap}
+.entryPo{position:absolute;z-index:5;top:46%;left:50%;transform:translate(-50%,-9%);width:min(78vw,380px);height:min(37vh,400px);min-height:165px;pointer-events:none;animation:entryFloat 3.9s ease-in-out infinite}
+.entryPo:before{content:"";position:absolute;inset:11% -10%;background:radial-gradient(ellipse,#f1ffff88,#e5fdff45 54%,transparent 77%);filter:blur(12px);z-index:-1}
+.entryPo img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 2px 4px white) drop-shadow(0 13px 10px #086db19c)}
+.entryMark{position:absolute;z-index:3;pointer-events:none;font-size:clamp(9px,2.5vw,12px);font-weight:1000;line-height:1.17;text-align:center;padding:6px 9px;border:2px solid #fffdeb;border-radius:9px;color:#694520;background:linear-gradient(#ffefbd,#f5bb68);box-shadow:0 3px 0 #b27e35,0 7px 10px #0b6ab457}
+.entryMark.one{left:2%;top:18%;transform:rotate(-7deg)}.entryMark.two{right:2%;top:22%;transform:rotate(5deg);color:white;background:linear-gradient(#59ceff,#147dd7);box-shadow:0 3px 0 #065aae}.entryMark.three{right:2%;top:61%;transform:rotate(7deg)}
+.entryCoin{position:absolute;z-index:6;width:38px;height:38px;display:grid;place-items:center;color:#fff6ba;background:linear-gradient(130deg,#fff8ac,#ffd138 62%,#e89a0b);border:4px solid #ffeb8d;border-radius:50%;box-shadow:0 2px 0 #cb8005,0 7px 11px #005ca159;pointer-events:none;animation:coinFloat 4.5s ease-in-out infinite}
+.entryCoin.a{left:11%;top:59%;transform:rotate(-17deg)}.entryCoin.b{right:11%;top:57%;animation-delay:-2s}.entryCoin svg{height:23px;width:23px}
+.entryControls{position:absolute;z-index:12;bottom:max(17px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:min(88%,490px);display:flex;flex-direction:column;align-items:center;gap:12px}
+.entryStart{height:clamp(56px,9vh,79px);width:100%;border:4px solid #fff1b0;border-radius:100px;background:linear-gradient(#fff181 0%,#ffdb40 34%,#ffb326 70%,#fa8b18 100%);box-shadow:0 5px 0 #dc7213,0 9px 0 #ffffb0,0 16px 18px #0061a66f;color:#072d75;text-shadow:0 2px #fff;display:flex;align-items:center;justify-content:center;gap:9px;font-size:clamp(17px,5.5vw,28px);font-weight:1000;letter-spacing:-.05em;white-space:nowrap;cursor:pointer;transition:filter .16s}
+.entryStart svg{height:25px;width:25px;fill:white;stroke:#bb6e15;stroke-width:2.1;flex:none}.entryStart:hover{filter:brightness(1.07)}.entryStart:active{transform:translateY(3px);box-shadow:0 2px 0 #dc7213,0 6px 0 #ffffb0}
+.entryOther{width:100%;display:grid;grid-template-columns:1.35fr 1fr;gap:10px}.entryOther button{height:clamp(39px,6vh,49px);border:2px solid #258ff2;border-radius:100px;background:linear-gradient(#fff,#edfbff);color:#0f5caf;box-shadow:0 3px 0 #7dc7ff,0 7px 11px #05578a35;font-size:clamp(11px,3.5vw,17px);font-weight:1000;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;cursor:pointer}.entryOther button svg{width:17px;height:17px;flex-shrink:0}.entryOther button:active{transform:translateY(2px)}
+.entryAccountStatus{position:absolute;top:14%;left:50%;transform:translateX(-50%);color:#1464a6;background:#fffcf3ef;padding:3px 10px;border-radius:99px;z-index:11;font-size:11px;font-weight:900;white-space:nowrap}
+@keyframes entryFloat{0%,100%{transform:translate(-50%,-9%)}50%{transform:translate(-50%,-11%)}}@keyframes coinFloat{0%,100%{translate:0 0}50%{translate:0 -7px}}
+@media(max-width:370px){.entryBrand img{height:40px}.entryKids{font-size:20px}.entryHeading{top:20%}.entryHeading h1{font-size:29px}.entryHeading h2{font-size:30px}.entryHeading p{font-size:9.5px;margin-top:5px;padding:3px 7px}.entryPo{top:46%;width:77vw;height:39vh}.entryControls{gap:8px;bottom:max(9px,env(safe-area-inset-bottom))}.entryStart{height:47px;font-size:17px;border-width:3px}.entryOther button{height:35px}.entryMark.one,.entryMark.two{top:27%;font-size:9px;padding:4px 6px}.entryMark.three{top:61%}.entryCoin{height:25px;width:25px;border-width:2px}.entryCoin svg{height:17px;width:17px}}
+@media(max-height:680px){.entryHeading{top:19%}.entryHeading p{margin-top:5px}.entryPo{top:44%;height:37vh}.entryControls{gap:8px}.entryStart{height:46px}.entryOther button{height:35px}.entryMark.one,.entryMark.two{top:25%}}
+@media(min-width:700px){.entryBrand{top:16px}.entryBrand img{height:70px}.entryKids{font-size:35px}.entryHeading{top:23%}.entryPo{top:44%;width:min(44vw,480px);height:min(43vh,420px)}.entryControls{bottom:4%;gap:13px}.entryMark.one{left:17%}.entryMark.two,.entryMark.three{right:16%}}
+@media(min-width:700px) and (max-height:850px){.entryBrand{left:25%;top:13px}.entryBrand img{height:50px}.entryKids{font-size:26px}.entryHeading{top:32%;left:0;width:52%}.entryHeading h1{font-size:clamp(32px,5vw,50px)}.entryHeading h2{font-size:clamp(33px,5.2vw,53px)}.entryHeading p{font-size:10px;white-space:normal}.entryPo{left:75%;top:30%;width:35vw;height:47vh}.entryControls{width:min(52%,460px);left:50%;bottom:3%}.entryMark{display:none}}
+@media(min-width:700px) and (max-height:450px){.entryHeading{top:28%}.entryPo{top:21%;height:48vh}.entryBrand img{height:35px}.entryKids{font-size:17px}.entryControls{bottom:2%;gap:5px}.entryStart{height:40px;font-size:16px}.entryOther button{height:30px}}
+@media(prefers-reduced-motion:reduce){.entryPo,.entryCoin{animation:none!important}}
+
+
+/* v5 revision: lively, logo-led, fully independent art and accessible controls */
+.entryBrand{top:max(8px,env(safe-area-inset-top));width:min(67vw,280px);padding:4px 16px 6px;border-radius:80px;background:radial-gradient(ellipse at 50% 50%,#fffffffa 5%,#ffffffdf 62%,#ffffff00 79%);filter:drop-shadow(0 4px 5px #ffffff80)}
+.entryBrand img{width:100%;height:clamp(42px,11vw,74px);filter:drop-shadow(0 1px 1px #ffffff)}
+.entryKids{font-size:clamp(22px,7vw,39px);-webkit-text-stroke:1.5px #fff;text-shadow:0 3px 0 #ffffff,0 5px 5px #3974be55}
+.entryTrail{position:absolute;z-index:3;top:12%;left:50%;transform:translateX(-50%);width:min(94%,600px);height:13%;pointer-events:none;opacity:.95}
+.entryTrail>svg{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 3px 2px #0376aa44)}
+.entryLevel{position:absolute;left:50%;top:1%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;min-width:86px;height:31px;padding:0 9px;border-radius:50px;background:linear-gradient(#348de9,#0060c0);border:3px solid white;color:white;font-size:13px;font-weight:1000;box-shadow:0 5px 0 #0b59a5,0 7px 12px #034d9b77;text-shadow:0 1px #0750aa}
+.entryHeading{top:25%;z-index:9;filter:drop-shadow(0 6px 5px #14569956)}
+.entryHeading h1,.entryHeading h2{font-family:"Noto Sans CJK JP","Hiragino Maru Gothic ProN",ui-rounded,system-ui,sans-serif;line-height:1.06;font-weight:1000;letter-spacing:-.067em;color:#fff;-webkit-text-stroke:clamp(3px,1.25vw,6px) #003279;paint-order:stroke fill;text-shadow:0 5px 0 #0451b8,0 8px 0 #e9ffff,0 12px 11px #00468d9c}
+.entryHeading h1{font-size:clamp(32px,9.5vw,76px)}.entryHeading h2{font-size:clamp(35px,11.5vw,88px)}
+.entryHeading .blue{color:#43dbff}.entryHeading .yellow{color:#ffdf32}
+.entryHeading p{margin-top:10px;border:3px solid #fff;box-shadow:0 5px 0 #cceafcbb,0 8px 16px #1669a26a;font-size:clamp(10px,3.1vw,17px)}
+.entryPo{top:47%;left:50%;width:min(75vw,365px);height:min(33vh,352px);min-height:140px;z-index:7;transform:translate(-50%,-9%) rotate(-6deg);animation:heroJump 4s ease-in-out infinite}
+.entryPo img{filter:drop-shadow(0 4px 1px #ffffff) drop-shadow(0 13px 10px #166eb38c)}
+.entryEnergy{pointer-events:none;position:absolute;z-index:4;left:50%;top:51%;width:100%;max-width:440px;height:33%;transform:translate(-50%,-6%);background:repeating-conic-gradient(from 0deg at 50% 52%,#ffffff00 0deg 16deg,#ffffffe8 17deg 19deg,#ffffff00 21deg 37deg);-webkit-mask-image:radial-gradient(ellipse at center,transparent 0 17%,#000 49%,transparent 76%);mask-image:radial-gradient(ellipse at center,transparent 0 17%,#000 49%,transparent 76%);opacity:.65}
+.entryToy{position:absolute;z-index:7;pointer-events:none;width:clamp(43px,13vw,74px);height:clamp(43px,13vw,74px);filter:drop-shadow(0 6px 4px #045d9d54);animation:toyFloat 4s ease-in-out infinite}
+.entryToy svg{width:100%;height:100%}
+.entryBook{left:3%;top:49%;transform:rotate(-15deg)}.entryQuestion{right:4%;top:59%;display:grid;place-items:center;border:5px solid #adf0ff;border-radius:13px;background:linear-gradient(#5bbefa,#117acc);font-size:clamp(34px,10vw,65px);font-weight:1000;color:white;text-shadow:0 4px #145aa0;transform:rotate(10deg);animation-delay:-1.7s}
+.entryStar{right:5%;top:48%;transform:rotate(-12deg);animation-delay:-.9s}.entryAiCard{left:2%;top:63%;transform:rotate(10deg);animation-delay:-2.5s}
+.entryCoin{z-index:8;width:clamp(28px,9vw,43px);height:clamp(28px,9vw,43px);border:3px solid #ffe3a1}.entryCoin.a{top:65%;left:13%}.entryCoin.b{top:63%;right:15%}
+.entryMark.one{top:20%}.entryMark.two{top:21%}.entryMark.three{top:69%;right:1%}
+.entryControls{bottom:max(15px,env(safe-area-inset-bottom));gap:12px;z-index:12}
+.entryStart{border-width:5px;border-color:#fff8bd;font-weight:1000;box-shadow:0 5px 0 #dd7005,0 10px 0 #ffefae,0 15px 23px #084c9491;background:linear-gradient(#fffa9d,#ffe04a 33%,#ffc125 56%,#fa9316)}
+.entryOther button{font-weight:1000}
+.entryAccountStatus{top:19%;font-size:10px;z-index:10;background:#ffffffdd}
+@keyframes heroJump{0%,100%{transform:translate(-50%,-9%) rotate(-6deg)}50%{transform:translate(-50%,-12%) rotate(-3deg)}}
+@keyframes toyFloat{0%,100%{translate:0 0}50%{translate:0 -9px}}
+@media(max-width:370px){.entryBrand{width:67vw}.entryBrand img{height:39px}.entryKids{font-size:22px}.entryTrail{top:12%;height:12%}.entryLevel{height:25px;font-size:11px;min-width:76px}.entryHeading{top:24%}.entryHeading h1{font-size:29px}.entryHeading h2{font-size:35px}.entryHeading p{margin-top:5px;padding:3px 8px;font-size:9px}.entryPo{top:48%;width:72vw;height:30vh}.entryToy{width:38px;height:38px}.entryBook{top:53%}.entryAiCard{top:64%}.entryQuestion{top:62%;font-size:36px}.entryStar{top:49%}.entryCoin.a{top:70%}.entryCoin.b{top:66%}.entryMark.one,.entryMark.two{top:24%}.entryMark.three{top:72%}.entryControls{gap:8px;bottom:max(10px,env(safe-area-inset-bottom))}.entryStart{height:48px;border-width:3px;font-size:17px}.entryOther button{height:36px}}
+@media(max-height:650px){.entryBrand img{height:34px}.entryKids{font-size:19px}.entryTrail{top:12%;height:12%}.entryLevel{height:24px;font-size:10px}.entryHeading{top:24%}.entryHeading h1{font-size:clamp(26px,8vw,42px)}.entryHeading h2{font-size:clamp(28px,9vw,47px)}.entryHeading p{margin-top:5px}.entryPo{top:48%;height:30vh;min-height:110px}.entryControls{gap:6px}.entryStart{height:42px;font-size:17px}.entryOther button{height:34px}.entryToy{width:38px;height:38px}}
+@media(min-width:700px){.entryBrand{top:8px;width:285px}.entryBrand img{height:70px}.entryKids{font-size:39px}.entryTrail{top:13%;height:14%}.entryLevel{min-width:105px;height:37px;font-size:17px}.entryHeading{top:27%}.entryPo{top:48%;width:min(45vw,390px);height:min(35vh,390px)}.entryControls{bottom:3%}.entryMark.one{left:15%}.entryMark.two,.entryMark.three{right:15%}.entryBook{left:20%}.entryAiCard{left:17%}.entryQuestion{right:20%}.entryStar{right:18%}}
+@media(min-width:700px) and (max-height:850px){.entryBrand{left:25%;top:6px}.entryBrand img{height:44px}.entryKids{font-size:27px}.entryTrail{display:none}.entryHeading{top:30%;left:0;width:52%}.entryHeading h1{font-size:clamp(31px,4.7vw,52px)}.entryHeading h2{font-size:clamp(33px,5.4vw,60px)}.entryPo{left:76%;top:30%;height:46vh;width:38vw}.entryEnergy{left:73%;top:40%;width:43%}.entryToy{display:none}.entryMark{display:none}.entryControls{bottom:3%}}
+@media(min-width:700px) and (min-height:900px){.entryPo{top:49%;height:32vh}}
+@media(prefers-reduced-motion:reduce){.entryPo,.entryToy{animation:none!important}}
+
+/* Pixel-faithful game title: the user's approved original image is the artboard.
+   All buttons are actual HTML controls, positioned in ORIGINAL IMAGE COORDINATES.
+   Scaling/cropping never detaches hit areas from the visible artwork. */
+.app.titleMode .shell:before{display:none}
+.posterTitle{position:relative!important;display:block!important;overflow:hidden!important;isolation:isolate;background:#b0e7ff!important;animation:none!important;height:100%;width:100%;min-height:0}
+.posterTitle::before{content:"";position:absolute;inset:-32px;z-index:-1;background:url('assets/title/approved-cover.jpeg') center/cover no-repeat;filter:blur(22px) saturate(.97) brightness(1.07);transform:scale(1.03)}
+.posterArtboard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(100%,56.25dvh);height:auto;aspect-ratio:9/16;max-height:100%;background:url('assets/title/approved-cover.jpeg') 50% 50% / 100% 100% no-repeat;box-shadow:0 0 30px #246ab222}
+.posterArtwork{position:absolute;width:100%;height:100%;inset:0;display:block;object-fit:fill;pointer-events:none;user-select:none;-webkit-user-select:none}
+.posterTouch{position:absolute;appearance:none;-webkit-appearance:none;background:transparent!important;color:transparent;border:0;padding:0;margin:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;z-index:3}
+.posterTouch:focus-visible{outline:4px solid #ffffff;outline-offset:-5px;box-shadow:inset 0 0 0 8px #1686e1a0}
+.posterTouch:active{background:#ffffff18!important}
+/* Coordinates measured against the exact 864 x 1536 attached artwork. */
+.posterTouch.settings{left:85.8%;top:.55%;width:14.2%;height:8.2%;border-radius:50%}
+.posterTouch.start{left:12.6%;top:78.2%;width:74.7%;height:11.2%;border-radius:100px}
+.posterTouch.guest{left:18%;top:89.9%;width:39.7%;height:8%;border-radius:100px}
+.posterTouch.login{left:58%;top:89.9%;width:26%;height:8%;border-radius:100px}
+@media(max-width:600px) and (orientation:portrait) and (min-aspect-ratio:171/320) and (max-aspect-ratio:189/320){.posterArtboard{width:100%;height:100%;aspect-ratio:auto}}
+/* Desktop and tablet: preserve full image with soft mirrored scenery at sides. */
+@media(max-width:480px) and (max-height:590px){.posterTouch.settings{height:9%}}
+@media(prefers-reduced-motion:reduce){.posterTouch{transition:none}}
+.posterTouch{min-height:44px;min-width:44px}
+.posterReplay{position:absolute;z-index:5;left:max(6px,env(safe-area-inset-left));top:max(6px,env(safe-area-inset-top));min-height:44px;padding:5px 10px;border:1px solid #b0d6ec;border-radius:12px;background:#fffffff0;color:#174b77;font-size:12px;font-weight:800}
+.openingLayer{position:fixed;inset:0;z-index:1000;background:#b0e7ff;display:grid;place-items:center}
+.openingLayer video{width:100%;height:100%;object-fit:contain;pointer-events:none}
+.openingSkip{position:absolute;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));min-height:44px;min-width:88px;border:2px solid #fff;border-radius:12px;padding:8px 14px;background:#174b77e8;color:white;font-weight:850;z-index:2}
+.posterLandscapeControls{display:none}
+@media(orientation:landscape){.posterTitle{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(180px,36%);gap:8px;padding:8px}.posterArtboard{position:relative;left:auto;top:auto;transform:none;justify-self:center;align-self:center;width:min(100%,calc((100dvh - 16px)*.5625));height:auto;aspect-ratio:9/16;max-height:100%}.posterTouch{display:none}.posterLandscapeControls{display:flex;flex-direction:column;justify-content:center;gap:8px;padding:6px}.posterLandscapeControls p{font-size:12px;margin:0;color:#174b77;font-weight:800}.posterLandscapeControls button{min-height:44px;width:100%;border:2px solid white;border-radius:12px;background:#fff;color:#174b77;font-weight:850}.posterLandscapeControls button:first-of-type{background:#ffcd37;color:#172c50}.posterReplay{left:max(8px,env(safe-area-inset-left));font-size:11px}}
+@media(max-width:600px) and (orientation:portrait) and (min-aspect-ratio:171/320) and (max-aspect-ratio:189/320){.openingLayer video{object-fit:fill}}
+</style>
+<style id="kids-prod-settings-and-po">
+.homeHead .pill{white-space:nowrap;font-size:10px}.homeHead .eyebrow{white-space:nowrap;font-size:10px;flex:none} .homeHead{gap:7px}
+/* Canonical AIPPO visuals: never stretch official logo or cover the character with text */
+.brandName{display:none}.brandLogo{display:block;width:112px;height:40px;max-width:112px;object-fit:contain}.brandLabel{margin-left:1px}.topRight{gap:6px}.topBtn{height:39px;min-width:39px;padding:0 9px}.topBtn svg{width:19px;height:19px}.topBtnLabel{font-size:12px}.settingBtn{width:39px;padding:0}
+/* Po is the main character, rocket is the sidekick */
+.poStage{position:relative;background:radial-gradient(ellipse at 52% 27%,#b1e2ff 0,#7bc5f1 50%,#4d9bd8 100%);border:1px solid #caebfa;isolation:isolate;min-height:190px;margin-top:10px}
+.poStage .spaceStars{opacity:.32}.poStage .moon{width:63px;height:63px;right:11%;top:12%;opacity:.84}.poStageGlow{position:absolute;width:235px;height:235px;border-radius:50%;background:#f9fdff66;top:5%;left:50%;transform:translateX(-50%);filter:blur(2px)}
+.poStageMain{position:absolute;z-index:3;left:50%;top:38%;transform:translate(-50%,-50%);display:grid;place-items:center;animation:poBreathe 3s ease-in-out infinite}
+.poStageMain .po{width:clamp(145px,44vw,235px);height:clamp(145px,44vw,235px);flex-basis:auto;filter:drop-shadow(0 12px 16px #0b55932e)}.poStageMain .po:before{display:none}.poStageMain .po img{object-fit:contain}.poStageMain .poFallback{font-size:54px;color:#1159aa}
+.poStageRocket{position:absolute;right:8%;bottom:13%;z-index:2;width:75px;height:106px;opacity:.95;transform:rotate(12deg)}.poStageRocket .rocket{width:100%;height:100%;max-width:none;max-height:none;filter:drop-shadow(0 6px 9px #155ba83c)}
+.poStageMessage{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:5;background:#ffffffed;min-width:220px;max-width:77%;padding:9px 17px;border-radius:17px;border:1px solid #ffffff;text-align:center;box-shadow:0 6px 20px #2068a72b;line-height:1.3}.poStageLabel{display:block;color:#3e7cb0;font-size:10px;font-weight:950;margin-bottom:2px}.poStageMessage strong{font-size:clamp(13px,3.7vw,18px);color:#133a6f}
+.homeView .homeTitle{margin-top:12px}.homeView .homeSubtitle{margin-bottom:4px}
+/* Po guides each quest and reacts to results */
+.questHead{gap:2px;padding-bottom:5px}.questIntroRow{display:flex;align-items:center;justify-content:center;gap:9px;min-width:0}.questPo{width:68px;height:68px;flex:0 0 68px;display:grid;place-items:center}.questPo .po{width:68px;height:68px;flex:0 0 68px}.questPo .po:before{display:none}.questWords{min-width:0;flex:1;text-align:left}.questWords .questTitle,.questWords .questSub{text-align:left}.questWords .questTitle{font-size:clamp(18px,5vw,27px);line-height:1.28;margin:0}.questWords .questSub{font-size:clamp(10px,2.8vw,13px);margin:3px 0 0;line-height:1.35;min-height:0}
+.resultNotice{display:flex;align-items:center;justify-content:center;gap:8px;min-height:51px}.resultNotice .po{width:45px;height:45px;flex:0 0 45px}.resultNotice .po:before{display:none}.resultNotice span:last-child{max-width:calc(100% - 55px)}
+.successVisual .po{width:clamp(115px,28vw,165px);height:clamp(115px,28vw,165px);flex-basis:clamp(115px,28vw,165px)}.successVisual .po:before{display:none}
+/* Adult settings: scrolling only within adult-only view, never inside a child quest */
+.settingsView{background:linear-gradient(#fff,#f8fbff)}.settingsHead{padding:19px 17px 7px;display:flex;align-items:center;gap:11px}.settingsHead .h1{font-size:clamp(20px,5vw,29px)}.settingsScroll{flex:1;min-height:0;overflow-y:auto;padding:1px 17px 16px;overscroll-behavior:contain}.settingsPoRow{display:flex;gap:10px;align-items:center;background:#eaf5ff;border:1px solid #d7e9fc;padding:8px 12px;border-radius:16px;margin:6px 0 15px}.settingsPoRow .po{width:57px;height:57px;flex:0 0 57px}.settingsPoRow .po:before{display:none}.settingsPoRow p{font-weight:950;font-size:14px;line-height:1.6;margin:0;color:#255987}.settingsSection{padding:15px 0;border-bottom:1px solid #e1ebf6}.settingsSection h2{font-size:14px;font-weight:1000;letter-spacing:-.01em;margin:0 0 8px;color:#1e4e81}.settingField{display:flex;flex-direction:column;gap:7px;font-weight:900;font-size:13px;color:#365f83;margin:12px 0}.settingField input,.settingField select{font:inherit;font-size:15px;font-weight:750;width:100%;height:48px;border:1.5px solid #c8ddf1;border-radius:11px;padding:9px 12px;background:#fff;color:#133a65}.settingField small{font-size:11px;line-height:1.45;font-weight:650;color:#658099}.settingAction{min-height:49px;width:100%;border:1px solid #dfebf7;background:#fff;border-radius:12px;display:flex;align-items:center;gap:10px;text-align:left;color:#205887;font-size:13px;font-weight:900;padding:10px 13px;margin:7px 0}.settingAction svg{width:19px;height:19px;flex:none}.settingAction svg:last-child:not(:first-child){margin-left:auto}.settingAction.danger{color:#a44342}.settingsHelp{font-size:12px;color:#5b7690;line-height:1.65;font-weight:650;margin:6px 0}.settingsFooter{padding:7px 15px 12px;flex:none}.settingsFooter .secondary{width:100%}.guardianDialog .guardianPo{display:flex;justify-content:center}.guardianDialog .guardianPo .po{width:90px;height:90px;flex:0 0 90px}.guardianDialog .guardianPo .po:before{display:none}.guardianFacts{display:flex;justify-content:center;gap:5px;flex-wrap:wrap;margin:13px 0}.guardianFacts span{padding:6px 8px;background:#eaf7ff;border-radius:9px;color:#1d628f;font-weight:850;font-size:11px}.guardianDialog .smallLegal{font-size:11px;line-height:1.6}.dangerPrimary{background:#ac4a4d;box-shadow:0 4px 0 #813538}.policyText{text-align:left;max-height:49vh;overflow:auto}.policyText p{font-size:12px;line-height:1.75}
+@media(max-height:730px) and (max-width:699px){.brandLogo{width:93px;height:31px}.topBtn{height:32px;min-width:32px;padding:0 6px}.topBtn svg{width:17px;height:17px}.topBtnLabel{font-size:10px}.settingBtn{width:32px}.poStageMain .po{width:clamp(128px,34vh,180px);height:clamp(128px,34vh,180px)}.poStageRocket{width:55px;height:75px;bottom:18%}.poStageMessage{bottom:6px;padding:7px 10px;min-width:188px}.poStageLabel{font-size:9px}.poStageMessage strong{font-size:13px}.questPo,.questPo .po{width:48px;height:48px;flex-basis:48px}.questWords .questTitle{font-size:clamp(17px,4.7vw,23px)}.questWords .questSub{font-size:10px}.resultNotice{min-height:40px}.resultNotice .po{width:38px;height:38px;flex-basis:38px}.settingsHead{padding:9px 12px 4px}}
+@media(max-width:355px){.brandLogo{width:88px;height:30px}.brandLabel{font-size:8px;padding:3px 4px}.topRight{gap:4px}.topBtnLabel{display:none}.topBtn{width:35px;min-width:35px}.poStageRocket{width:50px;height:65px}.questPo,.questPo .po{width:44px;height:44px;flex-basis:44px}.questWords .questTitle{font-size:17px}}
+@media(prefers-reduced-motion:reduce){.poStageMain{animation:none}}
+@keyframes poBreathe{50%{transform:translate(-50%,-53%)}}
+
+/* v5 revision: lively, logo-led, fully independent art and accessible controls */
+.entryBrand{top:max(8px,env(safe-area-inset-top));width:min(67vw,280px);padding:4px 16px 6px;border-radius:80px;background:radial-gradient(ellipse at 50% 50%,#fffffffa 5%,#ffffffdf 62%,#ffffff00 79%);filter:drop-shadow(0 4px 5px #ffffff80)}
+.entryBrand img{width:100%;height:clamp(42px,11vw,74px);filter:drop-shadow(0 1px 1px #ffffff)}
+.entryKids{font-size:clamp(22px,7vw,39px);-webkit-text-stroke:1.5px #fff;text-shadow:0 3px 0 #ffffff,0 5px 5px #3974be55}
+.entryTrail{position:absolute;z-index:3;top:12%;left:50%;transform:translateX(-50%);width:min(94%,600px);height:13%;pointer-events:none;opacity:.95}
+.entryTrail>svg{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 3px 2px #0376aa44)}
+.entryLevel{position:absolute;left:50%;top:1%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;min-width:86px;height:31px;padding:0 9px;border-radius:50px;background:linear-gradient(#348de9,#0060c0);border:3px solid white;color:white;font-size:13px;font-weight:1000;box-shadow:0 5px 0 #0b59a5,0 7px 12px #034d9b77;text-shadow:0 1px #0750aa}
+.entryHeading{top:25%;z-index:9;filter:drop-shadow(0 6px 5px #14569956)}
+.entryHeading h1,.entryHeading h2{font-family:"Noto Sans CJK JP","Hiragino Maru Gothic ProN",ui-rounded,system-ui,sans-serif;line-height:1.06;font-weight:1000;letter-spacing:-.067em;color:#fff;-webkit-text-stroke:clamp(3px,1.25vw,6px) #003279;paint-order:stroke fill;text-shadow:0 5px 0 #0451b8,0 8px 0 #e9ffff,0 12px 11px #00468d9c}
+.entryHeading h1{font-size:clamp(32px,9.5vw,76px)}.entryHeading h2{font-size:clamp(35px,11.5vw,88px)}
+.entryHeading .blue{color:#43dbff}.entryHeading .yellow{color:#ffdf32}
+.entryHeading p{margin-top:10px;border:3px solid #fff;box-shadow:0 5px 0 #cceafcbb,0 8px 16px #1669a26a;font-size:clamp(10px,3.1vw,17px)}
+.entryPo{top:47%;left:50%;width:min(75vw,365px);height:min(33vh,352px);min-height:140px;z-index:7;transform:translate(-50%,-9%) rotate(-6deg);animation:heroJump 4s ease-in-out infinite}
+.entryPo img{filter:drop-shadow(0 4px 1px #ffffff) drop-shadow(0 13px 10px #166eb38c)}
+.entryEnergy{pointer-events:none;position:absolute;z-index:4;left:50%;top:51%;width:100%;max-width:440px;height:33%;transform:translate(-50%,-6%);background:repeating-conic-gradient(from 0deg at 50% 52%,#ffffff00 0deg 16deg,#ffffffe8 17deg 19deg,#ffffff00 21deg 37deg);-webkit-mask-image:radial-gradient(ellipse at center,transparent 0 17%,#000 49%,transparent 76%);mask-image:radial-gradient(ellipse at center,transparent 0 17%,#000 49%,transparent 76%);opacity:.65}
+.entryToy{position:absolute;z-index:7;pointer-events:none;width:clamp(43px,13vw,74px);height:clamp(43px,13vw,74px);filter:drop-shadow(0 6px 4px #045d9d54);animation:toyFloat 4s ease-in-out infinite}
+.entryToy svg{width:100%;height:100%}
+.entryBook{left:3%;top:49%;transform:rotate(-15deg)}.entryQuestion{right:4%;top:59%;display:grid;place-items:center;border:5px solid #adf0ff;border-radius:13px;background:linear-gradient(#5bbefa,#117acc);font-size:clamp(34px,10vw,65px);font-weight:1000;color:white;text-shadow:0 4px #145aa0;transform:rotate(10deg);animation-delay:-1.7s}
+.entryStar{right:5%;top:48%;transform:rotate(-12deg);animation-delay:-.9s}.entryAiCard{left:2%;top:63%;transform:rotate(10deg);animation-delay:-2.5s}
+.entryCoin{z-index:8;width:clamp(28px,9vw,43px);height:clamp(28px,9vw,43px);border:3px solid #ffe3a1}.entryCoin.a{top:65%;left:13%}.entryCoin.b{top:63%;right:15%}
+.entryMark.one{top:20%}.entryMark.two{top:21%}.entryMark.three{top:69%;right:1%}
+.entryControls{bottom:max(15px,env(safe-area-inset-bottom));gap:12px;z-index:12}
+.entryStart{border-width:5px;border-color:#fff8bd;font-weight:1000;box-shadow:0 5px 0 #dd7005,0 10px 0 #ffefae,0 15px 23px #084c9491;background:linear-gradient(#fffa9d,#ffe04a 33%,#ffc125 56%,#fa9316)}
+.entryOther button{font-weight:1000}
+.entryAccountStatus{top:19%;font-size:10px;z-index:10;background:#ffffffdd}
+@keyframes heroJump{0%,100%{transform:translate(-50%,-9%) rotate(-6deg)}50%{transform:translate(-50%,-12%) rotate(-3deg)}}
+@keyframes toyFloat{0%,100%{translate:0 0}50%{translate:0 -9px}}
+@media(max-width:370px){.entryBrand{width:67vw}.entryBrand img{height:39px}.entryKids{font-size:22px}.entryTrail{top:12%;height:12%}.entryLevel{height:25px;font-size:11px;min-width:76px}.entryHeading{top:24%}.entryHeading h1{font-size:29px}.entryHeading h2{font-size:35px}.entryHeading p{margin-top:5px;padding:3px 8px;font-size:9px}.entryPo{top:48%;width:72vw;height:30vh}.entryToy{width:38px;height:38px}.entryBook{top:53%}.entryAiCard{top:64%}.entryQuestion{top:62%;font-size:36px}.entryStar{top:49%}.entryCoin.a{top:70%}.entryCoin.b{top:66%}.entryMark.one,.entryMark.two{top:24%}.entryMark.three{top:72%}.entryControls{gap:8px;bottom:max(10px,env(safe-area-inset-bottom))}.entryStart{height:48px;border-width:3px;font-size:17px}.entryOther button{height:36px}}
+@media(max-height:650px){.entryBrand img{height:34px}.entryKids{font-size:19px}.entryTrail{top:12%;height:12%}.entryLevel{height:24px;font-size:10px}.entryHeading{top:24%}.entryHeading h1{font-size:clamp(26px,8vw,42px)}.entryHeading h2{font-size:clamp(28px,9vw,47px)}.entryHeading p{margin-top:5px}.entryPo{top:48%;height:30vh;min-height:110px}.entryControls{gap:6px}.entryStart{height:42px;font-size:17px}.entryOther button{height:34px}.entryToy{width:38px;height:38px}}
+@media(min-width:700px){.entryBrand{top:8px;width:285px}.entryBrand img{height:70px}.entryKids{font-size:39px}.entryTrail{top:13%;height:14%}.entryLevel{min-width:105px;height:37px;font-size:17px}.entryHeading{top:27%}.entryPo{top:48%;width:min(45vw,390px);height:min(35vh,390px)}.entryControls{bottom:3%}.entryMark.one{left:15%}.entryMark.two,.entryMark.three{right:15%}.entryBook{left:20%}.entryAiCard{left:17%}.entryQuestion{right:20%}.entryStar{right:18%}}
+@media(min-width:700px) and (max-height:850px){.entryBrand{left:25%;top:6px}.entryBrand img{height:44px}.entryKids{font-size:27px}.entryTrail{display:none}.entryHeading{top:30%;left:0;width:52%}.entryHeading h1{font-size:clamp(31px,4.7vw,52px)}.entryHeading h2{font-size:clamp(33px,5.4vw,60px)}.entryPo{left:76%;top:30%;height:46vh;width:38vw}.entryEnergy{left:73%;top:40%;width:43%}.entryToy{display:none}.entryMark{display:none}.entryControls{bottom:3%}}
+@media(min-width:700px) and (min-height:900px){.entryPo{top:49%;height:32vh}}
+@media(prefers-reduced-motion:reduce){.entryPo,.entryToy{animation:none!important}}
+</style>
+<style id="aippo-story-map">
+/* Adventure map: original AIPPO world and Po-led path */
+.worldView{background:#fff}.worldTop{display:flex;align-items:center;justify-content:space-between;padding:13px 17px 4px;gap:7px;flex:none}.worldHead{min-width:0}.worldHead .h1{font-size:clamp(20px,5.7vw,29px);margin:3px 0 0}.worldHead p{font-size:11px;font-weight:800;color:#5c7d9f;margin:3px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.worldHomeBtn{display:grid;place-items:center;width:35px;height:35px;flex:none;border:1px solid #cde4fa;color:#176bc1;border-radius:11px;background:#f4faff}.worldRail{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:7px 14px 9px;flex:none}.worldTab{border:1.5px solid #dceaf7;border-radius:11px;background:#f8fbfe;display:flex;align-items:center;justify-content:center;gap:5px;min-height:37px;padding:4px 2px;color:#6685a1;font-weight:950;font-size:11px}.worldTab.selected{background:#e8f4ff;color:#1268e8;border-color:#7bbaf4;box-shadow:0 2px 0 #bddcf9}.worldTab.cleared{color:#257b65}.worldTabNum{font-size:11px;font-weight:1000}.worldTabNum svg{width:15px;height:15px}.mapWorld{position:relative;flex:1;min-height:195px;overflow:hidden;border-radius:22px;margin:1px 13px 0;isolation:isolate;border:1px solid #c8e8f9;background:linear-gradient(165deg,#d7f9f0,#acdfc0 60%,#70c69a)}.mapWorld.world-ocean{background:linear-gradient(165deg,#f5faff,#aeeafa 52%,#60b5df)}.mapWorld.world-sky{background:linear-gradient(165deg,#edfaff,#8fc7f5)}.mapWorld.world-space{background:linear-gradient(155deg,#a4bcf4,#556db5 65%,#493f8c);border-color:#8898d1}.worldArt,.worldWindingRoad{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.worldWindingRoad{z-index:2}.worldWindingRoad svg{height:100%;width:100%}.mapPo{position:absolute;left:5%;top:10%;z-index:4;animation:mapPoFloat 2.8s ease-in-out infinite}.mapPo .po{width:clamp(84px,24vw,128px);height:clamp(84px,24vw,128px);flex-basis:clamp(84px,24vw,128px);filter:drop-shadow(0 7px 6px #2d7cac38)}.mapPo .po:before{display:none}.mapStory{position:absolute;z-index:4;left:33%;top:10%;right:4%;padding:9px 11px 10px;border:1px solid #e1ecfa;background:#ffffffeb;box-shadow:0 6px 15px #18527b1c;border-radius:16px 16px 16px 5px;min-height:55px}.mapStoryName{display:block;font-size:10px;font-weight:1000;color:#1682c9}.mapStory p{font-size:clamp(10px,3vw,13px);font-weight:950;line-height:1.48;margin:2px 0 0;color:#19436e}.worldGlow{position:absolute;z-index:2;right:9%;top:28%;width:49px;height:49px;border-radius:50%;background:#fff9d36c;color:#e8a929;display:grid;place-items:center;box-shadow:0 0 0 7px #fff7da28}.worldGlow.is-lit{background:#fff9cf;animation:glow 2.2s infinite}.trailNode{position:absolute;z-index:5;display:flex;flex-direction:column;align-items:center;width:36%;max-width:152px;border:0;background:none;padding:0;color:#174b7d;transform:translate(-50%,-50%);gap:5px}.trailNode.nodeOne{left:24%;top:70%}.trailNode.nodeTwo{left:73%;top:48%}.trailNodeIcon{display:grid;place-items:center;width:clamp(60px,16vw,80px);height:clamp(60px,16vw,80px);background:linear-gradient(155deg,#6ebefc,#1b71d6);border:5px solid #fff;border-radius:50%;color:#fff;box-shadow:0 5px 0 #165a9a,0 9px 19px #10457250;position:relative}.trailNode.current .trailNodeIcon{animation:nodePulse 1.6s ease-in-out infinite}.trailNode.done .trailNodeIcon{background:linear-gradient(155deg,#6adcc0,#258f81);box-shadow:0 5px 0 #2d8676,0 7px 13px #137a5960}.trailNode.locked .trailNodeIcon{background:linear-gradient(155deg,#d3e1ea,#829bad);box-shadow:0 4px 0 #718c9e}.trailNodeLabel{display:flex;flex-direction:column;align-items:center;text-align:center;font-size:clamp(11px,3.1vw,14px);font-weight:1000;line-height:1.26;color:#173e6d;background:#fffffff0;border-radius:10px;padding:5px 6px;box-shadow:0 3px 6px #427cab22;max-width:100%;word-break:keep-all}.trailNodeLabel small{font-size:10px;color:#5e8ba9;line-height:1.1}.trailHere{position:absolute;top:-18px;right:0;padding:3px 6px;background:#fff5b9;border:1px solid #f0cf6a;border-radius:10px;color:#916100;font-size:10px;font-weight:1000;transform:rotate(8deg)}.worldGroundTitle{position:absolute;z-index:3;bottom:7px;left:50%;transform:translateX(-50%);color:#fff;font-size:11px;font-weight:1000;white-space:nowrap;text-shadow:0 2px 6px #17546c80}.worldBottom{flex:none;display:flex;flex-direction:column;gap:7px;padding:5px 13px 12px}.worldPager{display:flex;align-items:center;justify-content:center;gap:12px;height:28px;color:#6685a3;font-size:11px;font-weight:1000}.worldPager button{height:28px;width:38px;border:1px solid #d9e9fa;background:#f5faff;border-radius:9px;color:#3473b8;display:grid;place-items:center}.worldPager button:disabled{opacity:.3}.worldBottom .primary{min-height:51px;font-size:16px}.mapWorld.world-space .mapStory{background:#ffffffef}.worldTab:focus-visible,.trailNode:focus-visible{outline:3px solid #de9f2b;outline-offset:3px}
+@keyframes mapPoFloat{50%{transform:translateY(-5px)}}@keyframes nodePulse{50%{transform:translateY(-4px);box-shadow:0 9px 0 #165a9a,0 13px 22px #10457250}}@keyframes glow{50%{box-shadow:0 0 0 14px #fff7da38}}
+@media(max-height:690px){.worldTop{padding:5px 12px 2px}.worldHead .h1{font-size:21px}.worldHead p{font-size:10px}.worldRail{padding:4px 10px 5px}.worldTab{min-height:29px}.mapWorld{margin:0 10px;min-height:175px}.mapPo{top:6%}.mapPo .po{width:clamp(67px,18vh,87px);height:clamp(67px,18vh,87px);flex-basis:clamp(67px,18vh,87px)}.mapStory{top:6%;left:30%;padding:6px 8px;min-height:46px}.mapStory p{font-size:10px}.trailNodeIcon{width:55px;height:55px}.trailNodeLabel{font-size:10px;padding:3px 5px}.trailNodeLabel small{font-size:9px}.trailNode.nodeOne{top:70%}.trailNode.nodeTwo{top:47%}.worldBottom{padding:2px 9px 8px;gap:3px}.worldPager{height:23px}.worldPager button{height:23px}.worldBottom .primary{min-height:45px;font-size:14px}.worldGroundTitle{font-size:10px}}
+@media(min-width:700px){.worldTop{padding:21px 30px 10px}.worldHead .h1{font-size:34px}.worldHead p{font-size:15px}.worldRail{padding:9px 30px 13px;gap:10px}.worldTab{min-height:47px;font-size:16px}.mapWorld{margin:0 33px;min-height:230px}.mapPo{top:7%;left:9%}.mapPo .po{width:clamp(145px,22vw,190px);height:clamp(145px,22vw,190px);flex-basis:clamp(145px,22vw,190px)}.mapStory{top:10%;left:35%;right:8%;padding:18px 20px}.mapStory p{font-size:18px}.trailNodeIcon{width:95px;height:95px}.trailNodeLabel{font-size:17px;padding:10px 13px}.trailNodeLabel small{font-size:12px}.worldGroundTitle{font-size:16px;bottom:12px}.worldBottom{padding:8px 33px 26px}.worldBottom .primary{min-height:60px;font-size:20px}.worldPager{height:34px}}
+@media(max-width:355px){.mapStory{left:32%;right:3%;padding:5px 7px}.mapStory p{font-size:9.6px}.trailNode{width:42%}.trailNodeLabel{font-size:10px}.worldRail{gap:3px}.worldTab{font-size:10px;gap:2px}}
+@media(prefers-reduced-motion:reduce){.mapPo,.trailNode.current .trailNodeIcon,.worldGlow.is-lit{animation:none}}
+
+/* v5 revision: lively, logo-led, fully independent art and accessible controls */
+.entryBrand{top:max(8px,env(safe-area-inset-top));width:min(67vw,280px);padding:4px 16px 6px;border-radius:80px;background:radial-gradient(ellipse at 50% 50%,#fffffffa 5%,#ffffffdf 62%,#ffffff00 79%);filter:drop-shadow(0 4px 5px #ffffff80)}
+.entryBrand img{width:100%;height:clamp(42px,11vw,74px);filter:drop-shadow(0 1px 1px #ffffff)}
+.entryKids{font-size:clamp(22px,7vw,39px);-webkit-text-stroke:1.5px #fff;text-shadow:0 3px 0 #ffffff,0 5px 5px #3974be55}
+.entryTrail{position:absolute;z-index:3;top:12%;left:50%;transform:translateX(-50%);width:min(94%,600px);height:13%;pointer-events:none;opacity:.95}
+.entryTrail>svg{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 3px 2px #0376aa44)}
+.entryLevel{position:absolute;left:50%;top:1%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;min-width:86px;height:31px;padding:0 9px;border-radius:50px;background:linear-gradient(#348de9,#0060c0);border:3px solid white;color:white;font-size:13px;font-weight:1000;box-shadow:0 5px 0 #0b59a5,0 7px 12px #034d9b77;text-shadow:0 1px #0750aa}
+.entryHeading{top:25%;z-index:9;filter:drop-shadow(0 6px 5px #14569956)}
+.entryHeading h1,.entryHeading h2{font-family:"Noto Sans CJK JP","Hiragino Maru Gothic ProN",ui-rounded,system-ui,sans-serif;line-height:1.06;font-weight:1000;letter-spacing:-.067em;color:#fff;-webkit-text-stroke:clamp(3px,1.25vw,6px) #003279;paint-order:stroke fill;text-shadow:0 5px 0 #0451b8,0 8px 0 #e9ffff,0 12px 11px #00468d9c}
+.entryHeading h1{font-size:clamp(32px,9.5vw,76px)}.entryHeading h2{font-size:clamp(35px,11.5vw,88px)}
+.entryHeading .blue{color:#43dbff}.entryHeading .yellow{color:#ffdf32}
+.entryHeading p{margin-top:10px;border:3px solid #fff;box-shadow:0 5px 0 #cceafcbb,0 8px 16px #1669a26a;font-size:clamp(10px,3.1vw,17px)}
+.entryPo{top:47%;left:50%;width:min(75vw,365px);height:min(33vh,352px);min-height:140px;z-index:7;transform:translate(-50%,-9%) rotate(-6deg);animation:heroJump 4s ease-in-out infinite}
+.entryPo img{filter:drop-shadow(0 4px 1px #ffffff) drop-shadow(0 13px 10px #166eb38c)}
+.entryEnergy{pointer-events:none;position:absolute;z-index:4;left:50%;top:51%;width:100%;max-width:440px;height:33%;transform:translate(-50%,-6%);background:repeating-conic-gradient(from 0deg at 50% 52%,#ffffff00 0deg 16deg,#ffffffe8 17deg 19deg,#ffffff00 21deg 37deg);-webkit-mask-image:radial-gradient(ellipse at center,transparent 0 17%,#000 49%,transparent 76%);mask-image:radial-gradient(ellipse at center,transparent 0 17%,#000 49%,transparent 76%);opacity:.65}
+.entryToy{position:absolute;z-index:7;pointer-events:none;width:clamp(43px,13vw,74px);height:clamp(43px,13vw,74px);filter:drop-shadow(0 6px 4px #045d9d54);animation:toyFloat 4s ease-in-out infinite}
+.entryToy svg{width:100%;height:100%}
+.entryBook{left:3%;top:49%;transform:rotate(-15deg)}.entryQuestion{right:4%;top:59%;display:grid;place-items:center;border:5px solid #adf0ff;border-radius:13px;background:linear-gradient(#5bbefa,#117acc);font-size:clamp(34px,10vw,65px);font-weight:1000;color:white;text-shadow:0 4px #145aa0;transform:rotate(10deg);animation-delay:-1.7s}
+.entryStar{right:5%;top:48%;transform:rotate(-12deg);animation-delay:-.9s}.entryAiCard{left:2%;top:63%;transform:rotate(10deg);animation-delay:-2.5s}
+.entryCoin{z-index:8;width:clamp(28px,9vw,43px);height:clamp(28px,9vw,43px);border:3px solid #ffe3a1}.entryCoin.a{top:65%;left:13%}.entryCoin.b{top:63%;right:15%}
+.entryMark.one{top:20%}.entryMark.two{top:21%}.entryMark.three{top:69%;right:1%}
+.entryControls{bottom:max(15px,env(safe-area-inset-bottom));gap:12px;z-index:12}
+.entryStart{border-width:5px;border-color:#fff8bd;font-weight:1000;box-shadow:0 5px 0 #dd7005,0 10px 0 #ffefae,0 15px 23px #084c9491;background:linear-gradient(#fffa9d,#ffe04a 33%,#ffc125 56%,#fa9316)}
+.entryOther button{font-weight:1000}
+.entryAccountStatus{top:19%;font-size:10px;z-index:10;background:#ffffffdd}
+@keyframes heroJump{0%,100%{transform:translate(-50%,-9%) rotate(-6deg)}50%{transform:translate(-50%,-12%) rotate(-3deg)}}
+@keyframes toyFloat{0%,100%{translate:0 0}50%{translate:0 -9px}}
+@media(max-width:370px){.entryBrand{width:67vw}.entryBrand img{height:39px}.entryKids{font-size:22px}.entryTrail{top:12%;height:12%}.entryLevel{height:25px;font-size:11px;min-width:76px}.entryHeading{top:24%}.entryHeading h1{font-size:29px}.entryHeading h2{font-size:35px}.entryHeading p{margin-top:5px;padding:3px 8px;font-size:9px}.entryPo{top:48%;width:72vw;height:30vh}.entryToy{width:38px;height:38px}.entryBook{top:53%}.entryAiCard{top:64%}.entryQuestion{top:62%;font-size:36px}.entryStar{top:49%}.entryCoin.a{top:70%}.entryCoin.b{top:66%}.entryMark.one,.entryMark.two{top:24%}.entryMark.three{top:72%}.entryControls{gap:8px;bottom:max(10px,env(safe-area-inset-bottom))}.entryStart{height:48px;border-width:3px;font-size:17px}.entryOther button{height:36px}}
+@media(max-height:650px){.entryBrand img{height:34px}.entryKids{font-size:19px}.entryTrail{top:12%;height:12%}.entryLevel{height:24px;font-size:10px}.entryHeading{top:24%}.entryHeading h1{font-size:clamp(26px,8vw,42px)}.entryHeading h2{font-size:clamp(28px,9vw,47px)}.entryHeading p{margin-top:5px}.entryPo{top:48%;height:30vh;min-height:110px}.entryControls{gap:6px}.entryStart{height:42px;font-size:17px}.entryOther button{height:34px}.entryToy{width:38px;height:38px}}
+@media(min-width:700px){.entryBrand{top:8px;width:285px}.entryBrand img{height:70px}.entryKids{font-size:39px}.entryTrail{top:13%;height:14%}.entryLevel{min-width:105px;height:37px;font-size:17px}.entryHeading{top:27%}.entryPo{top:48%;width:min(45vw,390px);height:min(35vh,390px)}.entryControls{bottom:3%}.entryMark.one{left:15%}.entryMark.two,.entryMark.three{right:15%}.entryBook{left:20%}.entryAiCard{left:17%}.entryQuestion{right:20%}.entryStar{right:18%}}
+@media(min-width:700px) and (max-height:850px){.entryBrand{left:25%;top:6px}.entryBrand img{height:44px}.entryKids{font-size:27px}.entryTrail{display:none}.entryHeading{top:30%;left:0;width:52%}.entryHeading h1{font-size:clamp(31px,4.7vw,52px)}.entryHeading h2{font-size:clamp(33px,5.4vw,60px)}.entryPo{left:76%;top:30%;height:46vh;width:38vw}.entryEnergy{left:73%;top:40%;width:43%}.entryToy{display:none}.entryMark{display:none}.entryControls{bottom:3%}}
+@media(min-width:700px) and (min-height:900px){.entryPo{top:49%;height:32vh}}
+@media(prefers-reduced-motion:reduce){.entryPo,.entryToy{animation:none!important}}
+</style>
+
+<style id="aippo-title-game-v2">
+/* Tone: an aspirational adventure for 5–9-year-olds, not preschool clip-art. */
+.titleView{background:#fff;min-height:0;position:relative}
+.titleTop{padding:14px 19px 4px;display:flex;justify-content:space-between;align-items:center;gap:5px;flex:none}
+.titleSeries{font-size:10px;font-weight:1000;letter-spacing:.11em;color:#3e7fb3;white-space:nowrap}
+.titleDivider{display:inline-block;width:9px;height:1px;background:#9fbddd;vertical-align:middle;margin:0 4px}
+.titleProgress{font-weight:1000;color:#5482ae;font-size:10px;white-space:nowrap;letter-spacing:.05em}
+.titleHeading{text-align:center;padding:3px 11px 0;flex:none}
+.titleChapter{display:inline-block;font-size:11px;font-weight:900;letter-spacing:.03em;color:#4c87c1;background:#edf6ff;border-radius:50px;padding:4px 11px}
+.titleView .homeTitle{font-size:clamp(27px,7vw,39px);margin:9px 0 1px;color:#102b54;font-weight:1000;letter-spacing:-.055em;line-height:1.16}
+.titleView .homeTitle span{color:#1268e8}
+.titleLead{margin:7px 0 4px;font-size:clamp(11px,3vw,14px);font-weight:850;letter-spacing:.01em;color:#577697}
+.titleView .titleStage{margin:9px 16px 0;min-height:165px;border-radius:22px;border:1px solid #c7e5fd;background:radial-gradient(ellipse at 48% 38%,#99d8ff 0,#6fb6ed 38%,#2968b8 78%,#1a4c98 100%);box-shadow:inset 0 0 0 1px #ffffff77}
+.titleView .titleStage .spaceStars{opacity:.3;background-size:40px 45px}
+.titleConstellation{position:absolute;inset:0;opacity:.55;pointer-events:none}
+.titleConstellation svg{width:100%;height:100%}
+.titleWorldTag{position:absolute;z-index:1;font-size:clamp(9px,2.6vw,13px);font-weight:950;color:#235a91;background:#fffefa;border:1px solid #d9effe;border-radius:24px;padding:6px 9px;box-shadow:0 5px 12px #24588727}
+.titleWorldTagOne{top:23%;left:6%}.titleWorldTagTwo{top:45%;right:6%}.titleWorldTagThree{bottom:33%;left:5%}.titleWorldTagFour{top:16%;right:10%}
+.titleView .poStageGlow{width:clamp(200px,55vw,360px);height:clamp(200px,55vw,360px);left:50%;top:7%;background:radial-gradient(circle,#ffffffc2,#ffffff22 65%,transparent 70%)}
+.titleView .poStageMain{top:45%;left:50%}
+.titleView .poStageMain .po{width:clamp(175px,45vw,275px);height:clamp(175px,45vw,275px);filter:drop-shadow(0 18px 15px #073e8540)}
+.titlePoName{position:absolute;z-index:4;top:58%;left:50%;transform:translateX(-50%);font-size:11px;letter-spacing:.13em;font-weight:1000;border-radius:9px;padding:2px 10px;background:#f4fbffdb;color:#2364a7;pointer-events:none}
+.titleMission{position:absolute;z-index:5;bottom:12px;left:12px;right:12px;display:flex;flex-direction:column;align-items:center;gap:1px;border-radius:16px;background:#ffffffed;border:1px solid #f1f8ff;padding:9px 12px 10px;color:#133d66;box-shadow:0 6px 22px #103b7842;line-height:1.25;text-align:center}
+.titleMissionLabel{font-size:9px;font-weight:1000;letter-spacing:.12em;color:#4b85bc}
+.titleMission strong{font-size:clamp(13px,3.7vw,18px);font-weight:1000}
+.titleMissionHint{font-size:10px;font-weight:800;color:#6c8ba8}
+.titleBottom{flex:none;padding-bottom:2px}
+.titleSave{text-align:center;font-size:11px;font-weight:850;color:#5a7b9a;margin:11px 0 -3px}
+.saveDot{display:inline-block;width:7px;height:7px;margin-right:2px;background:#29b295;border-radius:50%}
+.titleView .actionBar{padding-top:10px;padding-bottom:8px}
+.titleView .titleStart{box-shadow:0 4px 0 #0755b9,0 8px 16px #1268e827}
+.titleParentHint{text-align:center;color:#8aa4ba;font-size:10px;font-weight:750;margin-bottom:8px}
+/* Po takes visual precedence in all game views. */
+.mapPo{z-index:4}
+.mapPo .po{filter:drop-shadow(0 8px 9px #316b795a)}
+.mapPoBadge{position:absolute;bottom:-2px;left:50%;transform:translateX(-50%);z-index:6;background:#fff;border-radius:20px;padding:2px 9px;color:#1671bc;font-size:9px;font-weight:1000;letter-spacing:.1em;box-shadow:0 3px 9px #10598725}
+.questPoLabel{display:inline-block;font-size:9px;letter-spacing:.1em;font-weight:1000;color:#4583b7;margin:0 0 3px}
+.questPo,.questPo .po{width:80px;height:80px;flex-basis:80px}
+.questPo .po{filter:drop-shadow(0 5px 8px #1d75aa23)}
+.poCelebration{position:relative;overflow:hidden;background:radial-gradient(circle at 50% 45%,#dffaff 0%,#eaf5ff 58%,#f7fbff 100%)}
+.successHalo{position:absolute;width:min(58vw,270px);height:min(58vw,270px);border-radius:50%;border:2px dashed #b0e7fc;box-shadow:0 0 0 28px #d9f3ff70;animation:poBreathe 4s ease-in-out infinite;transform:translateY(0)}
+.successPoHero{position:relative;z-index:2}
+.successVisual.poCelebration .successPoHero .po{width:clamp(150px,31vw,220px);height:clamp(150px,31vw,220px);flex-basis:auto;filter:drop-shadow(0 13px 15px #1a7ac43d)}
+.successStar{position:absolute;z-index:3;color:#ffbe48}.successStarOne{top:14%;right:18%}.successStarTwo{bottom:15%;left:17%;color:#278bd8}
+@media(max-height:740px) and (max-width:699px){
+ .titleTop{padding:6px 12px 2px}.titleView .homeTitle{font-size:clamp(24px,6vw,31px);margin:5px 0 0}.titleChapter{font-size:9px;padding:3px 8px}.titleLead{font-size:10px;margin:3px 0}
+ .titleView .titleStage{margin:5px 10px 0;min-height:125px}.titleView .poStageMain{top:42%}.titleView .poStageMain .po{width:clamp(120px,29vh,180px);height:clamp(120px,29vh,180px)}
+ .titleMission{padding:5px 6px 6px;bottom:6px;border-radius:12px}.titleMissionLabel{font-size:8px}.titleMission strong{font-size:12px}.titleMissionHint{font-size:9px}
+ .titleWorldTag{padding:4px 6px;font-size:9px}.titlePoName{font-size:9px;top:54%}.titleSave{margin:5px 0 -4px;font-size:10px}.titleView .actionBar{padding-top:8px;padding-bottom:5px}.titleParentHint{font-size:9px;margin-bottom:3px}
+ .questPo,.questPo .po{width:52px;height:52px;flex-basis:52px}.questPoLabel{font-size:8px;margin-bottom:1px}
+ .successVisual.poCelebration .successPoHero .po{width:clamp(110px,26vh,165px);height:clamp(110px,26vh,165px)}
+}
+@media(max-width:355px){.titleSeries{font-size:8px}.titleProgress{font-size:9px}.titleView .titleStage{margin-left:9px;margin-right:9px}.titleWorldTag{font-size:8px}.titleMissionHint{font-size:8px}.questPo,.questPo .po{width:46px;height:46px;flex-basis:46px}}
+@media(min-width:700px){.titleTop{padding:24px 33px 10px}.titleSeries,.titleProgress{font-size:15px}.titleChapter{font-size:15px;padding:7px 19px}.titleView .homeTitle{font-size:52px;margin-top:13px}.titleLead{font-size:19px;margin-top:10px}.titleView .titleStage{margin:16px 39px 0;border-radius:30px}.titleView .poStageMain .po{width:clamp(240px,31vh,340px);height:clamp(240px,31vh,340px)}.titleWorldTag{font-size:16px;padding:10px 19px}.titleMission{left:28px;right:28px;bottom:24px;padding:15px}.titleMission strong{font-size:23px}.titleMissionHint{font-size:14px}.titleSave{font-size:15px;margin-top:18px}.titleParentHint{font-size:13px}.questPo,.questPo .po{width:105px;height:105px;flex-basis:105px}.questPoLabel{font-size:12px}}
+@media(prefers-reduced-motion:reduce){.successHalo{animation:none}}
+
+/* v5 revision: lively, logo-led, fully independent art and accessible controls */
+.entryBrand{top:max(8px,env(safe-area-inset-top));width:min(67vw,280px);padding:4px 16px 6px;border-radius:80px;background:radial-gradient(ellipse at 50% 50%,#fffffffa 5%,#ffffffdf 62%,#ffffff00 79%);filter:drop-shadow(0 4px 5px #ffffff80)}
+.entryBrand img{width:100%;height:clamp(42px,11vw,74px);filter:drop-shadow(0 1px 1px #ffffff)}
+.entryKids{font-size:clamp(22px,7vw,39px);-webkit-text-stroke:1.5px #fff;text-shadow:0 3px 0 #ffffff,0 5px 5px #3974be55}
+.entryTrail{position:absolute;z-index:3;top:12%;left:50%;transform:translateX(-50%);width:min(94%,600px);height:13%;pointer-events:none;opacity:.95}
+.entryTrail>svg{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 3px 2px #0376aa44)}
+.entryLevel{position:absolute;left:50%;top:1%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;min-width:86px;height:31px;padding:0 9px;border-radius:50px;background:linear-gradient(#348de9,#0060c0);border:3px solid white;color:white;font-size:13px;font-weight:1000;box-shadow:0 5px 0 #0b59a5,0 7px 12px #034d9b77;text-shadow:0 1px #0750aa}
+.entryHeading{top:25%;z-index:9;filter:drop-shadow(0 6px 5px #14569956)}
+.entryHeading h1,.entryHeading h2{font-family:"Noto Sans CJK JP","Hiragino Maru Gothic ProN",ui-rounded,system-ui,sans-serif;line-height:1.06;font-weight:1000;letter-spacing:-.067em;color:#fff;-webkit-text-stroke:clamp(3px,1.25vw,6px) #003279;paint-order:stroke fill;text-shadow:0 5px 0 #0451b8,0 8px 0 #e9ffff,0 12px 11px #00468d9c}
+.entryHeading h1{font-size:clamp(32px,9.5vw,76px)}.entryHeading h2{font-size:clamp(35px,11.5vw,88px)}
+.entryHeading .blue{color:#43dbff}.entryHeading .yellow{color:#ffdf32}
+.entryHeading p{margin-top:10px;border:3px solid #fff;box-shadow:0 5px 0 #cceafcbb,0 8px 16px #1669a26a;font-size:clamp(10px,3.1vw,17px)}
+.entryPo{top:47%;left:50%;width:min(75vw,365px);height:min(33vh,352px);min-height:140px;z-index:7;transform:translate(-50%,-9%) rotate(-6deg);animation:heroJump 4s ease-in-out infinite}
+.entryPo img{filter:drop-shadow(0 4px 1px #ffffff) drop-shadow(0 13px 10px #166eb38c)}
+.entryEnergy{pointer-events:none;position:absolute;z-index:4;left:50%;top:51%;width:100%;max-width:440px;height:33%;transform:translate(-50%,-6%);background:repeating-conic-gradient(from 0deg at 50% 52%,#ffffff00 0deg 16deg,#ffffffe8 17deg 19deg,#ffffff00 21deg 37deg);-webkit-mask-image:radial-gradient(ellipse at center,transparent 0 17%,#000 49%,transparent 76%);mask-image:radial-gradient(ellipse at center,transparent 0 17%,#000 49%,transparent 76%);opacity:.65}
+.entryToy{position:absolute;z-index:7;pointer-events:none;width:clamp(43px,13vw,74px);height:clamp(43px,13vw,74px);filter:drop-shadow(0 6px 4px #045d9d54);animation:toyFloat 4s ease-in-out infinite}
+.entryToy svg{width:100%;height:100%}
+.entryBook{left:3%;top:49%;transform:rotate(-15deg)}.entryQuestion{right:4%;top:59%;display:grid;place-items:center;border:5px solid #adf0ff;border-radius:13px;background:linear-gradient(#5bbefa,#117acc);font-size:clamp(34px,10vw,65px);font-weight:1000;color:white;text-shadow:0 4px #145aa0;transform:rotate(10deg);animation-delay:-1.7s}
+.entryStar{right:5%;top:48%;transform:rotate(-12deg);animation-delay:-.9s}.entryAiCard{left:2%;top:63%;transform:rotate(10deg);animation-delay:-2.5s}
+.entryCoin{z-index:8;width:clamp(28px,9vw,43px);height:clamp(28px,9vw,43px);border:3px solid #ffe3a1}.entryCoin.a{top:65%;left:13%}.entryCoin.b{top:63%;right:15%}
+.entryMark.one{top:20%}.entryMark.two{top:21%}.entryMark.three{top:69%;right:1%}
+.entryControls{bottom:max(15px,env(safe-area-inset-bottom));gap:12px;z-index:12}
+.entryStart{border-width:5px;border-color:#fff8bd;font-weight:1000;box-shadow:0 5px 0 #dd7005,0 10px 0 #ffefae,0 15px 23px #084c9491;background:linear-gradient(#fffa9d,#ffe04a 33%,#ffc125 56%,#fa9316)}
+.entryOther button{font-weight:1000}
+.entryAccountStatus{top:19%;font-size:10px;z-index:10;background:#ffffffdd}
+@keyframes heroJump{0%,100%{transform:translate(-50%,-9%) rotate(-6deg)}50%{transform:translate(-50%,-12%) rotate(-3deg)}}
+@keyframes toyFloat{0%,100%{translate:0 0}50%{translate:0 -9px}}
+@media(max-width:370px){.entryBrand{width:67vw}.entryBrand img{height:39px}.entryKids{font-size:22px}.entryTrail{top:12%;height:12%}.entryLevel{height:25px;font-size:11px;min-width:76px}.entryHeading{top:24%}.entryHeading h1{font-size:29px}.entryHeading h2{font-size:35px}.entryHeading p{margin-top:5px;padding:3px 8px;font-size:9px}.entryPo{top:48%;width:72vw;height:30vh}.entryToy{width:38px;height:38px}.entryBook{top:53%}.entryAiCard{top:64%}.entryQuestion{top:62%;font-size:36px}.entryStar{top:49%}.entryCoin.a{top:70%}.entryCoin.b{top:66%}.entryMark.one,.entryMark.two{top:24%}.entryMark.three{top:72%}.entryControls{gap:8px;bottom:max(10px,env(safe-area-inset-bottom))}.entryStart{height:48px;border-width:3px;font-size:17px}.entryOther button{height:36px}}
+@media(max-height:650px){.entryBrand img{height:34px}.entryKids{font-size:19px}.entryTrail{top:12%;height:12%}.entryLevel{height:24px;font-size:10px}.entryHeading{top:24%}.entryHeading h1{font-size:clamp(26px,8vw,42px)}.entryHeading h2{font-size:clamp(28px,9vw,47px)}.entryHeading p{margin-top:5px}.entryPo{top:48%;height:30vh;min-height:110px}.entryControls{gap:6px}.entryStart{height:42px;font-size:17px}.entryOther button{height:34px}.entryToy{width:38px;height:38px}}
+@media(min-width:700px){.entryBrand{top:8px;width:285px}.entryBrand img{height:70px}.entryKids{font-size:39px}.entryTrail{top:13%;height:14%}.entryLevel{min-width:105px;height:37px;font-size:17px}.entryHeading{top:27%}.entryPo{top:48%;width:min(45vw,390px);height:min(35vh,390px)}.entryControls{bottom:3%}.entryMark.one{left:15%}.entryMark.two,.entryMark.three{right:15%}.entryBook{left:20%}.entryAiCard{left:17%}.entryQuestion{right:20%}.entryStar{right:18%}}
+@media(min-width:700px) and (max-height:850px){.entryBrand{left:25%;top:6px}.entryBrand img{height:44px}.entryKids{font-size:27px}.entryTrail{display:none}.entryHeading{top:30%;left:0;width:52%}.entryHeading h1{font-size:clamp(31px,4.7vw,52px)}.entryHeading h2{font-size:clamp(33px,5.4vw,60px)}.entryPo{left:76%;top:30%;height:46vh;width:38vw}.entryEnergy{left:73%;top:40%;width:43%}.entryToy{display:none}.entryMark{display:none}.entryControls{bottom:3%}}
+@media(min-width:700px) and (min-height:900px){.entryPo{top:49%;height:32vh}}
+@media(prefers-reduced-motion:reduce){.entryPo,.entryToy{animation:none!important}}
+</style>
+
+<style id="aippo-title-auth-v3">
+/* The title is a game cover, not the in-game settings navigation. */
+.app.titleMode{gap:0;padding:0;max-width:none;background:#f4f9ff}
+.app.titleMode .top,.app.titleMode .foot{display:none}
+.app.titleMode .shell{border:0;border-radius:0;box-shadow:none;background:#fff;min-height:0}
+.app.titleMode .shell:before{height:4px}
+.cover{position:relative;display:flex;flex-direction:column;height:100%;min-height:0;overflow:hidden;background:linear-gradient(180deg,#ffffff 0%,#f6faff 67%,#eaf4ff 100%);color:#12345d}
+.coverHeader{flex:none;text-align:center;padding:clamp(13px,3vh,27px) 14px 8px;z-index:3}
+.coverBrand{display:flex;align-items:center;justify-content:center;gap:10px;min-height:59px}
+.coverBrandLogo{width:clamp(145px,38vw,212px);height:clamp(47px,10vw,72px);object-fit:contain;display:block}
+.coverBrandFallback{display:none;color:#1268e8;font-size:clamp(29px,8vw,44px);font-weight:1000;letter-spacing:-.075em}
+.coverBrandKids{display:flex;align-items:center;justify-content:center;align-self:center;background:#1268e8;color:#fff;border-radius:9px;padding:6px 10px;font-size:clamp(15px,4.5vw,22px);font-weight:1000;letter-spacing:.075em}
+.coverSubtitle{margin:0;color:#3475bb;font-size:clamp(10px,2.7vw,13px);font-weight:950;letter-spacing:.16em}
+.coverHero{position:relative;min-height:130px;flex:1;overflow:hidden;margin:8px auto 0;width:min(100%,690px);background:radial-gradient(ellipse at 50% 46%,#e9f9ff 0%,#c0e7ff 39%,#71b8ef 76%,#478ed8 100%);border:1px solid #c1e6ff;border-radius:clamp(20px,5vw,34px)}
+.coverHero:before{content:"";position:absolute;inset:14px;border:1px solid #ffffff8d;border-radius:24px;pointer-events:none}
+.coverOrbit{position:absolute;width:83%;aspect-ratio:1;left:8.5%;top:3%;border:2px dashed #fff9;border-radius:50%;transform:rotate(-25deg)}
+.coverOrbit.orbitTwo{width:65%;left:17.5%;top:14%;border:1px solid #ffffff62;transform:rotate(31deg)}
+.coverPo{position:absolute;z-index:2;left:50%;top:46%;transform:translate(-50%,-50%);width:clamp(145px,42vh,335px);height:clamp(145px,42vh,335px);display:grid;place-items:center;filter:drop-shadow(0 17px 14px #245cad42);animation:coverFloat 3.5s ease-in-out infinite}
+.coverPo .po{width:100%;height:100%;flex-basis:auto}.coverPo .po:before{display:none}
+.coverWorld{position:absolute;z-index:1;color:#316596;background:#fffef5f2;border:1px solid #fff;border-radius:999px;padding:6px 10px;font-size:clamp(9px,2.7vw,12px);font-weight:950;box-shadow:0 6px 14px #256ab532}
+.coverWorld.forest{left:7%;top:23%}.coverWorld.ocean{right:8%;top:38%}.coverWorld.sky{left:8%;bottom:24%}.coverWorld.stars{right:8%;top:13%}
+.coverTag{position:absolute;z-index:3;bottom:15px;left:50%;transform:translateX(-50%);color:#194d86;background:#fffdf2ec;border-radius:999px;padding:7px 13px;font-size:11px;font-weight:1000;white-space:nowrap;letter-spacing:.07em}
+.coverBottom{flex:none;margin:0 auto;max-width:690px;width:100%;padding:clamp(9px,2vh,18px) 20px max(12px,env(safe-area-inset-bottom));text-align:center;z-index:3}
+.coverTitle{font-size:clamp(21px,6vw,32px);letter-spacing:-.05em;line-height:1.3;font-weight:1000;margin:0;color:#16375f}
+.coverTitle strong{color:#1268e8}
+.coverDescription{font-size:clamp(11px,2.9vw,14px);color:#6483a4;font-weight:850;line-height:1.45;margin:5px 0 12px}
+.coverActions{display:flex;flex-direction:column;gap:9px}
+.coverActions button{min-height:51px;width:100%;border-radius:14px;font-size:16px;font-weight:1000;transition:transform .12s}
+.coverActions button:active{transform:scale(.985)}
+.coverLogin{background:#1268e8;color:#fff;border:1px solid #1268e8;box-shadow:0 4px 0 #0654ae}
+.coverGuest{border:1.5px solid #88b8e8;background:#fff;color:#155cb1}
+.coverNote{margin:9px 0 0;font-size:11px;font-weight:750;color:#607e9c;line-height:1.4}
+.coverParent{margin-top:7px;border:0;background:none;color:#427cb2;font-weight:900;font-size:12px;padding:6px}
+.coverSigned{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;color:#226d91;font-weight:900;margin:0 0 6px;min-height:18px}
+/* Login screens intentionally feel like part of the same AIPPO title flow. */
+.accountView{background:linear-gradient(180deg,#fff,#f0f8ff);overflow:hidden}
+.accountBack{display:flex;gap:10px;align-items:center;padding:14px 17px 6px;flex:none}
+.accountBack .back{height:38px;width:38px}
+.accountBack img{height:37px;width:112px;object-fit:contain;object-position:left center}
+.accountScroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 18px 18px}
+.accountHero{display:flex;align-items:center;gap:10px;border:1px solid #cbe5fa;background:#e7f5ff;border-radius:18px;padding:8px 11px;margin:9px 0 15px;min-height:95px}
+.accountHero .po{width:85px;height:85px;flex:0 0 85px}.accountHero .po:before{display:none}
+.accountHero h1{font-size:22px;margin:0 0 4px;color:#154b88}.accountHero p{margin:0;font-size:12px;line-height:1.5;color:#597c9d;font-weight:800}
+.accountForm{display:flex;flex-direction:column;gap:11px}
+.accountField{display:flex;flex-direction:column;gap:5px;text-align:left;font-size:12px;font-weight:950;color:#275b85}
+.accountField input{font:inherit;font-size:16px;background:#fff;border:1.5px solid #c3ddf4;border-radius:13px;padding:11px 12px;min-height:46px;width:100%;color:#193b60;outline-offset:2px}
+.accountField input:focus-visible{outline:2px solid #3983e0;border-color:#3983e0}
+.accountCheck{display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.65;font-weight:750;color:#4d6c8b;text-align:left}
+.accountCheck input{margin-top:4px;min-width:18px;min-height:18px;accent-color:#1268e8}
+.accountAlert{font-weight:850;font-size:12px;line-height:1.6;color:#a03739;background:#fff1f0;border:1px solid #f6d3d1;border-radius:12px;padding:8px 12px}
+.accountSuccess{color:#19715a;background:#e9faf2;border-color:#b4e1ce}
+.accountSubmit{min-height:52px;font-size:16px}.accountLinks{display:flex;justify-content:center;flex-wrap:wrap;gap:5px 15px;padding:4px 0}
+.accountLinks button{background:none;border:0;padding:6px 0;color:#1268e8;font-size:12px;font-weight:900}
+.accountInfo{font-size:11px;line-height:1.7;color:#66809c;margin:8px 0;text-align:center}
+.accountPolicy{display:flex;justify-content:center;gap:14px}.accountPolicy button{font-size:11px;border:0;background:none;color:#266fb2;font-weight:800;padding:7px}
+@keyframes coverFloat{50%{transform:translate(-50%,-52%)}}
+@media(max-height:700px){.coverHeader{padding:6px 12px 3px}.coverBrand{min-height:42px}.coverBrandLogo{height:42px;width:140px}.coverBrandKids{padding:5px 7px;font-size:16px}.coverHero{margin:3px 9px 0;min-height:115px}.coverPo{width:clamp(120px,36vh,225px);height:clamp(120px,36vh,225px)}.coverBottom{padding:4px 13px max(4px,env(safe-area-inset-bottom))}.coverTitle{font-size:clamp(17px,5vw,23px)}.coverDescription{margin:3px 0 5px;font-size:10px}.coverActions{gap:7px}.coverActions button{min-height:44px;font-size:14px}.coverNote{margin-top:5px;font-size:10px}.coverParent{margin-top:0;font-size:10px;padding:3px}.coverTag{bottom:8px;padding:4px 9px}.coverWorld{padding:4px 6px;font-size:9px}.accountBack{padding:6px 11px 3px}.accountHero{min-height:65px;margin:3px 0 7px}.accountHero .po{width:62px;height:62px;flex:0 0 62px}.accountHero h1{font-size:18px}.accountField input{min-height:42px}.accountForm{gap:7px}.accountScroll{padding-bottom:9px}}
+@media(min-width:700px){.coverHeader{padding-top:22px}.coverHero{margin-top:17px}.coverPo{width:min(36vh,350px);height:min(36vh,350px)}.coverBottom{padding:13px 35px max(20px,env(safe-area-inset-bottom))}.coverActions{flex-direction:row}.coverActions button{min-height:57px}.coverTitle{font-size:31px}.accountView{align-items:center}.accountBack,.accountScroll{width:min(100%,520px)}}
+@media(prefers-reduced-motion:reduce){.coverPo{animation:none}}
+
+/* v5 revision: lively, logo-led, fully independent art and accessible controls */
+.entryBrand{top:max(8px,env(safe-area-inset-top));width:min(67vw,280px);padding:4px 16px 6px;border-radius:80px;background:radial-gradient(ellipse at 50% 50%,#fffffffa 5%,#ffffffdf 62%,#ffffff00 79%);filter:drop-shadow(0 4px 5px #ffffff80)}
+.entryBrand img{width:100%;height:clamp(42px,11vw,74px);filter:drop-shadow(0 1px 1px #ffffff)}
+.entryKids{font-size:clamp(22px,7vw,39px);-webkit-text-stroke:1.5px #fff;text-shadow:0 3px 0 #ffffff,0 5px 5px #3974be55}
+.entryTrail{position:absolute;z-index:3;top:12%;left:50%;transform:translateX(-50%);width:min(94%,600px);height:13%;pointer-events:none;opacity:.95}
+.entryTrail>svg{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 3px 2px #0376aa44)}
+.entryLevel{position:absolute;left:50%;top:1%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;min-width:86px;height:31px;padding:0 9px;border-radius:50px;background:linear-gradient(#348de9,#0060c0);border:3px solid white;color:white;font-size:13px;font-weight:1000;box-shadow:0 5px 0 #0b59a5,0 7px 12px #034d9b77;text-shadow:0 1px #0750aa}
+.entryHeading{top:25%;z-index:9;filter:drop-shadow(0 6px 5px #14569956)}
+.entryHeading h1,.entryHeading h2{font-family:"Noto Sans CJK JP","Hiragino Maru Gothic ProN",ui-rounded,system-ui,sans-serif;line-height:1.06;font-weight:1000;letter-spacing:-.067em;color:#fff;-webkit-text-stroke:clamp(3px,1.25vw,6px) #003279;paint-order:stroke fill;text-shadow:0 5px 0 #0451b8,0 8px 0 #e9ffff,0 12px 11px #00468d9c}
+.entryHeading h1{font-size:clamp(32px,9.5vw,76px)}.entryHeading h2{font-size:clamp(35px,11.5vw,88px)}
+.entryHeading .blue{color:#43dbff}.entryHeading .yellow{color:#ffdf32}
+.entryHeading p{margin-top:10px;border:3px solid #fff;box-shadow:0 5px 0 #cceafcbb,0 8px 16px #1669a26a;font-size:clamp(10px,3.1vw,17px)}
+.entryPo{top:47%;left:50%;width:min(75vw,365px);height:min(33vh,352px);min-height:140px;z-index:7;transform:translate(-50%,-9%) rotate(-6deg);animation:heroJump 4s ease-in-out infinite}
+.entryPo img{filter:drop-shadow(0 4px 1px #ffffff) drop-shadow(0 13px 10px #166eb38c)}
+.entryEnergy{pointer-events:none;position:absolute;z-index:4;left:50%;top:51%;width:100%;max-width:440px;height:33%;transform:translate(-50%,-6%);background:repeating-conic-gradient(from 0deg at 50% 52%,#ffffff00 0deg 16deg,#ffffffe8 17deg 19deg,#ffffff00 21deg 37deg);-webkit-mask-image:radial-gradient(ellipse at center,transparent 0 17%,#000 49%,transparent 76%);mask-image:radial-gradient(ellipse at center,transparent 0 17%,#000 49%,transparent 76%);opacity:.65}
+.entryToy{position:absolute;z-index:7;pointer-events:none;width:clamp(43px,13vw,74px);height:clamp(43px,13vw,74px);filter:drop-shadow(0 6px 4px #045d9d54);animation:toyFloat 4s ease-in-out infinite}
+.entryToy svg{width:100%;height:100%}
+.entryBook{left:3%;top:49%;transform:rotate(-15deg)}.entryQuestion{right:4%;top:59%;display:grid;place-items:center;border:5px solid #adf0ff;border-radius:13px;background:linear-gradient(#5bbefa,#117acc);font-size:clamp(34px,10vw,65px);font-weight:1000;color:white;text-shadow:0 4px #145aa0;transform:rotate(10deg);animation-delay:-1.7s}
+.entryStar{right:5%;top:48%;transform:rotate(-12deg);animation-delay:-.9s}.entryAiCard{left:2%;top:63%;transform:rotate(10deg);animation-delay:-2.5s}
+.entryCoin{z-index:8;width:clamp(28px,9vw,43px);height:clamp(28px,9vw,43px);border:3px solid #ffe3a1}.entryCoin.a{top:65%;left:13%}.entryCoin.b{top:63%;right:15%}
+.entryMark.one{top:20%}.entryMark.two{top:21%}.entryMark.three{top:69%;right:1%}
+.entryControls{bottom:max(15px,env(safe-area-inset-bottom));gap:12px;z-index:12}
+.entryStart{border-width:5px;border-color:#fff8bd;font-weight:1000;box-shadow:0 5px 0 #dd7005,0 10px 0 #ffefae,0 15px 23px #084c9491;background:linear-gradient(#fffa9d,#ffe04a 33%,#ffc125 56%,#fa9316)}
+.entryOther button{font-weight:1000}
+.entryAccountStatus{top:19%;font-size:10px;z-index:10;background:#ffffffdd}
+@keyframes heroJump{0%,100%{transform:translate(-50%,-9%) rotate(-6deg)}50%{transform:translate(-50%,-12%) rotate(-3deg)}}
+@keyframes toyFloat{0%,100%{translate:0 0}50%{translate:0 -9px}}
+@media(max-width:370px){.entryBrand{width:67vw}.entryBrand img{height:39px}.entryKids{font-size:22px}.entryTrail{top:12%;height:12%}.entryLevel{height:25px;font-size:11px;min-width:76px}.entryHeading{top:24%}.entryHeading h1{font-size:29px}.entryHeading h2{font-size:35px}.entryHeading p{margin-top:5px;padding:3px 8px;font-size:9px}.entryPo{top:48%;width:72vw;height:30vh}.entryToy{width:38px;height:38px}.entryBook{top:53%}.entryAiCard{top:64%}.entryQuestion{top:62%;font-size:36px}.entryStar{top:49%}.entryCoin.a{top:70%}.entryCoin.b{top:66%}.entryMark.one,.entryMark.two{top:24%}.entryMark.three{top:72%}.entryControls{gap:8px;bottom:max(10px,env(safe-area-inset-bottom))}.entryStart{height:48px;border-width:3px;font-size:17px}.entryOther button{height:36px}}
+@media(max-height:650px){.entryBrand img{height:34px}.entryKids{font-size:19px}.entryTrail{top:12%;height:12%}.entryLevel{height:24px;font-size:10px}.entryHeading{top:24%}.entryHeading h1{font-size:clamp(26px,8vw,42px)}.entryHeading h2{font-size:clamp(28px,9vw,47px)}.entryHeading p{margin-top:5px}.entryPo{top:48%;height:30vh;min-height:110px}.entryControls{gap:6px}.entryStart{height:42px;font-size:17px}.entryOther button{height:34px}.entryToy{width:38px;height:38px}}
+@media(min-width:700px){.entryBrand{top:8px;width:285px}.entryBrand img{height:70px}.entryKids{font-size:39px}.entryTrail{top:13%;height:14%}.entryLevel{min-width:105px;height:37px;font-size:17px}.entryHeading{top:27%}.entryPo{top:48%;width:min(45vw,390px);height:min(35vh,390px)}.entryControls{bottom:3%}.entryMark.one{left:15%}.entryMark.two,.entryMark.three{right:15%}.entryBook{left:20%}.entryAiCard{left:17%}.entryQuestion{right:20%}.entryStar{right:18%}}
+@media(min-width:700px) and (max-height:850px){.entryBrand{left:25%;top:6px}.entryBrand img{height:44px}.entryKids{font-size:27px}.entryTrail{display:none}.entryHeading{top:30%;left:0;width:52%}.entryHeading h1{font-size:clamp(31px,4.7vw,52px)}.entryHeading h2{font-size:clamp(33px,5.4vw,60px)}.entryPo{left:76%;top:30%;height:46vh;width:38vw}.entryEnergy{left:73%;top:40%;width:43%}.entryToy{display:none}.entryMark{display:none}.entryControls{bottom:3%}}
+@media(min-width:700px) and (min-height:900px){.entryPo{top:49%;height:32vh}}
+@media(prefers-reduced-motion:reduce){.entryPo,.entryToy{animation:none!important}}
+</style>
+</head>
+<body>
+<div class="app" id="app" aria-live="off"></div>
+<script>(()=>{
+'use strict';
+const app=document.getElementById('app');
+const PO='assets/po/';
+const BRAND='brand/logo-horizontal.webp';
+const STORE='aippo_kids_journey_v1';
+const SETTINGS_STORE='aippo_kids_settings_v1';
+const auth={status:'loading',user:null,mode:'signin',step:'password',busy:false,error:'',success:'',email:'',password:'',code:'',returnTo:'map'};
+const accountHash=email=>{let n=2166136261;for(const c of String(email).trim().toLowerCase()){n=Math.imul(n^c.charCodeAt(0),16777619)}return (n>>>0).toString(16)};
+const progressStore=()=>auth.user?STORE+':account:'+accountHash(auth.user.email):STORE;
+function loadSettings(){try{const s=JSON.parse(localStorage.getItem(SETTINGS_STORE)||'null');if(s&&typeof s==='object')return {guardianAccepted:s.guardianAccepted===true, nickname:typeof s.nickname==='string'?s.nickname.slice(0,12):'', ageBand:['unset','5-6','7-9','10-12'].includes(s.ageBand)?s.ageBand:'unset'}}catch{}return {guardianAccepted:false,nickname:'',ageBand:'unset'}}
+const settings=loadSettings();
+function saveSettings(){try{localStorage.setItem(SETTINGS_STORE,JSON.stringify(settings))}catch{}}
+
+const colors=[{id:'blue',label:'あお',hex:'#4baded'},{id:'pink',label:'ピンク',hex:'#ee88b3'},{id:'yellow',label:'きいろ',hex:'#f8cc55'}];
+const places=[{id:'moon',label:'おつきさま'},{id:'sea',label:'うみ'},{id:'forest',label:'もり'}];
+const shapes=[{id:'round',label:'まる'},{id:'square',label:'しかく'},{id:'star',label:'ほし'}];
+const orderCards=[{id:'choose',label:'えらぶ',icon:'hand'},{id:'ask',label:'AIにつたえる',icon:'bot'},{id:'check',label:'たしかめる',icon:'inspect'}];
+const quests=[
+ {title:'いろを つたえよう',short:'いろを つたえる',icon:'palette',intro:'あおい ロケットに してね',kind:'color',goal:{color:'blue'},skill:'AIに いろを つたえられた',explain:'ほしい色を選んでAIに伝えました。'},
+ {title:'ばしょを つたえよう',short:'ばしょを つたえる',icon:'pin',intro:'おつきさまへ とばそう',kind:'place',goal:{place:'moon'},skill:'AIに ばしょを つたえられた',explain:'AIに行き先を指定することができました。'},
+ {title:'まちがいを みつけよう',short:'まちがいを みつける',icon:'inspect',intro:'AIの こたえを みくらべよう',kind:'spot',goal:{color:'blue',place:'moon'},skill:'AIの まちがいを なおせた',explain:'目的とAIの結果を比べ、違うところを見つけて修正しました。'},
+ {title:'かたちを つたえよう',short:'かたちを つたえる',icon:'shapes',intro:'まるい まどを つけよう',kind:'shape',goal:{shape:'round'},skill:'かたちを つたえられた',explain:'特徴を具体的に指定して、結果を調整しました。'},
+ {title:'ふたつ つたえよう',short:'じょうけんを あわせる',icon:'layers',intro:'あおい ロケットで おつきさまへ',kind:'combine',goal:{color:'blue',place:'moon'},skill:'ふたつの じょうけんを あわせられた',explain:'色と行き先を組み合わせて、AIへの指示を作りました。'},
+ {title:'AIの じゅんばん',short:'AIの つかいかた',icon:'list',intro:'つくる じゅんばんに ならべよう',kind:'order',goal:{},skill:'AIを つかう じゅんばんが わかった',explain:'目的を決める→AIに伝える→結果を確認する、という流れを理解しました。'},
+ {title:'じぶんの ロケット',short:'AIと つくる',icon:'sparkles',intro:'すきな ロケットを つくろう',kind:'create',goal:{},skill:'じぶんの イメージを AIで つくれた',explain:'色・場所・形を自分で選び、AIへの指示を組み立てました。'},
+ {title:'ランクアップ テスト',short:'できるかな？',icon:'trophy',intro:'ちがう ところを みつけて なおそう',kind:'exam',goal:{color:'blue',place:'moon',shape:'round'},skill:'AIの こたえを みて じぶんで なおせた',explain:'複数の条件を確認し、誤りを見つけて正しい指示に直しました。'}
+];
+
+// AIPPO original adventure: four worlds, two lessons each.
+const worlds=[
+ {name:'おねがいの もり',short:'もり',world:'forest',theme:'color',chapter:'WORLD 1',story:'ポーの まちの ひかりが きえちゃった。まずは AIに おねがい！',line:'AIには、ほしいものを つたえるよ',ending:'もりに あかりが ともった！'},
+ {name:'みくらべの うみ',short:'うみ',world:'ocean',theme:'check',chapter:'WORLD 2',story:'AIも ときどき まちがえるよ。いっしょに みつけよう！',line:'できたものを みて、たしかめよう',ending:'うみに ひかりが もどった！'},
+ {name:'くふうの そら',short:'そら',world:'sky',theme:'idea',chapter:'WORLD 3',story:'ふたつの おねがいを あわせて、もっと じょうずに！',line:'じゅんばんと くふうで パワーアップ',ending:'そらに ひかりが ひろがった！'},
+ {name:'ひらめきの ほし',short:'ほし',world:'space',theme:'create',chapter:'WORLD 4',story:'さいごは じぶんの アイデアで。AIと いっしょに つくろう！',line:'AIの こたえを じぶんで かんがえる',ending:'ポーの まちに ひかりが もどった！'}
+];
+const worldOfQuest=n=>Math.floor(n/2);
+const currentWorld=()=>worldOfQuest(currentIndex());
+
+const tiers=[
+ {name:'AIで かだいを かいけつ',subtitle:'自分で確認し、間違いを修正する',req:8,range:[7]},
+ {name:'AIと つくって くふう',subtitle:'順番を考え、自分の作品を作る',req:7,range:[5,6]},
+ {name:'じょうけんを あわせる',subtitle:'形や複数の条件を指定する',req:5,range:[3,4]},
+ {name:'AIの こたえを たしかめる',subtitle:'結果を見て、間違いを直す',req:3,range:[1,2]},
+ {name:'AIに おねがいできる',subtitle:'ほしい色を伝える',req:1,range:[0]}
+];
+const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const defaults=()=>({done:{},attempts:{},artwork:null});
+function load(){try{let s=JSON.parse(localStorage.getItem(progressStore())||'null');if(s&&typeof s==='object'&&s.done&&typeof s.done==='object')return {done:s.done,attempts:s.attempts||{},artwork:s.artwork||null}}catch{}return defaults()}
+let saved=load();
+const state={view:'home',world:0,quest:0,sub:'',selected:{},order:[],result:null,tries:0,parentTier:4,question:false,showHint:false};
+const today=()=>new Date().toISOString().slice(0,10);
+const count=()=>quests.reduce((a,_,i)=>a+Number(Boolean(saved.done[i])),0);
+const unlocked=i=>i===0||Boolean(saved.done[i-1]);
+const currentIndex=()=>{const i=quests.findIndex((_,n)=>!saved.done[n]);return i<0?7:i};
+const mastery=()=>[1,3,5,7,8].filter(x=>count()>=x).length;
+const get=(kind,id)=>({color:colors,place:places,shape:shapes})[kind]?.find(x=>x.id===id);
+const iconPaths={
+ arrow:'<path d="M5 12h14m-6-6 6 6-6 6"/>',back:'<path d="m15 18-6-6 6-6"/>',map:'<path d="M3 6 9 3l6 3 6-3v15l-6 3-6-3-6 3zM9 3v15m6-12v15"/>',
+ home:'<path d="m3 10 9-7 9 7v11H3zM9 21v-8h6v8"/>',palette:'<path d="M12 3a9 9 0 1 0 0 18h1a2 2 0 0 0 2-2c0-.9-.6-1.5-1.2-1.9-.9-.6-.5-2.1.7-2.1H18c2 0 3-1.9 3-3.5A9 9 0 0 0 12 3Z"/><circle cx="7" cy="11" r="1" fill="currentColor"/><circle cx="11" cy="7" r="1" fill="currentColor"/><circle cx="16" cy="8" r="1" fill="currentColor"/>',
+ pin:'<path d="M12 22s7-6.6 7-12a7 7 0 1 0-14 0c0 5.4 7 12 7 12Z"/><circle cx="12" cy="10" r="2.3"/>',inspect:'<circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/>',bot:'<rect x="4" y="7" width="16" height="13" rx="4"/><path d="M12 4v3"/><circle cx="9" cy="13" r="1.1" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1.1" fill="currentColor" stroke="none"/><path d="M9 17h6"/>',
+ shapes:'<circle cx="8" cy="8" r="5"/><rect x="12" y="12" width="9" height="9" rx="1"/>',layers:'<path d="m12 2 9 6-9 6-9-6 9-6Zm-9 11 9 6 9-6"/>',list:'<path d="M9 6h12M9 12h12M9 18h12"/><path d="M3 6h1M3 12h1M3 18h1"/>',
+ sparkles:'<path d="m12 2 1.8 7.2L21 11l-7.2 1.8L12 20l-1.8-7.2L3 11l7.2-1.8L12 2Zm7 14 .7 2.3L22 19l-2.3.7L19 22l-.7-2.3L16 19l2.3-.7L19 16Z"/>',trophy:'<path d="M7 3h10v7a5 5 0 0 1-10 0V3Zm2 18h6m-3-6v6M7 5H3v3a4 4 0 0 0 4 4m10-7h4v3a4 4 0 0 1-4 4"/>',
+ check:'<path d="m4 12 5 5L20 6"/>',lock:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/>',hand:'<path d="M8 11V5a2 2 0 0 1 4 0v5-3a2 2 0 0 1 4 0v4-2a2 2 0 0 1 4 0v5c0 4-3 7-7 7h-1c-3 0-5-2-7-6l-1-3a2 2 0 0 1 4-1Z"/>',
+ moon:'<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.7 8.7 0 1 0 20 14.5Z"/>',sea:'<path d="M2 10c2.5 0 2.5-3 5-3s2.5 3 5 3 2.5-3 5-3 2.5 3 5 3m-20 7c2.5 0 2.5-3 5-3s2.5 3 5 3 2.5-3 5-3 2.5 3 5 3"/>',forest:'<path d="m12 2-8 10h4l-5 6h18l-5-6h4L12 2Zm0 16v4"/>',
+ repeat:'<path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.5 9a7 7 0 0 1 12.5-1l1 4M4 12l1 4a7 7 0 0 0 12.5-1"/>',star:'<path d="m12 2 2.8 6.9L22 12l-7.2 3-2.8 7-2.8-7L2 12l7.2-3.1Z"/>',
+ settings:'<path d="M12 2l1.4 2.8 3.1.4.7 3.1 2.8 1.4-1.6 2.8 1.6 2.8-2.8 1.4-.7 3.1-3.1.4L12 22l-1.4-2.8-3.1-.4-.7-3.1L4 14.3l1.6-2.8L4 8.7l2.8-1.4.7-3.1 3.1-.4L12 2Z"/><circle cx="12" cy="12" r="3.2"/>',download:'<path d="M12 3v12m-5-5 5 5 5-5M4 17v4h16v-4"/>',trash:'<path d="M4 7h16M10 4h4M6 7l1 14h10l1-14M10 11v6m4-6v6"/>',question:'<path d="M9.5 9a2.5 2.5 0 1 1 4.5 1.5L12 13v1"/><circle cx="12" cy="18" r="1"/>',parent:'<circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/>',close:'<path d="M5 5 19 19M19 5 5 19"/>'
+};
+function ico(name,size=24){return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name]||iconPaths.star}</svg>`}
+function po(face='talking'){face=({neutral:'talking',hint:'talking',question:'talking',thinking:'talking',warning:'talking',blink:'talking'}[face]||face);return `<span class="po"><span class="poFallback" aria-hidden="true">Po</span><img loading="eager" src="${PO}${face}.webp" alt="AIPPOのポーちゃん" onload="this.previousElementSibling.style.display='none'" onerror="this.style.display='none'"></span>`}
+function rocketSVG(color='blue',shape='round'){const hex=get('color',color)?.hex||'#4baded';let windowMarkup=shape==='square'?'<rect x="51" y="67" width="38" height="38" rx="5" fill="#fff"/><rect x="57" y="73" width="26" height="26" rx="2" fill="#7aa8e2"/>':shape==='star'?'<path d="m70 62 8 12 15 2-11 10 3 15-15-7-15 7 3-15-11-10 15-2Z" fill="#fff"/><path d="m70 72 4 6 7 1-5 5 1 7-7-3-7 3 1-7-5-5 7-1Z" fill="#75b3eb"/>':'<circle cx="70" cy="86" r="23" fill="#fff"/><circle cx="70" cy="86" r="16" fill="#7aa8e2"/>';
+return `<svg class="rocket flying" viewBox="0 0 140 186" role="img" aria-label="ロケットの絵" xmlns="http://www.w3.org/2000/svg"><path d="M63 150 47 177 70 164 92 177 78 150" fill="#ffbd46"/><path d="M61 149 56 169 70 158 84 169 79 149" fill="#ff795a"/><path d="M39 112 16 151 42 145 58 123" fill="#5354b8" stroke="#353990" stroke-width="3"/><path d="m101 112 23 39-25-6-17-22" fill="#5354b8" stroke="#353990" stroke-width="3"/><path d="M70 7Q32 40 35 100l6 47q29 11 58 0l6-47Q108 40 70 7Z" fill="${hex}" stroke="#f7fdff" stroke-width="5"/><path d="M70 7Q56 20 47 41q23 12 46 0Q84 20 70 7Z" fill="#fff"/>${windowMarkup}<path d="M49 127h42" stroke="#fff" stroke-width="7" stroke-linecap="round" opacity=".75"/></svg>`}
+function scene({color='blue',place='moon',shape='round',label='',empty=false}={}){return `<div class="preview place-${escape(place)}"><div class="spaceStars"></div><div class="moon"></div>${label?`<span class="previewLabel">${escape(label)}</span>`:''}${empty?`<div class="botPreview">${ico('bot',55)}</div>`:rocketSVG(color,shape)}</div>`}
+function iconArt(kind,x){if(kind==='color')return `<span class="colorChip" style="background:${get(kind,x)?.hex||'#ccc'}"></span>`;if(kind==='shape'){if(x==='round')return `<svg viewBox="0 0 40 40" width="34" height="34"><circle cx="20" cy="20" r="15" fill="#8ad1f5" stroke="#3675b0" stroke-width="3"/></svg>`;if(x==='square')return `<svg viewBox="0 0 40 40" width="34" height="34"><rect x="6" y="6" width="28" height="28" rx="3" fill="#8ad1f5" stroke="#3675b0" stroke-width="3"/></svg>`;return ico('star',34)};return ico(x,34)}
+function choice(kind,x,selected=false){return `<button type="button" class="choice ${selected?'selected':''} ${!selected&&x.id===((kind==='color')?'blue':kind==='place'?'moon':kind==='shape'?'round':'')?'':''}" data-select="${escape(kind)}:${escape(x.id)}" aria-label="${escape(x.label)}" aria-pressed="${selected}"><span class="choiceIcon">${iconArt(kind,x.id)}</span><span class="choiceLabel">${escape(x.label)}</span></button>`}
+function group(kind){const list={color:colors,place:places,shape:shapes}[kind]||[];return `<div class="choices">${list.map(x=>choice(kind,x,state.selected[kind]===x.id)).join('')}</div>`}
+function slot(kind,label){let x=state.selected[kind];return `<div class="target ${x?'filled':''}" data-drop="${kind}">${x?`${iconArt(kind,x)} ${escape(get(kind,x)?.label||x)}`:`${ico('hand')} ${escape(label)}`}</div>`}
+function save(){try{localStorage.setItem(progressStore(),JSON.stringify(saved))}catch{}}
+function layout(body,{parent=false}={}){
+ const isCover=state.view==='home'||state.view==='auth';
+ app.classList.toggle('titleMode',isCover);
+ app.innerHTML=`${isCover?'':`<header class="top"><div class="brand"><span class="brandName">AIPPO</span><img class="brandLogo" src="${BRAND}" alt="AIPPO" onload="this.previousElementSibling.style.display='none'" onerror="this.style.display='none';this.previousElementSibling.style.display='inline-flex'"/><span class="brandLabel">KIDS</span></div><div class="topRight"><button class="topBtn" data-nav="${parent?'map':'parent'}" title="${parent?'マップに戻る':'保護者向け成長記録'}" aria-label="${parent?'マップに戻る':'保護者向け成長記録'}">${ico(parent?'map':'parent')}<span class="topBtnLabel">${parent?'マップ':'保護者'}</span></button><button class="topBtn settingBtn" data-nav="settings" title="設定" aria-label="設定">${ico('settings')}</button></div></header>`}<div class="shell">${body}</div>${isCover?'':'<div class="foot">AIの結果はおためし用のシミュレーションです</div>'}`;
+ app.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.nav)));
+}
+
+function go(view){state.view=view;state.showHint=false;if(view==='map')state.world=currentWorld();if(view==='parent')state.parentTier=5-Math.max(1,mastery());render()}
+function launchAdventure(){if(!settings.guardianAccepted){showGuardianSetup();return}go('map')}
+function selectGuest(){auth.status=auth.user?'authenticated':'guest';launchAdventure()}
+const OPENING_SEEN='aippo_title_opening_v1';
+let openingAttempted=false,openingLayer=null,openingCleanup=null;
+function endOpening(){if(openingCleanup){openingCleanup();openingCleanup=null}if(openingLayer){openingLayer.remove();openingLayer=null}app.inert=false;app.querySelector('[data-opening-replay]')?.focus({preventScroll:true})}
+function playOpening(){
+ if(openingLayer||!app.querySelector('.posterTitle'))return;
+ const layer=document.createElement('div');openingLayer=layer;layer.className='openingLayer';layer.setAttribute('role','dialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-label','4秒のオープニング');
+ layer.innerHTML='<video muted playsinline autoplay preload="auto" aria-hidden="true"></video><button type="button" class="openingSkip" data-opening-skip>スキップ</button>';
+ const video=layer.querySelector('video');video.muted=true;video.playsInline=true;video.src='media/aippo-opening-v1.mp4';
+ let loadTimer=setTimeout(endOpening,1200),maximumTimer=setTimeout(endOpening,5500),stallTimer;
+ const visibility=()=>{if(document.hidden)endOpening()};document.addEventListener('visibilitychange',visibility);
+ const observer=new MutationObserver(()=>{if(!app.querySelector('.posterTitle'))endOpening()});observer.observe(app,{childList:true,subtree:true});
+ openingCleanup=()=>{clearTimeout(loadTimer);clearTimeout(maximumTimer);clearTimeout(stallTimer);observer.disconnect();document.removeEventListener('visibilitychange',visibility);video.onplaying=null;video.onwaiting=null;video.onended=null;video.onerror=null;video.pause();video.removeAttribute('src');video.load()};
+ video.onplaying=()=>{clearTimeout(loadTimer);clearTimeout(stallTimer)};
+ video.onwaiting=()=>{clearTimeout(stallTimer);stallTimer=setTimeout(endOpening,1200)};
+ video.onended=endOpening;video.onerror=endOpening;layer.querySelector('[data-opening-skip]').onclick=endOpening;
+ layer.addEventListener('keydown',event=>{if(event.key==='Escape')endOpening();if(event.key==='Tab'){event.preventDefault();layer.querySelector('button').focus()}});
+ document.body.append(layer);app.inert=true;layer.querySelector('button').focus();
+ try{const result=video.play();if(result&&typeof result.catch==='function')result.catch(()=>{if(openingLayer===layer)endOpening()})}catch{endOpening()}
+}
+function setupOpening(){
+ const title=app.querySelector('.posterTitle');if(!title)return;
+ const replay=document.createElement('button');replay.type='button';replay.className='posterReplay';replay.dataset.openingReplay='';replay.textContent='オープニング';replay.setAttribute('aria-label','オープニングをもう一度見る');replay.onclick=playOpening;title.append(replay);
+ if(openingAttempted)return;openingAttempted=true;
+ try{if(localStorage.getItem(OPENING_SEEN))return;localStorage.setItem(OPENING_SEEN,'seen')}catch{return}
+ if(settings.guardianAccepted||auth.user||Object.keys(saved.done||{}).length)return;
+ const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+ if(reduced||navigator.connection?.saveData)return;
+ playOpening();
+}
+function home(){
+ const account=auth.user;
+ layout(`<main class="view posterTitle" aria-label="AIPPO Kids タイトル画面">
+   <div class="posterArtboard">
+     <img class="posterArtwork" src="assets/title/approved-cover.jpeg" alt="AIPPO Kids。ポーちゃんとAIぼうけんへ。空に浮かぶ島と、Poちゃんが走る冒険ゲームのタイトル画面。" fetchpriority="high" decoding="async" draggable="false"/>
+     <button type="button" class="posterTouch settings" data-action="poster-settings" aria-label="保護者設定を開く" title="設定"></button>
+     <button type="button" class="posterTouch start" data-action="poster-start" aria-label="ぼうけんを はじめる" title="ぼうけんを はじめる"></button>
+     <button type="button" class="posterTouch guest" data-action="poster-guest" aria-label="ゲストではじめる" title="ゲストではじめる"></button>
+     <button type="button" class="posterTouch login" data-action="poster-login" aria-label="${account?'ログイン中の設定':'ログイン'}" title="ログイン"></button>
+   </div>
+   <nav class="posterLandscapeControls" aria-label="横向きの始め方"><p>横向きでは、こちらから操作できます。</p><button type="button" data-action="poster-start">ぼうけんを はじめる</button><button type="button" data-action="poster-guest">ゲストではじめる</button><button type="button" data-action="poster-login">${account?'ログイン中の設定':'ログイン'}</button><button type="button" data-action="poster-settings">保護者設定</button></nav>
+ </main>`);
+ app.querySelectorAll('[data-action=poster-start]').forEach(b=>b.onclick=()=>launchAdventure());
+ app.querySelectorAll('[data-action=poster-guest]').forEach(b=>b.onclick=()=>account?logout():selectGuest());
+ app.querySelectorAll('[data-action=poster-login]').forEach(b=>b.onclick=()=>{if(account){go('settings');return}auth.mode='signin';auth.error='';go('auth')});
+ app.querySelectorAll('[data-action=poster-settings]').forEach(b=>b.onclick=()=>go('settings'));
+ setupOpening();
+}
+
+const API='/api/v1/accounts';
+function csrfCookie(){try{const m=document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);return m?decodeURIComponent(m[1]):''}catch{return ''}}
+async function csrf(){if(csrfCookie())return csrfCookie();const r=await fetch(API+'/csrf/',{credentials:'same-origin'});if(!r.ok)throw Error('認証サービスに接続できません。');return csrfCookie()}
+async function apiCall(path,payload=null){const headers={'Accept':'application/json'};if(payload!==null){const token=await csrf();if(token)headers['X-CSRFToken']=token;headers['Content-Type']='application/json'}const r=await fetch(API+path,{method:payload===null?'GET':'POST',headers,credentials:'same-origin',body:payload===null?undefined:JSON.stringify(payload)});let body={};try{body=await r.json()}catch{}if(!r.ok){const msgs=body?.errors&&typeof body.errors==='object'?Object.values(body.errors).flat().filter(x=>typeof x==='string'):[];const err=new Error(msgs[0]||body?.detail||body?.message||(r.status===403?'認証の確認に失敗しました。':'接続に失敗しました。もう一度お試しください。'));err.status=r.status;throw err}return body}
+async function checkSession(){try{const me=await apiCall('/me/');if(me.authenticated&&me.user?.email){auth.user=me.user;auth.status='authenticated';saved=load()}else{auth.user=null;auth.status='guest';saved=load()}}catch{auth.user=null;auth.status='guest';saved=load()}if(state.view==='home')render()}
+async function logout(){try{await apiCall('/signout/',{})}catch{toast('ログアウトできませんでした。通信を確認してください');return}auth.user=null;auth.status='guest';saved=load();state.view='home';render()}
+function authView(){
+ const mode=auth.mode;const isSignIn=mode==='signin',isSignUp=mode==='signup',isReset=mode==='reset',isConfirm=mode==='confirm',isVerify=mode==='verify',isMfa=mode==='mfa';
+ const heading=isSignIn?'おかえりなさい':isSignUp?'アカウントをつくる':isReset?'パスワードを再設定':isConfirm?'新しいパスワード':isVerify?'メールアドレスの確認':'確認コードを入力';
+ const info=isSignIn?'保護者のメールアドレスでログイン':isSignUp?'保護者の方が登録してください':isReset?'再設定用のメールをお送りします':isConfirm?'新しいパスワードを設定します':isVerify?'メールアドレスを確認します':'認証アプリのコードを入力してください';
+ const emailInput=!isMfa&&!isConfirm&&!isVerify?`<label class="accountField">メールアドレス<input name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" required value="${escape(auth.email)}"/></label>`:'';
+ const pwInput=isSignIn||isSignUp||isConfirm?`<label class="accountField">${isConfirm?'新しいパスワード':'パスワード'}<input name="password" type="password" autocomplete="${isSignIn?'current-password':'new-password'}" minlength="8" maxlength="128" required/></label>`:'';
+ const pwAgain=isSignUp||isConfirm?`<label class="accountField">パスワード（確認）<input name="confirm" type="password" autocomplete="new-password" minlength="8" maxlength="128" required/></label>`:'';
+ const mfaInput=isMfa?`<label class="accountField">確認コード<input name="mfa" autocomplete="one-time-code" inputmode="text" required maxlength="40" /></label>`:'';
+ const consent=isSignUp?`<label class="accountCheck"><input type="checkbox" name="consent" required/> <span>保護者として、利用案内とプライバシー説明を確認し、同意します。</span></label>`:'';
+ const button=isSignIn?'ログイン':isSignUp?'無料でアカウント作成':isReset?'再設定メールを送る':isConfirm?'新しいパスワードを保存':isVerify?'メールを確認':'コードを確認';
+ layout(`<main class="view accountView"><div class="accountBack"><button class="back" data-action="auth-back" aria-label="タイトルにもどる">${ico('back')}</button><img src="${BRAND}" alt="AIPPO"/><span class="brandLabel">KIDS</span></div><div class="accountScroll"><div class="accountHero">${po('talking')}<div><h1>${heading}</h1><p>${info}</p></div></div>
+ ${auth.error?`<div class="accountAlert" role="alert">${escape(auth.error)}</div>`:''}${auth.success?`<div class="accountAlert accountSuccess" role="status">${escape(auth.success)}</div>`:''}
+ <form class="accountForm" id="account-form">${emailInput}${pwInput}${pwAgain}${mfaInput}${consent}<button class="primary accountSubmit" type="submit" ${auth.busy?'disabled':''}>${auth.busy?'確認しています…':button} ${ico('arrow')}</button></form>
+ <div class="accountLinks">${isSignIn?'<button data-authmode="signup">はじめての方：新規登録</button><button data-authmode="reset">パスワードを忘れた</button>':isSignUp||isReset?'<button data-authmode="signin">ログインにもどる</button>':''}<button data-action="auth-guest">ゲストではじめる</button></div>
+ <p class="accountInfo">ログインは保護者向けです。<br>Kidsの学習記録は現在この端末にのみ保存され、別の端末とは同期されません。</p><div class="accountPolicy"><button data-authpolicy="terms">利用案内</button><button data-authpolicy="privacy">プライバシー</button></div></div></main>`);
+ app.querySelector('[data-action=auth-back]').onclick=()=>go('home');
+ app.querySelector('[data-action=auth-guest]').onclick=()=>selectGuest();
+ app.querySelectorAll('[data-authmode]').forEach(b=>b.onclick=()=>{auth.mode=b.dataset.authmode;auth.error='';auth.success='';render()});
+ app.querySelectorAll('[data-authpolicy]').forEach(b=>b.onclick=()=>policyModal(b.dataset.authpolicy));
+ app.querySelector('#account-form').onsubmit=handleAuth;
+}
+async function handleAuth(e){e.preventDefault();if(auth.busy)return;const form=e.currentTarget;const fd=new FormData(form);const email=String(fd.get('email')||auth.email||'').trim(),password=String(fd.get('password')||''),confirm=String(fd.get('confirm')||'');if(email)auth.email=email;auth.error='';auth.success='';if((auth.mode==='signup'||auth.mode==='confirm')&&password!==confirm){auth.error='パスワードが一致していません。';render();return}auth.busy=true;const submit=app.querySelector('.accountSubmit');if(submit){submit.disabled=true;submit.textContent='確認しています…'};
+ try{
+  if(auth.mode==='signin'){
+   const r=await apiCall('/signin/',{email,password});
+   if(r.mfa_required){auth.mode='mfa';auth.busy=false;render();return}
+   const me=await apiCall('/me/');if(!me.authenticated||!me.user?.email)throw Error('ログイン状態を確認できませんでした。');auth.user=me.user;auth.status='authenticated';saved=load();go('home');return;
+  }
+  if(auth.mode==='mfa'){
+   await apiCall('/mfa/verify/',{code:String(fd.get('mfa')||'')});const me=await apiCall('/me/');if(!me.authenticated||!me.user?.email)throw Error('ログイン状態を確認できませんでした。');auth.user=me.user;auth.status='authenticated';saved=load();go('home');return;
+  }
+  if(auth.mode==='signup'){
+   if(fd.get('consent')!=='on')throw Error('保護者の同意を確認してください。');
+   await apiCall('/signup/',{email,password,display_name:'',accept_terms:true,accept_privacy:true});const me=await apiCall('/me/');if(!me.authenticated||!me.user?.email)throw Error('登録後の状態を確認できませんでした。');auth.user=me.user;auth.status='authenticated';saved=load();go('home');return;
+  }
+  if(auth.mode==='reset'){await apiCall('/password/reset/',{email});auth.success='登録がある場合、再設定メールを送信しました。';auth.busy=false;render();return}
+  if(auth.mode==='confirm'){await apiCall('/password/reset/confirm/',{uid:auth.uid,token:auth.token,new_password:password});auth.mode='signin';auth.success='パスワードを変更しました。ログインしてください。';auth.busy=false;render();return}
+  if(auth.mode==='verify'){await apiCall('/email/verify/',{uid:auth.uid,token:auth.token});auth.mode='signin';auth.success='メールを確認しました。';auth.busy=false;render();return}
+ }catch(err){auth.error=err.message||'通信に失敗しました。もう一度お試しください。'}finally{auth.busy=false;if(state.view==='auth')render()}
+}
+function checkIncomingLink(){let path=location.pathname;const params=new URLSearchParams(location.search);const uid=params.get('uid'),token=params.get('token');if(uid&&token&&(path==='/verify-email'||path==='/reset-password')){auth.uid=uid;auth.token=token;auth.mode=path==='/verify-email'?'verify':'confirm';state.view='auth';history.replaceState({},'', '/');}}
+function worldArt(world){
+ const paths={
+ forest:`<g opacity=".85"><path d="M0 278Q45 243 95 273T205 264T340 266V380H0Z" fill="#b5e5aa"/><path d="M0 330Q75 295 145 333T340 320V380H0Z" fill="#79ca93"/><g fill="#2a957c"><path d="m15 236 30-65 30 65h-13l20 34H8l20-34Z"/><path d="m278 286 26-58 25 58h-10l19 29h-66l17-29Z"/></g><g fill="#e8ffdb"><circle cx="68" cy="104" r="8"/><circle cx="278" cy="108" r="6"/></g></g>`,
+ ocean:`<g><path d="M0 272Q44 252 85 269T170 269T255 270T340 267V380H0Z" fill="#83d6e9"/><path d="M0 305Q50 281 105 306T235 305T340 300V380H0Z" fill="#37b8cb"/><path d="M0 348Q47 328 89 347T178 348T260 345T340 342" stroke="#d2f7fc" stroke-width="6" fill="none"/><g fill="#fff" opacity=".8"><circle cx="49" cy="82" r="19"/><circle cx="74" cy="81" r="24"/><circle cx="94" cy="90" r="16"/></g><path d="M276 177 311 177 311 221 276 221Z" fill="#ffdb9c"/><path d="m269 179 24-25 26 25Z" fill="#ff978e"/></g>`,
+ sky:`<g><path d="M0 346Q75 287 150 326T340 309V380H0Z" fill="#a5d9ff" opacity=".8"/><g fill="#fff" opacity=".8"><ellipse cx="56" cy="80" rx="45" ry="17"/><ellipse cx="38" cy="71" rx="22" ry="22"/><ellipse cx="267" cy="119" rx="66" ry="16"/><ellipse cx="268" cy="107" rx="33" ry="25"/><ellipse cx="109" cy="224" rx="34" ry="10"/></g><path d="M315 24h-25M302 11v24M315 24l-25 0" stroke="#f2d287" stroke-width="4"/></g>`,
+ space:`<g><circle cx="292" cy="83" r="48" fill="#e5d3ff"/><ellipse cx="292" cy="83" rx="75" ry="16" transform="rotate(-24 292 83)" fill="none" stroke="#ffb7cc" stroke-width="13"/><path d="M0 325Q66 293 130 321T275 324T340 302V380H0Z" fill="#725cba"/><g fill="#fff"><circle cx="38" cy="48" r="3"/><circle cx="105" cy="154" r="4"/><circle cx="250" cy="38" r="3"/><circle cx="170" cy="94" r="3"/><circle cx="317" cy="222" r="4"/></g></g>`
+ };
+ return `<svg class="worldArt" viewBox="0 0 340 380" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${paths[world.world]}</svg>`
+}
+function mapNode(n,position){const q=quests[n],done=Boolean(saved.done[n]),open=unlocked(n),active=n===currentIndex();return `<button type="button" class="trailNode ${position} ${done?'done':active?'current':open?'open':'locked'}" data-quest="${n}" ${open?'':'disabled'} aria-label="クエスト${n+1} ${escape(q.short)} ${done?'クリア済み':open?'プレイ可能':'未解放'}"><span class="trailNodeIcon">${ico(done?'check':open?q.icon:'lock',30)}</span><span class="trailNodeLabel"><small>${n+1} / 8</small>${escape(q.short)}</span>${active?'<span class="trailHere">ここ！</span>':''}</button>`}
+function map(){const next=currentIndex();const wi=Math.min(3,Math.max(0,state.world));const w=worlds[wi];const progress=count();const n=wi*2;const chapterDone=Boolean(saved.done[n+1]);const dialogue=chapterDone?w.ending:w.story;
+ layout(`<main class="view worldView"><div class="worldTop"><div class="worldHead"><span class="eyebrow">${w.chapter} · ${progress}/8</span><h1 class="h1">${escape(w.name)}</h1><p>${escape(w.line)}</p></div><button class="worldHomeBtn" data-nav="home" aria-label="おうちへ">${ico('home',21)}</button></div><div class="worldRail" aria-label="4つのエリア">${worlds.map((x,i)=>`<button class="worldTab ${i===wi?'selected':''} ${saved.done[2*i+1]?'cleared':''}" data-world="${i}" aria-pressed="${wi===i}"><span class="worldTabNum">${saved.done[2*i+1]?ico('check',15):String(i+1)}</span><span class="worldTabName">${escape(x.short)}</span></button>`).join('')}</div><div class="mapWorld world-${w.world}">${worldArt(w)}<div class="worldWindingRoad"><svg viewBox="0 0 340 380" preserveAspectRatio="none" aria-hidden="true"><path d="M83 306 C115 295 130 256 149 238 S200 177 244 171" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round" stroke-dasharray="4 16" opacity=".89"/></svg></div><div class="mapPo"><span class="mapPoBadge">PO</span>${po(chapterDone?'celebrate':'talking')}</div><div class="mapStory"><span class="mapStoryName">ポー</span><p>${escape(dialogue)}</p></div><div class="worldGlow ${chapterDone?'is-lit':''}" aria-hidden="true">${ico('sparkles',26)}</div>${mapNode(n,'nodeOne')}${mapNode(n+1,'nodeTwo')}<div class="worldGroundTitle">${chapterDone?'クリア！ つぎの エリアへ':'ひかりを とりもどそう'}</div></div><div class="worldBottom"><div class="worldPager"><button data-world-step="-1" ${wi===0?'disabled':''} aria-label="まえのエリア">${ico('back',20)}</button><span>${wi+1} / 4</span><button data-world-step="1" ${wi===3?'disabled':''} aria-label="つぎのエリア">${ico('arrow',20)}</button></div><button class="primary" data-action="current">${wi===currentWorld()?(progress===8?'さいごの テストを もういちど':'ポーと つぎへ'):unlocked(n)?'この エリアで あそぶ':'つぎの エリアを みる'} ${ico('arrow')}</button></div></main>`);
+ app.querySelectorAll('[data-quest]').forEach(el=>el.onclick=()=>startQuest(Number(el.dataset.quest)));
+ app.querySelectorAll('[data-world]').forEach(el=>el.onclick=()=>{state.world=Number(el.dataset.world);render()});
+ app.querySelectorAll('[data-world-step]').forEach(el=>el.onclick=()=>{state.world=Math.min(3,Math.max(0,state.world+Number(el.dataset.worldStep)));render()});
+ app.querySelector('[data-action=current]').onclick=()=>{if(wi!==currentWorld()&&!unlocked(n)){state.world=currentWorld();render();return}startQuest(wi===currentWorld()?next:(!saved.done[n]?n:n+1))};
+}
+function startQuest(n){if(!unlocked(n))return;state.quest=n;state.selected={};state.order=[];state.tries=0;state.sub='';state.result=null;state.builderFocus=null;state.view='play';render()}
+function nextFinish(){const n=state.quest;const result={at:today(),attempts:state.tries,choices:{...state.selected},order:[...state.order]};if(!saved.done[n]){saved.done[n]=result;save()}if(n===6){saved.artwork={...state.selected,at:today()};save()}state.view='win';render()}
+function progressHead(){const q=quests[state.quest];return `<div class="questHead"><div class="questHeadTop"><button type="button" class="back" data-nav="map" aria-label="マップに戻る">${ico('back')}</button><span class="eyebrow">${escape(worlds[worldOfQuest(state.quest)].short)} · QUEST ${state.quest+1}/8</span><div class="dots">${[0,1,2].map((_,i)=>`<span class="dot ${i<1?'done':i===1?'active':''}"></span>`).join('')}</div></div><div class="questIntroRow"><div class="questPo">${po(state.sub==='fix'?'hint':'talking')}</div><div class="questWords"><span class="questPoLabel">PO'S MISSION</span><h1 class="questTitle">${escape(q.title)}</h1><p class="questSub">${escape(q.intro)}</p></div></div></div>`}
+
+function actionButton(text,disabled=false,action='submit'){return `<div class="actionBar"><button type="button" class="primary" data-action="${action}" ${disabled?'disabled':''}>${escape(text)} ${ico(action==='submit'?'bot':'arrow')}</button></div>`}
+function mainSimple(){const q=quests[state.quest],kind=q.kind==='spot'?'color':q.kind==='exam'?'shape':q.kind;const correct=state.selected[kind];let prompt=kind==='color'?'ここに いろの カードを おこう':kind==='place'?'ばしょの カードを おこう':'まどの かたちを おこう';let preview=state.quest===2?scene({color:'pink',place:'moon',label:'AIの こたえ'}):state.quest===7?scene({shape:'square',label:'AIの こたえ'}):scene({empty:true,label:'AIが つくるよ'});const title=state.sub==='fix'?'まちがいを なおそう':q.title;
+const body=`<main class="view">${progressHead().replace(escape(q.title),escape(title))}<div class="playBody">${preview}${slot(kind,prompt)}${group(kind)}</div>${actionButton(correct?'AIに おねがい！':'カードを えらぼう',!correct)}</main>`;layout(body);bindSelections();app.querySelector('[data-action=submit]').onclick=()=>{if(!state.selected[kind])return;state.tries++;simulate(()=>{const actual={color:state.selected.color||'blue',place:state.selected.place||'moon',shape:state.selected.shape||'round'};const expected=q.goal;const success=Object.keys(expected).every(k=>actual[k]===expected[k]);state.result={success,actual,expected,from:'simple'};state.view='result';render()})}}
+function inspectView(){
+const exam=state.quest===7;
+const label=exam?'まどが ちがうのは どこ？':'AIの まちがいは どこ？';
+const choices=exam?[['color','いろ','palette'],['place','ばしょ','pin'],['shape','かたち','shapes']]:[['color','いろ','palette'],['place','ばしょ','pin'],['none','あってる','check']];
+layout(`<main class="view">${progressHead().replace(escape(quests[state.quest].title),label)}<div class="playBody" style="display:flex;flex-direction:column"><div class="resultCompare">${scene({color:'blue',place:'moon',shape:'round',label:'ポーの おねがい'})}${scene({color:exam?'blue':'pink',place:'moon',shape:exam?'square':'round',label:'AIの こたえ'})}</div><div class="choices">${choices.map(([id,text,icon])=>`<button type="button" class="choice" data-spot="${id}"><span class="choiceIcon">${ico(icon,33)}</span><span class="choiceLabel">${text}</span></button>`).join('')}</div></div><div class="actionBar"><button type="button" class="secondary" style="width:100%" data-action="${exam?'map':'hint'}">${exam?'もどる':'ヒントを みる'}</button></div></main>`);
+app.querySelectorAll('[data-spot]').forEach(b=>b.onclick=()=>{if(b.dataset.spot===(exam?'shape':'color')){state.sub='fix';state.selected={};state.result=null;render()}else toast(exam?'まどの かたちを みてね':'ふたつの ロケットを みてね')});
+app.querySelector('[data-action]').onclick=()=>{if(exam){go('map')}else toast('ロケットの いろを みてね')};
+}
+function buildView(){
+ const q=quests[state.quest],creator=q.kind==='create';
+ const seq=creator?['color','place','shape']:['color','place'];
+ const names={color:'いろ',place:'ばしょ',shape:'かたち'};
+ const all=seq.every(k=>Boolean(state.selected[k]));
+ const focus=seq.includes(state.builderFocus)?state.builderFocus:(seq.find(k=>!state.selected[k])||seq[seq.length-1]);
+ const step=seq.indexOf(focus)+1;
+ const current={color:state.selected.color||'blue',place:state.selected.place||'moon',shape:state.selected.shape||'round'};
+ const tiles=seq.map(k=>{
+  const x=state.selected[k];const value=x?escape(get(k,x)?.label||x):names[k];
+  return `<button type="button" class="target builderSlot ${x?'filled':''} ${k===focus?'active':''}" data-drop="${k}" data-focus="${k}" aria-label="${names[k]}を${x?'かえる':'えらぶ'}"><span class="slotValue">${x?iconArt(k,x):ico('hand',18)}<span>${value}</span></span></button>`;
+ }).join('');
+ layout(`<main class="view">${progressHead()}<div class="playBody wizardBody"><div class="builderWizard"><div class="builderPreview">${scene({...current,label:creator?'いまの イメージ':'AIの できあがり'})}</div><div class="builderSlots ${creator?'triple':''}">${tiles}</div><section class="wizardGroup"><p class="groupLabel"><span class="stepNumber">${step} / ${seq.length}</span>${names[focus]}を えらぼう</p>${group(focus)}</section></div></div>${actionButton(all?'AIに つくってもらう':'カードを えらぼう',!all)}</main>`);
+ bindSelections();
+ app.querySelectorAll('[data-focus]').forEach(b=>{
+  b.onclick=()=>{state.builderFocus=b.dataset.focus;render()};
+ });
+ app.querySelector('[data-action=submit]').onclick=()=>{
+  if(!all)return;
+  const actual={...current},expected=q.goal;
+  const success=creator||Object.keys(expected).every(k=>actual[k]===expected[k]);
+  state.result={success,actual,expected,from:creator?'creator':'combine'};state.tries++;
+  simulate(()=>{state.view='result';render()});
+ };
+}
+function orderView(){const taken=new Set(state.order);const list=orderCards.filter(x=>!taken.has(x.id));layout(`<main class="view">${progressHead()}<div class="playBody" style="display:flex;flex-direction:column"><div class="orderBody"><div class="orderSlots">${[0,1,2].map((k)=>{let x=orderCards.find(i=>i.id===state.order[k]);return `<button type="button" class="target ${x?'filled':''}" data-order-slot="${k}" aria-label="${k+1}ばんめ ${x?x.label:'から'}"><span class="orderNum">${k+1}</span>${ico(x?x.icon:'hand')}${x?escape(x.label):'ここに おこう'}</button>`}).join('')}</div><div class="choices orderChoices">${list.map(x=>`<button type="button" class="choice" data-order-pick="${x.id}"><span class="choiceIcon">${ico(x.icon,35)}</span><span class="choiceLabel">${escape(x.label)}</span></button>`).join('')||'<p class="choiceNote">ぜんぶ ならべたね！</p>'}</div><div class="choiceNote">カードを じゅんばんに えらぼう</div></div></div>${actionButton(state.order.length===3?'じゅんばんを たしかめる':'カードを ならべよう',state.order.length!==3)}</main>`);app.querySelectorAll('[data-order-pick]').forEach(b=>{b.onclick=()=>{state.order.push(b.dataset.orderPick);render()};bindDrag(b,({x,y})=>{const rects=[...app.querySelectorAll('[data-order-slot]')];const idx=rects.findIndex(s=>inside(s,x,y,20));if(idx<0||idx>state.order.length)return false;state.order.splice(idx,0,b.dataset.orderPick);render();return true})});app.querySelectorAll('[data-order-slot]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.orderSlot);if(i<state.order.length){state.order.splice(i,1);render()}});app.querySelector('[data-action=submit]').onclick=()=>{if(state.order.length!==3)return;state.tries++;const success=state.order.join(',')==='choose,ask,check';state.result={success,from:'order',actual:[...state.order]};simulate(()=>{state.view='result';render()})}}
+function play(){const q=quests[state.quest];if(q.kind==='spot'||q.kind==='exam'){if(!state.sub)return inspectView();return mainSimple()};if(q.kind==='combine'||q.kind==='create')return buildView();if(q.kind==='order')return orderView();return mainSimple()}
+function resultView(){const q=quests[state.quest],r=state.result;if(!r)return go('map');const creator=q.kind==='create',order=q.kind==='order';const correct=Boolean(r.success);let content='';if(order){content=`<div class="resultCompare"> <div class="preview" style="background:#edf5ff;color:#1e64ac"><div style="z-index:1;text-align:center;font-weight:1000;font-size:13px;line-height:2.5;color:#164c81">${['えらぶ','AIにつたえる','たしかめる'].join('<br>')}</div></div><div class="preview" style="background:${correct?'#eafaf5':'#fff2ea'}"><div style="z-index:1;text-align:center;color:#174d80;font-weight:1000;font-size:13px;line-height:2.5">${r.actual.map(x=>escape(orderCards.find(z=>z.id===x)?.label||'')).join('<br>')}</div></div></div>`}
+else{const goal=q.kind==='shape'?{shape:'round'}:q.kind==='create'?r.actual:q.kind==='place'?{place:'moon'}:q.kind==='combine'?{color:'blue',place:'moon'}:{color:'blue',place:'moon'};content=`<div class="resultCompare">${scene({...goal,label:creator?'じぶんの イメージ':'ポーの おねがい'})}${scene({...r.actual,label:'AIの こたえ'})}</div>`}
+layout(`<main class="view">${progressHead()}<div class="playBody" style="display:flex;flex-direction:column"><h2 class="questTitle" style="font-size:clamp(23px,6vw,30px)">${correct?'できた！':'あれ？ ちがうね'}</h2>${content}<div class="resultNotice ${correct?'good':''}">${po(correct?'celebrate':'question')}<span>${correct?(creator?'イメージを つたえられた！':'AIに ちゃんと つたわったね'):'カードを かえて もういちど！'}</span></div>${creator?'<div class="choiceNote">もっと かえてみても いいよ</div>':''}</div>${actionButton(correct?'AIの コツを ゲット！':'もういちど やってみる',false,'next')}</main>`);app.querySelector('[data-action=next]').onclick=()=>{if(correct)nextFinish();else{state.view='play';state.selected={};state.order=[];state.result=null;state.sub=q.kind==='exam'||q.kind==='spot'?'fix':'';render()}};if(creator){const bar=app.querySelector('.actionBar');const back=document.createElement('button');back.type='button';back.className='secondary';back.textContent='かえる';back.style.flex='0 0 82px';bar.prepend(back);back.onclick=()=>{state.view='play';state.result=null;render()}}}
+function win(){const q=quests[state.quest],final=state.quest===7;layout(`<main class="view"><div class="screenHead"><span class="eyebrow">QUEST ${state.quest+1} CLEAR</span><button class="back" data-nav="map" aria-label="マップに戻る">${ico('close')}</button></div><section class="success"><div class="successBadge">${ico(final?'trophy':'star',42)}</div><h1>${final?'ランクアップ！':'AIの コツ GET！'}</h1><p>${escape(q.skill)}</p><div class="successVisual poCelebration"><div class="successHalo" aria-hidden="true"></div><div class="successPoHero">${po('celebrate')}</div><div class="successStar successStarOne" aria-hidden="true">${ico('sparkles',30)}</div><div class="successStar successStarTwo" aria-hidden="true">${ico('star',23)}</div></div><div class="unlockNote">${final?'LEVEL 5 まで できた！':state.quest%2===1?worlds[worldOfQuest(state.quest)].ending:'ひかりを ひとつ みつけた！'}</div></section><div class="actionBar"><button class="primary" data-action="next">${final?'ピラミッドを みる':'つぎへ すすむ'} ${ico('arrow')}</button></div></main>`);sprinkle();app.querySelector('[data-action=next]').onclick=()=>final?go('parent'):go('map')}
+function parent(){const complete=count(),level=mastery();const chosen=tiers[state.parentTier]||tiers[4];const achieved=complete>=chosen.req;const progressInTier=chosen.range.filter(i=>saved.done[i]);const selectedNumber=5-state.parentTier;const evidence=progressInTier.map(i=>`「${quests[i].short}」`).join('・');const txt=achieved?'この段階をクリアしています。'+evidence+'ができました。':evidence?`${evidence}はクリア済み。あと${chosen.range.length-progressInTier.length}クエストでこの段階を習得します。`:'この段階は、これから挑戦する目標です。';
+layout(`<main class="view parentView"><div class="parentTop"><button class="back" data-nav="map" aria-label="もどる">${ico('back')}</button><div class="parentTitles"><div class="eyebrow">FOR PARENTS</div><h1 class="h1">できること ピラミッド</h1></div></div><div class="parentIntro">タップして、できるようになったことを確認</div><div class="pyramidWrap">${tiers.map((t,i)=>{const mastered=complete>=t.req,cur=!mastered&&i===tiers.reduce((last,x,index)=>complete<x.req?index:last,-1);return `<button type="button" data-tier="${i}" class="tier ${mastered?'mastered':cur?'current':''} ${i===state.parentTier?'selected':''}" style="--w:${[54,65,77,89,100][i]}%" aria-label="レベル${5-i}、${escape(t.name)}、${mastered?'習得済み':cur?'練習中':'未習得'}"><span class="tierNo">LEVEL ${5-i} ${mastered?'✓':''}</span><span class="tierTitle">${escape(t.name)}</span></button>`}).join('')}</div><div class="evidence"><div class="evidenceTitle">LEVEL ${selectedNumber}｜${escape(chosen.name)}</div><div class="evidenceStatus">${achieved?'習得済み':progressInTier.length?'練習中':'これから挑戦'}</div><div class="evidenceBody">${escape(txt)}</div></div><div class="parentBottom"><button class="secondary" data-action="detail">クリア記録をみる</button><button class="secondary" data-action="map">マップへ戻る ${ico('arrow')}</button></div></main>`,{parent:true});app.querySelectorAll('[data-tier]').forEach(b=>b.onclick=()=>{state.parentTier=Number(b.dataset.tier);render()});app.querySelector('[data-action=map]').onclick=()=>go('map');app.querySelector('[data-action=detail]').onclick=()=>showRecord()}
+function showRecord(){const lines=quests.map((q,i)=>{const v=saved.done[i];return `<div style="padding:9px 0;border-bottom:1px solid #e9f1f9;display:flex;justify-content:space-between;gap:8px;text-align:left;font-size:12px;font-weight:850"><span>${escape(q.short)}</span><span style="color:${v?'#1a8e78':'#7991a7'};white-space:nowrap">${v?'習得 '+escape(v.at||''):'未習得'}</span></div>`}).join('');const overlay=document.createElement('div');overlay.className='overlay';overlay.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="record-title"><h2 id="record-title">クリアしたこと</h2><p>この端末でクリアしたクエストの記録です。</p>${lines}<p style="font-size:11px;text-align:left">※ 学習課題のクリア記録であり、IQや他の子との優劣を測るものではありません。</p><button class="primary" data-close="1">とじる</button></div>`;app.querySelector('.shell').append(overlay);overlay.querySelector('[data-close]').onclick=()=>overlay.remove()}
+function showGuardianSetup(){
+ const overlay=document.createElement('div');overlay.className='overlay';
+ overlay.innerHTML=`<div class="modal guardianDialog" role="dialog" aria-modal="true" aria-labelledby="guardian-title"><div class="guardianPo">${po('neutral')}</div><h2 id="guardian-title">保護者の方へ</h2><p>ポーと遊びながら、AIへの伝え方を学ぶおためし版です。</p><div class="guardianFacts"><span>ゲストは登録不要</span><span>音声なし</span><span>進捗は端末内</span></div><p class="smallLegal">実際のAIには送信せず、答えはシミュレーションです。お子さまの本名などは入力しないでください。</p><button class="primary" data-guardian="ok">確認して はじめる</button><button class="secondary" data-guardian="cancel">あとで</button></div>`;
+ app.querySelector('.shell').append(overlay);
+ overlay.querySelector('[data-guardian=ok]').onclick=()=>{settings.guardianAccepted=true;saveSettings();go('map')};
+ overlay.querySelector('[data-guardian=cancel]').onclick=()=>overlay.remove();
+}
+function settingsView(){
+ const ages=[['unset','設定しない'],['5-6','5〜6歳'],['7-9','7〜9歳'],['10-12','10〜12歳']];
+ const ageOptions=ages.map(([key,text])=>`<option value="${key}" ${settings.ageBand===key?'selected':''}>${text}</option>`).join('');
+ layout(`<main class="view settingsView"><div class="settingsHead"><button class="back" data-action="settings-back" aria-label="もどる">${ico('back')}</button><h1 class="h1">保護者向け設定</h1></div><div class="settingsScroll"><div class="settingsPoRow">${po('neutral')}<p>ポーと安心して<br>あそべるようにしよう</p></div><section class="settingsSection"><h2>アカウント</h2><p class="settingsHelp">${auth.user?`保護者：${escape(auth.user.display_name||auth.user.email)}（ログイン中）`:'ゲストで利用中'}。学習記録はこの端末に保存され、端末間同期はまだありません。</p><button class="settingAction" data-action="account-toggle">${ico('parent')} ${auth.user?'ログアウトする':'ログイン・新規登録'} ${ico('arrow',18)}</button></section><section class="settingsSection"><h2>お子さまの設定</h2><label class="settingField" for="child-nick">ニックネーム（任意）<input id="child-nick" maxlength="12" autocomplete="off" placeholder="例：ぽぽ" value="${escape(settings.nickname)}"/><small>本名は使わないでね。この端末だけに保存します。</small></label><label class="settingField" for="child-age">年齢のめやす<select id="child-age">${ageOptions}</select><small>年齢を変えてもクエストの進み具合は変わりません。</small></label><button class="settingAction" data-action="profile-save">${ico('check')} この設定を保存する</button></section><section class="settingsSection"><h2>遊び方・学習</h2><button class="settingAction" data-action="howto">${ico('question')} 遊び方を見る ${ico('arrow',18)}</button><button class="settingAction" data-nav="parent">${ico('parent')} できることピラミッド ${ico('arrow',18)}</button></section><section class="settingsSection"><h2>記録とデータ</h2><p class="settingsHelp">クエストの記録・作品・ニックネームは、このブラウザ内だけに保存されます。別の端末には引き継がれません。</p><button class="settingAction" data-action="export">${ico('download')} 学習記録を書き出す ${ico('arrow',18)}</button><button class="settingAction danger" data-action="reset">${ico('trash')} 学習記録をすべて消す ${ico('arrow',18)}</button></section><section class="settingsSection"><h2>サービスについて</h2><button class="settingAction" data-action="privacy">${ico('check')} プライバシーについて ${ico('arrow',18)}</button><button class="settingAction" data-action="terms">${ico('question')} ご利用について ${ico('arrow',18)}</button><p class="settingsHelp">AIPPO Kids β版・AIの結果はシミュレーション。音声・外部AI送信・広告トラッキングなし。</p></section></div><div class="settingsFooter"><button class="secondary" data-action="settings-done">ゲームに戻る</button></div></main>`);
+ app.querySelector('[data-action=settings-back]').onclick=()=>go('home');
+ app.querySelector('[data-action=settings-done]').onclick=()=>go('home');
+ app.querySelector('[data-action=account-toggle]').onclick=()=>{if(auth.user)logout();else{auth.mode='signin';auth.error='';go('auth')}};
+ app.querySelector('[data-action=profile-save]').onclick=()=>{const x=app.querySelector('#child-nick');settings.nickname=x.value.trim().slice(0,12);settings.ageBand=app.querySelector('#child-age').value;saveSettings();toast('この端末に 保存したよ')};
+ app.querySelector('[data-action=howto]').onclick=howTo;
+ app.querySelector('[data-action=export]').onclick=exportProgress;
+ app.querySelector('[data-action=reset]').onclick=askReset;
+ app.querySelector('[data-action=privacy]').onclick=()=>policyModal('privacy');
+ app.querySelector('[data-action=terms]').onclick=()=>policyModal('terms');
+ app.querySelector('[data-nav=parent]').onclick=()=>go('parent');
+}
+function exportProgress(){
+ const record={app:'AIPPO Kids',version:1,exportedAt:new Date().toISOString(),profile:{nickname:settings.nickname,ageBand:settings.ageBand},progress:{done:saved.done,artwork:saved.artwork,attempts:saved.attempts}};
+ const blob=new Blob([JSON.stringify(record,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='aippo-kids-progress.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function askReset(){
+ const overlay=document.createElement('div');overlay.className='overlay';
+ overlay.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="reset-title"><h2 id="reset-title">本当に消しますか？</h2><p>クリア記録、作品、ニックネーム、年齢帯が消えます。元には戻せません。</p><button class="primary dangerPrimary" data-confirm="reset">全部消す</button><button class="secondary" data-confirm="cancel">やめる</button></div>`;
+ app.querySelector('.shell').append(overlay);
+ overlay.querySelector('[data-confirm=cancel]').onclick=()=>overlay.remove();
+ overlay.querySelector('[data-confirm=reset]').onclick=()=>{Object.assign(saved,defaults());settings.nickname='';settings.ageBand='unset';save();saveSettings();state.quest=0;state.parentTier=4;go('settings');toast('記録を 消去しました')};
+}
+function policyModal(kind){
+ const privacy=kind==='privacy';const title=privacy?'プライバシーについて':'ご利用について';
+ const text=privacy?`<p>学習記録・作品・任意のニックネーム・年齢帯は、ご利用中のブラウザの保存領域にのみ保管されます。保護者の任意のアカウント登録に対応しています。メールアドレスとログイン用情報は既存AIPPOの認証サーバーが扱います。</p><p>お子さまの氏名、住所、学校名、生年月日、顔写真、音声を入力する必要はありません。音声収録や外部AIへの送信は行いません。</p><p>記録は保護者向け設定から書き出し・削除できます。ブラウザのデータ削除や端末変更でも失われます。Kidsの学習記録のサーバーバックアップ・端末間同期はありません。認証用のセッションCookieと不正アクセス防止用Cookieを利用します。</p><p>外部の画像配信に依存しないよう、AIPPOの公式キャラクター画像はサイト内から配信します。</p>`:`<p>AIPPO Kidsは、5歳頃から遊べるAI学習のおためし版です。AIの出力は事前に設計されたシミュレーションであり、実際の生成AIによる回答ではありません。</p><p>保護者と一緒に使用してください。クエストクリアは練習課題の達成を示すもので、IQや他のお子さまとの優劣を示すものではありません。</p><p>この版はお支払いと学習記録のクラウド同期には対応していません。会員登録は保護者向けです。サービスの内容は改善に伴って変更することがあります。</p>`;
+ const overlay=document.createElement('div');overlay.className='overlay';overlay.innerHTML=`<div class="modal policyModal" role="dialog" aria-modal="true" aria-labelledby="policy-title"><h2 id="policy-title">${title}</h2><div class="policyText">${text}</div><button class="primary" data-close="1">とじる</button></div>`;
+ app.querySelector('.shell').append(overlay);overlay.querySelector('[data-close]').onclick=()=>overlay.remove();
+}
+function howTo(){const overlay=document.createElement('div');overlay.className='overlay';overlay.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="how-title"><h2 id="how-title">AIと あそぼう！</h2><div class="helperRow"><span>${ico('hand')}えらぶ</span>${ico('arrow',16)}<span>${ico('bot')}AIに おねがい</span>${ico('arrow',16)}<span>${ico('inspect')}たしかめる</span></div><p>カードを タップするか、青い枠へドラッグしてね。<br>ちがう結果なら、もういちどためそう。</p><button class="primary" data-close="1">わかった！</button></div>`;app.querySelector('.shell').append(overlay);overlay.querySelector('[data-close]').onclick=()=>overlay.remove()}
+function toast(message){document.querySelector('.toast')?.remove();const el=document.createElement('div');el.className='toast';el.setAttribute('role','status');el.textContent=message;document.body.append(el);setTimeout(()=>el.remove(),1400)}
+function sprinkle(){if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;const shell=app.querySelector('.shell');for(let i=0;i<15;i++){const d=document.createElement('i');d.className='confetti';d.style.left=(Math.random()*100)+'%';d.style.background=['#2682dd','#76d4b9','#ffd069'][i%3];d.style.setProperty('--dx',(Math.random()*200-100)+'px');d.style.setProperty('--rot',(Math.random()*700-350)+'deg');shell.append(d);setTimeout(()=>d.remove(),1500)}}
+function inside(el,x,y,pad=22){const r=el.getBoundingClientRect();return x>=r.left-pad&&x<=r.right+pad&&y>=r.top-pad&&y<=r.bottom+pad}
+function bindDrag(card,fn){let drag=null;card.addEventListener('pointerdown',e=>{if(e.button!==0)return;drag={x:e.clientX,y:e.clientY,moved:false};try{card.setPointerCapture(e.pointerId)}catch{}});card.addEventListener('pointermove',e=>{if(!drag)return;if(!drag.moved&&Math.hypot(e.clientX-drag.x,e.clientY-drag.y)<8)return;drag.moved=true;let ghost=document.querySelector('.dragGhost');if(!ghost){ghost=card.cloneNode(true);ghost.classList.add('dragGhost');ghost.classList.remove('choice','selected');ghost.setAttribute('aria-hidden','true');ghost.removeAttribute('data-select');ghost.removeAttribute('data-order-pick');document.body.append(ghost)}ghost.style.left=e.clientX+'px';ghost.style.top=e.clientY+'px';app.querySelectorAll('[data-drop],[data-order-slot]').forEach(slot=>slot.classList.toggle('hover',inside(slot,e.clientX,e.clientY)))});card.addEventListener('pointerup',e=>{if(!drag)return;const moved=drag.moved;drag=null;document.querySelector('.dragGhost')?.remove();app.querySelectorAll('.hover').forEach(x=>x.classList.remove('hover'));if(moved){const ok=fn({x:e.clientX,y:e.clientY});if(!ok)toast('青い枠に いれてね')}});card.addEventListener('pointercancel',()=>{drag=null;document.querySelector('.dragGhost')?.remove()})}
+function bindSelections(){
+ app.querySelectorAll('[data-select]').forEach(b=>{
+  const [kind,id]=b.dataset.select.split(':');
+  const choose=()=>{
+   state.selected[kind]=id;
+   const q=quests[state.quest];
+   if(q.kind==='combine'||q.kind==='create'){
+    const seq=q.kind==='create'?['color','place','shape']:['color','place'];
+    state.builderFocus=seq.find(k=>!state.selected[k])||kind;
+   }
+   render();
+  };
+  b.onclick=choose;
+  bindDrag(b,({x,y})=>{
+   const target=[...app.querySelectorAll('[data-drop]')].find(el=>el.dataset.drop===kind&&inside(el,x,y));
+   if(!target)return false;
+   choose();
+   return true;
+  });
+ });
+}
+function simulate(callback){const shell=app.querySelector('.shell');const mask=document.createElement('div');mask.className='think';mask.innerHTML=`<span class="thinkIcon">${ico('bot',46)}</span><strong>AIが つくっているよ…</strong>`;shell.append(mask);setTimeout(callback,450)}
+function render(){if(state.view==='home')home();else if(state.view==='map')map();else if(state.view==='play')play();else if(state.view==='result')resultView();else if(state.view==='win')win();else if(state.view==='parent')parent();else if(state.view==='settings')settingsView();else if(state.view==='auth')authView();}
+window.AIPPO_TEST={state,saved,quests,worlds,go,startQuest,count,mastery};
+// Always show the adventure title when reopening; continue via a single tap.
+state.view='home';
+checkIncomingLink();
+render();
+void checkSession();
+})();
+</script>
+</body>
+</html>

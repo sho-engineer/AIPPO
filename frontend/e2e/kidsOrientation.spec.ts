@@ -24,6 +24,7 @@ for (const viewport of [{ width: 568, height: 320 }, { width: 844, height: 390 }
       localStorage.removeItem('aippo_kids_journey_v1');
     });
     await page.reload();
+    const beforeFailure = await snapshot(frame);
     await frame.locator('html').evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException('Synthetic quota failure', 'QuotaExceededError'); }; });
     await frame.locator('[data-action="start"]').click();
     await frame.locator('[data-quest="0"]').click();
@@ -46,7 +47,11 @@ for (const viewport of [{ width: 568, height: 320 }, { width: 844, height: 390 }
     await adultClick(frame, '[data-ch-issue="when"]');
     await frame.locator('[data-ch-close]').click();
     await expect(frame.locator('.storageNotice')).toBeVisible();
-    expect((await snapshot(frame))[0]).toBeNull();
+    await frame.locator('.top [data-nav="map"]').click();
+    await frame.locator('[data-nav="home"]').click();
+    await expect(frame.locator('.storageNotice')).toBeVisible();
+    await childScreen(page, frame);
+    expect(await snapshot(frame)).toEqual(beforeFailure);
   });
 }
 async function childScreen(page: Page, frame: FrameLocator) {

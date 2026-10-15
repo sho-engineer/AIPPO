@@ -63,7 +63,9 @@ async function ordinaryScreen(frame: FrameLocator, page: Page, selectors: string
  */
 async function reachableAdultControl(control: Locator) {
   await control.scrollIntoViewIfNeeded();
-  await fitsViewportAndContainer(control, ".shell");
+  // Landscape dialogs intentionally cover the viewport (including outside the
+  // shell). Still enforce the viewport and their actual overlay boundaries.
+  await fitsViewportAndContainer(control, ".overlay, .shell");
   await control.click({ trial: true });
 }
 

@@ -112,7 +112,7 @@ jobs:
       - name: Build and check Kids screens
         env:
           E2E_TARGET: build
-        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts e2e/kidsNextPurpose.spec.ts e2e/kidsOrientation.spec.ts --max-failures=8
+        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts e2e/kidsNextPurpose.spec.ts e2e/kidsOrientation.spec.ts e2e/kidsTitleOpening.spec.ts --max-failures=8
 
       - name: Upload Kids responsive evidence
         if: always()
@@ -122,6 +122,16 @@ jobs:
           path: |
             frontend/playwright-report/
             frontend/test-results/
+          retention-days: 7
+
+      - name: Upload compact Kids screenshots and error context
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kids-responsive-screenshots
+          path: |
+            frontend/test-results/**/*.png
+            frontend/test-results/**/error-context.md
           retention-days: 7
 
   a11y:
