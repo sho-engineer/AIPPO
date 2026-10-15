@@ -36,13 +36,35 @@ async function finishSimple(frame: FrameLocator, kind: string, value: string) {
   await click(frame, '[data-action="next"]', false);
 }
 async function finishAdvanced(frame: FrameLocator, decision: string) {
+  const selectedConditions = await frame.locator('.challengeContext').innerText();
+  async function pinned() {
+    const context = frame.locator('.challengeContext');
+    await expect(context).toHaveText(selectedConditions, { useInnerText: true });
+    await fits(context); await fits(frame.locator('[data-ch-close]'));
+    const before = await context.boundingBox();
+    await frame.locator('.challengeModal .dailyScroll').evaluate(el => { el.scrollTop = el.scrollHeight; });
+    expect((await context.boundingBox())!.y).toBeCloseTo(before!.y, 1);
+    await fits(context); await fits(frame.locator('[data-ch-close]'));
+  }
+  await pinned();
   await click(frame, `[data-ch-decision="${decision}"]`);
-  if (decision === "revise") await click(frame, '[data-ch-fix="correct"]');
+  if (decision === "revise") { await pinned(); await click(frame, '[data-ch-fix="correct"]'); }
+  await pinned();
   await click(frame, '[data-ch-reason="correct"]');
+  await pinned();
+  const notes = frame.locator('.challengeModal .challengeGuardianNotes').first();
+  await expect(notes).not.toHaveAttribute('open', '');
+  await notes.locator('summary').scrollIntoViewIfNeeded();
+  await fits(notes.locator('summary')); await notes.locator('summary').click();
+  await expect(notes).toHaveAttribute('open', '');
+  await pinned();
   await click(frame, '[data-ch-verify="correct"]');
+  await pinned();
   await click(frame, '[data-ch-support="self"]');
+  await expect(frame.locator('.challengeContext')).toHaveCount(0);
   await expect(frame.locator(".challengeModal")).toContainText("この練習で確認したこと");
-  await click(frame, "[data-ch-close]");
+  await fits(frame.locator('.challengeNotice'));
+  await click(frame, "[data-ch-close]", false);
 }
 
 for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
