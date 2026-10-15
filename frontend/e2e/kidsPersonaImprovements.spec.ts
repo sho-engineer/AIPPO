@@ -60,7 +60,9 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
       localStorage.setItem("aippo_kids_journey_v1", JSON.stringify({ schema: 3, done }));
     });
     await page.reload();
-    await click(frame, '[data-action="start"]', false);
+    // Completed guided prerequisites resume directly on the current world map.
+    await expect(frame.locator(".worldView")).toBeVisible();
+    await expect(frame.locator('[data-world="4"]')).toHaveAttribute("aria-pressed", "true");
     await click(frame, '[data-quest="23"]', false);
     await click(frame, '[data-literacy="0"]', false);
     await expect(frame.locator(".testFeedback rt").first()).toBeVisible();
@@ -70,7 +72,8 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await frame.locator("#child-reading").selectOption("off");
     await click(frame, '[data-action="profile-save"]');
     await page.reload();
-    await click(frame, '[data-action="start"]', false);
+    await expect(frame.locator(".worldView")).toBeVisible();
+    await expect(frame.locator('[data-world="4"]')).toHaveAttribute("aria-pressed", "true");
     await click(frame, '[data-quest="23"]', false);
     await click(frame, '[data-literacy="0"]', false);
     await expect(frame.locator(".testFeedback rt")).toHaveCount(0);
