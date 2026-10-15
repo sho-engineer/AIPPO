@@ -6,8 +6,9 @@ async function fits(el: Locator) {
   await expect(el).toBeVisible();
   await expect.poll(() => el.evaluate(e => {
     const r = e.getBoundingClientRect();
-    return r.width > 0 && r.height > 0 && r.left >= -2 && r.top >= -2 && r.right <= innerWidth + 2 && r.bottom <= innerHeight + 2;
-  })).toBe(true);
+    const fits = r.width > 0 && r.height > 0 && r.left >= -2 && r.top >= -2 && r.right <= innerWidth + 2 && r.bottom <= innerHeight + 2;
+    return fits ? null : { text: e.textContent, rect: { x: r.x, y: r.y, width: r.width, height: r.height, bottom: r.bottom, right: r.right }, viewport: { width: innerWidth, height: innerHeight } };
+  })).toBeNull();
   await el.click({ trial: true });
 }
 async function childGeometry(frame: FrameLocator) {
