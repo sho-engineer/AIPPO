@@ -1,4 +1,5 @@
 import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
+import { kidsViewports } from "./kidsViewportMatrix";
 
 // Synthetic local-build interactions, not observations of actual children/parents.
 const iframe = 'iframe[title="AIPPO Kids AIぼうけん・学習プレビュー"]';
@@ -41,6 +42,7 @@ async function finishAdvanced(frame: FrameLocator, decision: string) {
     const context = frame.locator('.challengeContext');
     await expect(context).toHaveText(selectedConditions, { useInnerText: true });
     await fits(context); await fits(frame.locator('[data-ch-close]'));
+    await expect.poll(() => frame.locator('.challengeModal .dailyScroll').evaluate(el => el.clientHeight)).toBeGreaterThanOrEqual(44);
     const before = await context.boundingBox();
     await frame.locator('.challengeModal .dailyScroll').evaluate(el => { el.scrollTop = el.scrollHeight; });
     expect((await context.boundingBox())!.y).toBeCloseTo(before!.y, 1);
@@ -67,7 +69,7 @@ async function finishAdvanced(frame: FrameLocator, decision: string) {
   await click(frame, "[data-ch-close]", false);
 }
 
-for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
+for (const viewport of kidsViewports) {
   test(`Persona readings persist independently at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));

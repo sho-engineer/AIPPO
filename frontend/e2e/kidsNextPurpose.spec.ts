@@ -1,4 +1,5 @@
 import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
+import { kidsViewports } from "./kidsViewportMatrix";
 
 // Synthetic local-build interactions, not child/parent study evidence.
 const iframe = 'iframe[title="AIPPO Kids AIぼうけん・学習プレビュー"]';
@@ -34,7 +35,7 @@ async function finishLast(frame: FrameLocator) {
   await expect(frame.locator(".success")).toBeVisible();
   await childGeometry(frame);
 }
-for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
+for (const viewport of kidsViewports) {
   test(`Kids truthful counters and final next purpose ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -54,7 +55,10 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await frame.locator('.top [data-nav="parent"]').click();
     await expect(frame.locator(".parentBottom button").first()).toHaveAttribute("data-action", "recent");
     await expect(frame.locator(".parentBottom button").first()).toHaveClass(/summaryEntry/);
-    await childGeometry(frame);
+    for (const button of await frame.locator('.parentView button').all()) {
+      await button.scrollIntoViewIfNeeded(); await fits(button);
+    }
+    await frame.locator('[data-action="recent"]').scrollIntoViewIfNeeded();
     await frame.locator('[data-action="recent"]').click();
     await expect(frame.locator(".summaryModal")).toBeVisible();
     await frame.locator("[data-recent-close]").click();
