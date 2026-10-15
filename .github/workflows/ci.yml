@@ -112,7 +112,7 @@ jobs:
       - name: Build and check Kids screens
         env:
           E2E_TARGET: build
-        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts
+        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts e2e/kidsNextPurpose.spec.ts
 
       - name: Upload Kids report on failure
         if: failure()

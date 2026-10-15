@@ -38,9 +38,10 @@ describe("Kids entry preserves a child's selected learning route", () => {
   it("returns an older child to home without discarding basic progress", () => {
     boot({ guardianAccepted: true, ageBand: "10-12" }, { schema: 3, done: { 0: { at: "2026-10-14" } } });
     expect(api().state.view).toBe("home");
-    expect(document.querySelector(".homeHead .eyebrow")!.textContent).toContain("1 / 25");
+    expect(document.querySelector(".homeHead .eyebrow")!.textContent).toBe("練習記録 0件");
     click('[data-action="challenge"]');
     expect(api().state.view).toBe("map");
+    expect(document.querySelector(".worldHead .eyebrow")!.textContent).toContain("1/25");
     expect(api().unlocked(1)).toBe(true);
   });
   it("replays the saved task and conditions rather than starting different choices", () => {
