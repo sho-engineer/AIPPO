@@ -19,11 +19,12 @@ async function record(ui: Surface) {
 async function tap(ui: Surface, selector: string) {
   const b = ui.locator(selector);
   await expect(b).toBeVisible();
-  expect(await b.evaluate(e => {
+  const geometry = await b.evaluate(e => {
     const r = e.getBoundingClientRect();
     const target = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-    return r.width >= 44 && r.height >= 44 && r.left >= -2 && r.top >= -2 && r.right <= innerWidth + 2 && r.bottom <= innerHeight + 2 && (target === e || (target !== null && e.contains(target)));
-  })).toBe(true);
+    return { size: r.width >= 44 && r.height >= 44, inside: r.left >= -2 && r.top >= -2 && r.right <= innerWidth + 2 && r.bottom <= innerHeight + 2, hit: target === e || (target !== null && e.contains(target)), rect: [r.x,r.y,r.width,r.height] };
+  });
+  expect({ size: geometry.size, inside: geometry.inside, hit: geometry.hit }, `${selector}: ${JSON.stringify(geometry.rect)}`).toEqual({ size: true, inside: true, hit: true });
   await b.click();
 }
 async function stageState(ui: Surface) {

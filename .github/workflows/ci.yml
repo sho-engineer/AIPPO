@@ -122,7 +122,7 @@ jobs:
         if: ${{ !inputs.full_lifecycle }}
         env:
           E2E_TARGET: build
-        run: npx playwright test e2e/kidsProgressionCritical.spec.ts --max-failures=3
+        run: npx playwright test e2e/kidsProgressionCritical.spec.ts --max-failures=12
       - name: Check every Kids lifecycle
         if: ${{ inputs.full_lifecycle }}
         env:

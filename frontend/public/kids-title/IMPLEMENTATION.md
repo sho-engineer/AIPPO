@@ -1,8 +1,8 @@
 # Approved title opening — review package
 
-This directory is a separate, portable snapshot of the publicly served AIPPO Kids title HTML retrieved on 2026-10-15. It does not replace the adult React WelcomePage or the newer `/kids` learning implementation. Deployment and domain changes require the orchestrator's separate release step.
+This directory is a portable title release generated from the canonical `src/kids/learning.html` curriculum and the title/auth adapters. It does not replace the adult React WelcomePage. Deployment and domain changes require a separate release step.
 
-Changes are limited to the title layout, original asset references, and an optional opening. Existing title start / guest / login / settings handlers remain connected to the original application. This snapshot retains its existing authentication API paths and older learning implementation; passing the title tests does not certify those as equivalent to the newer Kids branch.
+Run `node scripts/build-kids-title.mjs` after editing the canonical learning or title/auth sources. The production build runs `--check` and fails if this generated HTML is stale. Both entry points share the 27 current quests, stable-ID history migration, stamps and assessment gates. Authentication API paths and account-scoped local records are retained by the adapter; there is no cross-device learning-record synchronization. Passing title tests alone does not certify learning or authentication.
 
 ## Media provenance
 
