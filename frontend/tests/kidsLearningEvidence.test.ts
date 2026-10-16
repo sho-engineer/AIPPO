@@ -76,7 +76,7 @@ describe("Kids concrete learning evidence stays within simulation", () => {
         expect(record.errors).toBe(0);
         expect(record.support).toBe("self");
         const persisted = JSON.parse(localStorage.getItem(store)!);
-        expect(persisted.schema).toBe(3);
+        expect(persisted.schema).toBe(4);
         boot(persisted);
         expect(records().at(-1)).toEqual(record);
       });

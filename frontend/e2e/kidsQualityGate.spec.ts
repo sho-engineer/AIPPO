@@ -1,15 +1,11 @@
 import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
+import { kidsViewports } from "./kidsViewportMatrix";
 
 /** Local Chromium geometry and interaction evidence; not a child comprehension study.
  * Existing Playwright configuration retains screenshots only when a test fails.
  * Test input is synthetic and does not contain user data or call external AI.
  */
-const sizes = [
-  { width: 320, height: 568 },
-  { width: 375, height: 667 },
-  { width: 390, height: 844 },
-  { width: 430, height: 932 },
-];
+const sizes = kidsViewports;
 const iframe = 'iframe[title="AIPPO Kids AIぼうけん・学習プレビュー"]';
 const slack = 2;
 
@@ -67,12 +63,14 @@ async function ordinaryScreen(frame: FrameLocator, page: Page, selectors: string
  */
 async function reachableAdultControl(control: Locator) {
   await control.scrollIntoViewIfNeeded();
-  await fitsViewportAndContainer(control, ".shell");
+  // Landscape dialogs intentionally cover the viewport (including outside the
+  // shell). Still enforce the viewport and their actual overlay boundaries.
+  await fitsViewportAndContainer(control, ".overlay, .shell");
   await control.click({ trial: true });
 }
 
 for (const viewport of sizes) {
-  test(`Kids primary flow fits ${viewport.width}x${viewport.height}`, async ({ page }) => {
+  test(`Kids primary flow fits ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.addInitScript(() => {
@@ -87,6 +85,7 @@ for (const viewport of sizes) {
     const frame = page.frameLocator(iframe);
     await expect(frame.locator(".homeTitle")).toContainText("AI");
     await ordinaryScreen(frame, page, ".homeView button");
+    if (viewport.width > viewport.height && testInfo.project.name === 'desktop') await page.screenshot({ path: testInfo.outputPath('landscape-home.png') });
 
     await frame.locator('[data-action="start"]').click();
     await expect(frame.locator(".guardianDialog")).toBeVisible();
@@ -98,6 +97,7 @@ for (const viewport of sizes) {
 
     await expect(frame.locator(".worldView")).toBeVisible();
     await ordinaryScreen(frame, page, ".worldView button");
+    if (viewport.width > viewport.height && testInfo.project.name === 'desktop') await page.screenshot({ path: testInfo.outputPath('landscape-map.png') });
     await frame.locator('[data-action="current"]').click();
     await expect(frame.locator(".questTitle")).toContainText("いろ");
     await ordinaryScreen(frame, page, '.view [data-select], .view [data-nav], .view .actionBar button');
@@ -113,7 +113,10 @@ for (const viewport of sizes) {
 
     await frame.locator('.top [data-nav="parent"]').click();
     await expect(frame.locator(".parentView")).toBeVisible();
-    await ordinaryScreen(frame, page, ".parentView button");
+    await noHorizontalOverflow(frame, page);
+    await headerAndImages(frame);
+    // Adult-only details can scroll; every control must remain reachable.
+    for (const button of await frame.locator(".parentView button").all()) await reachableAdultControl(button);
     await frame.locator('[data-action="recent"]').click();
     await expect(frame.locator(".summaryModal")).toContainText("自己申告");
     await noHorizontalOverflow(frame, page);

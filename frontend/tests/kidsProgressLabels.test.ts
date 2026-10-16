@@ -3,8 +3,9 @@ import html from "../src/kids/learning.html?raw";
 
 const store = "aippo_kids_journey_v1";
 type Row = Record<string, unknown>;
-type Api = { go: (view: string) => void; startQuest: (index: number) => void; nextFinish: () => void; state: Row; count: () => number; saved: { challenges: Row[]; done: Record<string, Row> } };
+type Api = { quests: {id: string; kind: string; world: number}[]; go: (view: string) => void; startQuest: (index: number) => void; nextFinish: () => void; state: Row; count: () => number; saved: { challenges: Row[]; done: Record<string, Row> } };
 const done = { 0: { at: "2026-10-14" }, 1: { at: "2026-10-14" } };
+const migratedDone = { "w1-q1": done[0], "w1-q2": done[1] };
 const challenges = [{ at: "2026-10-14", task: "outing", mode: "advanced" }, { at: "2026-10-14", task: "outing", mode: "advanced" }, { at: "2026-10-14", task: "sources", mode: "advanced" }];
 function boot(mode: string, records: Row[] = challenges) {
   localStorage.clear();
@@ -22,18 +23,18 @@ const click = (selector: string) => { const button = document.querySelector<HTML
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); document.body.innerHTML = ""; localStorage.clear(); });
 
 describe("Honest route-specific progress without invented fixed steps", () => {
-  it("keeps the adventure numerator and 25-quest denominator only for the guided home", () => {
+  it("keeps the adventure numerator and 27-quest denominator only for the guided home", () => {
     const api = boot("guided");
-    expect(label()).toBe("冒険 2 / 25"); expect(api.count()).toBe(2);
-    expect(api.saved.done).toEqual(done); expect(api.saved.challenges).toEqual(challenges);
-    click('[data-action="start"]'); expect(document.querySelector(".worldHead .eyebrow")!.textContent).toContain("2/25");
+    expect(label()).toBe("冒険 2 / 27"); expect(api.count()).toBe(2);
+    expect(api.saved.done).toEqual(migratedDone); expect(api.saved.challenges).toEqual(challenges);
+    click('[data-action="start"]'); expect(document.querySelector(".worldHead .eyebrow")!.textContent).toContain("2/27");
   });
   it.each(["standard", "advanced"])("shows retained practice records, not adventure or unique-task counts, for %s", mode => {
     const api = boot(mode);
     expect(label()).toBe("練習記録 3件"); // two outing attempts still count as two records
     expect(label()).not.toContain("25"); expect(label()).not.toMatch(/能力|習得|達成率|コース|累計|保存済/);
-    expect(api.count()).toBe(2); expect(api.saved.done).toEqual(done);
-    click('[data-action="challenge"]'); expect(document.querySelector(".worldHead .eyebrow")!.textContent).toContain("2/25");
+    expect(api.count()).toBe(2); expect(api.saved.done).toEqual(migratedDone);
+    click('[data-action="challenge"]'); expect(document.querySelector(".worldHead .eyebrow")!.textContent).toContain("2/27");
     expect(JSON.parse(localStorage.getItem(store)!).challenges).toEqual(challenges);
   });
   it.each(["standard", "advanced"])("truthfully shows zero records when only adventure has progress in %s", mode => {
@@ -60,22 +61,22 @@ describe("Honest route-specific progress without invented fixed steps", () => {
   it("switches routes without resetting or summing separate progress measures", () => {
     const api = boot("advanced"); const original = localStorage.getItem(store);
     api.go("settings"); document.querySelector<HTMLSelectElement>("#child-mode")!.value = "guided";
-    click('[data-action="profile-save"]'); api.go("home"); expect(label()).toBe("冒険 2 / 25");
+    click('[data-action="profile-save"]'); api.go("home"); expect(label()).toBe("冒険 2 / 27");
     api.go("settings"); document.querySelector<HTMLSelectElement>("#child-mode")!.value = "standard";
     click('[data-action="profile-save"]'); api.go("home"); expect(label()).toBe("練習記録 3件");
     expect(localStorage.getItem(store)).toBe(original);
   });
   it("removes fake fixed dots but keeps the actual quest index", () => {
     const api = boot("guided"); api.startQuest(2);
-    expect(document.querySelector(".questHead .eyebrow")!.textContent).toContain("QUEST 3/25");
+    expect(document.querySelector(".questHead .eyebrow")!.textContent).toContain("QUEST 3/27");
     expect(document.querySelector(".questHead .dots")).toBeNull(); expect(document.querySelector(".questHead .dot")).toBeNull();
   });
   it("keeps actual checkpoint knowledge/practice step labels", () => {
     const api = boot("guided");
-    Object.assign(api.saved.done, { 2: { at: "2026-10-14" }, 3: { at: "2026-10-14" } });
-    api.startQuest(4); expect(document.querySelector(".choiceNote")!.textContent).toContain("1 / 2");
+    api.quests.filter(q => q.world === 0 && q.kind !== "checkpoint").forEach(q => { api.saved.done[q.id] = { at: "2026-10-14" }; });
+    api.startQuest(api.quests.findIndex(q => q.id === "w1-test")); expect(document.querySelector(".choiceNote")!.textContent).toContain("1 / 2");
     click('[data-test-answer="0"]'); expect(document.querySelector(".choiceNote")!.textContent).toContain("2 / 2");
-    expect(document.querySelector(".questHead .eyebrow")!.textContent).toContain("QUEST 5/25");
+    expect(document.querySelector(".questHead .eyebrow")!.textContent).toContain("QUEST 11/27");
     expect(document.querySelector(".questHead .dots")).toBeNull();
   });
 });

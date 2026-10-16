@@ -1,4 +1,6 @@
 import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
+import { kidsViewports } from "./kidsViewportMatrix";
+import { seedStableProgress, selectQuest } from "./kidsProgressionHelpers";
 
 // Synthetic local-build interactions, not observations of actual children/parents.
 const iframe = 'iframe[title="AIPPO Kids AIぼうけん・学習プレビュー"]';
@@ -41,6 +43,7 @@ async function finishAdvanced(frame: FrameLocator, decision: string) {
     const context = frame.locator('.challengeContext');
     await expect(context).toHaveText(selectedConditions, { useInnerText: true });
     await fits(context); await fits(frame.locator('[data-ch-close]'));
+    await expect.poll(() => frame.locator('.challengeModal .dailyScroll').evaluate(el => el.clientHeight)).toBeGreaterThanOrEqual(44);
     const before = await context.boundingBox();
     await frame.locator('.challengeModal .dailyScroll').evaluate(el => { el.scrollTop = el.scrollHeight; });
     expect((await context.boundingBox())!.y).toBeCloseTo(before!.y, 1);
@@ -67,7 +70,7 @@ async function finishAdvanced(frame: FrameLocator, decision: string) {
   await click(frame, "[data-ch-close]", false);
 }
 
-for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }]) {
+for (const viewport of kidsViewports) {
   test(`Persona readings persist independently at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
@@ -76,16 +79,12 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await frame.locator("#child-age").selectOption("7-9");
     await frame.locator("#child-reading").selectOption("on");
     await click(frame, '[data-action="profile-save"]');
-    await frame.locator("html").evaluate(() => {
-      // Synthetic completed prerequisites expose the safety reading sample.
-      const done = Object.fromEntries(Array.from({ length: 24 }, (_, i) => [i, { assessmentVersion: 2, evidence: { knowledge: true, practice: true }, at: "2026-10-15", attempts: 1 }]));
-      localStorage.setItem("aippo_kids_journey_v1", JSON.stringify({ schema: 3, done }));
-    });
+    await seedStableProgress(frame.locator("html"), 26);
     await page.reload();
     // Completed guided prerequisites resume directly on the current world map.
     await expect(frame.locator(".worldView")).toBeVisible();
     await expect(frame.locator('[data-world="4"]')).toHaveAttribute("aria-pressed", "true");
-    await click(frame, '[data-quest="23"]', false);
+    await selectQuest(frame, "w5-q4");
     await click(frame, '[data-literacy="0"]', false);
     await expect(frame.locator(".testFeedback rt").first()).toBeVisible();
     await click(frame, '.top [data-nav="settings"]', false);
@@ -96,7 +95,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await page.reload();
     await expect(frame.locator(".worldView")).toBeVisible();
     await expect(frame.locator('[data-world="4"]')).toHaveAttribute("aria-pressed", "true");
-    await click(frame, '[data-quest="23"]', false);
+    await selectQuest(frame, "w5-q4");
     await click(frame, '[data-literacy="0"]', false);
     await expect(frame.locator(".testFeedback rt")).toHaveCount(0);
     expect(errors).toEqual([]);
@@ -125,8 +124,8 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
     await expect(first).toContainText("初回クリア"); await expect(first).toContainText("直近の練習");
     await click(frame, "[data-close]");
     const saved = await frame.locator("html").evaluate(() => JSON.parse(localStorage.getItem("aippo_kids_journey_v1")!));
-    expect(saved.done[0].sequence).toBeLessThan(saved.latestAttempts[0].sequence);
-    expect(saved.done[1].sequence).toBeLessThan(saved.latestAttempts[0].sequence);
+    expect(saved.done["w1-q1"].sequence).toBeLessThan(saved.latestAttempts["w1-q1"].sequence);
+    expect(saved.done["w1-q2"].sequence).toBeLessThan(saved.latestAttempts["w1-q1"].sequence);
   });
 
   test(`Persona distinguishes hold revise adopt at ${viewport.width}x${viewport.height}`, async ({ page }) => {

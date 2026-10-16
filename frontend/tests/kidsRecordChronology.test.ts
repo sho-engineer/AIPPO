@@ -3,7 +3,7 @@ import html from "../src/kids/learning.html?raw";
 
 type Row = Record<string, unknown>;
 type Api = {
-  quests: { short: string }[];
+  quests: { id: string; short: string }[];
   saved: { done: Record<string, Row>; latestAttempts: Record<string, Row>; recordSequence: number; challenges: Row[] };
   state: { quest: number; result: Row; tries: number; selected: Row; order: string[]; hints: number; feedbackErrors: number };
   go: (view: string) => void;
@@ -37,14 +37,14 @@ afterEach(() => { vi.restoreAllMocks(); vi.clearAllTimers(); vi.useRealTimers();
 describe("Kids honest first/latest records and chronology", () => {
   it("preserves first completion and stores each replay as the latest only", () => {
     const api = boot(); finish(api, 0, 2);
-    const first = structuredClone(api.saved.done[0]);
+    const first = structuredClone(api.saved.done["w1-q1"]);
     vi.setSystemTime(new Date("2026-10-15T12:01:00.000Z")); finish(api, 0, 0);
-    expect(api.saved.done[0]).toEqual(first);
-    expect(api.saved.latestAttempts[0]).toMatchObject({ sequence: 2, hints: 0 });
+    expect(api.saved.done["w1-q1"]).toEqual(first);
+    expect(api.saved.latestAttempts["w1-q1"]).toMatchObject({ sequence: 2, hints: 0 });
     const persisted = JSON.parse(localStorage.getItem(store)!);
     const reload = boot(persisted);
-    expect(reload.saved.done[0]).toEqual(first);
-    expect(reload.saved.latestAttempts[0].sequence).toBe(2);
+    expect(reload.saved.done["w1-q1"]).toEqual(first);
+    expect(reload.saved.latestAttempts["w1-q1"].sequence).toBe(2);
     reload.go("parent"); click('[data-action="recent"]'); click("[data-recent-record]");
     expect(text()).toContain("初回クリア"); expect(text()).toContain("直近の練習");
     expect(text()).toContain("ヒント2回"); expect(text()).toContain("ヒント0回");
@@ -52,7 +52,7 @@ describe("Kids honest first/latest records and chronology", () => {
   it("shows latest adventure rather than an older challenge even after clock rollback", () => {
     const api = boot({ schema: 3, done: {}, recordSequence: 0, challenges: [{ at: "2026-10-15T11:00:00.000Z", task: "gift", sequence: 7 }] });
     vi.setSystemTime(new Date("2026-10-15T10:00:00.000Z")); finish(api);
-    expect(api.saved.latestAttempts[0].sequence).toBe(8);
+    expect(api.saved.latestAttempts["w1-q1"].sequence).toBe(8);
     api.go("parent"); click('[data-action="recent"]');
     expect(text()).toContain("冒険内の直近の課題クリア");
     expect(text()).not.toContain("日常チャレンジは未記録");
@@ -64,17 +64,17 @@ describe("Kids honest first/latest records and chronology", () => {
     expect(document.querySelectorAll(".dailyRecord")[0].textContent).toContain(api.quests[0].short);
     expect(document.querySelectorAll(".dailyRecord")[0].textContent).not.toContain(api.quests[1].short);
     expect(document.querySelectorAll(".dailyRecord")[0].textContent).toContain("2026-10-15");
-    expect(api.saved.latestAttempts[0].sequence).toBe(2);
+    expect(api.saved.latestAttempts["w1-q1"].sequence).toBe(2);
   });
   it("marks legacy same-day ordering unknown without fabricating timestamps", () => {
     const api = boot({ schema: 3, done: { 0: { at: "2026-10-15", attempts: 1 }, 1: { at: "2026-10-15", attempts: 1 } } });
     api.go("parent"); click('[data-action="recent"]'); expect(text()).toContain("直近の1件を特定できません");
     click("[data-recent-record]"); expect(text()).toContain("同日内の順序不明");
-    expect(api.saved.done[0].completedAtISO).toBeUndefined();
+    expect(api.saved.done["w1-q1"].completedAtISO).toBeUndefined();
   });
   it("records browser local day and timezone alongside exact ISO time", () => {
     const api = boot(); finish(api);
-    const row = api.saved.done[0];
+    const row = api.saved.done["w1-q1"];
     expect(row.completedAtISO).toBe("2026-10-15T12:00:00.000Z");
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
     expect(row.timeZone).toBe(tz);
@@ -83,14 +83,14 @@ describe("Kids honest first/latest records and chronology", () => {
   });
   it("uses the maximum existing record sequence even with a stale counter", () => {
     const api = boot({ schema: 3, done: { 1: { at: "2026-10-14", sequence: 42 } }, recordSequence: 1 });
-    finish(api); expect(api.saved.done[0].sequence).toBe(43);
+    finish(api); expect(api.saved.done["w1-q1"].sequence).toBe(43);
   });
   it("uses the browser timezone at a UTC date boundary, not UTC or a fixed MYT rule", () => {
     const api = boot();
     const original = Intl.DateTimeFormat.prototype.resolvedOptions;
     vi.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(function (this: Intl.DateTimeFormat) { return { ...original.call(this), timeZone: "Asia/Tokyo" }; });
     vi.setSystemTime(new Date("2026-10-15T15:30:00.000Z")); finish(api);
-    expect(api.saved.done[0]).toMatchObject({ completedAtISO: "2026-10-15T15:30:00.000Z", localDay: "2026-10-16", timeZone: "Asia/Tokyo" });
+    expect(api.saved.done["w1-q1"]).toMatchObject({ completedAtISO: "2026-10-15T15:30:00.000Z", localDay: "2026-10-16", timeZone: "Asia/Tokyo" });
   });
   it("keeps raw data protected when no larger safe sequence exists", () => {
     const original = { schema: 3, done: {}, recordSequence: Number.MAX_SAFE_INTEGER };
@@ -112,9 +112,9 @@ describe("Kids honest first/latest records and chronology", () => {
   it("keeps checkpoint history bounded on new writes without rewriting loaded history", () => {
     const previous = { at: "2026-10-14", assessmentVersion: 2, evidence: { knowledge: true, practice: true }, previousAssessment: { at: "2026-10-13" } };
     const api = boot({ schema: 3, done: { 4: previous } });
-    expect(api.saved.done[4]).toEqual(previous); finish(api, 4);
-    expect(api.saved.done[4].previousAssessment).toEqual({ at: "2026-10-14", assessmentVersion: 2, evidence: { knowledge: true, practice: true } });
-    expect(api.saved.latestAttempts[4]).toBeUndefined();
+    expect(api.saved.done["w1-test"]).toEqual(previous); finish(api, api.quests.findIndex(q => q.id === "w1-test"));
+    expect(api.saved.done["w1-test"].previousAssessment).toEqual({ at: "2026-10-14", assessmentVersion: 2, evidence: { knowledge: true, practice: true } });
+    expect(api.saved.latestAttempts["w1-test"]).toBeUndefined();
   });
   it.each([undefined, "auto", "on", "off"])("accepts backward-compatible reading preference %s", readingSupport => {
     boot(undefined, { guardianAccepted: true, readingSupport });
@@ -127,6 +127,6 @@ describe("Kids honest first/latest records and chronology", () => {
     vi.stubGlobal("URL", { createObjectURL: vi.fn(() => "blob:export-test"), revokeObjectURL: vi.fn() });
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     api.go("settings"); click('[data-action="export"]');
-    expect(JSON.parse(exported)).toMatchObject({ profile: { readingSupport: "on" }, progress: { recordSequence: 2, done: { 0: { sequence: 1 } }, latestAttempts: { 0: { sequence: 2 } } } });
+    expect(JSON.parse(exported)).toMatchObject({ profile: { readingSupport: "on" }, progress: { recordSequence: 2, done: { "w1-q1": { sequence: 1 } }, latestAttempts: { "w1-q1": { sequence: 2 } } } });
   });
 });

@@ -14,6 +14,7 @@ const initialJourney = JSON.stringify({
 });
 const initialSettings = JSON.stringify({ guardianAccepted: true, nickname: "existing-child", ageBand: "7-9" });
 type KidsApi = {
+  quests: { id: string }[];
   state: { quest: number; result: { success: boolean } | null };
   saved: { daily: unknown[]; done: Record<string, unknown> };
   go: (view: string) => void;
@@ -31,7 +32,7 @@ function click(selector: string) {
   button!.click();
 }
 function finishSessionPractice() {
-  api().state.quest = 1;
+  api().state.quest = api().quests.findIndex(q => q.id === "w1-q2");
   api().state.result = { success: true };
   api().nextFinish();
 }
@@ -61,7 +62,7 @@ describe("Kids startup preserves existing data when it cannot establish a safe s
     localStorage.removeItem(journeyKey);
     boot();
     finishSessionPractice();
-    expect(JSON.parse(localStorage.getItem(journeyKey)!).done[1]).toBeDefined();
+    expect(JSON.parse(localStorage.getItem(journeyKey)!).done["w1-q2"]).toBeDefined();
   });
 
   it("does not overwrite existing records after one failed initial read even though later reads and writes work", () => {
@@ -103,8 +104,8 @@ describe("Kids startup preserves existing data when it cannot establish a safe s
     finishSessionPractice();
     click("[data-action=storage-retry]");
     expect(api().saved.daily).toHaveLength(1);
-    expect(api().saved.done[0]).toBeDefined();
-    expect(api().saved.done[1]).toBeUndefined();
+    expect(api().saved.done["w1-q1"]).toBeDefined();
+    expect(api().saved.done["w1-q2"]).toBeUndefined();
     expect(JSON.parse(localStorage.getItem(journeyKey)!).daily).toHaveLength(1);
     expect(document.body.textContent).toMatch(/未保存|復旧|読み直|読み込|引き継|再開/);
   });
@@ -144,16 +145,18 @@ describe("Kids startup preserves existing data when it cannot establish a safe s
     const raw = JSON.stringify({ schema, done: { 0: true, 7: true }, attempts: {} });
     localStorage.setItem(journeyKey, raw);
     boot();
-    expect(api().saved.done[0]).toBe(true);
-    expect(api().saved.done[16]).toBe(true);
-    expect(JSON.parse(localStorage.getItem(journeyKey)!).done[16]).toBe(true);
+    expect(api().saved.done["w1-q1"]).toBe(true);
+    expect(api().saved.done["w4-q2"]).toBe(true);
+    expect(JSON.parse(localStorage.getItem(journeyKey)!).done["w4-q2"]).toBe(true);
+    expect(JSON.parse(localStorage.getItem(journeyKey)!).schema).toBe(4);
   });
 
   it.each([2, 3])("accepts the final known index without reinterpreting it for schema %s", (schema) => {
     localStorage.setItem(journeyKey, JSON.stringify({ schema, done: { 24: { at: "2026-10-13" } }, attempts: {} }));
     boot();
-    expect(api().saved.done[24]).toBeDefined();
-    expect(JSON.parse(localStorage.getItem(journeyKey)!).done[24]).toBeDefined();
+    expect(api().saved.done["w5-test"]).toBeDefined();
+    expect(JSON.parse(localStorage.getItem(journeyKey)!).done["w5-test"]).toBeDefined();
+    expect(JSON.parse(localStorage.getItem(journeyKey)!).schema).toBe(4);
   });
 
   it("protects settings that could not be read even if later reads and writes succeed", () => {

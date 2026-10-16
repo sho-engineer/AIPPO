@@ -22,6 +22,9 @@ const channel = chromiumPath
  * （読み込めない画像、最小化で崩れる処理）を取りこぼす。
  */
 const againstBuild = process.env.E2E_TARGET === "build";
+// Full-lifecycle CI isolates Kids/title suites into independent jobs.
+// Regular local runs include everything; normal CI runs explicit critical suites.
+const isolatedKids = process.env.E2E_KIDS_SEPARATE === "1";
 const webServerCommand = againstBuild
   ? "npm run build && npm run preview -- --host 127.0.0.1 --port 5173 --strictPort"
   : "npm run dev -- --host 127.0.0.1 --port 5173";
@@ -43,7 +46,10 @@ export default defineConfig({
     消さずに残すのは、**次に同じ画面を見たくなったときに書き直さない
     ため**。QA は1回で終わるものではない。
   */
-  testIgnore: process.env.QA ? [] : /_.*\.spec\.ts$/,
+  testIgnore: [
+    ...(process.env.QA ? [] : [/_.*\.spec\.ts$/]),
+    ...(isolatedKids ? [/(?:^|\/)kids(?:QualityGate|PersonaImprovements|NextPurpose|Orientation|TitleOpening|ProgressionCritical)\.spec\.ts$/] : []),
+  ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,

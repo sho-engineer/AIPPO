@@ -4,7 +4,7 @@ import html from "../src/kids/learning.html?raw";
 const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
 const store = "aippo_kids_journey_v1";
 const settingsStore = "aippo_kids_settings_v1";
-type TestApi = { state: { view: string; world: number }; go: (view: string) => void; startQuest: (n: number) => void; stagePassed: (n: number) => boolean; stampOwned: (n: number) => boolean; unlocked: (n: number) => boolean };
+type TestApi = { state: { view: string; world: number }; go: (view: string) => void; quests: {id: string}[]; startQuest: (n: number) => void; stagePassed: (n: number) => boolean; stampOwned: (n: number) => boolean; unlocked: (n: number) => boolean };
 const api = () => (window as unknown as { AIPPO_TEST: TestApi }).AIPPO_TEST;
 function click(selector: string) {
   const button = document.querySelector<HTMLButtonElement>(selector);
@@ -41,7 +41,7 @@ describe("Kids entry preserves a child's selected learning route", () => {
     expect(document.querySelector(".homeHead .eyebrow")!.textContent).toBe("練習記録 0件");
     click('[data-action="challenge"]');
     expect(api().state.view).toBe("map");
-    expect(document.querySelector(".worldHead .eyebrow")!.textContent).toContain("1/25");
+    expect(document.querySelector(".worldHead .eyebrow")!.textContent).toContain("1/27");
     expect(api().unlocked(1)).toBe(true);
   });
   it("replays the saved task and conditions rather than starting different choices", () => {
@@ -63,12 +63,14 @@ describe("Kids entry preserves a child's selected learning route", () => {
   it("keeps historical stamps while requiring the new practical evidence for unlocks", () => {
     boot({ guardianAccepted: true, ageBand: "5-6" }, { schema: 2, done: { 4: { at: "2026-10-13" } } });
     expect(api().stampOwned(0)).toBe(true); expect(api().stagePassed(0)).toBe(false); expect(api().unlocked(5)).toBe(false);
-    api().go("map"); expect(document.querySelector(".stageStamp.earned")).not.toBeNull();
+    api().go("map");
+    expect(document.querySelector(".stageStamp.historical")?.textContent).toContain("旧");
+    expect(document.querySelector(".stageStamp.earned")).toBeNull();
   });
   it("provides pronunciation for low-age safety words", () => {
     const done = Object.fromEntries(Array.from({ length: 25 }, (_, n) => [n, { at: "2026-10-14", assessmentVersion: 2, evidence: { knowledge: true, practice: true } }]));
     boot({ guardianAccepted: true, ageBand: "5-6" }, { schema: 3, done });
-    api().startQuest(21);
+    api().startQuest(api().quests.findIndex(q => q.id === "w5-q2"));
     expect(document.querySelector("ruby")).not.toBeNull();
     expect([...document.querySelectorAll("rt")].map((rt) => rt.textContent).join(" ")).toMatch(/じゅうしょ|がっこう|でんわ/);
   });
@@ -89,10 +91,10 @@ describe("Kids entry preserves a child's selected learning route", () => {
     expect(document.querySelector("#recent-title")).toBeNull();
     expect(document.querySelector("#record-title")!.textContent).toBe("クリアしたこと");
   });
-  it("shows empty recent records and opens a challenge without clearing legacy stamps", () => {
+  it("marks legacy ordering unknown and opens a challenge without clearing legacy stamps", () => {
     boot({ guardianAccepted: true, ageBand: "10-12" }, { schema: 2, done: { 4: { at: "2026-10-13" } } });
     api().go("parent"); click('[data-action="recent"]');
-    expect(document.querySelector(".summaryModal")!.textContent).toContain("練習は未記録");
+    expect(document.querySelector(".summaryModal")!.textContent).toContain("直近の1件を特定できません");
     expect(document.querySelector(".summaryModal")!.textContent).toContain("家庭で試した記録はありません");
     click('[data-recent-challenge]');
     expect(document.querySelector(".summaryModal")).toBeNull();

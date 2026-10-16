@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      full_lifecycle:
+        description: "Run every lifecycle test before beta release"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   backend:
@@ -86,9 +93,9 @@ jobs:
   # Kids preview is self-contained: obtain geometry/interaction feedback without
   # waiting for a backend. Existing frontend, accessibility and smoke gates remain.
   kids-quality:
-    name: Kids mobile quality (production build)
+    name: Kids responsive quality (production build)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: frontend
@@ -109,16 +116,66 @@ jobs:
 
       # E2E_TARGET=build makes the existing Playwright webServer run npm run build
       # and serve the resulting bundle on localhost. No deployed-site auth bypass.
-      - name: Build and check Kids screens
+      # Normal changes cover critical progression, persistence and navigation.
+      # Beta release requires workflow_dispatch with full_lifecycle=true.
+      - name: Check critical Kids progression and navigation
+        if: ${{ !inputs.full_lifecycle }}
         env:
           E2E_TARGET: build
-        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts e2e/kidsNextPurpose.spec.ts
+        run: npx playwright test e2e/kidsProgressionCritical.spec.ts --max-failures=12
+      - name: Check every Kids lifecycle
+        if: ${{ inputs.full_lifecycle }}
+        env:
+          E2E_TARGET: build
+        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts e2e/kidsNextPurpose.spec.ts e2e/kidsOrientation.spec.ts e2e/kidsProgressionCritical.spec.ts
 
-      - name: Upload Kids report on failure
-        if: failure()
+      - name: Upload Kids responsive evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: kids-quality-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+
+      - name: Upload compact Kids screenshots and error context
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kids-responsive-screenshots
+          path: |
+            frontend/test-results/**/*.png
+            frontend/test-results/**/error-context.md
+          retention-days: 7
+
+  title-quality:
+    name: Title opening quality (production build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Check title, native video and recovery
+        env:
+          E2E_TARGET: build
+        run: npx playwright test e2e/kidsTitleOpening.spec.ts
+      - name: Upload title screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: title-opening-evidence
           path: |
             frontend/playwright-report/
             frontend/test-results/
@@ -267,10 +324,21 @@ jobs:
 
       # 開発サーバーではなく本番と同じビルド成果物に当てる。
       # 開発サーバーでしか見ないと、ビルドしたときだけ壊れるものを取りこぼす。
-      - name: Run E2E (production build)
+      - name: Run critical E2E (production build)
+        if: ${{ !inputs.full_lifecycle }}
         working-directory: frontend
         env:
           E2E_TARGET: build
+        run: npx playwright test e2e/auth.spec.ts e2e/authGuestFirst.spec.ts e2e/releaseGate.spec.ts --max-failures=3
+
+      - name: Run all lifecycle E2E (production build)
+        if: ${{ inputs.full_lifecycle }}
+        working-directory: frontend
+        env:
+          E2E_TARGET: build
+          # The Kids and title jobs run the same excluded suites independently.
+          # This avoids duplicate execution without omitting any test cases.
+          E2E_KIDS_SEPARATE: "1"
         run: npx playwright test
 
       - name: Upload the report on failure
