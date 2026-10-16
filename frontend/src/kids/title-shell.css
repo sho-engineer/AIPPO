@@ -1,0 +1,52 @@
+.app.titleMode{gap:0;padding:0;max-width:none;min-height:0!important;background:#f4f9ff}
+.app.titleMode .top,.app.titleMode .foot{display:none}
+.app.titleMode .shell{border:0;border-radius:0;box-shadow:none;background:#fff;min-height:0}
+/* Pixel-faithful game title: the user's approved original image is the artboard.
+   All buttons are actual HTML controls, positioned in ORIGINAL IMAGE COORDINATES.
+   Scaling/cropping never detaches hit areas from the visible artwork. */
+.app.titleMode .shell:before{display:none}
+.posterTitle{position:relative!important;display:block!important;overflow:hidden!important;isolation:isolate;background:#b0e7ff!important;animation:none!important;height:100%;width:100%;min-height:0}
+.posterTitle::before{content:"";position:absolute;inset:-32px;z-index:-1;background:url('assets/title/approved-cover.jpeg') center/cover no-repeat;filter:blur(22px) saturate(.97) brightness(1.07);transform:scale(1.03)}
+.posterArtboard{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(100%,56.25dvh);height:auto;aspect-ratio:9/16;max-height:100%;background:url('assets/title/approved-cover.jpeg') 50% 50% / 100% 100% no-repeat;box-shadow:0 0 30px #246ab222}
+.posterArtwork{position:absolute;width:100%;height:100%;inset:0;display:block;object-fit:fill;pointer-events:none;user-select:none;-webkit-user-select:none}
+.posterTouch{position:absolute;appearance:none;-webkit-appearance:none;background:transparent!important;color:transparent;border:0;padding:0;margin:0;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;z-index:3}
+.posterTouch:focus-visible{outline:4px solid #ffffff;outline-offset:-5px;box-shadow:inset 0 0 0 8px #1686e1a0}
+.posterTouch:active{background:#ffffff18!important}
+/* Coordinates measured against the exact 864 x 1536 attached artwork. */
+.posterTouch.settings{left:85.8%;top:.55%;width:14.2%;height:8.2%;border-radius:50%}
+.posterTouch.start{left:12.6%;top:78.2%;width:74.7%;height:11.2%;border-radius:100px}
+.posterTouch.guest{left:18%;top:89.9%;width:39.7%;height:8%;border-radius:100px}
+.posterTouch.login{left:58%;top:89.9%;width:26%;height:8%;border-radius:100px}
+@media(max-width:600px) and (orientation:portrait) and (min-aspect-ratio:171/320) and (max-aspect-ratio:189/320){.posterArtboard{width:100%;height:100%;aspect-ratio:auto}}
+/* Desktop and tablet: preserve full image with soft mirrored scenery at sides. */
+@media(max-width:480px) and (max-height:590px){.posterTouch.settings{height:9%}}
+@media(prefers-reduced-motion:reduce){.posterTouch{transition:none}}
+.posterTouch{min-height:44px;min-width:44px}
+.posterReplay{position:absolute;z-index:5;left:max(6px,env(safe-area-inset-left));top:max(6px,env(safe-area-inset-top));min-height:44px;padding:5px 10px;border:1px solid #b0d6ec;border-radius:12px;background:#fffffff0;color:#174b77;font-size:12px;font-weight:800}
+.openingLayer{position:fixed;inset:0;z-index:1000;background:#b0e7ff;display:grid;place-items:center}
+.openingLayer video{width:100%;height:100%;object-fit:contain;pointer-events:none}
+.openingSkip{position:absolute;right:max(10px,env(safe-area-inset-right));top:max(10px,env(safe-area-inset-top));min-height:44px;min-width:88px;border:2px solid #fff;border-radius:12px;padding:8px 14px;background:#174b77e8;color:white;font-weight:850;z-index:2}
+.posterLandscapeControls{display:none}
+@media(orientation:landscape){.posterTitle{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(180px,36%);gap:8px;padding:8px}.posterArtboard{position:relative;left:auto;top:auto;transform:none;justify-self:center;align-self:center;width:min(100%,calc((100dvh - 16px)*.5625));height:auto;aspect-ratio:9/16;max-height:100%}.posterTouch{display:none}.posterLandscapeControls{display:flex;flex-direction:column;justify-content:center;gap:8px;padding:6px}.posterLandscapeControls p{font-size:12px;margin:0;color:#174b77;font-weight:800}.posterLandscapeControls button{min-height:44px;width:100%;border:2px solid white;border-radius:12px;background:#fff;color:#174b77;font-weight:850}.posterLandscapeControls button:first-of-type{background:#ffcd37;color:#172c50}.posterReplay{left:max(8px,env(safe-area-inset-left));font-size:11px}}
+@media(max-width:600px) and (orientation:portrait) and (min-aspect-ratio:171/320) and (max-aspect-ratio:189/320){.openingLayer video{object-fit:fill}}
+
+.accountView{background:linear-gradient(180deg,#fff,#f0f8ff);overflow:hidden}
+.accountBack{display:flex;gap:10px;align-items:center;padding:14px 17px 6px;flex:none}
+.accountBack .back{height:38px;width:38px}
+.accountBack img{height:37px;width:112px;object-fit:contain;object-position:left center}
+.accountScroll{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 18px 18px}
+.accountHero{display:flex;align-items:center;gap:10px;border:1px solid #cbe5fa;background:#e7f5ff;border-radius:18px;padding:8px 11px;margin:9px 0 15px;min-height:95px}
+.accountHero .po{width:85px;height:85px;flex:0 0 85px}.accountHero .po:before{display:none}
+.accountHero h1{font-size:22px;margin:0 0 4px;color:#154b88}.accountHero p{margin:0;font-size:12px;line-height:1.5;color:#597c9d;font-weight:800}
+.accountForm{display:flex;flex-direction:column;gap:11px}
+.accountField{display:flex;flex-direction:column;gap:5px;text-align:left;font-size:12px;font-weight:950;color:#275b85}
+.accountField input{font:inherit;font-size:16px;background:#fff;border:1.5px solid #c3ddf4;border-radius:13px;padding:11px 12px;min-height:46px;width:100%;color:#193b60;outline-offset:2px}
+.accountField input:focus-visible{outline:2px solid #3983e0;border-color:#3983e0}
+.accountCheck{display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.65;font-weight:750;color:#4d6c8b;text-align:left}
+.accountCheck input{margin-top:4px;min-width:18px;min-height:18px;accent-color:#1268e8}
+.accountAlert{font-weight:850;font-size:12px;line-height:1.6;color:#a03739;background:#fff1f0;border:1px solid #f6d3d1;border-radius:12px;padding:8px 12px}
+.accountSuccess{color:#19715a;background:#e9faf2;border-color:#b4e1ce}
+.accountSubmit{min-height:52px;font-size:16px}.accountLinks{display:flex;justify-content:center;flex-wrap:wrap;gap:5px 15px;padding:4px 0}
+.accountLinks button{background:none;border:0;padding:6px 0;color:#1268e8;font-size:12px;font-weight:900}
+.accountInfo{font-size:11px;line-height:1.7;color:#66809c;margin:8px 0;text-align:center}
+.accountPolicy{display:flex;justify-content:center;gap:14px}.accountPolicy button{font-size:11px;border:0;background:none;color:#266fb2;font-weight:800;padding:7px}

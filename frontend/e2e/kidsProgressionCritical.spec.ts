@@ -1,0 +1,227 @@
+import { expect, test, type FrameLocator, type Page } from "@playwright/test";
+import { liveQuests, seedStableProgress, selectQuest, type KidsWindow } from "./kidsProgressionHelpers";
+
+const iframe = 'iframe[title="AIPPO Kids AIぼうけん・学習プレビュー"]';
+type Surface = FrameLocator | Page;
+const storageKey = "aippo_kids_journey_v1";
+
+async function boot(page: Page, route: string): Promise<Surface> {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.route("**/api/v1/accounts/**", r => r.fulfill({ status: 401, contentType: "application/json", body: "{}" }));
+  await page.goto(route);
+  const ui = route === "/kids" ? page.frameLocator(iframe) : page;
+  await expect.poll(() => ui.locator("html").evaluate(() => Boolean((window as unknown as KidsWindow).AIPPO_TEST))).toBe(true);
+  return ui;
+}
+async function record(ui: Surface) {
+  return ui.locator("html").evaluate((_, key) => JSON.parse(localStorage.getItem(key)!), storageKey);
+}
+async function tap(ui: Surface, selector: string) {
+  const b = ui.locator(selector);
+  await expect(b).toBeVisible();
+  expect(await b.evaluate(e => {
+    const r = e.getBoundingClientRect();
+    const target = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+    return r.width >= 44 && r.height >= 44 && r.left >= -2 && r.top >= -2 && r.right <= innerWidth + 2 && r.bottom <= innerHeight + 2 && (target === e || (target !== null && e.contains(target)));
+  })).toBe(true);
+  await b.click();
+}
+async function stageState(ui: Surface) {
+  return ui.locator("html").evaluate(() => {
+    const api = (window as unknown as KidsWindow).AIPPO_TEST;
+    return { passed: api.stagePassed(0), rank: api.mastery(), next: api.unlocked(api.quests.findIndex(q => q.world === 1)) };
+  });
+}
+async function screenGeometry(ui: Surface) {
+  expect(await ui.locator("html").evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth)).toBeLessThanOrEqual(2);
+  if (!(await ui.locator(".top").count())) return;
+  expect(await ui.locator(".top").evaluate(header => {
+    const items = [...header.querySelectorAll(".brandLogo,button")].map(e => e.getBoundingClientRect());
+    const clipped = items.some(r => r.left < -2 || r.top < -2 || r.right > innerWidth + 2 || r.bottom > innerHeight + 2);
+    const overlap = items.some((a, i) => items.slice(i + 1).some(b => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 2 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 2));
+    return { clipped, overlap };
+  })).toEqual({ clipped: false, overlap: false });
+}
+async function completeFirstAssessment(ui: Surface) {
+  await selectQuest(ui, "w1-test");
+  await screenGeometry(ui);
+  await tap(ui, '[data-test-answer="0"]');
+  await tap(ui, '[data-select="color:pink"]');
+  await tap(ui, '[data-select="place:forest"]');
+  await screenGeometry(ui);
+  await tap(ui, '[data-action="practice-submit"]');
+  await expect(ui.locator(".success")).toBeVisible();
+}
+async function reloadAtMap(page: Page, ui: Surface) {
+  await page.reload();
+  if (await ui.locator(".posterTitle").count()) await tap(ui, '[data-action="poster-start"]:visible');
+  if (await ui.locator(".homeView").count()) await tap(ui, '.homeView [data-action="challenge"]');
+  await expect(ui.locator(".worldView")).toBeVisible();
+}
+async function learningHome(ui: Surface) {
+  if (await ui.locator(".posterTitle").count()) await tap(ui, '[data-action="poster-start"]:visible');
+  await expect(ui.locator(".homeView")).toBeVisible();
+  await screenGeometry(ui);
+}
+
+for (const route of ["/kids", "/kids-title/"]) {
+  for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }]) {
+    test(`critical long literacy feedback and failed save retain stamps ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const ui = await boot(page, route);
+      await seedStableProgress(ui.locator("html"), 5);
+      await reloadAtMap(page, ui);
+      await selectQuest(ui, "w1-audience");
+      await screenGeometry(ui);
+      const original = await record(ui);
+      await tap(ui, '[data-literacy="0"]');
+      await expect(ui.locator(".testFeedback")).toContainText("読む");
+      expect((await record(ui)).done["w1-audience"]).toBeUndefined();
+      expect(await record(ui)).toEqual(original);
+      for (const choice of await ui.locator("[data-literacy]").all()) {
+        expect(await choice.evaluate(e => {
+          const r = e.getBoundingClientRect();
+          return r.width >= 44 && r.height >= 44 && r.left >= -2 && r.right <= innerWidth + 2 && r.top >= -2 && r.bottom <= innerHeight + 2;
+        })).toBe(true);
+      }
+      expect(await ui.locator(".view").evaluate(e => e.scrollHeight - e.clientHeight)).toBeLessThanOrEqual(2);
+      await tap(ui, '[data-literacy="1"]');
+      await expect(ui.locator(".success")).toBeVisible();
+      const successful = await record(ui);
+      expect(successful.done["w1-audience"]).toMatchObject({ attempts: 2, choices: { answer: 1 } });
+      expect(Object.keys(successful.done)).toHaveLength(6);
+      expect(await stageState(ui)).toEqual({ passed: false, rank: 0, next: false });
+
+      // A failed replay save must not replace the last durable snapshot or
+      // advertise the in-memory record as safely persisted.
+      await tap(ui, '[data-action="next"]');
+      await selectQuest(ui, "w1-audience");
+      await ui.locator("html").evaluate(() => {
+        Storage.prototype.setItem = () => { throw new DOMException("Synthetic quota failure", "QuotaExceededError"); };
+      });
+      await tap(ui, '[data-literacy="1"]');
+      await expect(ui.locator(".storageNotice")).toContainText("保存を確認できません");
+      expect(await record(ui)).toEqual(successful);
+      await screenGeometry(ui);
+      await tap(ui, '[data-action="next"]');
+      await screenGeometry(ui);
+      await tap(ui, '[data-nav="home"]');
+      await expect(ui.locator(".storageNotice")).toBeVisible();
+      expect(await record(ui)).toEqual(successful);
+    });
+  }
+  for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }, { width: 390, height: 664 }, { width: 664, height: 390 }]) {
+    test(`critical progression AND gate and replay dedup ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const ui = await boot(page, route);
+      const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
+      const quests = await liveQuests(ui.locator("html"));
+      expect(Array.from({ length: 5 }, (_, world) => quests.filter(q => q.world === world && q.kind !== "checkpoint").length)).toEqual([10, 3, 3, 3, 3]);
+      expect(Array.from({ length: 5 }, (_, world) => quests.filter(q => q.world === world && q.kind === "checkpoint").length)).toEqual([1, 1, 1, 1, 1]);
+
+      // Ten unique mission stamps alone cannot promote the learner.
+      await seedStableProgress(ui.locator("html"), 10);
+      await reloadAtMap(page, ui);
+      expect(await stageState(ui)).toEqual({ passed: false, rank: 0, next: false });
+      await completeFirstAssessment(ui);
+      expect(await stageState(ui)).toEqual({ passed: true, rank: 1, next: true });
+      const first = await record(ui);
+      expect(Object.keys(first.done).filter(id => quests.some(q => q.world === 0 && q.kind !== "checkpoint" && q.id === id))).toHaveLength(10);
+      expect(first.done["w1-test"].evidence).toMatchObject({ knowledge: true, practice: true });
+      await tap(ui, '[data-action="next"]');
+      await expect(ui.locator('[data-world="1"]')).toHaveAttribute("aria-pressed", "true");
+
+      // Replaying a completed mission retains its original stamp and only
+      // updates latest practice metadata; it cannot mint an eleventh stamp.
+      await selectQuest(ui, "w1-q1");
+      const beforeSelection = await ui.locator('[data-action="submit"]').boundingBox();
+      await tap(ui, '[data-select="color:blue"]');
+      const afterSelection = await ui.locator('[data-action="submit"]').boundingBox();
+      expect(afterSelection!.x).toBeCloseTo(beforeSelection!.x, 1);
+      expect(afterSelection!.y).toBeCloseTo(beforeSelection!.y, 1);
+      await tap(ui, '[data-action="submit"]');
+      await expect(ui.locator(".resultNotice")).toContainText("つたわった");
+      await tap(ui, '[data-action="next"]');
+      const replayed = await record(ui);
+      expect(replayed.done["w1-q1"]).toEqual(first.done["w1-q1"]);
+      expect(Object.keys(replayed.done).sort()).toEqual(Object.keys(first.done).sort());
+      expect(replayed.latestAttempts["w1-q1"].sequence).toBeGreaterThan(first.done["w1-test"].sequence);
+
+      // A saved test pass without every mission stamp is also insufficient.
+      await ui.locator("html").evaluate((_, key) => {
+        const saved = JSON.parse(localStorage.getItem(key)!);
+        delete saved.done["w1-q1"]; delete saved.latestAttempts["w1-q1"];
+        localStorage.setItem(key, JSON.stringify(saved));
+      }, storageKey);
+      await reloadAtMap(page, ui);
+      expect(await stageState(ui)).toEqual({ passed: false, rank: 0, next: false });
+      expect(errors).toEqual([]);
+    });
+
+    test(`critical first stage map pagination and home entries ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const ui = await boot(page, route);
+      await seedStableProgress(ui.locator("html"), 0);
+      await page.reload();
+      await learningHome(ui);
+      await tap(ui, '.homeView [data-action="challenge"]');
+      const found: string[] = [];
+      for (let p = 0; p < 3; p++) {
+        await screenGeometry(ui);
+        const nodes = ui.locator("[data-quest]");
+        expect(await nodes.count()).toBe(p < 2 ? 5 : 1);
+        for (const node of await nodes.all()) {
+          found.push((await node.getAttribute("data-quest"))!);
+          expect(await node.evaluate(e => { const r = e.getBoundingClientRect(); return r.width >= 44 && r.height >= 44 && r.left >= -2 && r.right <= innerWidth + 2 && r.top >= -2 && r.bottom <= innerHeight + 2; })).toBe(true);
+        }
+        if (p < 2) await tap(ui, '[data-quest-page-step="1"]');
+      }
+      expect(new Set(found).size).toBe(11);
+      await expect(ui.locator('[data-quest-page-step="1"]')).toBeDisabled();
+      await tap(ui, '[data-quest-page-step="-1"]');
+      await expect(ui.locator("[data-quest]")).toHaveCount(5);
+      await tap(ui, '[data-nav="home"]');
+      await learningHome(ui);
+      // Common home navigation is distinct from starting a lesson.
+      for (const destination of ["map", "parent", "settings"] as const) {
+        await tap(ui, destination === "map" ? '.homeView [data-action="challenge"]' : `.top [data-nav="${destination}"]`);
+        if (destination === "map") await tap(ui, '[data-nav="home"]');
+        else if (destination === "parent") {
+          await tap(ui, '.parentTop [data-nav="map"]');
+          await tap(ui, '[data-nav="home"]');
+        } else await tap(ui, '[data-action="settings-done"]');
+        await learningHome(ui);
+      }
+      expect(await ui.locator("html").evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(2);
+    });
+  }
+
+  for (const schema of [1, 3]) {
+    test(`legacy schema ${schema} migration retains stable history ${route}`, async ({ page }) => {
+      const ui = await boot(page, route);
+      await ui.locator("html").evaluate((_, input) => {
+        localStorage.setItem("aippo_kids_settings_v1", JSON.stringify({ guardianAccepted: true, challengeMode: "guided" }));
+        const done = input === 1
+          ? { 0: { at: "legacy-color" }, 2: { at: "legacy-sea" } }
+          : { 0: { at: "legacy-color" }, 4: { at: "legacy-stage-test" }, 20: { at: "legacy-ai-tool" } };
+        const portfolio = input === 3 ? [{ quest: 20, title: "AIって なに？", at: "2026-10-14", choices: {} }] : [];
+        localStorage.setItem("aippo_kids_journey_v1", JSON.stringify({ schema: input, done, portfolio }));
+      }, schema);
+      await page.reload();
+      const migrated = await record(ui);
+      expect(migrated.schema).toBe(4);
+      expect(migrated.done["w1-q1"].at).toBe("legacy-color");
+      expect(migrated.done["w1-purpose"]).toBeUndefined();
+      if (schema === 1) expect(migrated.done["w2-q1"].at).toBe("legacy-sea");
+      else {
+        expect(migrated.done["w1-test"].at).toBe("legacy-stage-test");
+        expect(migrated.done["w5-q1"].at).toBe("legacy-ai-tool");
+        expect(migrated.portfolio[0]).toMatchObject({ quest: "w5-q1", title: "AIって なに？" });
+      }
+      expect(await stageState(ui)).toEqual({ passed: false, rank: 0, next: false });
+      await page.reload();
+      expect(await record(ui)).toEqual(migrated);
+      await expect(ui.locator(".storageNotice")).toHaveCount(0);
+    });
+  }
+}

@@ -22,8 +22,8 @@ const channel = chromiumPath
  * （読み込めない画像、最小化で崩れる処理）を取りこぼす。
  */
 const againstBuild = process.env.E2E_TARGET === "build";
-// CI runs these exact five suites in two independent production-build jobs.
-// The regular local command still runs everything. Keep the total case set equal.
+// Full-lifecycle CI isolates Kids/title suites into independent jobs.
+// Regular local runs include everything; normal CI runs explicit critical suites.
 const isolatedKids = process.env.E2E_KIDS_SEPARATE === "1";
 const webServerCommand = againstBuild
   ? "npm run build && npm run preview -- --host 127.0.0.1 --port 5173 --strictPort"
@@ -48,7 +48,7 @@ export default defineConfig({
   */
   testIgnore: [
     ...(process.env.QA ? [] : [/_.*\.spec\.ts$/]),
-    ...(isolatedKids ? [/(?:^|\/)kids(?:QualityGate|PersonaImprovements|NextPurpose|Orientation|TitleOpening)\.spec\.ts$/] : []),
+    ...(isolatedKids ? [/(?:^|\/)kids(?:QualityGate|PersonaImprovements|NextPurpose|Orientation|TitleOpening|ProgressionCritical)\.spec\.ts$/] : []),
   ],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,

@@ -1,5 +1,6 @@
 import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
 import { kidsPhonePairs } from "./kidsViewportMatrix";
+import { liveQuests, seedStableProgress, selectQuest } from "./kidsProgressionHelpers";
 
 test.use({ actionTimeout: 10_000 });
 
@@ -100,27 +101,22 @@ for (const portrait of pairs) {
     const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
     await page.goto('/kids');
     const frame = page.frameLocator(iframe);
-    await frame.locator('html').evaluate(() => {
-      // Synthetic prerequisites expose each screen; not proof a child completed it.
-      const done = Object.fromEntries(Array.from({ length: 24 }, (_, i) => [i, { assessmentVersion: 2, evidence: { knowledge: true, practice: true }, at: '2026-10-15', attempts: 1 }]));
-      localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true, ageBand: '7-9', challengeMode: 'guided', readingSupport: 'on' }));
-      localStorage.setItem('aippo_kids_journey_v1', JSON.stringify({ schema: 3, done }));
-    });
+    await seedStableProgress(frame.locator('html'), 26);
     await page.reload();
     await expect(frame.locator('.worldView')).toBeVisible();
     const initial = await snapshot(frame);
     await page.setViewportSize(landscape);
     await expect(frame.locator('.worldView')).toBeVisible();
     expect(await snapshot(frame)).toEqual(initial);
+    const quests = await liveQuests(frame.locator('html'));
     for (let world = 0; world < 5; world++) {
       await frame.locator(`[data-world="${world}"]`).click();
       await childScreen(page, frame);
-      for (let quest = world * 5; quest < world * 5 + 5; quest++) {
+      for (const quest of quests.filter(q => q.world === world)) {
         // Back resumes the current world, so reselect the requested chapter.
-        await frame.locator(`[data-world="${world}"]`).click();
-        await frame.locator(`[data-quest="${quest}"]`).click();
+        await selectQuest(frame, quest.id);
         await childScreen(page, frame);
-        if (quest % 5 === 4) {
+        if (quest.kind === 'checkpoint') {
           await frame.locator(`[data-test-answer="${[0, 1, 2, 1, 2][world]}"]`).click();
           await childScreen(page, frame);
           if (world === 1) { await frame.locator('[data-practice-spot="color"]').click(); await childScreen(page, frame); }

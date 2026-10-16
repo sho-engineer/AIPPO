@@ -1,0 +1,179 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import html from "../src/kids/learning.html?raw";
+
+const key = "aippo_kids_journey_v1";
+const script = html.match(/<script>([\s\S]*?)<\/script>/)![1];
+type Quest = { id: string; world: number; kind: string };
+type RecordValue = Record<string, unknown>;
+type Api = {
+  quests: Quest[]; legacyQuests: Quest[]; allQuests: Quest[];
+  saved: { schema: number; done: Record<string, RecordValue | boolean>; attempts: Record<string, number>; latestAttempts: Record<string, RecordValue>; portfolio: RecordValue[] };
+  state: { quest: number; result: RecordValue; selected: RecordValue; order: string[]; tries: number; view: string; world: number; questPage: number | null };
+  worldIndices: (world: number) => number[];
+  questIndex: (id: string) => number;
+  stagePassed: (world: number) => boolean;
+  stampOwned: (world: number) => boolean;
+  stageRequirement: (world: number) => { earned: number; required: number; testPassed: boolean };
+  mastery: () => number; count: () => number; unlocked: (index: number) => boolean;
+  nextFinish: () => void; go: (view: string) => void; render: () => void;
+};
+function boot(previous?: object): Api {
+  localStorage.clear();
+  if (previous) localStorage.setItem(key, JSON.stringify(previous));
+  localStorage.setItem("aippo_kids_settings_v1", JSON.stringify({ guardianAccepted: true, ageBand: "7-9" }));
+  document.body.innerHTML = '<div id="app"></div>';
+  window.eval(`(function(){${script}\n})()`);
+  return (window as unknown as { AIPPO_TEST: Api }).AIPPO_TEST;
+}
+const passedTest = () => ({ assessmentVersion: 2, evidence: { knowledge: true, practice: true } });
+function markLessons(api: Api, world: number) {
+  api.quests.filter(q => q.world === world && q.kind !== "checkpoint").forEach(q => { api.saved.done[q.id] = { choices: {} }; });
+}
+function markStage(api: Api, world: number) {
+  markLessons(api, world);
+  api.saved.done[api.quests.find(q => q.world === world && q.kind === "checkpoint")!.id] = passedTest();
+}
+beforeEach(() => { vi.stubGlobal("matchMedia", () => ({ matches: true })); });
+afterEach(() => { document.body.innerHTML = ""; localStorage.clear(); vi.unstubAllGlobals(); });
+
+describe("Kids critical progression: stamps, promotion and historic records", () => {
+  it("has 10 then 3 practice missions, with a separate checkpoint in every stage", () => {
+    const api = boot();
+    expect(api.quests).toHaveLength(27);
+    expect(new Set(api.quests.map(q => q.id)).size).toBe(27);
+    for (let world = 0; world < 5; world++) {
+      const quests = api.quests.filter(q => q.world === world);
+      expect(quests.filter(q => q.kind !== "checkpoint")).toHaveLength(world === 0 ? 10 : 3);
+      expect(quests.filter(q => q.kind === "checkpoint")).toHaveLength(1);
+      expect(quests.at(-1)!.kind).toBe("checkpoint");
+    }
+  });
+
+  for (const schema of [1, 3]) {
+    it(`migrates schema ${schema} done, attempts, latest attempts and portfolio by original identity`, () => {
+      const originalIds = schema === 1 ? ["w1-q1", "w1-q2", "w2-q1", "w2-q2", "w3-q1", "w3-q2", "w4-q1", "w4-q2"] : boot().legacyQuests.map(q => q.id);
+      const last = originalIds.length - 1;
+      const record = { at: "2026-10-01", choices: { color: "pink" }, hints: 3 };
+      const latest = { at: "2026-10-02", hints: 1 };
+      const api = boot({ schema, done: { 0: record, [last]: record }, attempts: { [last]: 4 }, latestAttempts: { [last]: latest }, portfolio: [{ quest: last, title: "既存の作品", choices: { color: "pink" } }] });
+      expect(api.saved.schema).toBe(4);
+      expect(api.saved.done[originalIds[0]]).toEqual(record);
+      expect(api.saved.done[originalIds[last]]).toEqual(record);
+      expect(api.saved.attempts).toEqual({ [originalIds[last]]: 4 });
+      expect(api.saved.latestAttempts).toEqual({ [originalIds[last]]: latest });
+      expect(api.saved.portfolio[0]).toMatchObject({ quest: originalIds[last], legacyQuest: last, title: "既存の作品" });
+      expect(Object.keys(api.saved.done)).not.toContain("0");
+      expect(api.saved.done["w1-purpose"]).toBeUndefined();
+    });
+  }
+
+  it("preserves archived completions and portfolio on reload, without counting them toward current stamps", () => {
+    const initial = boot();
+    const oldIndex = initial.legacyQuests.findIndex(q => q.id === "w4-q3");
+    const api = boot({ schema: 3, done: { [oldIndex]: { at: "2026-10-01", choices: {} } }, attempts: { [oldIndex]: 2 }, portfolio: [{ quest: oldIndex, title: "旧作品", choices: {} }] });
+    expect(api.saved.done["w4-q3"]).toBeTruthy();
+    expect(api.questIndex("w4-q3")).toBe(-1);
+    expect(api.count()).toBe(0);
+    const restored = boot(JSON.parse(localStorage.getItem(key)!));
+    expect(restored.saved.done["w4-q3"]).toEqual({ at: "2026-10-01", choices: {} });
+    expect(restored.saved.portfolio[0].quest).toBe("w4-q3");
+    restored.go("parent");
+    document.querySelector<HTMLButtonElement>('[data-action="recent"]')!.click();
+    document.querySelector<HTMLButtonElement>("[data-recent-record]")!.click();
+    expect(document.querySelector(".summaryModal")!.textContent).toContain("旧版・履歴保管");
+    expect(document.querySelector(".summaryModal")!.textContent).toContain("2026-10-01");
+  });
+
+  it("does not promote from stamps alone, a legacy stamp alone, or partial test evidence", () => {
+    const api = boot();
+    markLessons(api, 0);
+    expect(api.stageRequirement(0)).toEqual({ earned: 10, required: 10, testPassed: false });
+    expect(api.stagePassed(0)).toBe(false);
+    api.saved.done["w1-test"] = true;
+    expect(api.stampOwned(0)).toBe(true);
+    expect(api.stagePassed(0)).toBe(false);
+    api.saved.done["w1-test"] = { assessmentVersion: 2, evidence: { knowledge: true, practice: false } };
+    expect(api.stagePassed(0)).toBe(false);
+    api.saved.done["w1-test"] = passedTest();
+    expect(api.stagePassed(0)).toBe(true);
+    expect(api.mastery()).toBe(1);
+    expect(api.unlocked(api.questIndex("w2-q1"))).toBe(true);
+  });
+
+  it("retains old test evidence without awarding the newly expanded first stage prematurely", () => {
+    const prior = boot();
+    const done = Object.fromEntries(prior.legacyQuests.filter(q => q.world === 0).map(q => [String(prior.legacyQuests.indexOf(q)), q.kind === "checkpoint" ? passedTest() : { choices: {} }]));
+    const api = boot({ schema: 3, done });
+    expect(api.stampOwned(0)).toBe(true);
+    expect(api.stageRequirement(0)).toEqual({ earned: 4, required: 10, testPassed: true });
+    expect(api.stagePassed(0)).toBe(false);
+    expect(api.mastery()).toBe(0);
+    expect(api.unlocked(api.questIndex("w1-test"))).toBe(false);
+    expect(api.unlocked(api.questIndex("w2-q2"))).toBe(false);
+    api.go("map");
+    const oldCertificate = document.querySelector(".stageStamp.historical");
+    expect(oldCertificate!.textContent).toContain("旧");
+    expect(oldCertificate!.classList.contains("earned")).toBe(false);
+    api.go("parent");
+    expect(document.body.textContent).toContain("スタンプ10個 ＋ ミニテスト");
+    expect(document.body.textContent).toContain("旧版の合格証は履歴に保管");
+  });
+
+  it("requires the complete lower-stage prefix, not only the immediately previous certificate", () => {
+    const api = boot();
+    markStage(api, 1);
+    expect(api.stagePassed(1)).toBe(true);
+    expect(api.mastery()).toBe(0);
+    expect(api.unlocked(api.questIndex("w3-q1"))).toBe(false);
+    markStage(api, 0);
+    expect(api.mastery()).toBe(2);
+    expect(api.unlocked(api.questIndex("w3-q1"))).toBe(true);
+  });
+
+  it("replaying a mission preserves its first stamp and never increases the stamp count", () => {
+    const api = boot();
+    api.state.quest = api.questIndex("w1-q1");
+    api.state.result = { success: true };
+    api.state.selected = { color: "blue" };
+    api.state.order = [];
+    api.state.tries = 1;
+    api.nextFinish();
+    const first = api.saved.done["w1-q1"];
+    api.state.result = { success: true };
+    api.state.tries = 2;
+    api.nextFinish();
+    expect(api.count()).toBe(1);
+    expect(api.stageRequirement(0).earned).toBe(1);
+    expect(api.saved.done["w1-q1"]).toEqual(first);
+    expect(api.saved.latestAttempts["w1-q1"].submitAttempts).toBe(2);
+    expect(Object.keys(api.saved.done)).toEqual(["w1-q1"]);
+  });
+
+  it("shows direct home routes to the map, growth record and settings without clearing progress", () => {
+    const api = boot({ schema: 4, done: { "w1-q1": { choices: {} } } });
+    api.go("home");
+    document.querySelector<HTMLButtonElement>('[data-action="challenge"]')!.click();
+    expect(api.state.view).toBe("map");
+    api.go("home");
+    expect(document.querySelector('[data-nav="parent"]')!.textContent).toContain("成長記録");
+    document.querySelector<HTMLButtonElement>('[data-nav="parent"]')!.click();
+    expect(api.state.view).toBe("parent");
+    api.go("home");
+    document.querySelector<HTMLButtonElement>('[data-nav="settings"]')!.click();
+    expect(api.state.view).toBe("settings");
+    expect(api.count()).toBe(1);
+  });
+
+  it("pages all 11 first-stage nodes without losing the current-stage target", () => {
+    const api = boot();
+    api.go("map");
+    const ids = new Set<string>();
+    for (let page = 0; page < 3; page++) {
+      document.querySelectorAll<HTMLElement>("[data-quest]").forEach(node => ids.add(api.quests[Number(node.dataset.quest)].id));
+      if (page < 2) document.querySelector<HTMLButtonElement>('[data-quest-page-step="1"]')!.click();
+    }
+    expect(ids.size).toBe(11);
+    expect(ids.has("w1-test")).toBe(true);
+    expect(document.querySelector<HTMLButtonElement>('[data-quest-page-step="1"]')!.disabled).toBe(true);
+  });
+});

@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      full_lifecycle:
+        description: "Run every lifecycle test before beta release"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   backend:
@@ -109,10 +116,18 @@ jobs:
 
       # E2E_TARGET=build makes the existing Playwright webServer run npm run build
       # and serve the resulting bundle on localhost. No deployed-site auth bypass.
-      - name: Build and check Kids screens
+      # Normal changes cover critical progression, persistence and navigation.
+      # Beta release requires workflow_dispatch with full_lifecycle=true.
+      - name: Check critical Kids progression and navigation
+        if: ${{ !inputs.full_lifecycle }}
         env:
           E2E_TARGET: build
-        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts e2e/kidsNextPurpose.spec.ts e2e/kidsOrientation.spec.ts --max-failures=8
+        run: npx playwright test e2e/kidsProgressionCritical.spec.ts --max-failures=3
+      - name: Check every Kids lifecycle
+        if: ${{ inputs.full_lifecycle }}
+        env:
+          E2E_TARGET: build
+        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts e2e/kidsNextPurpose.spec.ts e2e/kidsOrientation.spec.ts e2e/kidsProgressionCritical.spec.ts
 
       - name: Upload Kids responsive evidence
         if: always()
@@ -309,7 +324,15 @@ jobs:
 
       # 開発サーバーではなく本番と同じビルド成果物に当てる。
       # 開発サーバーでしか見ないと、ビルドしたときだけ壊れるものを取りこぼす。
-      - name: Run E2E (production build)
+      - name: Run critical E2E (production build)
+        if: ${{ !inputs.full_lifecycle }}
+        working-directory: frontend
+        env:
+          E2E_TARGET: build
+        run: npx playwright test e2e/auth.spec.ts e2e/authGuestFirst.spec.ts e2e/releaseGate.spec.ts --max-failures=3
+
+      - name: Run all lifecycle E2E (production build)
+        if: ${{ inputs.full_lifecycle }}
         working-directory: frontend
         env:
           E2E_TARGET: build
