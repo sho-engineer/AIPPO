@@ -27,11 +27,11 @@ async function tap(ui: Surface, selector: string) {
   expect({ size: geometry.size, inside: geometry.inside, hit: geometry.hit }, `${selector}: ${JSON.stringify(geometry.rect)}`).toEqual({ size: true, inside: true, hit: true });
   await b.click();
 }
-async function stageState(ui: Surface) {
-  return ui.locator("html").evaluate(() => {
+async function stageState(ui: Surface, nextQuest = "w2-q1") {
+  return ui.locator("html").evaluate((_, id) => {
     const api = (window as unknown as KidsWindow).AIPPO_TEST;
-    return { passed: api.stagePassed(0), rank: api.mastery(), next: api.unlocked(api.quests.findIndex(q => q.world === 1)) };
-  });
+    return { passed: api.stagePassed(0), rank: api.mastery(), next: api.unlocked(api.quests.findIndex(q => q.id === id)) };
+  }, nextQuest);
 }
 async function screenGeometry(ui: Surface) {
   expect(await ui.locator("html").evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth)).toBeLessThanOrEqual(2);
@@ -219,7 +219,9 @@ for (const route of ["/kids", "/kids-title/"]) {
         expect(migrated.done["w5-q1"].at).toBe("legacy-ai-tool");
         expect(migrated.portfolio[0]).toMatchObject({ quest: "w5-q1", title: "AIって なに？" });
       }
-      expect(await stageState(ui)).toEqual({ passed: false, rank: 0, next: false });
+      // Old completions remain replayable; they cannot unlock a NEW mission.
+      if (schema === 1) expect(await stageState(ui, "w2-q1")).toEqual({ passed: false, rank: 0, next: true });
+      expect(await stageState(ui, "w2-q2")).toEqual({ passed: false, rank: 0, next: false });
       await page.reload();
       expect(await record(ui)).toEqual(migrated);
       await expect(ui.locator(".storageNotice")).toHaveCount(0);
