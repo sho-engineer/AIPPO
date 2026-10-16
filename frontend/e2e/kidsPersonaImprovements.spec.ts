@@ -37,6 +37,15 @@ async function finishSimple(frame: FrameLocator, kind: string, value: string) {
   await expect(frame.locator(".success")).toBeVisible();
   await click(frame, '[data-action="next"]', false);
 }
+async function openDailyChallenge(frame: FrameLocator) {
+  // The home challenge entry is the basic-adventure map. Daily practice lives
+  // in growth records; use the visible navigation rather than opening internals.
+  if (!(await frame.locator('.parentView').count())) {
+    await click(frame, '.top [data-nav="parent"]', false);
+  }
+  await click(frame, '.parentView [data-action="challenge"]');
+  await expect(frame.locator('.challengeModal')).toBeVisible();
+}
 async function finishAdvanced(frame: FrameLocator, decision: string) {
   const selectedConditions = await frame.locator('.challengeContext').innerText();
   async function pinned() {
@@ -131,20 +140,20 @@ for (const viewport of kidsViewports) {
   test(`Persona distinguishes hold revise adopt at ${viewport.width}x${viewport.height}`, async ({ page }) => {
     await page.setViewportSize(viewport);
     const frame = await boot(page);
-    await click(frame, '[data-action="challenge"]', false);
+    await openDailyChallenge(frame);
     await click(frame, '[data-ch-mode="advanced"]'); await click(frame, '[data-ch-task="sources"]');
     for (let i = 0; i < 3; i++) await click(frame, '[data-ch-condition="0"]');
     await click(frame, '[data-ch-issue="when"]'); await click(frame, "[data-ch-compare]");
     await click(frame, '[data-ch-decision="adopt"]');
     await expect(frame.locator(".challengeFeedback")).not.toBeEmpty();
     await finishAdvanced(frame, "hold");
-    await click(frame, '[data-action="challenge"]', false);
+    await openDailyChallenge(frame);
     await click(frame, '[data-ch-mode="advanced"]'); await click(frame, '[data-ch-task="outing"]');
     for (let i = 0; i < 3; i++) await click(frame, '[data-ch-condition="0"]');
     await click(frame, '[data-ch-issue="budget"]'); await click(frame, '[data-ch-issue="time"]');
     await click(frame, "[data-ch-compare]"); await finishAdvanced(frame, "revise");
     await page.reload();
-    await click(frame, '[data-action="challenge"]', false);
+    await openDailyChallenge(frame);
     await click(frame, ".challengeModal details summary");
     await click(frame, '[data-ch-history="1"]');
     await click(frame, "[data-history-replay]");
