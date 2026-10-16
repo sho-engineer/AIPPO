@@ -66,6 +66,50 @@ async function learningHome(ui: Surface) {
 }
 
 for (const route of ["/kids", "/kids-title/"]) {
+  for (const viewport of [{ width: 1363, height: 936 }, { width: 1280, height: 720 }]) {
+    test(`critical growth records keep pyramid and evidence separate ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const ui = await boot(page, route);
+      await seedStableProgress(ui.locator("html"), 1);
+      await reloadAtMap(page, ui);
+      await tap(ui, '.top [data-nav="parent"]');
+      await expect(ui.locator('.parentView')).toBeVisible();
+      await expect(ui.locator('.parentView .tier')).toHaveCount(5);
+
+      async function separateSections() {
+        // Compare document rectangles, not just currently visible pixels:
+        // adult scrolling is allowed, overlapping content is not.
+        const overlaps = await ui.locator('.parentView').evaluate(parent => {
+          const items = [...parent.querySelectorAll('.parentTop,.parentIntro,.tier,.evidence,.competencySummary,.parentBottom')];
+          return items.flatMap((a, i) => items.slice(i + 1).flatMap(b => {
+            const x = a.getBoundingClientRect(), y = b.getBoundingClientRect();
+            return Math.min(x.right, y.right) - Math.max(x.left, y.left) > 2 && Math.min(x.bottom, y.bottom) - Math.max(x.top, y.top) > 2
+              ? [`${a.className} / ${b.className}`] : [];
+          }));
+        });
+        expect(overlaps).toEqual([]);
+        await screenGeometry(ui);
+      }
+      await separateSections();
+      for (let tier = 0; tier < 5; tier++) {
+        await ui.locator(`[data-tier="${tier}"]`).scrollIntoViewIfNeeded();
+        await tap(ui, `[data-tier="${tier}"]`);
+        await expect(ui.locator('.evidenceTitle')).toContainText(`LEVEL ${5 - tier}`);
+        await separateSections();
+      }
+      for (const label of await ui.locator('.parentIntro,.tierTitle,.evidenceTitle,.evidenceBody,.competencySummary').all()) {
+        await label.scrollIntoViewIfNeeded();
+        await expect(label).toBeInViewport();
+        expect(await label.evaluate(e => {
+          const r = e.getBoundingClientRect(), parent = e.closest('.parentView')!.getBoundingClientRect();
+          return r.left >= -2 && r.right <= innerWidth + 2 && r.top >= Math.max(0, parent.top) - 2 && r.bottom <= Math.min(innerHeight, parent.bottom) + 2;
+        })).toBe(true);
+      }
+      await ui.locator('.parentBottom [data-action="map"]').scrollIntoViewIfNeeded();
+      await tap(ui, '.parentBottom [data-action="map"]');
+      await expect(ui.locator('.worldView')).toBeVisible();
+    });
+  }
   for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }]) {
     test(`critical long literacy feedback and failed save retain stamps ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
       await page.setViewportSize(viewport);
