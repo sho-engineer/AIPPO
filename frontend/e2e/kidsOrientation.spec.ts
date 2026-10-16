@@ -164,7 +164,13 @@ for (const portrait of pairs) {
     await adultClick(frame, '[data-recent-close]');
     await adultClick(frame, '.parentTop [data-nav="map"]');
     await frame.locator('.worldHomeBtn').click();
-    await frame.locator('[data-action="challenge"]').click();
+    // Home's basis-adventure entry now opens the map directly. Keep that
+    // navigation assertion, then reach daily practice through growth records.
+    await frame.locator('.homeView [data-action="challenge"]').click();
+    await expect(frame.locator('.worldView')).toBeVisible();
+    await childScreen(page, frame);
+    await frame.locator('.top [data-nav="parent"]').click();
+    await adultClick(frame, '.parentView [data-action="challenge"]');
     await adultClick(frame, '[data-ch-mode="advanced"]');
     await adultClick(frame, '[data-ch-task="sources"]');
     for (let i = 0; i < 3; i++) await adultClick(frame, '[data-ch-condition="0"]');
