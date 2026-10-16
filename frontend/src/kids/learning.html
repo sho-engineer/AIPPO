@@ -256,6 +256,10 @@
 <style id="kids-portrait-touch-targets">
 /* Compact screens shrink decorative space, never the interactive hit area.
    Keep these overrides after the older short-height rules (32–40px). */
+@media(min-width:700px) and (min-height:901px){
+ .topBtn,.settingBtn,.back,.worldHomeBtn{min-height:44px;min-width:44px;flex-shrink:0}
+ .homeView .dailyEntry{min-height:44px;flex-shrink:0}
+}
 @media(orientation:portrait) and (max-width:699px){
  .topBtn,.settingBtn,.back,.worldHomeBtn{height:44px;min-height:44px;min-width:44px;flex-shrink:0}
  .settingBtn,.worldHomeBtn{width:44px}

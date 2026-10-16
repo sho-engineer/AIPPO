@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- GENERATED: scripts/build-kids-title.mjs; source digest 56944840e115673c660bd8604b3f94c41bcbef9ad2add691ad4b96b69d987c9d; do not hand edit. -->
+<!-- GENERATED: scripts/build-kids-title.mjs; source digest eef6c7ec09446466ae05c3416252d67c393d91f01014d1fdf12185599c36d5d5; do not hand edit. -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -257,6 +257,10 @@
 <style id="kids-portrait-touch-targets">
 /* Compact screens shrink decorative space, never the interactive hit area.
    Keep these overrides after the older short-height rules (32–40px). */
+@media(min-width:700px) and (min-height:901px){
+ .topBtn,.settingBtn,.back,.worldHomeBtn{min-height:44px;min-width:44px;flex-shrink:0}
+ .homeView .dailyEntry{min-height:44px;flex-shrink:0}
+}
 @media(orientation:portrait) and (max-width:699px){
  .topBtn,.settingBtn,.back,.worldHomeBtn{height:44px;min-height:44px;min-width:44px;flex-shrink:0}
  .settingBtn,.worldHomeBtn{width:44px}
