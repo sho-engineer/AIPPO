@@ -52,11 +52,12 @@ describe("Kids entry preserves a child's selected learning route", () => {
     expect(document.querySelector('[data-ch-compare]')).not.toBeNull();
     for (const value of Object.values(conditions)) expect(document.querySelector(".challengeModal")!.textContent).toContain(value);
   });
-  it("routes a future area's call to action back to the available adventure", () => {
+  it("previews a locked area's purpose while keeping the available adventure selected", () => {
     boot({ guardianAccepted: true, ageBand: "5-6" }); api().go("map");
     click('[data-world="4"]');
-    expect(document.querySelector('[data-action="current"]')!.textContent).toContain("いまの ぼうけんへ もどる");
-    click('[data-action="current"]');
+    expect(document.querySelector('.stagePreviewRule')!.textContent).toContain('全クエストと ミニテスト');
+    expect(document.querySelector('.stagePreviewSpeech')!.textContent).toContain('ひみつ');
+    click('[data-stage-close]');
     expect(api().state.view).toBe("map"); expect(api().state.world).toBe(0);
     click('[data-action="current"]'); expect(api().state.view).toBe("play");
   });
@@ -68,8 +69,10 @@ describe("Kids entry preserves a child's selected learning route", () => {
     expect(document.querySelector(".stageStamp.earned")).toBeNull();
   });
   it("provides pronunciation for low-age safety words", () => {
-    const done = Object.fromEntries(Array.from({ length: 25 }, (_, n) => [n, { at: "2026-10-14", assessmentVersion: 2, evidence: { knowledge: true, practice: true } }]));
-    boot({ guardianAccepted: true, ageBand: "5-6" }, { schema: 3, done });
+    boot({ guardianAccepted: true, ageBand: '5-6' });
+    const target = api().quests.findIndex(q => q.id === 'w5-q2');
+    const done = Object.fromEntries(api().quests.slice(0,target).map(q => [q.id, { at: "2026-10-14", assessmentVersion: 2, evidence: { knowledge: true, practice: true } }]));
+    boot({ guardianAccepted: true, ageBand: "5-6" }, { schema: 4, done });
     api().startQuest(api().quests.findIndex(q => q.id === "w5-q2"));
     expect(document.querySelector("ruby")).not.toBeNull();
     expect([...document.querySelectorAll("rt")].map((rt) => rt.textContent).join(" ")).toMatch(/じゅうしょ|がっこう|でんわ/);
