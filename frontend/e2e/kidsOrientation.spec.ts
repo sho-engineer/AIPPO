@@ -28,6 +28,7 @@ for (const viewport of [{ width: 568, height: 320 }, { width: 844, height: 390 }
     const beforeFailure = await snapshot(frame);
     await frame.locator('html').evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException('Synthetic quota failure', 'QuotaExceededError'); }; });
     await frame.locator('[data-action="start"]').click();
+    await frame.locator('[data-story-skip]').click();
     await frame.locator('[data-quest="0"]').click();
     await frame.locator('[data-select="color:blue"]').click();
     await frame.locator('[data-action="submit"]').click();

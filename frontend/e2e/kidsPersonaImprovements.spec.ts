@@ -24,6 +24,7 @@ async function fits(locator: Locator) {
   })).toBe(true);
 }
 async function click(frame: FrameLocator, selector: string, adult = true) {
+  if (await frame.locator('[data-story-skip]').count()) await frame.locator('[data-story-skip]').click();
   const el = frame.locator(selector);
   if (adult) await el.scrollIntoViewIfNeeded();
   await fits(el); await el.click();
