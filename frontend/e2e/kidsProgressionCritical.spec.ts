@@ -237,6 +237,12 @@ for (const route of ["/kids", "/kids-title/"]) {
       await page.reload();
       await learningHome(ui);
       await tap(ui, '.homeView [data-action="challenge"]');
+      await expect(ui.locator('.mapStory')).toContainText('宇宙');
+      await tap(ui, '[data-world="1"]');
+      await expect(ui.locator('.stagePreview')).toBeVisible();
+      await expect(ui.locator('.stagePreviewSpeech')).toContainText('くらべて');
+      await expect(ui.locator('[data-world="0"]')).toHaveAttribute('aria-pressed', 'true');
+      await tap(ui, '[data-stage-close]');
       await screenGeometry(ui);
       const nodes = ui.locator('.questTrail [data-quest]');
       await expect(nodes).toHaveCount(11);

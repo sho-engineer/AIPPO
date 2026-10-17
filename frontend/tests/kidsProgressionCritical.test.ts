@@ -177,4 +177,46 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     expect(document.querySelector('[data-quest-page-step]')).toBeNull();
     nodes[0].click(); expect(api.state.view).toBe('play');
   });
+  it('shows only a purpose preview for locked stages and opens each stage after its complete gate', () => {
+    const api = boot(); api.go('map'); const original = JSON.stringify(api.saved);
+    document.querySelector<HTMLButtonElement>('[data-world="1"]')!.click();
+    expect(api.state.world).toBe(0);
+    expect(document.querySelector('.stagePreviewSpeech')!.textContent).toContain('くらべて');
+    expect(document.querySelectorAll('.questTrail [data-quest]')).toHaveLength(11);
+    document.querySelector<HTMLButtonElement>('[data-stage-close]')!.click();
+    expect(JSON.stringify(api.saved)).toBe(original);
+    for (let world = 0; world < 4; world++) {
+      markLessons(api, world); api.render();
+      expect(document.querySelector(`[data-world="${world+1}"]`)!.classList.contains('stageLocked')).toBe(true);
+      markStage(api, world); api.render();
+      document.querySelector<HTMLButtonElement>(`[data-world="${world+1}"]`)!.click();
+      expect(api.state.world).toBe(world+1);
+      expect(document.querySelector('.mapStory p')!.textContent).not.toBe('');
+    }
+    document.querySelector<HTMLButtonElement>('[data-world="0"]')!.click(); expect(api.state.world).toBe(0);
+  });
+  it('retains a historical future record while preventing it from bypassing a locked stage', () => {
+    const api = boot(); const index = api.questIndex('w2-q1');
+    api.saved.done['w2-q1'] = { choices: {}, at: '2026-10-17' };
+    expect(api.unlocked(index)).toBe(false);
+    api.state.world = 1; api.go('map'); expect(api.state.world).toBe(0);
+    expect(api.saved.done['w2-q1']).toBeTruthy();
+    markStage(api, 0); expect(api.unlocked(index)).toBe(true);
+  });
+  it('reveals Po speech without removing the full accessible text and cancels on interaction or navigation', () => {
+    vi.useFakeTimers(); vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    try {
+      const api = boot(); api.go('map');
+      const full = document.querySelector('.poSpeechFull')!.textContent!;
+      expect(full).toContain('宇宙'); expect(document.querySelector('.poSpeechVisual')!.getAttribute('aria-hidden')).toBe('true');
+      vi.advanceTimersByTime(84);
+      expect(document.querySelector('.poSpeechVisual')!.textContent!.length).toBeGreaterThan(0);
+      expect(document.querySelector('.poSpeechVisual')!.textContent!.length).toBeLessThan(full.length);
+      document.querySelector('#app')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      expect(document.querySelector('.poSpeech')).toBeNull(); expect(document.querySelector('.mapStory p')!.textContent).toBe(full);
+      api.go('map'); expect(document.querySelector('.poSpeech')).not.toBeNull();
+      api.go('settings'); expect(document.querySelector('.poSpeech')).toBeNull(); expect(vi.getTimerCount()).toBe(0);
+      vi.stubGlobal('matchMedia', () => ({ matches: true })); api.go('map'); expect(document.querySelector('.poSpeech')).toBeNull();
+    } finally { vi.clearAllTimers(); vi.useRealTimers(); }
+  });
 });
