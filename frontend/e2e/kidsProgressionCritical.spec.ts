@@ -67,13 +67,17 @@ async function learningHome(ui: Surface) {
 }
 
 for (const route of ["/kids", "/kids-title/"]) {
-  for (const viewport of [{ width: 1363, height: 936 }, { width: 1280, height: 720 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
+  for (const viewport of [{ width: 1363, height: 936 }, { width: 1280, height: 720 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 320, height: 568 }, { width: 568, height: 320 }]) {
     test(`critical result comparison keeps both cards visible ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
       await page.setViewportSize(viewport);
       const ui = await boot(page, route);
       await seedStableProgress(ui.locator("html"), 0);
       await reloadAtMap(page, ui);
       await selectQuest(ui, "w1-q1");
+      const request = ui.locator('.questWords .shortRequest');
+      await expect(request).toContainText('あおに');
+      expect(await request.evaluate(el => { const r=el.getBoundingClientRect(); return parseFloat(getComputedStyle(el).fontSize)>=16 && r.height>=48 && r.top>=0 && r.bottom<=innerHeight; })).toBe(true);
+      if (viewport.width===390) await ui.locator('.view').screenshot({path:test.info().outputPath('first-request.png')});
 
       // Exercise both mismatch/retry and success through actual controls.
       for (const color of ["pink", "blue"]) {

@@ -221,6 +221,19 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     markStage(api,0); api.go('map');
     expect(document.querySelector('.storySpeech')!.textContent).toContain('海');
   });
+  it('gives each story page distinct information without repeating a sentence', () => {
+    const api = boot();
+    for (let world = 0; world < 5; world++) {
+      api.go('map'); const sentences: string[] = [];
+      for (let page = 0; page < 3; page++) {
+        const speech = document.querySelector('.storySpeech')!.textContent!;
+        sentences.push(...speech.split(/[。！？]/).map(text => text.replace(/\s/g, '')).filter(Boolean));
+        if (page < 2) document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
+      }
+      expect(new Set(sentences).size).toBe(sentences.length);
+      document.querySelector<HTMLButtonElement>('[data-story-skip]')!.click(); markStage(api,world);
+    }
+  });
   it('introduces every checkpoint with its actual goal before answers or assessment records', () => {
     const api = boot();
     for (let world = 0; world < 5; world++) {
