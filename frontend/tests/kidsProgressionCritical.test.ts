@@ -164,16 +164,17 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     expect(api.count()).toBe(1);
   });
 
-  it("pages all 11 first-stage nodes without losing the current-stage target", () => {
+  it("connects all first-stage lessons and their checkpoint in order without pagination", () => {
     const api = boot();
     api.go("map");
-    const ids = new Set<string>();
-    for (let page = 0; page < 3; page++) {
-      document.querySelectorAll<HTMLElement>("[data-quest]").forEach(node => ids.add(api.quests[Number(node.dataset.quest)].id));
-      if (page < 2) document.querySelector<HTMLButtonElement>('[data-quest-page-step="1"]')!.click();
-    }
-    expect(ids.size).toBe(11);
-    expect(ids.has("w1-test")).toBe(true);
-    expect(document.querySelector<HTMLButtonElement>('[data-quest-page-step="1"]')!.disabled).toBe(true);
+    const nodes = [...document.querySelectorAll<HTMLButtonElement>('.questTrail [data-quest]')];
+    expect(nodes.map(node => api.quests[Number(node.dataset.quest)].id)).toEqual(api.quests.filter(q => q.world === 0).map(q => q.id));
+    expect(nodes).toHaveLength(11);
+    expect(nodes[0].getAttribute('aria-current')).toBe('step');
+    expect(nodes[0].disabled).toBe(false);
+    expect(nodes.slice(1).every(node => node.disabled)).toBe(true);
+    expect(nodes.at(-1)!.classList.contains('checkpoint')).toBe(true);
+    expect(document.querySelector('[data-quest-page-step]')).toBeNull();
+    nodes[0].click(); expect(api.state.view).toBe('play');
   });
 });

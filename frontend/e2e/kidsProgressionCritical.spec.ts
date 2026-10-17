@@ -237,21 +237,16 @@ for (const route of ["/kids", "/kids-title/"]) {
       await page.reload();
       await learningHome(ui);
       await tap(ui, '.homeView [data-action="challenge"]');
-      const found: string[] = [];
-      for (let p = 0; p < 3; p++) {
-        await screenGeometry(ui);
-        const nodes = ui.locator("[data-quest]");
-        expect(await nodes.count()).toBe(p < 2 ? 5 : 1);
-        for (const node of await nodes.all()) {
-          found.push((await node.getAttribute("data-quest"))!);
-          expect(await node.evaluate(e => { const r = e.getBoundingClientRect(); return r.width >= 44 && r.height >= 44 && r.left >= -2 && r.right <= innerWidth + 2 && r.top >= -2 && r.bottom <= innerHeight + 2; })).toBe(true);
-        }
-        if (p < 2) await tap(ui, '[data-quest-page-step="1"]');
+      await screenGeometry(ui);
+      const nodes = ui.locator('.questTrail [data-quest]');
+      await expect(nodes).toHaveCount(11);
+      for (const node of await nodes.all()) {
+        await node.scrollIntoViewIfNeeded();
+        expect(await node.evaluate(e => { const r = e.getBoundingClientRect(); const s = e.closest('.pathScroll')!.getBoundingClientRect(); return r.width >= 44 && r.height >= 44 && r.left >= s.left - 2 && r.right <= s.right + 2 && r.top >= s.top - 2 && r.bottom <= s.bottom + 2; })).toBe(true);
       }
-      expect(new Set(found).size).toBe(11);
-      await expect(ui.locator('[data-quest-page-step="1"]')).toBeDisabled();
-      await tap(ui, '[data-quest-page-step="-1"]');
-      await expect(ui.locator("[data-quest]")).toHaveCount(5);
+      await expect(ui.locator('[data-quest-page-step]')).toHaveCount(0);
+      await ui.locator('[aria-current="step"]').scrollIntoViewIfNeeded();
+      await expect(ui.locator('[aria-current="step"]')).toBeEnabled();
       await tap(ui, '[data-nav="home"]');
       await learningHome(ui);
       // Common home navigation is distinct from starting a lesson.

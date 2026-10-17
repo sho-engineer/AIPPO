@@ -34,19 +34,14 @@ export async function liveQuests(html: Locator) {
   return html.evaluate(() => (window as unknown as KidsWindow).AIPPO_TEST.quests.map(({ id, world, kind, short }) => ({ id, world, kind, short })));
 }
 
-/** Select a world and then its visible map page, without bypassing its lock. */
+/** Follow the scrollable adventure path without bypassing its lock. */
 export async function selectQuest(root: FrameLocator | Page, id: string) {
   const quests = await liveQuests(root.locator("html"));
   const index = quests.findIndex(q => q.id === id);
   expect(index).toBeGreaterThanOrEqual(0);
   await root.locator(`[data-world="${quests[index].world}"]`).click();
   const target = root.locator(`[data-quest="${index}"]`);
-  for (let attempts = 0; attempts < 4 && !(await target.count()); attempts++) {
-    const pageIndex = quests.filter(q => q.world === quests[index].world).findIndex(q => q.id === id);
-    const current = await root.locator("html").evaluate(() => (window as unknown as KidsWindow).AIPPO_TEST.state.questPage);
-    const direction = Math.floor(pageIndex / 5) > current ? 1 : -1;
-    await root.locator(`[data-quest-page-step="${direction}"]`).click();
-  }
+  await target.scrollIntoViewIfNeeded();
   await expect(target).toBeVisible();
   await target.click();
 }

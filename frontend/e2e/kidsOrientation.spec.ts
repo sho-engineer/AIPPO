@@ -81,6 +81,7 @@ async function childScreen(page: Page, frame: FrameLocator) {
     return Math.abs((r.left + r.right - p.left - p.right) / 2);
   })).toBeLessThanOrEqual(2);
   for (const button of await frame.locator('.view button').all()) {
+    if (await button.evaluate(el => Boolean(el.closest('.pathScroll')))) await button.scrollIntoViewIfNeeded();
     await fits(button);
     if (await button.isEnabled()) await button.click({ trial: true });
   }
