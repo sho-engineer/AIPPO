@@ -1,28 +1,40 @@
 const OPENING_SEEN='aippo_title_opening_v1';
+const OPENING_LAST_ACTIVE='aippo_title_last_active_v1',OPENING_IDLE_MS=30*60*1000;
 let openingAttempted=false,openingLayer=null,openingCleanup=null;
-function endOpening(){if(openingCleanup){openingCleanup();openingCleanup=null}if(openingLayer){openingLayer.remove();openingLayer=null}app.inert=false;app.querySelector('[data-opening-replay]')?.focus({preventScroll:true})}
+function recordOpeningActivity(){try{localStorage.setItem(OPENING_LAST_ACTIVE,String(Date.now()))}catch{}}
+// Keep the idle clock tied to use, rather than a timer that could interrupt a lesson.
+for(const event of ['pointerdown','keydown','input','scroll'])app.addEventListener(event,recordOpeningActivity,{capture:true,passive:true});
+function endOpening(){if(openingCleanup){openingCleanup();openingCleanup=null}if(openingLayer){openingLayer.remove();openingLayer=null}recordOpeningActivity();app.inert=false;[...app.querySelectorAll('[data-action="poster-start"]')].find(button=>button.getClientRects().length)?.focus({preventScroll:true})}
 function playOpening(){
  if(openingLayer||!app.querySelector('.posterTitle'))return;
  const layer=document.createElement('div');openingLayer=layer;layer.className='openingLayer';layer.setAttribute('role','dialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-label','4秒のオープニング');
- layer.innerHTML='<video muted playsinline autoplay preload="auto" aria-hidden="true"></video><button type="button" class="openingSkip" data-opening-skip>スキップ</button>';
+ layer.innerHTML='<div class="openingArtboard"><video muted playsinline autoplay preload="auto" aria-hidden="true"></video><img class="openingLanding" src="assets/title/approved-cover.jpeg" alt="" aria-hidden="true"/></div><button type="button" class="openingSkip" data-opening-skip>スキップ</button>';
  const video=layer.querySelector('video');video.muted=true;video.playsInline=true;video.src='media/aippo-opening-v1.mp4';
+ const syncArtboard=()=>{const artwork=app.querySelector('.posterArtwork');if(!artwork)return;const r=artwork.getBoundingClientRect();Object.assign(layer.querySelector('.openingArtboard').style,{left:r.left+'px',top:r.top+'px',width:r.width+'px',height:r.height+'px'})};
+ const settle=()=>{const image=layer.querySelector('.openingLanding');if(video.currentTime>=3.3&&image.complete&&image.naturalWidth>0)layer.classList.add('is-landing')};
+ video.ontimeupdate=settle;
+ window.addEventListener('resize',syncArtboard);window.visualViewport?.addEventListener('resize',syncArtboard);
  let loadTimer=setTimeout(endOpening,1200),maximumTimer=setTimeout(endOpening,5500),stallTimer;
  const visibility=()=>{if(document.hidden)endOpening()};document.addEventListener('visibilitychange',visibility);
  const observer=new MutationObserver(()=>{if(!app.querySelector('.posterTitle'))endOpening()});observer.observe(app,{childList:true,subtree:true});
- openingCleanup=()=>{clearTimeout(loadTimer);clearTimeout(maximumTimer);clearTimeout(stallTimer);observer.disconnect();document.removeEventListener('visibilitychange',visibility);video.onplaying=null;video.onwaiting=null;video.onended=null;video.onerror=null;video.pause();video.removeAttribute('src');video.load()};
+ openingCleanup=()=>{clearTimeout(loadTimer);clearTimeout(maximumTimer);clearTimeout(stallTimer);observer.disconnect();document.removeEventListener('visibilitychange',visibility);window.removeEventListener('resize',syncArtboard);window.visualViewport?.removeEventListener('resize',syncArtboard);video.onplaying=null;video.onwaiting=null;video.onended=null;video.onerror=null;video.ontimeupdate=null;video.pause();video.removeAttribute('src');video.load()};
  video.onplaying=()=>{clearTimeout(loadTimer);clearTimeout(stallTimer)};
  video.onwaiting=()=>{clearTimeout(stallTimer);stallTimer=setTimeout(endOpening,1200)};
  video.onended=endOpening;video.onerror=endOpening;layer.querySelector('[data-opening-skip]').onclick=endOpening;
  layer.addEventListener('keydown',event=>{if(event.key==='Escape')endOpening();if(event.key==='Tab'){event.preventDefault();layer.querySelector('button').focus()}});
- document.body.append(layer);app.inert=true;layer.querySelector('button').focus();
+ document.body.append(layer);syncArtboard();app.inert=true;layer.querySelector('button').focus();
  try{const result=video.play();if(result&&typeof result.catch==='function')result.catch(()=>{if(openingLayer===layer)endOpening()})}catch{endOpening()}
 }
 function setupOpening(){
  const title=app.querySelector('.posterTitle');if(!title)return;
- const replay=document.createElement('button');replay.type='button';replay.className='posterReplay';replay.dataset.openingReplay='';replay.textContent='オープニング';replay.setAttribute('aria-label','オープニングをもう一度見る');replay.onclick=playOpening;title.append(replay);
  if(openingAttempted)return;openingAttempted=true;
- try{if(localStorage.getItem(OPENING_SEEN))return;localStorage.setItem(OPENING_SEEN,'seen')}catch{return}
- if(settings.guardianAccepted||auth.user||Object.keys(saved.done||{}).length)return;
+ let shouldPlay=false;
+ try{
+  const now=Date.now(),raw=localStorage.getItem(OPENING_LAST_ACTIVE),last=Number(raw),seen=localStorage.getItem(OPENING_SEEN);
+  shouldPlay=raw!==null?Number.isFinite(last)&&last>0&&now-last>=OPENING_IDLE_MS:!seen&&!settings.guardianAccepted&&!auth.user&&!Object.keys(saved.done||{}).length;
+  localStorage.setItem(OPENING_SEEN,'seen');localStorage.setItem(OPENING_LAST_ACTIVE,String(now));
+ }catch{return}
+ if(!shouldPlay)return;
  const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
  if(reduced||navigator.connection?.saveData)return;
  playOpening();
@@ -32,12 +44,13 @@ function home(){
  layout(`<main class="view posterTitle" aria-label="AIPPO Kids タイトル画面">
    <div class="posterArtboard">
      <img class="posterArtwork" src="assets/title/approved-cover.jpeg" alt="AIPPO Kids。ポーちゃんとAIぼうけんへ。空に浮かぶ島と、Poちゃんが走る冒険ゲームのタイトル画面。" fetchpriority="high" decoding="async" draggable="false"/>
+     <p class="posterStartHint" id="poster-start-hint">${account?'ログイン中の記録でつづけられます':'登録なしで あそべます'}</p>
      <button type="button" class="posterTouch settings" data-action="poster-settings" aria-label="保護者設定を開く" title="設定"></button>
-     <button type="button" class="posterTouch start" data-action="poster-start" aria-label="ぼうけんを はじめる" title="ぼうけんを はじめる"></button>
+     <button type="button" class="posterTouch start" data-action="poster-start" aria-label="ぼうけんを はじめる" aria-describedby="poster-start-hint" title="ぼうけんを はじめる"></button>
      <button type="button" class="posterTouch guest" data-action="poster-guest" aria-label="ゲストではじめる" title="ゲストではじめる"></button>
      <button type="button" class="posterTouch login" data-action="poster-login" aria-label="${account?'ログイン中の設定':'ログイン'}" title="ログイン"></button>
    </div>
-   <nav class="posterLandscapeControls" aria-label="横向きの始め方"><p>横向きでは、こちらから操作できます。</p><button type="button" data-action="poster-start">ぼうけんを はじめる</button><button type="button" data-action="poster-guest">ゲストではじめる</button><button type="button" data-action="poster-login">${account?'ログイン中の設定':'ログイン'}</button><button type="button" data-action="poster-settings">保護者設定</button></nav>
+   <nav class="posterLandscapeControls" aria-label="横向きの始め方"><p>横向きでは、こちらから操作できます。${account?'':'登録なしでおためしできます。記録はこの端末に保存されます。'}</p><button type="button" data-action="poster-start" aria-describedby="poster-start-hint">ぼうけんを はじめる</button><button type="button" data-action="poster-guest">ゲストではじめる</button><button type="button" data-action="poster-login">${account?'ログイン中の設定':'ログイン'}</button><button type="button" data-action="poster-settings">保護者設定</button></nav>
  </main>`);
  app.querySelectorAll('[data-action=poster-start]').forEach(b=>b.onclick=()=>launchAdventure());
  app.querySelectorAll('[data-action=poster-guest]').forEach(b=>b.onclick=()=>account?logout():selectGuest());
