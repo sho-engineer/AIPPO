@@ -1,6 +1,10 @@
 const OPENING_SEEN='aippo_title_opening_v1';
+const OPENING_LAST_ACTIVE='aippo_title_last_active_v1',OPENING_IDLE_MS=30*60*1000;
 let openingAttempted=false,openingLayer=null,openingCleanup=null;
-function endOpening(){if(openingCleanup){openingCleanup();openingCleanup=null}if(openingLayer){openingLayer.remove();openingLayer=null}app.inert=false;[...app.querySelectorAll('[data-action="poster-start"]')].find(button=>button.getClientRects().length)?.focus({preventScroll:true})}
+function recordOpeningActivity(){try{localStorage.setItem(OPENING_LAST_ACTIVE,String(Date.now()))}catch{}}
+// Keep the idle clock tied to use, rather than a timer that could interrupt a lesson.
+for(const event of ['pointerdown','keydown','input','scroll'])app.addEventListener(event,recordOpeningActivity,{capture:true,passive:true});
+function endOpening(){if(openingCleanup){openingCleanup();openingCleanup=null}if(openingLayer){openingLayer.remove();openingLayer=null}recordOpeningActivity();app.inert=false;[...app.querySelectorAll('[data-action="poster-start"]')].find(button=>button.getClientRects().length)?.focus({preventScroll:true})}
 function playOpening(){
  if(openingLayer||!app.querySelector('.posterTitle'))return;
  const layer=document.createElement('div');openingLayer=layer;layer.className='openingLayer';layer.setAttribute('role','dialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-label','4秒のオープニング');
@@ -24,8 +28,13 @@ function playOpening(){
 function setupOpening(){
  const title=app.querySelector('.posterTitle');if(!title)return;
  if(openingAttempted)return;openingAttempted=true;
- try{if(localStorage.getItem(OPENING_SEEN))return;localStorage.setItem(OPENING_SEEN,'seen')}catch{return}
- if(settings.guardianAccepted||auth.user||Object.keys(saved.done||{}).length)return;
+ let shouldPlay=false;
+ try{
+  const now=Date.now(),raw=localStorage.getItem(OPENING_LAST_ACTIVE),last=Number(raw),seen=localStorage.getItem(OPENING_SEEN);
+  shouldPlay=raw!==null?Number.isFinite(last)&&last>0&&now-last>=OPENING_IDLE_MS:!seen&&!settings.guardianAccepted&&!auth.user&&!Object.keys(saved.done||{}).length;
+  localStorage.setItem(OPENING_SEEN,'seen');localStorage.setItem(OPENING_LAST_ACTIVE,String(now));
+ }catch{return}
+ if(!shouldPlay)return;
  const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
  if(reduced||navigator.connection?.saveData)return;
  playOpening();

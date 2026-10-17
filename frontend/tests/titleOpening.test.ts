@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import html from "../public/kids-title/index.html?raw";
 const script = html.match(/<script>([\s\S]*?)<\/script>/)![1];
 const key = 'aippo_title_opening_v1';
+const activeKey = 'aippo_title_last_active_v1';
+const idle = 30 * 60 * 1000;
 function boot() { document.body.innerHTML = '<div id="app"></div>'; window.eval(script); }
 const click = (s: string) => { const b = document.querySelector<HTMLButtonElement>(s); expect(b, s).not.toBeNull(); b!.click(); };
 beforeEach(() => {
-  vi.useFakeTimers(); localStorage.clear();
+  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-17T12:00:00Z')); localStorage.clear();
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ authenticated: false }) }));
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
@@ -33,6 +35,38 @@ describe('Approved standalone title opening without adult Welcome changes', () =
   it('does not treat an existing learning device as a first visit after this feature is introduced', () => {
     localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true }));
     boot(); expect(document.querySelector('video')).toBeNull(); expect(document.querySelector('[data-opening-replay]')).toBeNull();
+  });
+  it.each([idle - 1, idle, idle + 1])('replays after a %i ms gap, including existing learners', gap => {
+    localStorage.setItem(key, 'seen');
+    localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true }));
+    localStorage.setItem(activeKey, String(Date.now() - gap));
+    boot();
+    expect(document.querySelector('video') !== null).toBe(gap >= idle);
+    expect(document.querySelector('[data-opening-replay]')).toBeNull();
+  });
+  it('measures inactivity from the latest interaction, not from the last playback', () => {
+    boot(); click('[data-opening-skip]');
+    vi.setSystemTime(Date.now() + idle - 1000);
+    document.querySelector('#app')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    vi.setSystemTime(Date.now() + 2000);
+    boot(); expect(document.querySelector('video')).toBeNull();
+    vi.setSystemTime(Date.now() + idle);
+    boot(); expect(document.querySelector('video')).not.toBeNull();
+  });
+  it('does not interrupt the current session when thirty minutes elapse', () => {
+    boot(); click('[data-opening-skip]');
+    vi.setSystemTime(Date.now() + idle);
+    const api = (window as unknown as { AIPPO_TEST: { go: (view: string) => void } }).AIPPO_TEST;
+    api.go('settings'); api.go('home');
+    expect(document.querySelector('video')).toBeNull();
+  });
+  it.each(['seen', 'invalid', 'future'])('safely resets a %s legacy or invalid idle clock', value => {
+    localStorage.setItem(key, 'seen');
+    if (value !== 'seen') localStorage.setItem(activeKey, value === 'future' ? String(Date.now() + idle) : 'invalid');
+    boot(); expect(document.querySelector('video')).toBeNull();
+    expect(localStorage.getItem(activeKey)).toBe(String(Date.now()));
+    vi.setSystemTime(Date.now() + idle);
+    boot(); expect(document.querySelector('video')).not.toBeNull();
   });
   it('shows skip immediately, marks first visit, keeps one video through session rerender, and never replays on return', async () => {
     boot(); const video = document.querySelector('video')!;

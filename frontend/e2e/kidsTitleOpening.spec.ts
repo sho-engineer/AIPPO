@@ -128,6 +128,27 @@ test("skip, return from settings and reload keep the title usable without a repl
   await titleReady(page);
 });
 
+test("revisit uses a thirty-minute inactivity gap and recent interactions reset it", async ({ page }) => {
+  await controlledMedia(page, "playing");
+  await page.clock.install({ time: new Date('2026-10-17T12:00:00Z') });
+  await page.goto('/kids-title/');
+  await page.locator('[data-opening-skip]').click();
+  await page.clock.fastForward(29 * 60 * 1000);
+  await page.locator('[data-action="poster-settings"]:visible').click();
+  await page.locator('[data-action="settings-done"]').click();
+  await page.clock.fastForward(2 * 60 * 1000);
+  await page.reload();
+  await titleReady(page);
+  await page.clock.fastForward(30 * 60 * 1000);
+  await page.reload();
+  await expect(page.locator(layer)).toBeVisible();
+  await page.locator('[data-opening-skip]').click();
+  await titleReady(page);
+  await page.reload();
+  await titleReady(page);
+  await expect(page.locator('[data-opening-replay]')).toHaveCount(0);
+});
+
 for (const failure of ["error", "load-timeout", "stall", "play-reject", "maximum-duration"] as const) {
   test(`opening ${failure} falls back without blocking entry`, async ({ page }) => {
     await controlledMedia(page, failure === "play-reject" ? "reject" : failure === "load-timeout" ? "pending" : "playing");
