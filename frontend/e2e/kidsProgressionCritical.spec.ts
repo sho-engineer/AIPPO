@@ -17,6 +17,7 @@ async function record(ui: Surface) {
   return ui.locator("html").evaluate((_, key) => JSON.parse(localStorage.getItem(key)!), storageKey);
 }
 async function tap(ui: Surface, selector: string) {
+  if (await ui.locator('[data-story-skip]').count()) await ui.locator('[data-story-skip]').click();
   const b = ui.locator(selector);
   await expect(b).toBeVisible();
   const geometry = await b.evaluate(e => {
@@ -66,13 +67,17 @@ async function learningHome(ui: Surface) {
 }
 
 for (const route of ["/kids", "/kids-title/"]) {
-  for (const viewport of [{ width: 1363, height: 936 }, { width: 1280, height: 720 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
+  for (const viewport of [{ width: 1363, height: 936 }, { width: 1280, height: 720 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 320, height: 568 }, { width: 568, height: 320 }]) {
     test(`critical result comparison keeps both cards visible ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
       await page.setViewportSize(viewport);
       const ui = await boot(page, route);
       await seedStableProgress(ui.locator("html"), 0);
       await reloadAtMap(page, ui);
       await selectQuest(ui, "w1-q1");
+      const request = ui.locator('.questWords .shortRequest');
+      await expect(request).toContainText('あおに');
+      expect(await request.evaluate(el => { const r=el.getBoundingClientRect(); return parseFloat(getComputedStyle(el).fontSize)>=16 && r.height>=48 && r.top>=0 && r.bottom<=innerHeight; })).toBe(true);
+      if (viewport.width===390) await ui.locator('.view').screenshot({path:test.info().outputPath('first-request.png')});
 
       // Exercise both mismatch/retry and success through actual controls.
       for (const color of ["pink", "blue"]) {
@@ -237,21 +242,46 @@ for (const route of ["/kids", "/kids-title/"]) {
       await page.reload();
       await learningHome(ui);
       await tap(ui, '.homeView [data-action="challenge"]');
-      const found: string[] = [];
-      for (let p = 0; p < 3; p++) {
-        await screenGeometry(ui);
-        const nodes = ui.locator("[data-quest]");
-        expect(await nodes.count()).toBe(p < 2 ? 5 : 1);
-        for (const node of await nodes.all()) {
-          found.push((await node.getAttribute("data-quest"))!);
-          expect(await node.evaluate(e => { const r = e.getBoundingClientRect(); return r.width >= 44 && r.height >= 44 && r.left >= -2 && r.right <= innerWidth + 2 && r.top >= -2 && r.bottom <= innerHeight + 2; })).toBe(true);
-        }
-        if (p < 2) await tap(ui, '[data-quest-page-step="1"]');
+      const story = ui.locator('.stageStory');
+      await expect(story).toBeVisible();
+      await expect(story.locator('.storySpeech')).toContainText('宇宙');
+      const stableRects = () => story.locator('.storyPicture,.storyPo,.storyText,.storyNav').evaluateAll(elements => elements.map(el => { const r = el.getBoundingClientRect(); return [r.x,r.y,r.width,r.height].map(value => Math.round(value)); }));
+      const initialRects = await stableRects();
+      await expect.poll(() => story.locator('.storyPo img').evaluate(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0)).toBe(true);
+      await story.locator('[data-story-next]').click();
+      expect(await stableRects()).toEqual(initialRects);
+      await expect(story.locator('.storyBlueprint')).toBeVisible();
+      await expect(story.locator('.storyPageCount')).toHaveText('2 / 3');
+      await story.locator('[data-story-back]').click();
+      await expect(story.locator('.storyPageCount')).toHaveText('1 / 3');
+      await story.locator('[data-story-next]').click();
+      await story.locator('[data-story-next]').click();
+      await expect(story.locator('.storyPageCount')).toHaveText('3 / 3');
+      expect(await stableRects()).toEqual(initialRects);
+      await expect(story.locator('.storyWorkbench')).toBeVisible();
+      expect(await story.evaluate(el => [...el.querySelectorAll('button')].every(button => { const r=button.getBoundingClientRect();return r.width>=44&&r.height>=44&&r.top>=-2&&r.bottom<=innerHeight+2&&r.left>=-2&&r.right<=innerWidth+2; }))).toBe(true);
+      await story.screenshot({path:test.info().outputPath('stage-story.png')});
+      await story.locator('[data-story-next]').click();
+      await expect(story).toHaveCount(0);
+      await expect(ui.locator('.questTitle').first()).toContainText('いろ');
+      expect(Object.keys((await record(ui)).done)).toHaveLength(0);
+      await tap(ui, '.questHead [data-nav="map"]');
+      await expect(ui.locator('.mapStory')).toContainText('宇宙');
+      await tap(ui, '[data-world="1"]');
+      await expect(ui.locator('.stagePreview')).toBeVisible();
+      await expect(ui.locator('.stagePreviewSpeech')).toContainText('くらべて');
+      await expect(ui.locator('[data-world="0"]')).toHaveAttribute('aria-pressed', 'true');
+      await tap(ui, '[data-stage-close]');
+      await screenGeometry(ui);
+      const nodes = ui.locator('.questTrail [data-quest]');
+      await expect(nodes).toHaveCount(11);
+      for (const node of await nodes.all()) {
+        await node.scrollIntoViewIfNeeded();
+        expect(await node.evaluate(e => { const r = e.getBoundingClientRect(); const s = e.closest('.pathScroll')!.getBoundingClientRect(); return r.width >= 44 && r.height >= 44 && r.left >= s.left - 2 && r.right <= s.right + 2 && r.top >= s.top - 2 && r.bottom <= s.bottom + 2; })).toBe(true);
       }
-      expect(new Set(found).size).toBe(11);
-      await expect(ui.locator('[data-quest-page-step="1"]')).toBeDisabled();
-      await tap(ui, '[data-quest-page-step="-1"]');
-      await expect(ui.locator("[data-quest]")).toHaveCount(5);
+      await expect(ui.locator('[data-quest-page-step]')).toHaveCount(0);
+      await ui.locator('[aria-current="step"]').scrollIntoViewIfNeeded();
+      await expect(ui.locator('[aria-current="step"]')).toBeEnabled();
       await tap(ui, '[data-nav="home"]');
       await learningHome(ui);
       // Common home navigation is distinct from starting a lesson.
@@ -290,8 +320,8 @@ for (const route of ["/kids", "/kids-title/"]) {
         expect(migrated.done["w5-q1"].at).toBe("legacy-ai-tool");
         expect(migrated.portfolio[0]).toMatchObject({ quest: "w5-q1", title: "AIって なに？" });
       }
-      // Old completions remain replayable; they cannot unlock a NEW mission.
-      if (schema === 1) expect(await stageState(ui, "w2-q1")).toEqual({ passed: false, rank: 0, next: true });
+      // Old completions are retained, but replay also respects the stage lock.
+      if (schema === 1) expect(await stageState(ui, "w2-q1")).toEqual({ passed: false, rank: 0, next: false });
       expect(await stageState(ui, "w2-q2")).toEqual({ passed: false, rank: 0, next: false });
       await page.reload();
       expect(await record(ui)).toEqual(migrated);

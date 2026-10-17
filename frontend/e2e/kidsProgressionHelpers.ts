@@ -1,4 +1,4 @@
-import { expect, type FrameLocator, type Locator, type Page } from "@playwright/test";
+import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
 
 export type KidsQuest = { id: string; world: number; kind: string; short: string };
 export type KidsTestApi = {
@@ -34,19 +34,27 @@ export async function liveQuests(html: Locator) {
   return html.evaluate(() => (window as unknown as KidsWindow).AIPPO_TEST.quests.map(({ id, world, kind, short }) => ({ id, world, kind, short })));
 }
 
-/** Select a world and then its visible map page, without bypassing its lock. */
+/** Follow the scrollable adventure path without bypassing its lock. */
 export async function selectQuest(root: FrameLocator | Page, id: string) {
   const quests = await liveQuests(root.locator("html"));
   const index = quests.findIndex(q => q.id === id);
   expect(index).toBeGreaterThanOrEqual(0);
+  if (await root.locator('[data-story-skip]').count()) await root.locator('[data-story-skip]').click();
   await root.locator(`[data-world="${quests[index].world}"]`).click();
+  if (await root.locator('[data-story-skip]').count()) await root.locator('[data-story-skip]').click();
   const target = root.locator(`[data-quest="${index}"]`);
-  for (let attempts = 0; attempts < 4 && !(await target.count()); attempts++) {
-    const pageIndex = quests.filter(q => q.world === quests[index].world).findIndex(q => q.id === id);
-    const current = await root.locator("html").evaluate(() => (window as unknown as KidsWindow).AIPPO_TEST.state.questPage);
-    const direction = Math.floor(pageIndex / 5) > current ? 1 : -1;
-    await root.locator(`[data-quest-page-step="${direction}"]`).click();
-  }
+  await target.scrollIntoViewIfNeeded();
   await expect(target).toBeVisible();
   await target.click();
+  if (quests[index].kind === 'checkpoint') {
+    await expect(root.locator('.checkpointPurpose')).toBeVisible();
+    await expect(root.locator('.checkpointPurposeSpeech')).not.toBeEmpty();
+    expect(await root.locator('.checkpointPurpose').evaluate(el => {
+      const controls = [...el.querySelectorAll('button')].map(button => button.getBoundingClientRect());
+      const target = el.querySelector('.checkpointPurposeTarget')!.getBoundingClientRect();
+      return controls.every(r => r.width >= 44 && r.height >= 44 && r.top >= -2 && r.bottom <= innerHeight + 2 && r.left >= -2 && r.right <= innerWidth + 2) && target.height >= 44 && target.bottom <= innerHeight + 2;
+    })).toBe(true);
+    await root.locator('.checkpointPurpose').screenshot({ path: test.info().outputPath('checkpoint-purpose.png') });
+    await root.locator('[data-action="assessment-begin"]').click();
+  }
 }

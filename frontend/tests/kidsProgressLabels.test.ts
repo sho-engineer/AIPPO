@@ -74,7 +74,7 @@ describe("Honest route-specific progress without invented fixed steps", () => {
   it("keeps actual checkpoint knowledge/practice step labels", () => {
     const api = boot("guided");
     api.quests.filter(q => q.world === 0 && q.kind !== "checkpoint").forEach(q => { api.saved.done[q.id] = { at: "2026-10-14" }; });
-    api.startQuest(api.quests.findIndex(q => q.id === "w1-test")); expect(document.querySelector(".choiceNote")!.textContent).toContain("1 / 2");
+    api.startQuest(api.quests.findIndex(q => q.id === "w1-test")); click('[data-action=assessment-begin]'); expect(document.querySelector(".choiceNote")!.textContent).toContain("1 / 2");
     click('[data-test-answer="0"]'); expect(document.querySelector(".choiceNote")!.textContent).toContain("2 / 2");
     expect(document.querySelector(".questHead .eyebrow")!.textContent).toContain("QUEST 11/27");
     expect(document.querySelector(".questHead .dots")).toBeNull();

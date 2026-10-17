@@ -97,7 +97,7 @@ describe("Kids reading guidance and support evidence", () => {
     expect(document.querySelector(".testFeedback")!.textContent).toContain("そうだん");
     api.saved.done["w5-q4"] = { ...proof };
     api.startQuest(indexFor(api, "w5-test"));
-    click('[data-test-answer="2"]');
+    click('[data-action=assessment-begin]'); click('[data-test-answer="2"]');
     click('[data-safe-prompt="private"]');
     click('[data-safe-person="ai"]');
     click('[data-action="safe-submit"]');

@@ -48,11 +48,13 @@ async function headerAndImages(frame: FrameLocator) {
 }
 
 async function ordinaryScreen(frame: FrameLocator, page: Page, selectors: string) {
+  if (await frame.locator('[data-story-skip]').count()) await frame.locator('[data-story-skip]').click();
   await noHorizontalOverflow(frame, page);
   await headerAndImages(frame);
   const controls = frame.locator(selectors);
   expect(await controls.count()).toBeGreaterThan(0);
   for (const button of await controls.all()) {
+    if (await button.evaluate(el => Boolean(el.closest('.pathScroll')))) await button.scrollIntoViewIfNeeded();
     await fitsViewportAndContainer(button, ".shell");
     if (await button.isEnabled()) await button.click({ trial: true });
   }
