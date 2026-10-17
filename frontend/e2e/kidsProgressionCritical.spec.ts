@@ -291,8 +291,8 @@ for (const route of ["/kids", "/kids-title/"]) {
         expect(migrated.done["w5-q1"].at).toBe("legacy-ai-tool");
         expect(migrated.portfolio[0]).toMatchObject({ quest: "w5-q1", title: "AIって なに？" });
       }
-      // Old completions remain replayable; they cannot unlock a NEW mission.
-      if (schema === 1) expect(await stageState(ui, "w2-q1")).toEqual({ passed: false, rank: 0, next: true });
+      // Old completions are retained, but replay also respects the stage lock.
+      if (schema === 1) expect(await stageState(ui, "w2-q1")).toEqual({ passed: false, rank: 0, next: false });
       expect(await stageState(ui, "w2-q2")).toEqual({ passed: false, rank: 0, next: false });
       await page.reload();
       expect(await record(ui)).toEqual(migrated);
