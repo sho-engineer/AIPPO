@@ -26,7 +26,9 @@ async function fits(locator: Locator) {
 async function click(frame: FrameLocator, selector: string, adult = true) {
   if (await frame.locator('[data-story-skip]').count()) await frame.locator('[data-story-skip]').click();
   const el = frame.locator(selector);
-  if (adult) await el.scrollIntoViewIfNeeded();
+  // The winding map intentionally scrolls. Bring its quest nodes into view,
+  // then retain the same viewport and overflow assertions as other controls.
+  if (adult || await el.evaluate(node => Boolean(node.closest('.pathScroll')))) await el.scrollIntoViewIfNeeded();
   await fits(el); await el.click();
   await expect.poll(() => frame.locator("html").evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth)).toBeLessThanOrEqual(2);
 }
