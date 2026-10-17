@@ -199,7 +199,10 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     const api = boot(); api.go('map'); const before = JSON.stringify(api.saved);
     expect(document.querySelector('.storySpeech')!.textContent).toContain('宇宙');
     expect(document.querySelector('.shell')!.hasAttribute('inert')).toBe(true);
+    const persistentPo = document.querySelector('.storyPo img');
     document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
+    expect(document.querySelector('.storyPo img')).toBe(persistentPo);
+    expect(document.querySelector('.storyBlueprint')).not.toBeNull();
     expect(document.querySelector('.storyPageCount')!.textContent).toBe('2 / 3');
     document.querySelector<HTMLButtonElement>('[data-story-back]')!.click();
     expect(document.querySelector('.storyPageCount')!.textContent).toBe('1 / 3');
@@ -211,6 +214,10 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     expect(document.querySelector('.stageStory')).not.toBeNull();
     expect(JSON.stringify(api.saved)).toBe(before);
     document.querySelector<HTMLButtonElement>('[data-story-skip]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-stage-story-replay]')!.click();
+    for (let page = 0; page < 3; page++) document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
+    expect(api.state.view).toBe('play'); expect(api.state.quest).toBe(0);
+    expect(JSON.stringify(api.saved)).toBe(before);
     markStage(api,0); api.go('map');
     expect(document.querySelector('.storySpeech')!.textContent).toContain('海');
   });
