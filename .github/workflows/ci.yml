@@ -116,13 +116,18 @@ jobs:
 
       # E2E_TARGET=build makes the existing Playwright webServer run npm run build
       # and serve the resulting bundle on localhost. No deployed-site auth bypass.
-      # Normal changes cover critical progression, persistence and navigation.
+      # Normal changes cover progression plus child/guardian personas and rotation.
       # Beta release requires workflow_dispatch with full_lifecycle=true.
       - name: Check critical Kids progression and navigation
         if: ${{ !inputs.full_lifecycle }}
         env:
           E2E_TARGET: build
         run: npx playwright test e2e/kidsProgressionCritical.spec.ts --max-failures=12
+      - name: Check child and guardian personas
+        if: ${{ !inputs.full_lifecycle }}
+        env:
+          E2E_TARGET: build
+        run: npx playwright test e2e/kidsQualityGate.spec.ts e2e/kidsPersonaImprovements.spec.ts e2e/kidsNextPurpose.spec.ts e2e/kidsOrientation.spec.ts --max-failures=12
       - name: Check every Kids lifecycle
         if: ${{ inputs.full_lifecycle }}
         env:
