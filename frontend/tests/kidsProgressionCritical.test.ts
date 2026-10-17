@@ -207,7 +207,7 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
       expect(document.querySelector('[data-test-answer]')).toBeNull();
       expect(api.saved.done[api.quests[checkpoint].id]).toBeUndefined();
       if (world === 0) {
-        expect(document.querySelector('.checkpointPurposeSpeech')!.textContent).toContain('宇宙に行くためのロケット');
+        expect(document.querySelector('.checkpointPurposeSpeech')!.textContent).toContain('宇宙へ行くロケットを作りたい！');
         expect(document.querySelector('.checkpointPurposeTarget')!.textContent).toContain('ピンク');
         expect(document.querySelector('.checkpointPurposeTarget .place-forest')).not.toBeNull();
       }
