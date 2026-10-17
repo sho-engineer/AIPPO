@@ -81,6 +81,39 @@ test("native first visit plays a muted four-second asset and returns to usable t
   await expect(page.locator(layer)).toHaveCount(0);
 });
 
+for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 664 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 1363, height: 936 }]) {
+  test(`opening lands on the same artwork without a layout jump ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await controlledMedia(page, "playing");
+    await page.goto("/kids-title/");
+    const video = page.locator(`${layer} video`);
+    const landing = page.locator('.openingLanding');
+    await expect.poll(() => landing.evaluate(e => (e as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    async function sameArtworkRectangle() {
+      const expected = await page.locator('.posterArtwork').boundingBox();
+      const actual = await page.locator('.openingArtboard').boundingBox();
+      expect(expected).not.toBeNull(); expect(actual).not.toBeNull();
+      for (const field of ['x', 'y', 'width', 'height'] as const) expect(actual![field]).toBeCloseTo(expected![field], 0);
+    }
+    await sameArtworkRectangle();
+    await page.setViewportSize({ width: viewport.height, height: viewport.width });
+    await expect.poll(async () => {
+      const a = await page.locator('.posterArtwork').boundingBox();
+      const b = await page.locator('.openingArtboard').boundingBox();
+      return Math.max(...(['x', 'y', 'width', 'height'] as const).map(k => Math.abs(a![k] - b![k])));
+    }).toBeLessThan(1);
+    await video.evaluate(e => { const v = e as HTMLVideoElement; v.currentTime = 3.4; v.dispatchEvent(new Event('timeupdate')); });
+    await expect(landing).toHaveCSS('opacity', '1');
+    await sameArtworkRectangle();
+    const before = await page.locator('.posterArtwork').boundingBox();
+    await video.dispatchEvent('ended');
+    await titleReady(page);
+    expect(await page.locator('.posterArtwork').boundingBox()).toEqual(before);
+    await hitTarget(page.locator('[data-action="poster-start"]:visible'));
+    await expect(page.locator('#poster-start-hint')).toContainText('登録なし');
+  });
+}
+
 test("skip, return from settings, reload and explicit replay keep the title usable", async ({ page }) => {
   await controlledMedia(page, "playing");
   await page.goto("/kids-title/");

@@ -14,13 +14,21 @@ beforeEach(() => {
 });
 afterEach(() => { document.querySelector<HTMLButtonElement>('[data-opening-skip]')?.click(); document.body.innerHTML = ''; vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); localStorage.clear(); });
 describe('Approved standalone title opening without adult Welcome changes', () => {
-  it('limits full-frame fitting to a five-percent aspect difference for both image and video', () => {
-    const query = '@media(max-width:600px) and (orientation:portrait) and (min-aspect-ratio:171/320) and (max-aspect-ratio:189/320)';
-    expect(html.split(query)).toHaveLength(3);
-    const fits = (w: number, h: number) => w / h >= 171 / 320 && w / h <= 189 / 320;
-    expect(fits(390, 664)).toBe(true); expect(fits(320, 568)).toBe(true);
-    expect(fits(390, 844)).toBe(false); expect(fits(430, 932)).toBe(false);
-    expect(html).toContain('.openingLayer video{width:100%;height:100%;object-fit:contain;');
+  it('settles onto the approved title before ending and restores entry without replay', () => {
+    boot();
+    const video = document.querySelector('video')!;
+    const landing = document.querySelector<HTMLImageElement>('.openingLanding')!;
+    Object.defineProperties(landing, { complete: { value: true }, naturalWidth: { value: 864 } });
+    video.currentTime = 3.2; video.dispatchEvent(new Event('timeupdate'));
+    expect(document.querySelector('.openingLayer.is-landing')).toBeNull();
+    video.currentTime = 3.4; video.dispatchEvent(new Event('timeupdate'));
+    expect(document.querySelector('.openingLayer.is-landing')).not.toBeNull();
+    expect(landing.getAttribute('src')).toBe(document.querySelector('.posterArtwork')!.getAttribute('src'));
+    video.dispatchEvent(new Event('ended'));
+    expect(document.querySelector('.openingLayer')).toBeNull();
+    expect(video.ontimeupdate).toBeNull();
+    expect(document.querySelector('#app')!.hasAttribute('inert')).toBe(false);
+    expect(document.querySelector('#poster-start-hint')!.textContent).toContain('登録なし');
   });
   it('does not treat an existing learning device as a first visit after this feature is introduced', () => {
     localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true }));
