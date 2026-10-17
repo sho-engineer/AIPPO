@@ -118,7 +118,6 @@ for (const portrait of pairs) {
         await selectQuest(frame, quest.id);
         await childScreen(page, frame);
         if (quest.kind === 'checkpoint') {
-          await frame.locator('[data-action="assessment-begin"]').click();
           await frame.locator(`[data-test-answer="${[0, 1, 2, 1, 2][world]}"]`).click();
           await childScreen(page, frame);
           if (world === 1) { await frame.locator('[data-practice-spot="color"]').click(); await childScreen(page, frame); }
