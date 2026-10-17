@@ -48,6 +48,7 @@ async function headerAndImages(frame: FrameLocator) {
 }
 
 async function ordinaryScreen(frame: FrameLocator, page: Page, selectors: string) {
+  if (await frame.locator('[data-story-skip]').count()) await frame.locator('[data-story-skip]').click();
   await noHorizontalOverflow(frame, page);
   await headerAndImages(frame);
   const controls = frame.locator(selectors);

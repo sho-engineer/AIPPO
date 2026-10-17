@@ -56,6 +56,7 @@ for (const viewport of [{ width: 568, height: 320 }, { width: 844, height: 390 }
   });
 }
 async function childScreen(page: Page, frame: FrameLocator) {
+  if (await frame.locator('[data-story-skip]').count()) await frame.locator('[data-story-skip]').click();
   await expect.poll(() => page.evaluate(() => [document.documentElement.scrollWidth - innerWidth, document.documentElement.scrollHeight - innerHeight])).toEqual([0, 0]);
   await expect.poll(() => frame.locator('html').evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth)).toBeLessThanOrEqual(2);
   await expect.poll(() => frame.locator('.app').evaluate(el => el.getBoundingClientRect().bottom - innerHeight)).toBeLessThanOrEqual(2);

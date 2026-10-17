@@ -195,6 +195,25 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     }
     document.querySelector<HTMLButtonElement>('[data-world="0"]')!.click(); expect(api.state.world).toBe(0);
   });
+  it('tells each new stage story with manual pages and restores the map without changing progress', () => {
+    const api = boot(); api.go('map'); const before = JSON.stringify(api.saved);
+    expect(document.querySelector('.storySpeech')!.textContent).toContain('宇宙');
+    expect(document.querySelector('.shell')!.hasAttribute('inert')).toBe(true);
+    document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
+    expect(document.querySelector('.storyPageCount')!.textContent).toBe('2 / 3');
+    document.querySelector<HTMLButtonElement>('[data-story-back]')!.click();
+    expect(document.querySelector('.storyPageCount')!.textContent).toBe('1 / 3');
+    document.querySelector<HTMLButtonElement>('[data-story-skip]')!.click();
+    expect(document.querySelector('.stageStory')).toBeNull();
+    expect(document.querySelector('.shell')!.hasAttribute('inert')).toBe(false);
+    api.go('map'); expect(document.querySelector('.stageStory')).toBeNull();
+    document.querySelector<HTMLButtonElement>('[data-stage-story-replay]')!.click();
+    expect(document.querySelector('.stageStory')).not.toBeNull();
+    expect(JSON.stringify(api.saved)).toBe(before);
+    document.querySelector<HTMLButtonElement>('[data-story-skip]')!.click();
+    markStage(api,0); api.go('map');
+    expect(document.querySelector('.storySpeech')!.textContent).toContain('海');
+  });
   it('introduces every checkpoint with its actual goal before answers or assessment records', () => {
     const api = boot();
     for (let world = 0; world < 5; world++) {

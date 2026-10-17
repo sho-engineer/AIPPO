@@ -17,6 +17,7 @@ async function record(ui: Surface) {
   return ui.locator("html").evaluate((_, key) => JSON.parse(localStorage.getItem(key)!), storageKey);
 }
 async function tap(ui: Surface, selector: string) {
+  if (await ui.locator('[data-story-skip]').count()) await ui.locator('[data-story-skip]').click();
   const b = ui.locator(selector);
   await expect(b).toBeVisible();
   const geometry = await b.evaluate(e => {
@@ -237,6 +238,20 @@ for (const route of ["/kids", "/kids-title/"]) {
       await page.reload();
       await learningHome(ui);
       await tap(ui, '.homeView [data-action="challenge"]');
+      const story = ui.locator('.stageStory');
+      await expect(story).toBeVisible();
+      await expect(story.locator('.storySpeech')).toContainText('宇宙');
+      await story.locator('[data-story-next]').click();
+      await expect(story.locator('.storyPageCount')).toHaveText('2 / 3');
+      await story.locator('[data-story-back]').click();
+      await expect(story.locator('.storyPageCount')).toHaveText('1 / 3');
+      await story.locator('[data-story-next]').click();
+      await story.locator('[data-story-next]').click();
+      await expect(story.locator('.storyPageCount')).toHaveText('3 / 3');
+      expect(await story.evaluate(el => [...el.querySelectorAll('button')].every(button => { const r=button.getBoundingClientRect();return r.width>=44&&r.height>=44&&r.top>=-2&&r.bottom<=innerHeight+2&&r.left>=-2&&r.right<=innerWidth+2; }))).toBe(true);
+      await story.screenshot({path:test.info().outputPath('stage-story.png')});
+      await story.locator('[data-story-next]').click();
+      await expect(story).toHaveCount(0);
       await expect(ui.locator('.mapStory')).toContainText('宇宙');
       await tap(ui, '[data-world="1"]');
       await expect(ui.locator('.stagePreview')).toBeVisible();

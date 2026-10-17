@@ -39,7 +39,9 @@ export async function selectQuest(root: FrameLocator | Page, id: string) {
   const quests = await liveQuests(root.locator("html"));
   const index = quests.findIndex(q => q.id === id);
   expect(index).toBeGreaterThanOrEqual(0);
+  if (await root.locator('[data-story-skip]').count()) await root.locator('[data-story-skip]').click();
   await root.locator(`[data-world="${quests[index].world}"]`).click();
+  if (await root.locator('[data-story-skip]').count()) await root.locator('[data-story-skip]').click();
   const target = root.locator(`[data-quest="${index}"]`);
   await target.scrollIntoViewIfNeeded();
   await expect(target).toBeVisible();
