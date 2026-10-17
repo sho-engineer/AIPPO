@@ -1,4 +1,4 @@
-import { expect, type FrameLocator, type Locator, type Page } from "@playwright/test";
+import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
 
 export type KidsQuest = { id: string; world: number; kind: string; short: string };
 export type KidsTestApi = {
@@ -44,4 +44,15 @@ export async function selectQuest(root: FrameLocator | Page, id: string) {
   await target.scrollIntoViewIfNeeded();
   await expect(target).toBeVisible();
   await target.click();
+  if (quests[index].kind === 'checkpoint') {
+    await expect(root.locator('.checkpointPurpose')).toBeVisible();
+    await expect(root.locator('.checkpointPurposeSpeech')).not.toBeEmpty();
+    expect(await root.locator('.checkpointPurpose').evaluate(el => {
+      const controls = [...el.querySelectorAll('button')].map(button => button.getBoundingClientRect());
+      const target = el.querySelector('.checkpointPurposeTarget')!.getBoundingClientRect();
+      return controls.every(r => r.width >= 44 && r.height >= 44 && r.top >= -2 && r.bottom <= innerHeight + 2 && r.left >= -2 && r.right <= innerWidth + 2) && target.height >= 44 && target.bottom <= innerHeight + 2;
+    })).toBe(true);
+    await root.locator('.checkpointPurpose').screenshot({ path: test.info().outputPath('checkpoint-purpose.png') });
+    await root.locator('[data-action="assessment-begin"]').click();
+  }
 }

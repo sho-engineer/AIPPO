@@ -195,6 +195,27 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     }
     document.querySelector<HTMLButtonElement>('[data-world="0"]')!.click(); expect(api.state.world).toBe(0);
   });
+  it('introduces every checkpoint with its actual goal before answers or assessment records', () => {
+    const api = boot();
+    for (let world = 0; world < 5; world++) {
+      for (let prior = 0; prior < world; prior++) markStage(api, prior);
+      markLessons(api, world); api.go('map');
+      const checkpoint = api.quests.findIndex(q => q.world === world && q.kind === 'checkpoint');
+      document.querySelector<HTMLButtonElement>(`[data-quest="${checkpoint}"]`)!.click();
+      expect(document.querySelector('.checkpointPurpose')).not.toBeNull();
+      expect(document.querySelector('.checkpointPurposeTarget')).not.toBeNull();
+      expect(document.querySelector('[data-test-answer]')).toBeNull();
+      expect(api.saved.done[api.quests[checkpoint].id]).toBeUndefined();
+      if (world === 0) {
+        expect(document.querySelector('.checkpointPurposeSpeech')!.textContent).toContain('宇宙に行くためのロケット');
+        expect(document.querySelector('.checkpointPurposeTarget')!.textContent).toContain('ピンク');
+        expect(document.querySelector('.checkpointPurposeTarget .place-forest')).not.toBeNull();
+      }
+      document.querySelector<HTMLButtonElement>('[data-action="assessment-begin"]')!.click();
+      expect(document.querySelector('[data-test-answer]')).not.toBeNull();
+      expect(api.saved.done[api.quests[checkpoint].id]).toBeUndefined();
+    }
+  });
   it('retains a historical future record while preventing it from bypassing a locked stage', () => {
     const api = boot(); const index = api.questIndex('w2-q1');
     api.saved.done['w2-q1'] = { choices: {}, at: '2026-10-17' };
@@ -210,8 +231,10 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
       const full = document.querySelector('.poSpeechFull')!.textContent!;
       expect(full).toContain('宇宙'); expect(document.querySelector('.poSpeechVisual')!.getAttribute('aria-hidden')).toBe('true');
       vi.advanceTimersByTime(84);
-      expect(document.querySelector('.poSpeechVisual')!.textContent!.length).toBeGreaterThan(0);
-      expect(document.querySelector('.poSpeechVisual')!.textContent!.length).toBeLessThan(full.length);
+      expect(document.querySelector('.poSpeechVisual')!.textContent).toBe(full);
+      const glyphs = document.querySelectorAll('.poGlyph');
+      expect(document.querySelectorAll('.poGlyph.is-shown').length).toBeGreaterThan(0);
+      expect(document.querySelectorAll('.poGlyph.is-shown').length).toBeLessThan(glyphs.length);
       document.querySelector('#app')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
       expect(document.querySelector('.poSpeech')).toBeNull(); expect(document.querySelector('.mapStory p')!.textContent).toBe(full);
       api.go('map'); expect(document.querySelector('.poSpeech')).not.toBeNull();

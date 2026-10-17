@@ -18,7 +18,7 @@ function boot(settings: Record<string, unknown> = {}) {
 function click(selector: string) { const button = document.querySelector<HTMLButtonElement>(selector); expect(button, selector).not.toBeNull(); button!.click(); }
 function select(selector: string, value: string) { document.querySelector<HTMLSelectElement>(selector)!.value = value; }
 function safety(api: Api, prompt: string, person: string) {
-  api.startQuest(api.quests.findIndex(q => q.id === "w5-test")); click('[data-test-answer="2"]');
+  api.startQuest(api.quests.findIndex(q => q.id === "w5-test")); click('[data-action=assessment-begin]'); click('[data-test-answer="2"]');
   click(`[data-safe-prompt="${prompt}"]`); click(`[data-safe-person="${person}"]`); click('[data-action="safe-submit"]');
 }
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllGlobals(); localStorage.clear(); document.body.innerHTML = ""; });
