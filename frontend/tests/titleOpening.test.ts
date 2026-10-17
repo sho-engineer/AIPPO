@@ -32,7 +32,7 @@ describe('Approved standalone title opening without adult Welcome changes', () =
   });
   it('does not treat an existing learning device as a first visit after this feature is introduced', () => {
     localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true }));
-    boot(); expect(document.querySelector('video')).toBeNull(); expect(document.querySelector('[data-opening-replay]')).not.toBeNull();
+    boot(); expect(document.querySelector('video')).toBeNull(); expect(document.querySelector('[data-opening-replay]')).toBeNull();
   });
   it('shows skip immediately, marks first visit, keeps one video through session rerender, and never replays on return', async () => {
     boot(); const video = document.querySelector('video')!;
@@ -44,15 +44,15 @@ describe('Approved standalone title opening without adult Welcome changes', () =
     const api = (window as unknown as { AIPPO_TEST: { go: (view: string) => void } }).AIPPO_TEST;
     api.go('settings'); api.go('home'); expect(document.querySelector('video')).toBeNull();
     boot(); expect(document.querySelector('video')).toBeNull();
-    click('[data-opening-replay]'); expect(document.querySelector('video')).not.toBeNull();
+    expect(document.querySelector('[data-opening-replay]')).toBeNull();
   });
-  it.each(['reduced', 'saveData', 'readFailure', 'writeFailure'])('skips automatic loading with %s and keeps a manual replay', reason => {
+  it.each(['reduced', 'saveData', 'readFailure', 'writeFailure'])('skips automatic loading with %s and keeps entry available', reason => {
     if (reason === 'reduced') vi.stubGlobal('matchMedia', () => ({ matches: true }));
     if (reason === 'saveData') vi.stubGlobal('navigator', { connection: { saveData: true } });
     if (reason === 'readFailure') vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw Error('blocked'); });
     if (reason === 'writeFailure') vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw Error('blocked'); });
     boot(); expect(document.querySelector('video')).toBeNull(); expect(document.querySelector('.posterArtwork')).not.toBeNull();
-    click('[data-opening-replay]'); expect(document.querySelector('video')).not.toBeNull();
+    expect(document.querySelector('[data-opening-replay]')).toBeNull();
   });
   it.each(['ended', 'error', 'timeout', 'rejected'])('falls back safely on %s without auth or guest navigation', async reason => {
     if (reason === 'rejected') vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(Error('NotAllowed'));

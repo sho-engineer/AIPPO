@@ -4,7 +4,6 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 // Native media is checked separately from deterministic media-event injection.
 const seenKey = "aippo_title_opening_v1";
 const layer = ".openingLayer";
-const replay = "[data-opening-replay]";
 
 async function anonymousSession(page: Page) {
   await page.route("**/api/v1/accounts/**", (route) => route.fulfill({
@@ -114,7 +113,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 664 }
   });
 }
 
-test("skip, return from settings, reload and explicit replay keep the title usable", async ({ page }) => {
+test("skip, return from settings and reload keep the title usable without a replay button", async ({ page }) => {
   await controlledMedia(page, "playing");
   await page.goto("/kids-title/");
   await hitTarget(page.locator("[data-opening-skip]"));
@@ -124,11 +123,7 @@ test("skip, return from settings, reload and explicit replay keep the title usab
   await expect(page.locator(".settingsView")).toBeVisible();
   await page.locator('[data-action="settings-done"]').click();
   await titleReady(page);
-  await page.locator(replay).click();
-  await expect(page.locator(layer)).toBeVisible();
-  await page.keyboard.press("Escape");
-  await titleReady(page);
-  await expect(page.locator(replay)).toBeFocused();
+  await expect(page.locator('[data-opening-replay]')).toHaveCount(0);
   await page.reload();
   await titleReady(page);
 });
@@ -152,7 +147,7 @@ for (const failure of ["error", "load-timeout", "stall", "play-reject", "maximum
 }
 
 for (const preference of ["reduced-motion", "save-data", "storage-read-fails", "storage-write-fails"] as const) {
-  test(`${preference} skips automatic playback but permits deliberate replay`, async ({ page }) => {
+  test(`${preference} skips automatic playback and leaves entry available`, async ({ page }) => {
     await controlledMedia(page, "playing");
     if (preference === "reduced-motion") await page.emulateMedia({ reducedMotion: "reduce" });
     await page.addInitScript(({ kind, key }) => {
@@ -179,10 +174,7 @@ for (const preference of ["reduced-motion", "save-data", "storage-read-fails", "
     await titleReady(page);
     await page.reload();
     await titleReady(page);
-    await page.locator(replay).click();
-    await expect(page.locator(layer)).toBeVisible();
-    await page.locator("[data-opening-skip]").click();
-    await titleReady(page);
+    await expect(page.locator('[data-opening-replay]')).toHaveCount(0);
   });
 }
 
@@ -208,7 +200,7 @@ for (const viewport of [
     const buttons = page.locator('[data-action^="poster-"]:visible');
     await expect(buttons).toHaveCount(4);
     for (const button of await buttons.all()) await hitTarget(button);
-    await hitTarget(page.locator(replay));
+    await expect(page.locator('[data-opening-replay]')).toHaveCount(0);
     const overlapping = await buttons.evaluateAll((elements) => elements.flatMap((a, i) => elements.slice(i + 1).filter((b) => {
       const x = a.getBoundingClientRect(), y = b.getBoundingClientRect();
       return Math.min(x.right, y.right) - Math.max(x.left, y.left) > 1 && Math.min(x.bottom, y.bottom) - Math.max(x.top, y.top) > 1;

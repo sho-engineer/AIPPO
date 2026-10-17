@@ -1,6 +1,6 @@
 const OPENING_SEEN='aippo_title_opening_v1';
 let openingAttempted=false,openingLayer=null,openingCleanup=null;
-function endOpening(){if(openingCleanup){openingCleanup();openingCleanup=null}if(openingLayer){openingLayer.remove();openingLayer=null}app.inert=false;app.querySelector('[data-opening-replay]')?.focus({preventScroll:true})}
+function endOpening(){if(openingCleanup){openingCleanup();openingCleanup=null}if(openingLayer){openingLayer.remove();openingLayer=null}app.inert=false;[...app.querySelectorAll('[data-action="poster-start"]')].find(button=>button.getClientRects().length)?.focus({preventScroll:true})}
 function playOpening(){
  if(openingLayer||!app.querySelector('.posterTitle'))return;
  const layer=document.createElement('div');openingLayer=layer;layer.className='openingLayer';layer.setAttribute('role','dialog');layer.setAttribute('aria-modal','true');layer.setAttribute('aria-label','4秒のオープニング');
@@ -23,7 +23,6 @@ function playOpening(){
 }
 function setupOpening(){
  const title=app.querySelector('.posterTitle');if(!title)return;
- const replay=document.createElement('button');replay.type='button';replay.className='posterReplay';replay.dataset.openingReplay='';replay.textContent='オープニング';replay.setAttribute('aria-label','オープニングをもう一度見る');replay.onclick=playOpening;title.append(replay);
  if(openingAttempted)return;openingAttempted=true;
  try{if(localStorage.getItem(OPENING_SEEN))return;localStorage.setItem(OPENING_SEEN,'seen')}catch{return}
  if(settings.guardianAccepted||auth.user||Object.keys(saved.done||{}).length)return;
