@@ -66,6 +66,33 @@ async function learningHome(ui: Surface) {
 }
 
 for (const route of ["/kids", "/kids-title/"]) {
+  for (const viewport of [{ width: 1363, height: 936 }, { width: 1280, height: 720 }, { width: 390, height: 844 }, { width: 844, height: 390 }]) {
+    test(`critical result comparison keeps both cards visible ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const ui = await boot(page, route);
+      await seedStableProgress(ui.locator("html"), 0);
+      await reloadAtMap(page, ui);
+      await selectQuest(ui, "w1-q1");
+
+      // Exercise both mismatch/retry and success through actual controls.
+      for (const color of ["pink", "blue"]) {
+        await tap(ui, `[data-select="color:${color}"]`);
+        await tap(ui, '[data-action="submit"]');
+        await expect(ui.locator(".resultNotice")).toContainText(color === "blue" ? "つたわった" : "もういちど");
+        const cards = ui.locator(".resultCompare > .preview");
+        await expect(cards).toHaveCount(2);
+        for (const card of await cards.all()) await expect(card).toBeInViewport({ ratio: 1 });
+        expect(await cards.evaluateAll(elements => {
+          const [a, b] = elements.map(e => e.getBoundingClientRect());
+          return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) * Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top));
+        })).toBe(0);
+        await screenGeometry(ui);
+        await tap(ui, '[data-action="next"]');
+      }
+      await expect(ui.locator(".success")).toBeVisible();
+      expect(Object.keys((await record(ui)).done)).toEqual(["w1-q1"]);
+    });
+  }
   for (const viewport of [{ width: 1363, height: 936 }, { width: 1280, height: 720 }]) {
     test(`critical growth records keep pyramid and evidence separate ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
       await page.setViewportSize(viewport);
