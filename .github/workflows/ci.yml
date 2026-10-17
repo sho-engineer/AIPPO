@@ -95,7 +95,7 @@ jobs:
   kids-quality:
     name: Kids responsive quality (production build)
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: ${{ (inputs.full_lifecycle || startsWith(github.event.pull_request.title, '[release-check]')) && 45 || 25 }}
     defaults:
       run:
         working-directory: frontend
