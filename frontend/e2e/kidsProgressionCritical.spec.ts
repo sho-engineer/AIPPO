@@ -100,6 +100,7 @@ for (const route of ["/kids", "/kids-title/"]) {
         await tap(ui, `[data-select="color:${color}"]`);
         await tap(ui, '[data-action="submit"]');
         await expect(ui.locator(".resultNotice")).toContainText(color === "blue" ? "つたわった" : "もういちど");
+        expect(await ui.locator('.resultNotice').evaluate(el=>{const r=el.getBoundingClientRect();return parseFloat(getComputedStyle(el).fontSize)>=16&&r.height>=44&&r.top>=0&&r.bottom<=innerHeight})).toBe(true);
         const cards = ui.locator(".resultCompare > .preview");
         await expect(cards).toHaveCount(2);
         for (const card of await cards.all()) await expect(card).toBeInViewport({ ratio: 1 });
@@ -112,6 +113,22 @@ for (const route of ["/kids", "/kids-title/"]) {
       }
       await expect(ui.locator(".success")).toBeVisible();
       expect(Object.keys((await record(ui)).done)).toEqual(["w1-q1"]);
+      await expect(ui.locator('.missionStamp')).toHaveCount(10);
+      await expect(ui.locator('.missionStamp.earned')).toHaveCount(1);
+      await expect(ui.locator('.miniTier.earned')).toHaveCount(0);
+      await expect(ui.locator('.missionStampCard')).toBeInViewport({ratio:1});
+      for(const slot of await ui.locator('.missionStamp').all())await expect(slot).toBeInViewport({ratio:1});
+      if(viewport.width===390||viewport.width===320||viewport.width===568)await ui.locator('.view').screenshot({path:test.info().outputPath('mission-stamp-card.png')});
+      await tap(ui,'[data-action="daily"]');
+      await expect(ui.locator('.dailyChild')).not.toContainText(/[一-龯]/);
+      await expect(ui.locator('.dailyParent')).not.toHaveAttribute('open','');
+      for(const goal of await ui.locator('[data-daily-goal]').all())await expect(goal).toBeInViewport({ratio:1});
+      await tap(ui,'[data-daily-goal="thanks"]');
+      await tap(ui,'[data-daily-check="yes"]');
+      await expect(ui.locator('.dailyChild')).not.toContainText(/[一-龯]/);
+      if(viewport.width===390||viewport.width===568)await ui.locator('.dailyModal').screenshot({path:test.info().outputPath('po-home-mission.png')});
+      await tap(ui,'[data-daily-later]');
+      await expect(ui.locator('.dailyModal')).toHaveCount(0);
     });
   }
   for (const viewport of [{ width: 1363, height: 936 }, { width: 1280, height: 720 }]) {

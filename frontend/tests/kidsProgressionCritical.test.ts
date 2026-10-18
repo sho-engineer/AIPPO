@@ -276,9 +276,55 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
       expect(document.querySelectorAll('.poGlyph.is-shown').length).toBeLessThan(glyphs.length);
       document.querySelector('#app')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
       expect(document.querySelector('.poSpeech')).toBeNull(); expect(document.querySelector('.mapStory p')!.textContent).toBe(full);
-      api.go('map'); expect(document.querySelector('.poSpeech')).not.toBeNull();
+      api.go('map'); expect(document.querySelector('.poSpeech')).toBeNull();
       api.go('settings'); expect(document.querySelector('.poSpeech')).toBeNull(); expect(vi.getTimerCount()).toBe(0);
       vi.stubGlobal('matchMedia', () => ({ matches: true })); api.go('map'); expect(document.querySelector('.poSpeech')).toBeNull();
     } finally { vi.clearAllTimers(); vi.useRealTimers(); }
+  });
+  it('keeps the same request node while changing cards and does not replay it after a retry', () => {
+    vi.useFakeTimers(); vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    try {
+      const api=boot(); api.go('map');
+      document.querySelector<HTMLButtonElement>('[data-story-skip]')?.click();
+      document.querySelector<HTMLButtonElement>('[data-quest="0"]')!.click();
+      const request=document.querySelector('.questSub');
+      document.querySelector<HTMLButtonElement>('[data-select="color:pink"]')!.click();
+      expect(document.querySelector('.questSub')).toBe(request);
+      expect(request!.textContent).toContain('あおに');
+      expect(request!.querySelector('.poGlyph')).toBeNull();
+      document.querySelector<HTMLButtonElement>('[data-action="submit"]')!.click();
+      vi.advanceTimersByTime(450);
+      expect(document.querySelectorAll('.resultNotice')).toHaveLength(1);
+      expect(document.querySelector('.resultNotice')!.textContent).toContain('あお');
+      document.querySelector<HTMLButtonElement>('[data-action="next"]')!.click();
+      expect(document.querySelector('.questSub')!.textContent).toContain('あおに');
+      expect(document.querySelector('.questSub .poGlyph')).toBeNull();
+      expect(api.saved.done['w1-q1']).toBeUndefined();
+    } finally { vi.clearAllTimers(); vi.useRealTimers(); }
+  });
+  it('fills stable mission slots without counting the checkpoint or replay stamps, and promotes only on the checkpoint', () => {
+    const api=boot();
+    Object.assign(api.state,{quest:0,result:{success:true},selected:{color:'blue'},order:[],tries:1});
+    api.nextFinish();
+    expect(document.querySelectorAll('.missionStamp')).toHaveLength(10);
+    expect(document.querySelectorAll('.missionStamp.earned')).toHaveLength(1);
+    expect(document.querySelectorAll('.freshStamp')).toHaveLength(1);
+    api.nextFinish();
+    expect(document.querySelectorAll('.missionStamp.earned')).toHaveLength(1);
+    expect(document.querySelector('.freshStamp')).toBeNull();
+    markLessons(api,0); api.go('map');
+    document.querySelector<HTMLButtonElement>('[data-stamp-card]')!.click();
+    expect(document.querySelectorAll('.missionStamp.earned')).toHaveLength(10);
+    expect(document.querySelector('.stampCardHint')!.textContent).toContain('さいごの ミッション');
+    expect(api.mastery()).toBe(0);
+    expect(api.unlocked(api.questIndex('w2-q1'))).toBe(false);
+    document.querySelector<HTMLButtonElement>('[data-stamp-close]')!.click();
+    Object.assign(api.state,{quest:api.questIndex('w1-test'),result:{success:true,evidence:{knowledge:true,practice:true}}});
+    api.nextFinish();
+    expect(api.mastery()).toBe(1);
+    expect(document.querySelectorAll('.miniTier.earned')).toHaveLength(1);
+    expect(document.querySelector('.newTier')).not.toBeNull();
+    expect(api.unlocked(api.questIndex('w2-q1'))).toBe(true);
+    api.nextFinish(); expect(document.querySelector('.newTier')).toBeNull();
   });
 });
