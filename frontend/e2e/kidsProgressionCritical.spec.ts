@@ -67,6 +67,38 @@ async function learningHome(ui: Surface) {
 }
 
 for (const route of ["/kids", "/kids-title/"]) {
+  for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
+    test(`reading settings save gives persistent feedback without moving controls ${route} ${viewport.width}x${viewport.height}`, async ({page})=>{
+      await page.setViewportSize(viewport);
+      const ui=await boot(page,route);
+      await seedStableProgress(ui.locator('html'),0);
+      await reloadAtMap(page,ui);
+      if(await ui.locator('[data-story-skip]').count())await ui.locator('[data-story-skip]').click();
+      await tap(ui,'.top [data-nav="settings"]');
+      const reading=ui.locator('#child-reading');
+      await expect(reading).toHaveValue('on');
+      await reading.selectOption('off');
+      await expect(ui.locator('.settingsSaveStatus')).toContainText('まだ保存していません');
+      const save=ui.locator('[data-action="profile-save"]');
+      await save.scrollIntoViewIfNeeded();
+      const rect=()=>save.evaluate(el=>{const r=el.getBoundingClientRect();return [r.x,r.y,r.width,r.height]});
+      const before=await rect();
+      await tap(ui,'[data-action="profile-save"]');
+      await expect(save).toContainText('保存しました');
+      await expect(ui.locator('.settingsSaveStatus')).toContainText('この端末に保存しました');
+      expect(await rect()).toEqual(before);
+      await ui.locator('.settingsScroll').screenshot({path:test.info().outputPath('settings-saved.png')});
+      await page.reload();
+      if(await ui.locator('[data-story-skip]').count())await ui.locator('[data-story-skip]').click();
+      if(await ui.locator('.posterTitle').count())await tap(ui,'[data-action="poster-start"]:visible');
+      await tap(ui,'.top [data-nav="settings"]');
+      await expect(ui.locator('#child-reading')).toHaveValue('off');
+      await ui.locator('#child-reading').selectOption('on');
+      await ui.locator('[data-action="profile-save"]').scrollIntoViewIfNeeded();
+      await tap(ui,'[data-action="profile-save"]');
+      await expect(ui.locator('[data-action="profile-save"]')).toContainText('保存しました');
+    });
+  }
   for (const viewport of [{ width: 1363, height: 936 }, { width: 1280, height: 720 }, { width: 390, height: 844 }, { width: 844, height: 390 }, { width: 320, height: 568 }, { width: 568, height: 320 }]) {
     test(`critical result comparison keeps both cards visible ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
       await page.setViewportSize(viewport);

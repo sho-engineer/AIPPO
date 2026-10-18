@@ -24,6 +24,41 @@ function safety(api: Api, prompt: string, person: string) {
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllGlobals(); localStorage.clear(); document.body.innerHTML = ""; });
 
 describe("Persona reading, story and honest exit guidance", () => {
+  it.each(['unset', '5-6', '7-9', '10-12'])('defaults to readings independently of age (%s)', ageBand => {
+    const api = boot({ageBand});
+    api.go('settings');
+    expect(document.querySelector<HTMLSelectElement>('#child-reading')!.value).toBe('on');
+    safety(api, 'private', 'ai');
+    expect(document.querySelector('.testFeedback rt')).not.toBeNull();
+  });
+  it('keeps legacy auto readable and preserves an explicitly disabled preference', () => {
+    let api = boot({ageBand:'10-12',readingSupport:'auto'}); safety(api,'private','ai');
+    expect(document.querySelector('.testFeedback rt')).not.toBeNull();
+    api = boot({ageBand:'10-12',readingSupport:'off'}); safety(api,'private','ai');
+    expect(document.querySelector('.testFeedback rt')).toBeNull();
+  });
+  it('keeps save confirmation visible, marks subsequent edits unsaved, and does not claim a failed save', () => {
+    const api = boot(); api.go('settings');
+    select('#child-reading','off');
+    document.querySelector('#child-reading')!.dispatchEvent(new Event('change'));
+    expect(document.querySelector('.settingsSaveStatus')!.textContent).toContain('まだ保存していません');
+    const button = document.querySelector('[data-action="profile-save"]');
+    click('[data-action="profile-save"]');
+    expect(button!.textContent).toContain('保存しました');
+    expect(button!.classList.contains('isSaved')).toBe(true);
+    vi.advanceTimersByTime(5000);
+    expect(document.querySelector('.settingsSaveStatus')!.textContent).toContain('この端末に保存しました');
+    select('#child-reading','on'); document.querySelector('#child-reading')!.dispatchEvent(new Event('change'));
+    expect(button!.classList.contains('isSaved')).toBe(false);
+    expect(JSON.parse(localStorage.getItem(key)!).readingSupport).toBe('off');
+    const prior = localStorage.getItem(key);
+    const failure = vi.spyOn(Storage.prototype,'setItem').mockImplementation(()=>{throw new Error('blocked')});
+    click('[data-action="profile-save"]');
+    expect(document.querySelector('.settingsSaveStatus')!.textContent).toContain('保存を確認できません');
+    expect(document.querySelector('.isSaved')).toBeNull();
+    expect(localStorage.getItem(key)).toBe(prior);
+    failure.mockRestore();
+  });
   it("lets an older child enable readings without reducing challenge depth, persists it, then disables it", () => {
     let api = boot({ challengeMode: "advanced" });
     api.go("settings"); select("#child-reading", "on"); click('[data-action="profile-save"]');
