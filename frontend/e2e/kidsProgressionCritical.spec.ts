@@ -281,6 +281,8 @@ for (const route of ["/kids", "/kids-title/"]) {
       await expect(story.locator('.storySpeech')).toContainText('うちゅう');
       await expect(story).not.toContainText(/[一-龯]/);
       const stableRects = () => story.locator('.storyPicture,.storyPo,.storyText,.storyNav').evaluateAll(elements => elements.map(el => { const r = el.getBoundingClientRect(); return [r.x,r.y,r.width,r.height].map(value => Math.round(value)); }));
+      const storyFits = () => story.locator('.storyBook,.storyText,.storySpeech').evaluateAll(elements => elements.every(el => el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1));
+      expect(await storyFits()).toBe(true);
       const initialRects = await stableRects();
       await expect.poll(() => story.locator('.storyPo img').evaluate(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0)).toBe(true);
       await story.locator('[data-story-next]').click();
@@ -296,6 +298,7 @@ for (const route of ["/kids", "/kids-title/"]) {
       await expect(story.locator('[data-story-next]')).toContainText('マップへ いこう');
       expect(await stableRects()).toEqual(initialRects);
       await expect(story.locator('.storyWorkbench')).toBeVisible();
+      expect(await storyFits()).toBe(true);
       expect(await story.evaluate(el => [...el.querySelectorAll('button')].every(button => { const r=button.getBoundingClientRect();return r.width>=44&&r.height>=44&&r.top>=-2&&r.bottom<=innerHeight+2&&r.left>=-2&&r.right<=innerWidth+2; }))).toBe(true);
       await story.screenshot({path:test.info().outputPath('stage-story.png')});
       await story.locator('[data-story-next]').click();

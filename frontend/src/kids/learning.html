@@ -368,6 +368,12 @@
  .view[data-screen="result"] .questWords .resultNotice{margin:3px 0;min-height:44px}
 }
 .rewardView .rewardSpeech>p{font-size:16px;line-height:1.4}
+.storyBook{grid-template-columns:minmax(0,1fr);min-width:0}
+.storyText{min-width:0;grid-template-rows:52px minmax(0,1fr)}
+.storyText h1{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:26px}
+.storySpeech .purposePhrase{white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
+@media(max-height:650px){.storyText{grid-template-rows:48px minmax(0,1fr)}}
+@media(orientation:landscape) and (max-height:600px){.storyBook{grid-template-columns:44% minmax(0,1fr)}.storyText{grid-template-rows:48px minmax(0,1fr)}}
 .storyArrival .mapWorld>.worldArt,.storyArrival .pathRoad{animation:storyMapArrival .28s ease-out both}
 @keyframes storyMapArrival{from{opacity:.35;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @media(prefers-reduced-motion:reduce){.storyArrival .mapWorld>.worldArt,.storyArrival .pathRoad{animation:none}}
@@ -558,7 +564,7 @@ function showStagePreview(wi){
  app.querySelector('.shell').append(overlay);const button=overlay.querySelector('[data-stage-close]');const close=()=>{finishPoSpeech();overlay.remove();app.querySelector(`[data-world="${wi}"]`)?.focus({preventScroll:true})};button.onclick=close;overlay.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();close()}if(event.key==='Tab'){event.preventDefault();button.focus()}});button.focus();setupPoSpeech(overlay);
 }
 const stageStories=[
- {wish:['うちゅうへ いって、','ほしの ともだちに あいたいな。'],problem:['でも、ロケットが ないんだ。','この ロケットの えを、','AIと かたちに したいな。'],invite:['ロケットの じゅんびが できたよ！','まずは マップを みてみよう。','いっしょに ぼうけんへ！'],art:{color:'blue',shape:'round'}},
+ {wish:['うちゅうへ いって、','ほしの ともだちに','あいたいな。'],problem:['でも、ロケットが ないんだ。','この えみたいな ロケットを、','AIと つくりたいな。'],invite:['じゅんびが できたよ！','マップを みてみよう。','いっしょに ぼうけんへ！'],art:{color:'blue',shape:'round'}},
  {wish:['うみの むこうへ、','ロケットで いってみたい！'],problem:['AIが つくった ロケット、','なんだか いろが ちがうみたい。','このままで だいじょうぶかな？'],invite:['まずは ふたつの えを ならべよう。','おねがいと ちがうところを、','ゆびさして おしえてね！'],art:{color:'yellow',shape:'star'}},
  {wish:['つぎは そらへ しゅっぱつだ！','にもつを じゅんばんに とどけたいな。'],problem:['おねがいが ふえると、','なにを どう つたえれば いいかな？'],invite:['じゅんびの メモを ひらこう。','いろと いきさきを セットにして、','AIに つたえてみよう！'],art:{color:'pink',shape:'star'}},
  {wish:['ほしの ともだちに、','ロケットを おくりたいな。'],problem:['どんな ロケットなら、','よろこんで もらえるだろう？'],invite:['つかえる カードが そろったよ。','いろや まどの かたちを えらんで、','きみの アイデアを みせてね！'],art:{color:'blue',shape:'star'}},
