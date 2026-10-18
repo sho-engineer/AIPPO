@@ -56,11 +56,13 @@ async function completeFirstAssessment(ui: Surface) {
 }
 async function reloadAtMap(page: Page, ui: Surface) {
   await page.reload();
+  await expect(ui.locator('.posterTitle,.homeView,.worldView').first()).toBeVisible();
   if (await ui.locator(".posterTitle").count()) await tap(ui, '[data-action="poster-start"]:visible');
   if (await ui.locator(".homeView").count()) await tap(ui, '.homeView [data-action="challenge"]');
   await expect(ui.locator(".worldView")).toBeVisible();
 }
 async function learningHome(ui: Surface) {
+  await expect(ui.locator('.posterTitle,.homeView,.worldView').first()).toBeVisible();
   if (await ui.locator(".posterTitle").count()) await tap(ui, '[data-action="poster-start"]:visible');
   await expect(ui.locator(".homeView")).toBeVisible();
   await screenGeometry(ui);
@@ -89,6 +91,7 @@ for (const route of ["/kids", "/kids-title/"]) {
       expect(await rect()).toEqual(before);
       await ui.locator('.settingsScroll').screenshot({path:test.info().outputPath('settings-saved.png')});
       await page.reload();
+      await expect(ui.locator('.posterTitle,.homeView,.worldView').first()).toBeVisible();
       if(await ui.locator('[data-story-skip]').count())await ui.locator('[data-story-skip]').click();
       if(await ui.locator('.posterTitle').count())await tap(ui,'[data-action="poster-start"]:visible');
       await tap(ui,'.top [data-nav="settings"]');
