@@ -197,7 +197,7 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
   });
   it('tells each new stage story with manual pages and restores the map without changing progress', () => {
     const api = boot(); api.go('map'); const before = JSON.stringify(api.saved);
-    expect(document.querySelector('.storySpeech')!.textContent).toContain('宇宙');
+    expect(document.querySelector('.storySpeech')!.textContent).toContain('うちゅう');
     expect(document.querySelector('.shell')!.hasAttribute('inert')).toBe(true);
     const persistentPo = document.querySelector('.storyPo img');
     document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
@@ -216,10 +216,29 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     document.querySelector<HTMLButtonElement>('[data-story-skip]')!.click();
     document.querySelector<HTMLButtonElement>('[data-stage-story-replay]')!.click();
     for (let page = 0; page < 3; page++) document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
-    expect(api.state.view).toBe('play'); expect(api.state.quest).toBe(0);
+    expect(api.state.view).toBe('map');
+    expect(document.querySelector('.worldView')).not.toBeNull();
+    expect(document.querySelector('.questHead')).toBeNull();
+    expect(document.querySelector('.shell')!.hasAttribute('inert')).toBe(false);
     expect(JSON.stringify(api.saved)).toBe(before);
     markStage(api,0); api.go('map');
-    expect(document.querySelector('.storySpeech')!.textContent).toContain('海');
+    expect(document.querySelector('.storySpeech')!.textContent).toContain('うみ');
+  });
+  it('reveals the map after the story with decorative-only motion and no automatic quest start', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const api = boot(); api.go('map');
+    const map = document.querySelector('.worldView');
+    const before = JSON.stringify(api.saved);
+    for (let page = 0; page < 3; page++) document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
+    expect(api.state.view).toBe('map');
+    expect(document.querySelector('.worldView')).toBe(map);
+    expect(map!.classList.contains('storyArrival')).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector('[data-action="current"]'));
+    expect(JSON.stringify(api.saved)).toBe(before);
+    document.querySelector('.pathRoad')!.dispatchEvent(new Event('animationend'));
+    expect(map!.classList.contains('storyArrival')).toBe(false);
+    document.querySelector<HTMLButtonElement>('[data-action="current"]')!.click();
+    expect(api.state.view).toBe('play');
   });
   it('gives each story page distinct information without repeating a sentence', () => {
     const api = boot();
@@ -227,6 +246,7 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
       api.go('map'); const sentences: string[] = [];
       for (let page = 0; page < 3; page++) {
         const speech = document.querySelector('.storySpeech')!.textContent!;
+        expect(document.querySelector('.stageStory')!.textContent).not.toMatch(/[一-龯]/);
         sentences.push(...speech.split(/[。！？]/).map(text => text.replace(/\s/g, '')).filter(Boolean));
         if (page < 2) document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
       }
@@ -268,7 +288,7 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     try {
       const api = boot(); api.go('map');
       const full = document.querySelector('.poSpeechFull')!.textContent!;
-      expect(full).toContain('宇宙'); expect(document.querySelector('.poSpeechVisual')!.getAttribute('aria-hidden')).toBe('true');
+      expect(full).toContain('うちゅう'); expect(document.querySelector('.poSpeechVisual')!.getAttribute('aria-hidden')).toBe('true');
       vi.advanceTimersByTime(84);
       expect(document.querySelector('.poSpeechVisual')!.textContent).toBe(full);
       const glyphs = document.querySelectorAll('.poGlyph');

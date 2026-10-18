@@ -50,7 +50,7 @@ describe("Persona reading, story and honest exit guidance", () => {
   });
   it("bridges light restoration to the safety chapter instead of promising the journey is over", () => {
     const api = boot(); expect(api.worlds[3].ending).toContain("つぎ"); expect(api.worlds[4].story).toContain("ひかりが もどった");
-    api.go("home"); expect(document.body.textContent).toContain("途中の問題は最初から");
+    api.go("home"); expect(document.body.textContent).toContain("とちゅうの もんだいは はじめから");
     api.startQuest(0); expect(document.querySelector(".overlay")).toBeNull();
     click('[data-nav="map"]'); expect(document.querySelector(".overlay")).toBeNull();
   });
