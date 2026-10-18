@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- GENERATED: scripts/build-kids-title.mjs; source digest f36cadd7b047f4f7d679da330fbc32d5fdaabda4ec4941c01aa96ba4f7cabdb4; do not hand edit. -->
+<!-- GENERATED: scripts/build-kids-title.mjs; source digest 5568c1dd8934376e35d49ba0ff13304fd6b9eb4333eb2fde37b1e6dfc4203060; do not hand edit. -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -368,6 +368,7 @@
  .view[data-screen="result"] .questWords .questTitle{font-size:18px}
  .view[data-screen="result"] .questWords .resultNotice{margin:3px 0;min-height:44px}
 }
+.rewardView .rewardSpeech>p{font-size:16px;line-height:1.4}
 </style>
 <style id="standalone-title-auth">
 .app.titleMode{gap:0;padding:0;max-width:none;min-height:0!important;background:#f4f9ff}
@@ -766,7 +767,7 @@ function win(){
  const q=quests[state.quest],wi=worldOfQuest(state.quest),stage=q.kind==='checkpoint',final=stage&&wi===worlds.length-1;
  const promoted=stage&&state.rankBefore!==undefined&&mastery()>state.rankBefore,animate=!state.rewardShown;
  const title=promoted?'ピラミッドが 1だん アップ！':stage?'ステージ クリア！':state.wasAlreadyDone?'もういちど できたね！':'スタンプを おしたよ！';
- const speech=stage?'さいごの ミッションも できたね！':state.wasAlreadyDone?'まえの スタンプは そのままだよ。もういちど ためせたね！':`${escape(q.short)}が できたね！ カードに スタンプが ふえたよ。`;
+ const speech=stage?'さいごの ミッションも できたね！':state.wasAlreadyDone?'まえの スタンプは そのままだよ。もういちど ためせたね！':'ひとつ できたね！ カードに スタンプが ふえたよ。';
  layout(`<main class="view rewardView"><div class=screenHead><span class=eyebrow>QUEST ${state.quest+1} CLEAR</span><button class=back data-nav=map aria-label=マップに戻る>${ico('close')}</button></div><section class=success><h1>${title}</h1><div class=rewardSpeech>${po('celebrate')}<p>${speech}</p></div>${missionStampCard(wi,animate)}${rewardPyramid(promoted&&animate)}</section><button class="dailyEntry secondary" data-action=daily>${final?'できたこと・記録を見る':'このコツを おうちで つかう'}</button><div class=actionBar><button class=primary data-action=next>${final?'つぎの目的をえらぶ':stage?'つぎの ステージへ':stageRequirement(wi).earned===stageRequirement(wi).required?'さいごの ミッションへ':'マップへ すすむ'} ${ico('arrow')}</button></div></main>`);
  state.rewardShown=true;
  app.querySelector('[data-action=daily]').onclick=()=>final?go('parent'):showDaily();

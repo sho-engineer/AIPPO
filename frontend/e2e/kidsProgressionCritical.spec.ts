@@ -112,6 +112,7 @@ for (const route of ["/kids", "/kids-title/"]) {
         await tap(ui, '[data-action="next"]');
       }
       await expect(ui.locator(".success")).toBeVisible();
+      expect(await ui.locator('.rewardSpeech>p').evaluate(el=>parseFloat(getComputedStyle(el).fontSize)>=16)).toBe(true);
       expect(Object.keys((await record(ui)).done)).toEqual(["w1-q1"]);
       await expect(ui.locator('.missionStamp')).toHaveCount(10);
       await expect(ui.locator('.missionStamp.earned')).toHaveCount(1);
