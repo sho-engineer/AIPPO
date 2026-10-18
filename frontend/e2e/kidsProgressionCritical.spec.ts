@@ -73,6 +73,22 @@ for (const route of ["/kids", "/kids-title/"]) {
       const ui = await boot(page, route);
       await seedStableProgress(ui.locator("html"), 0);
       await reloadAtMap(page, ui);
+      // A narrow dialogue must move a whole word to the next line, rather
+      // than splitting ロケット across lines.
+      if (await ui.locator('[data-story-skip]').count()) await ui.locator('[data-story-skip]').click();
+      expect(await ui.locator('.mapStory p').evaluate(el => {
+        const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          const start = (node.textContent || '').indexOf('ロケット');
+          if (start < 0) continue;
+          const range = document.createRange();
+          range.setStart(node, start); range.setEnd(node, start + 4);
+          return new Set([...range.getClientRects()].map(r => Math.round(r.top))).size === 1;
+        }
+        return false;
+      })).toBe(true);
+      if (viewport.width===320) await ui.locator('.view').screenshot({path:test.info().outputPath('map-word-wrap.png')});
       await selectQuest(ui, "w1-q1");
       const request = ui.locator('.questWords .shortRequest');
       await expect(request).toContainText('あおに');
