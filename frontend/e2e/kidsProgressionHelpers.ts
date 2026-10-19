@@ -46,6 +46,10 @@ export async function selectQuest(root: FrameLocator | Page, id: string) {
   await target.scrollIntoViewIfNeeded();
   await expect(target).toBeVisible();
   await target.click();
+  if (quests[index].kind !== 'checkpoint') {
+    await expect(root.locator('[data-action="enter-quest"]')).toBeVisible();
+    await root.locator('[data-action="enter-quest"]').click();
+  }
   if (quests[index].kind === 'checkpoint') {
     await expect(root.locator('.checkpointPurpose')).toBeVisible();
     await expect(root.locator('.checkpointPurposeSpeech')).not.toBeEmpty();

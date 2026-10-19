@@ -404,3 +404,55 @@ for (const route of ["/kids", "/kids-title/"]) {
     });
   }
 }
+
+for (const route of ['/kids', '/kids-title/']) {
+  for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
+    for (const reducedMotion of ['reduce','no-preference'] as const) {
+      test(`dungeon entry exit stays actionable in every world ${route} ${viewport.width}x${viewport.height} ${reducedMotion}`, async ({page}) => {
+        await page.setViewportSize(viewport);
+        const ui=await boot(page,route);
+        const quests=await liveQuests(ui.locator('html'));
+        await seedStableProgress(ui.locator('html'),quests.length-1);
+        await reloadAtMap(page,ui);
+        await page.emulateMedia({reducedMotion});
+        const before=await record(ui);
+        for(let world=0;world<5;world++) {
+          await tap(ui,`[data-world="${world}"]`);
+          const index=quests.findIndex(q=>q.world===world);
+          const node=ui.locator(`[data-quest="${index}"]`);
+          await node.scrollIntoViewIfNeeded();
+          await tap(ui,`[data-quest="${index}"]`);
+          await expect(ui.locator('.questEntrance')).toBeVisible();
+          await expect(ui.locator('.entranceCopy p')).not.toBeEmpty();
+          await expect(ui.locator('.entranceCopy small')).toContainText('はじめから');
+          await screenGeometry(ui);
+          expect(await ui.locator('.entranceCopy,.entranceScene').evaluateAll(els=>els.every(el=>el.scrollWidth<=el.clientWidth+2&&el.scrollHeight<=el.clientHeight+2))).toBe(true);
+          await expect.poll(()=>ui.locator('.entranceScene .po img').evaluate(img=>(img as HTMLImageElement).complete&&(img as HTMLImageElement).naturalWidth>0)).toBe(true);
+          const cta=ui.locator('[data-action="enter-quest"]');
+          const rect=await cta.boundingBox();
+          await ui.locator('.questEntrance').screenshot({path:test.info().outputPath(`world-${world}-entrance.png`)});
+          expect(await cta.boundingBox()).toEqual(rect);
+          expect(await ui.locator('.entranceDoor').evaluate(el=>getComputedStyle(el).animationName)).toBe(reducedMotion==='reduce'?'none':'dungeonEnter');
+          await tap(ui,'.entranceHead [data-nav="map"]');
+          await expect(ui.locator('.journeyReturnStatus')).toContainText('もどった');
+          await expect(node).toBeFocused();
+          await tap(ui,`[data-quest="${index}"]`);
+          await tap(ui,'[data-action="enter-quest"]');
+          await tap(ui,'.questHead [data-nav="map"]');
+          await expect(ui.locator('.journeyReturnStatus')).toContainText('はじめから');
+          await expect(node).toBeFocused();
+          const checkpoint=quests.findIndex(q=>q.world===world&&q.kind==='checkpoint');
+          await ui.locator(`[data-quest="${checkpoint}"]`).scrollIntoViewIfNeeded();
+          await tap(ui,`[data-quest="${checkpoint}"]`);
+          await expect(ui.locator('.checkpointPurpose')).toBeVisible();
+          await expect(ui.locator('[data-action="assessment-begin"]')).toBeFocused();
+          await screenGeometry(ui);
+          await ui.locator('.checkpointPurpose').screenshot({path:test.info().outputPath(`world-${world}-dungeon.png`)});
+          await tap(ui,'.checkpointPurpose [data-nav="map"]');
+          await expect(ui.locator(`[data-quest="${checkpoint}"]`)).toBeFocused();
+          expect(await record(ui)).toEqual(before);
+        }
+      });
+    }
+  }
+}

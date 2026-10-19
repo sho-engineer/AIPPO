@@ -118,8 +118,10 @@ for (const viewport of kidsViewports) {
     const frame = await boot(page);
     await click(frame, '[data-action="start"]', false);
     await click(frame, '[data-quest="0"]', false);
+    await click(frame, '[data-action="enter-quest"]', false);
     await finishSimple(frame, "color", "blue");
     await click(frame, '[data-quest="1"]', false);
+    await click(frame, '[data-action="enter-quest"]', false);
     await finishSimple(frame, "place", "moon");
     await click(frame, '.top [data-nav="parent"]', false);
     await click(frame, '[data-action="recent"]', false);
@@ -127,6 +129,7 @@ for (const viewport of kidsViewports) {
     await click(frame, "[data-recent-close]");
     await click(frame, '.parentTop [data-nav="map"]', false);
     await click(frame, '[data-quest="0"]', false);
+    await click(frame, '[data-action="enter-quest"]', false);
     await finishSimple(frame, "color", "blue");
     await click(frame, '.top [data-nav="parent"]', false);
     await click(frame, '[data-action="recent"]', false);

@@ -59,7 +59,8 @@ describe("Kids entry preserves a child's selected learning route", () => {
     expect(document.querySelector('.stagePreviewSpeech')!.textContent).toContain('ひみつ');
     click('[data-stage-close]');
     expect(api().state.view).toBe("map"); expect(api().state.world).toBe(0);
-    click('[data-action="current"]'); expect(api().state.view).toBe("play");
+    click('[data-action="current"]'); expect(api().state.view).toBe("entrance");
+    click('[data-action="enter-quest"]'); expect(api().state.view).toBe("play");
   });
   it("keeps historical stamps while requiring the new practical evidence for unlocks", () => {
     boot({ guardianAccepted: true, ageBand: "5-6" }, { schema: 2, done: { 4: { at: "2026-10-13" } } });

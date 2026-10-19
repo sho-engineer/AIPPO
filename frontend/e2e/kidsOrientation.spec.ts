@@ -30,6 +30,7 @@ for (const viewport of [{ width: 568, height: 320 }, { width: 844, height: 390 }
     await frame.locator('[data-action="start"]').click();
     await frame.locator('[data-story-skip]').click();
     await frame.locator('[data-quest="0"]').click();
+    await frame.locator('[data-action="enter-quest"]').click();
     await frame.locator('[data-select="color:blue"]').click();
     await frame.locator('[data-action="submit"]').click();
     await expect(frame.locator('.resultNotice')).toContainText('つたわった');
@@ -135,6 +136,7 @@ for (const portrait of pairs) {
     expect(await snapshot(frame)).toEqual(initial);
     await frame.locator('[data-world="0"]').click();
     await frame.locator('[data-quest="0"]').click();
+    await frame.locator('[data-action="enter-quest"]').click();
     const beforeSelection = await frame.locator('[data-action="submit"]').boundingBox();
     await frame.locator('[data-select="color:blue"]').click();
     const afterSelection = await frame.locator('[data-action="submit"]').boundingBox();
