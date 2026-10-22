@@ -446,6 +446,8 @@ for (const route of ['/kids', '/kids-title/']) {
           await tap(ui,`[data-quest="${checkpoint}"]`);
           await expect(ui.locator('.checkpointPurpose')).toBeVisible();
           await expect(ui.locator('[data-action="assessment-begin"]')).toBeFocused();
+          await expect(ui.locator('.checkpointPurposeSpeech')).not.toHaveClass(/poSpeech/);
+          expect(await ui.locator('.checkpointPurposeSpeech,.checkpointPurposeSteps,.checkpointPurposeTarget,.checkpointPurpose .questTitle').evaluateAll(els=>els.every(el=>{const r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth+2&&el.scrollHeight<=el.clientHeight+2&&r.top>=-2&&r.bottom<=innerHeight+2}))).toBe(true);
           await screenGeometry(ui);
           await ui.locator('.checkpointPurpose').screenshot({path:test.info().outputPath(`world-${world}-dungeon.png`)});
           await tap(ui,'.checkpointPurpose [data-nav="map"]');
