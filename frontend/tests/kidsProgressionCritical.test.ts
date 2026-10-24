@@ -175,7 +175,8 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     expect(nodes.slice(1).every(node => node.disabled)).toBe(true);
     expect(nodes.at(-1)!.classList.contains('checkpoint')).toBe(true);
     expect(document.querySelector('[data-quest-page-step]')).toBeNull();
-    nodes[0].click(); expect(api.state.view).toBe('play');
+    nodes[0].click(); expect(api.state.view).toBe('entrance');
+    document.querySelector<HTMLButtonElement>('[data-action="enter-quest"]')!.click(); expect(api.state.view).toBe('play');
   });
   it('shows only a purpose preview for locked stages and opens each stage after its complete gate', () => {
     const api = boot(); api.go('map'); const original = JSON.stringify(api.saved);
@@ -238,6 +239,8 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     document.querySelector('.pathRoad')!.dispatchEvent(new Event('animationend'));
     expect(map!.classList.contains('storyArrival')).toBe(false);
     document.querySelector<HTMLButtonElement>('[data-action="current"]')!.click();
+    expect(api.state.view).toBe('entrance');
+    document.querySelector<HTMLButtonElement>('[data-action="enter-quest"]')!.click();
     expect(api.state.view).toBe('play');
   });
   it('gives each story page distinct information without repeating a sentence', () => {
@@ -259,6 +262,7 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     for (let world = 0; world < 5; world++) {
       for (let prior = 0; prior < world; prior++) markStage(api, prior);
       markLessons(api, world); api.go('map');
+      document.querySelector<HTMLButtonElement>(`[data-world="${world}"]`)!.click();
       const checkpoint = api.quests.findIndex(q => q.world === world && q.kind === 'checkpoint');
       document.querySelector<HTMLButtonElement>(`[data-quest="${checkpoint}"]`)!.click();
       expect(document.querySelector('.checkpointPurpose')).not.toBeNull();
@@ -310,6 +314,7 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
       const api=boot(); api.go('map');
       document.querySelector<HTMLButtonElement>('[data-story-skip]')?.click();
       document.querySelector<HTMLButtonElement>('[data-quest="0"]')!.click();
+      document.querySelector<HTMLButtonElement>('[data-action="enter-quest"]')!.click();
       const request=document.querySelector('.questSub');
       document.querySelector<HTMLButtonElement>('[data-select="color:pink"]')!.click();
       expect(document.querySelector('.questSub')).toBe(request);

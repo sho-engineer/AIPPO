@@ -101,6 +101,8 @@ for (const viewport of sizes) {
     await ordinaryScreen(frame, page, ".worldView button");
     if (viewport.width > viewport.height && testInfo.project.name === 'desktop') await page.screenshot({ path: testInfo.outputPath('landscape-map.png') });
     await frame.locator('[data-action="current"]').click();
+    await ordinaryScreen(frame, page, '.view button');
+    await frame.locator('[data-action="enter-quest"]').click();
     await expect(frame.locator(".questTitle")).toContainText("いろ");
     await ordinaryScreen(frame, page, '.view [data-select], .view [data-nav], .view .actionBar button');
     await frame.locator('[data-select="color:blue"]').click();
@@ -131,7 +133,7 @@ for (const viewport of sizes) {
     await headerAndImages(frame);
     for (const button of await frame.locator(".settingsView button").all()) await reachableAdultControl(button);
     await frame.locator('[data-action="settings-done"]').click();
-    await expect(frame.locator(".homeView")).toBeVisible();
+    await expect(frame.locator(".parentView")).toBeVisible();
     expect(failures).toEqual([]);
   });
 }

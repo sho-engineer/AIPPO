@@ -41,7 +41,7 @@ for (const viewport of kidsViewports) {
     const frame = page.frameLocator(iframe);
     await seed(page, frame, "guided", 2);
     await frame.locator(".worldHomeBtn").click();
-    await expect(frame.locator(".homeHead .eyebrow")).toHaveText(/冒険\s*2\s*\/\s*27/);
+    await expect(frame.locator(".homeHead .eyebrow")).toHaveText(/ぼうけん\s*2\s*\/\s*27/);
     await childGeometry(frame);
     for (const mode of ["standard", "advanced"]) {
       await seed(page, frame, mode, 2);

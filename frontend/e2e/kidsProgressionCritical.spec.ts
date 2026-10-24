@@ -404,3 +404,249 @@ for (const route of ["/kids", "/kids-title/"]) {
     });
   }
 }
+
+for (const route of ['/kids', '/kids-title/']) {
+  for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
+    test(`safety feedback and settings preserve young child's selected answers ${route} ${viewport.width}x${viewport.height}`, async ({page}) => {
+      await page.setViewportSize(viewport);
+      const ui=await boot(page,route);
+      await seedStableProgress(ui.locator('html'),26);
+      await ui.locator('html').evaluate(()=>{const key='aippo_kids_settings_v1';localStorage.setItem(key,JSON.stringify({...JSON.parse(localStorage.getItem(key)!),ageBand:'5-6',readingSupport:'on'}))});
+      await reloadAtMap(page,ui);
+      const before=await record(ui);
+      await selectQuest(ui,'w5-test');
+      await tap(ui,'[data-test-answer="2"]');
+      await expect(ui.locator('.guidedNote')).toBeVisible();
+      await expect(ui.locator('.playBody rt').first()).toBeVisible();
+      await tap(ui,'[data-safe-prompt="private"]');
+      await tap(ui,'[data-safe-person="ai"]');
+      await tap(ui,'[data-action="safe-submit"]');
+      await expect(ui.locator('.testFeedback')).toContainText('おねがいの ひみつと、そうだんする');
+      for(const size of [viewport,{width:viewport.height,height:viewport.width},viewport]) {
+        await page.setViewportSize(size);
+        await screenGeometry(ui);
+        await expect(ui.locator('[data-safe-prompt="private"]')).toHaveAttribute('aria-pressed','true');
+        await expect(ui.locator('[data-safe-person="ai"]')).toHaveAttribute('aria-pressed','true');
+        const geometry=await ui.locator('.view').evaluate(el=>[...el.querySelectorAll('.questSub,.practiceGoal,.testFeedback,button')].map(node=>{const r=node.getBoundingClientRect();return {text:node.textContent,rect:r.toJSON(),valid:r.width>0&&r.height>0&&node.scrollWidth<=node.clientWidth+2&&node.scrollHeight<=node.clientHeight+2&&r.top>=-2&&r.bottom<=innerHeight+2&&r.left>=-2&&r.right<=innerWidth+2}}));
+        expect(geometry.every(row=>row.valid),JSON.stringify(geometry)).toBe(true);
+        for(const button of await ui.locator('.view button').all())if(await button.isEnabled())await button.click({trial:true});
+      }
+      await tap(ui,'.top [data-nav="settings"]');
+      await tap(ui,'[data-action="settings-done"]');
+      await expect(ui.locator('[data-safe-prompt="private"]')).toHaveAttribute('aria-pressed','true');
+      await expect(ui.locator('[data-safe-person="ai"]')).toHaveAttribute('aria-pressed','true');
+      await expect(ui.locator('.testFeedback')).toContainText('おねがいの ひみつと、そうだんする');
+      await ui.locator('.view').screenshot({path:test.info().outputPath('safety-wrong-both-after-settings.png')});
+      await tap(ui,'[data-safe-person="adult"]');
+      await tap(ui,'[data-safe-prompt="safe"]');
+      expect(await record(ui)).toEqual(before);
+      await ui.locator('.view').screenshot({path:test.info().outputPath('safety-correct-selected-no-submit.png')});
+    });
+  }
+  test(`inspection hint stays readable after settings and old toast timeout ${route} 568x320`, async ({page}) => {
+    await page.setViewportSize({width:568,height:320});
+    const ui=await boot(page,route);
+    await seedStableProgress(ui.locator('html'),26);
+    await reloadAtMap(page,ui);
+    const before=await record(ui);
+    await selectQuest(ui,'w1-revise');
+    await tap(ui,'[data-spot="color"]');
+    await tap(ui,'[data-action="hint"]');
+    await expect(ui.locator('.inspectFeedback[role="status"]')).toContainText('いきさきを みてね');
+    // Regression boundary: feedback previously vanished with a 1.4 second toast.
+    await page.waitForTimeout(2500);
+    await expect(ui.locator('.inspectFeedback')).toContainText('いきさきを みてね');
+    await tap(ui,'.top [data-nav="settings"]');
+    await tap(ui,'[data-action="settings-done"]');
+    await expect(ui.locator('.inspectFeedback')).toContainText('いきさきを みてね');
+    for(const button of await ui.locator('.view button').all())if(await button.isEnabled())await button.click({trial:true});
+    const counters=await ui.locator('html').evaluate(()=>{const a=(window as unknown as {AIPPO_TEST:{state:{hints:number;feedbackErrors:number;tries:number}}}).AIPPO_TEST;return {hints:a.state.hints,errors:a.state.feedbackErrors,tries:a.state.tries}});
+    expect(counters).toEqual({hints:1,errors:1,tries:0});
+    expect(await record(ui)).toEqual(before);
+    await ui.locator('.view').screenshot({path:test.info().outputPath('inspection-persistent-hint-after-settings.png')});
+  });
+  for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
+    for (const reducedMotion of ['reduce','no-preference'] as const) {
+      test(`dungeon entry exit stays actionable in every world ${route} ${viewport.width}x${viewport.height} ${reducedMotion}`, async ({page}) => {
+        await page.setViewportSize(viewport);
+        const ui=await boot(page,route);
+        const quests=await liveQuests(ui.locator('html'));
+        await seedStableProgress(ui.locator('html'),quests.length-1);
+        await reloadAtMap(page,ui);
+        await page.emulateMedia({reducedMotion});
+        const before=await record(ui);
+        for(let world=0;world<5;world++) {
+          await tap(ui,`[data-world="${world}"]`);
+          const index=quests.findIndex(q=>q.world===world);
+          const node=ui.locator(`[data-quest="${index}"]`);
+          await node.scrollIntoViewIfNeeded();
+          await tap(ui,`[data-quest="${index}"]`);
+          await expect(ui.locator('.questEntrance')).toBeVisible();
+          await expect(ui.locator('.entranceCopy p')).not.toBeEmpty();
+          await expect(ui.locator('.entranceCopy small')).toContainText('はじめから');
+          await screenGeometry(ui);
+          expect(await ui.locator('.entranceCopy,.entranceScene').evaluateAll(els=>els.every(el=>el.scrollWidth<=el.clientWidth+2&&el.scrollHeight<=el.clientHeight+2))).toBe(true);
+          await expect.poll(()=>ui.locator('.entranceScene .po img').evaluate(img=>(img as HTMLImageElement).complete&&(img as HTMLImageElement).naturalWidth>0)).toBe(true);
+          const cta=ui.locator('[data-action="enter-quest"]');
+          const rect=await cta.boundingBox();
+          await ui.locator('.questEntrance').screenshot({path:test.info().outputPath(`world-${world}-entrance.png`)});
+          expect(await cta.boundingBox()).toEqual(rect);
+          expect(await ui.locator('.entranceDoor').evaluate(el=>getComputedStyle(el).animationName)).toBe(reducedMotion==='reduce'?'none':'dungeonEnter');
+          await tap(ui,'.entranceHead [data-nav="map"]');
+          await expect(ui.locator('.journeyReturnStatus')).toContainText('もどった');
+          await expect(node).toBeFocused();
+          await tap(ui,`[data-quest="${index}"]`);
+          await tap(ui,'[data-action="enter-quest"]');
+          await tap(ui,'.questHead [data-nav="map"]');
+          await expect(ui.locator('.journeyReturnStatus')).toContainText('はじめから');
+          await expect(node).toBeFocused();
+          const checkpoint=quests.findIndex(q=>q.world===world&&q.kind==='checkpoint');
+          await ui.locator(`[data-quest="${checkpoint}"]`).scrollIntoViewIfNeeded();
+          await tap(ui,`[data-quest="${checkpoint}"]`);
+          await expect(ui.locator('.checkpointPurpose')).toBeVisible();
+          await expect(ui.locator('[data-action="assessment-begin"]')).toBeFocused();
+          await expect(ui.locator('.checkpointPurposeSpeech')).not.toHaveClass(/poSpeech/);
+          expect(await ui.locator('.checkpointPurposeSpeech,.checkpointPurposeSteps,.checkpointPurposeTarget,.checkpointPurpose .questTitle').evaluateAll(els=>els.every(el=>{const r=el.getBoundingClientRect();return el.scrollWidth<=el.clientWidth+2&&el.scrollHeight<=el.clientHeight+2&&r.top>=-2&&r.bottom<=innerHeight+2}))).toBe(true);
+          await screenGeometry(ui);
+          await ui.locator('.checkpointPurpose').screenshot({path:test.info().outputPath(`world-${world}-dungeon.png`)});
+          await tap(ui,'.checkpointPurpose [data-nav="map"]');
+          await expect(ui.locator(`[data-quest="${checkpoint}"]`)).toBeFocused();
+          expect(await record(ui)).toEqual(before);
+        }
+      });
+    }
+  }
+}
+
+/** Default (age unset) and youngest readers get the guided note, which makes
+ * the play column taller. A wrong answer's reason must still be fully visible
+ * inside the card, and every answer must stay a whole 44px target. */
+async function seedDefaultReader(page: Page, ui: Surface, ageBand: string) {
+  await ui.locator("html").evaluate((_, age) => {
+    const api = (window as unknown as KidsWindow).AIPPO_TEST;
+    const done = Object.fromEntries(api.quests.map(q => [q.id, { at: "2026-10-15", assessmentVersion: 2, evidence: { knowledge: true, practice: true }, attempts: 1 }]));
+    localStorage.setItem("aippo_kids_settings_v1", JSON.stringify({ guardianAccepted: true, challengeMode: "guided", ageBand: age, readingSupport: "on" }));
+    localStorage.setItem("aippo_kids_journey_v1", JSON.stringify({ schema: 4, done, challenges: [], daily: [] }));
+  }, ageBand);
+  await page.reload();
+  await expect.poll(() => ui.locator("html").evaluate(() => Boolean((window as unknown as KidsWindow).AIPPO_TEST))).toBe(true);
+}
+async function reasonFits(ui: Surface, answers: string) {
+  return ui.locator(".view").evaluate((view, selector) => {
+    const body = view.querySelector(":scope>.playBody")!.getBoundingClientRect();
+    const feedback = view.querySelector(".testFeedback") as HTMLElement;
+    const f = feedback.getBoundingClientRect();
+    const buttons = [...view.querySelectorAll<HTMLElement>(selector)].map(b => {
+      const r = b.getBoundingClientRect();
+      return r.height >= 44 && r.width >= 44 && b.scrollHeight <= b.clientHeight + 2 && r.bottom <= body.bottom + 1 && r.top >= body.top - 1;
+    });
+    return {
+      text: feedback.textContent!.trim().length > 0,
+      inside: f.top >= body.top - 1 && f.bottom <= body.bottom + 1 && f.height >= 18 && feedback.scrollHeight <= feedback.clientHeight + 2,
+      buttons: buttons.length > 0 && buttons.every(Boolean),
+      viewFits: view.scrollHeight - view.clientHeight <= 2,
+    };
+  }, answers);
+}
+for (const route of ["/kids", "/kids-title/"]) {
+  for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }]) {
+    for (const ageBand of ["unset", "5-6"]) {
+      test(`critical wrong-answer reasons stay visible for ${ageBand} readers ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+        await page.setViewportSize(viewport);
+        const ui = await boot(page, route);
+        await seedDefaultReader(page, ui, ageBand);
+        const quests = await liveQuests(ui.locator("html"));
+        for (const [index, quest] of quests.entries()) {
+          if (quest.kind !== "checkpoint" && quest.kind !== "literacy") continue;
+          // Checkpoint answers by world match kidsOrientation; literacy answers come from the live quest.
+          const choice = await ui.locator("html").evaluate((_, input) => {
+            const api = (window as unknown as KidsWindow).AIPPO_TEST as unknown as { startQuest(n: number): void; quests: { answer?: number }[] };
+            api.startQuest(input.index);
+            document.querySelector<HTMLButtonElement>("[data-action=assessment-begin]")?.click();
+            const attr = document.querySelector("[data-literacy]") ? "data-literacy" : document.querySelector("[data-test-answer]") ? "data-test-answer" : null;
+            if (!attr) return null;
+            const answer = attr === "data-literacy" ? api.quests[input.index].answer : input.checkpointAnswer;
+            const wrong = [...document.querySelectorAll(`[${attr}]`)].map(b => b.getAttribute(attr)!).find(v => Number(v) !== answer);
+            return wrong === undefined ? null : { attr, wrong };
+          }, { index, checkpointAnswer: [0, 1, 2, 1, 2][quest.world] });
+          if (!choice) continue; // two-step safety/consult missions have their own layout coverage
+          const selector = `[${choice.attr}]`;
+          await tap(ui, `[${choice.attr}="${choice.wrong}"]`);
+          await expect(ui.locator(".testFeedback")).not.toBeEmpty();
+          expect(await reasonFits(ui, selector), `${quest.id} ${choice.wrong}`).toEqual({ text: true, inside: true, buttons: true, viewFits: true });
+          await screenGeometry(ui);
+        }
+      });
+    }
+  }
+  for (const viewport of [{ width: 568, height: 320 }, { width: 667, height: 375 }, { width: 844, height: 390 }, { width: 320, height: 568 }, { width: 360, height: 640 }, { width: 375, height: 667 }, { width: 768, height: 1024 }]) {
+    test(`critical create checkpoint keeps reasons separate ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const ui = await boot(page, route);
+      await seedDefaultReader(page, ui, "unset");
+      await reloadAtMap(page, ui);
+      await selectQuest(ui, "w4-test");
+      await tap(ui, '[data-test-answer="1"]');
+      await expect(ui.locator(".reasonChoices")).toBeVisible();
+      const check = () => ui.locator(".view").evaluate(view => {
+        const boxes = [...view.querySelectorAll<HTMLElement>(".reasonChoices legend,.reasonChoices button,.builderSlot,.wizardGroup .choice,.builderPreview,.practiceGoal,.testFeedback,.actionBar .primary")]
+          .map(el => ({ el, r: el.getBoundingClientRect() }));
+        const overlap = boxes.some((a, i) => boxes.slice(i + 1).some(b => !a.el.contains(b.el) && !b.el.contains(a.el)
+          && Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left) > 2 && Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top) > 2));
+        const targets = [...view.querySelectorAll<HTMLElement>(".reasonChoices button,.builderSlot,.wizardGroup .choice")].every(b => {
+          const r = b.getBoundingClientRect();
+          return r.width >= 44 && r.height >= 44 && b.scrollWidth <= b.clientWidth + 2 && b.scrollHeight <= b.clientHeight + 2;
+        });
+        const inside = boxes.every(({ r }) => r.left >= -2 && r.right <= innerWidth + 2 && r.top >= -2 && r.bottom <= innerHeight + 2);
+        return { overlap, targets, inside, viewFits: view.scrollHeight - view.clientHeight <= 2 };
+      });
+      expect(await check()).toEqual({ overlap: false, targets: true, inside: true, viewFits: true });
+      await tap(ui, '[data-reason="purpose"]');
+      await tap(ui, '[data-practice-focus="color"]');
+      await tap(ui, '[data-select="color:pink"]');
+      expect(await check()).toEqual({ overlap: false, targets: true, inside: true, viewFits: true });
+      // The longest reasons must also fit their reserved slot: a wrong card, then a wrong reason.
+      await tap(ui, '[data-practice-focus="place"]');
+      await tap(ui, '[data-select="place:sea"]');
+      await tap(ui, '[data-practice-focus="shape"]');
+      await tap(ui, '[data-select="shape:round"]');
+      await tap(ui, '[data-action="practice-submit"]');
+      await expect(ui.locator(".testFeedback")).toContainText("まどの かたち");
+      expect(await check()).toEqual({ overlap: false, targets: true, inside: true, viewFits: true });
+      expect(await ui.locator(".testFeedback").evaluate(e => e.scrollHeight <= e.clientHeight + 2)).toBe(true);
+      await tap(ui, '[data-practice-focus="shape"]');
+      await tap(ui, '[data-select="shape:star"]');
+      await tap(ui, '[data-reason="random"]');
+      await tap(ui, '[data-action="practice-submit"]');
+      await expect(ui.locator(".testFeedback")).toContainText("わけ");
+      expect(await check()).toEqual({ overlap: false, targets: true, inside: true, viewFits: true });
+      expect(await ui.locator(".testFeedback").evaluate(e => e.scrollHeight <= e.clientHeight + 2)).toBe(true);
+      await ui.locator(".view").screenshot({ path: test.info().outputPath("create-checkpoint.png") });
+    });
+  }
+}
+
+for (const route of ["/kids", "/kids-title/"]) {
+  for (const viewport of [{ width: 768, height: 1024 }, { width: 820, height: 1180 }]) {
+    test(`critical tablet portrait keeps order and builder slots apart ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const ui = await boot(page, route);
+      await seedDefaultReader(page, ui, "unset");
+      const apart = (selector: string) => ui.locator(".view").evaluate((view, sel) => {
+        const rects = [...view.querySelectorAll(sel)].map(el => el.getBoundingClientRect());
+        const separate = rects.every((a, i) => rects.slice(i + 1).every(b => Math.min(a.right, b.right) - Math.max(a.left, b.left) <= 2 || Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) <= 2));
+        const visible = [...view.querySelectorAll(sel)].every(el => { const r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return r.width >= 44 && r.height >= 44 && !!hit && (hit === el || el.contains(hit)); });
+        return { count: rects.length, separate, visible };
+      }, selector);
+      await ui.locator("html").evaluate(() => (window as unknown as KidsWindow).AIPPO_TEST.go("map"));
+      await reloadAtMap(page, ui);
+      await selectQuest(ui, "w3-q2");
+      await tap(ui, '[data-order-pick="choose"]');
+      await tap(ui, '[data-order-pick="ask"]');
+      expect(await apart("[data-order-slot]")).toEqual({ count: 3, separate: true, visible: true });
+      await tap(ui, '.questHead [data-nav="map"]');
+      await selectQuest(ui, "w4-q1");
+      expect(await apart(".builderSlot")).toEqual({ count: 3, separate: true, visible: true });
+    });
+  }
+}
