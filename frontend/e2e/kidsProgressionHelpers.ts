@@ -48,6 +48,26 @@ export async function selectQuest(root: FrameLocator | Page, id: string) {
   await target.click();
   if (quests[index].kind !== 'checkpoint') {
     await expect(root.locator('[data-action="enter-quest"]')).toBeVisible();
+    const entranceGeometry = await root.locator('.questEntrance').evaluate(el => {
+      const bounds = el.getBoundingClientRect();
+      const boxes = [...el.querySelectorAll('.entranceCopy,.entranceCopy h1,.entranceCopy p,.entranceCopy small,.entranceScene,button')].map(node => {
+        const r = node.getBoundingClientRect();
+        return { text: node.textContent, rect: r.toJSON(), scroll: [node.scrollWidth, node.scrollHeight], client: [node.clientWidth, node.clientHeight],
+          valid: r.width > 0 && r.height > 0 && node.scrollWidth <= node.clientWidth + 2 && node.scrollHeight <= node.clientHeight + 2
+            && r.left >= Math.max(-2, bounds.left - 2) && r.right <= Math.min(innerWidth + 2, bounds.right + 2)
+            && r.top >= Math.max(-2, bounds.top - 2) && r.bottom <= Math.min(innerHeight + 2, bounds.bottom + 2) };
+      });
+      const controls = [...el.querySelectorAll('button')].map(node => {
+        const r = node.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return r.width >= 44 && r.height >= 44 && hit !== null && (hit === node || node.contains(hit));
+      });
+      return { valid: boxes.every(box => box.valid) && controls.every(Boolean), boxes, controls, viewport: [innerWidth, innerHeight] };
+    });
+    expect(entranceGeometry.valid, JSON.stringify(entranceGeometry)).toBe(true);
+    for (const button of await root.locator('.questEntrance button').all()) {
+      if (await button.isEnabled()) await button.click({ trial: true });
+    }
     await root.locator('[data-action="enter-quest"]').click();
   }
   if (quests[index].kind === 'checkpoint') {

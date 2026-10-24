@@ -407,6 +407,65 @@ for (const route of ["/kids", "/kids-title/"]) {
 
 for (const route of ['/kids', '/kids-title/']) {
   for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
+    test(`safety feedback and settings preserve young child's selected answers ${route} ${viewport.width}x${viewport.height}`, async ({page}) => {
+      await page.setViewportSize(viewport);
+      const ui=await boot(page,route);
+      await seedStableProgress(ui.locator('html'),26);
+      await ui.locator('html').evaluate(()=>{const key='aippo_kids_settings_v1';localStorage.setItem(key,JSON.stringify({...JSON.parse(localStorage.getItem(key)!),ageBand:'5-6',readingSupport:'on'}))});
+      await reloadAtMap(page,ui);
+      const before=await record(ui);
+      await selectQuest(ui,'w5-test');
+      await tap(ui,'[data-test-answer="2"]');
+      await expect(ui.locator('.guidedNote')).toBeVisible();
+      await expect(ui.locator('.playBody rt').first()).toBeVisible();
+      await tap(ui,'[data-safe-prompt="private"]');
+      await tap(ui,'[data-safe-person="ai"]');
+      await tap(ui,'[data-action="safe-submit"]');
+      await expect(ui.locator('.testFeedback')).toContainText('おねがいの ひみつと、そうだんする');
+      for(const size of [viewport,{width:viewport.height,height:viewport.width},viewport]) {
+        await page.setViewportSize(size);
+        await screenGeometry(ui);
+        await expect(ui.locator('[data-safe-prompt="private"]')).toHaveAttribute('aria-pressed','true');
+        await expect(ui.locator('[data-safe-person="ai"]')).toHaveAttribute('aria-pressed','true');
+        const geometry=await ui.locator('.view').evaluate(el=>[...el.querySelectorAll('.questSub,.practiceGoal,.testFeedback,button')].map(node=>{const r=node.getBoundingClientRect();return {text:node.textContent,rect:r.toJSON(),valid:r.width>0&&r.height>0&&node.scrollWidth<=node.clientWidth+2&&node.scrollHeight<=node.clientHeight+2&&r.top>=-2&&r.bottom<=innerHeight+2&&r.left>=-2&&r.right<=innerWidth+2}}));
+        expect(geometry.every(row=>row.valid),JSON.stringify(geometry)).toBe(true);
+        for(const button of await ui.locator('.view button').all())if(await button.isEnabled())await button.click({trial:true});
+      }
+      await tap(ui,'.top [data-nav="settings"]');
+      await tap(ui,'[data-action="settings-done"]');
+      await expect(ui.locator('[data-safe-prompt="private"]')).toHaveAttribute('aria-pressed','true');
+      await expect(ui.locator('[data-safe-person="ai"]')).toHaveAttribute('aria-pressed','true');
+      await expect(ui.locator('.testFeedback')).toContainText('おねがいの ひみつと、そうだんする');
+      await ui.locator('.view').screenshot({path:test.info().outputPath('safety-wrong-both-after-settings.png')});
+      await tap(ui,'[data-safe-person="adult"]');
+      await tap(ui,'[data-safe-prompt="safe"]');
+      expect(await record(ui)).toEqual(before);
+      await ui.locator('.view').screenshot({path:test.info().outputPath('safety-correct-selected-no-submit.png')});
+    });
+  }
+  test(`inspection hint stays readable after settings and old toast timeout ${route} 568x320`, async ({page}) => {
+    await page.setViewportSize({width:568,height:320});
+    const ui=await boot(page,route);
+    await seedStableProgress(ui.locator('html'),26);
+    await reloadAtMap(page,ui);
+    const before=await record(ui);
+    await selectQuest(ui,'w1-revise');
+    await tap(ui,'[data-spot="color"]');
+    await tap(ui,'[data-action="hint"]');
+    await expect(ui.locator('.inspectFeedback[role="status"]')).toContainText('いきさきを みてね');
+    // Regression boundary: feedback previously vanished with a 1.4 second toast.
+    await page.waitForTimeout(2500);
+    await expect(ui.locator('.inspectFeedback')).toContainText('いきさきを みてね');
+    await tap(ui,'.top [data-nav="settings"]');
+    await tap(ui,'[data-action="settings-done"]');
+    await expect(ui.locator('.inspectFeedback')).toContainText('いきさきを みてね');
+    for(const button of await ui.locator('.view button').all())if(await button.isEnabled())await button.click({trial:true});
+    const counters=await ui.locator('html').evaluate(()=>{const a=(window as unknown as {AIPPO_TEST:{state:{hints:number;feedbackErrors:number;tries:number}}}).AIPPO_TEST;return {hints:a.state.hints,errors:a.state.feedbackErrors,tries:a.state.tries}});
+    expect(counters).toEqual({hints:1,errors:1,tries:0});
+    expect(await record(ui)).toEqual(before);
+    await ui.locator('.view').screenshot({path:test.info().outputPath('inspection-persistent-hint-after-settings.png')});
+  });
+  for (const viewport of [{width:320,height:568},{width:568,height:320}]) {
     for (const reducedMotion of ['reduce','no-preference'] as const) {
       test(`dungeon entry exit stays actionable in every world ${route} ${viewport.width}x${viewport.height} ${reducedMotion}`, async ({page}) => {
         await page.setViewportSize(viewport);
