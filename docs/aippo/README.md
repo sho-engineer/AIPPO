@@ -1,4 +1,10 @@
-# AIPPO Lesson 制作の正本
+# AIPPO 製品方針・Lesson 制作の正本
+
+## 最初に製品の対象を確認
+
+現在の重点は **Kids**。[product-direction.md](product-direction.md) が対象・大人版との関係・やらないこと・完成条件の正本です。
+Kidsの検証は [kids-beta-quality-policy.md](kids-beta-quality-policy.md)、実装は `frontend/src/kids/learning.html` を確認してください。
+以下のLesson制作規則とcatalog→seed→DBの3層は大人向けLessonのものです。Kidsの企画・課題をそのまま同じデータモデルで扱わないでください。
 
 Lesson を作るときの決まりは、**ここが正本**。
 
