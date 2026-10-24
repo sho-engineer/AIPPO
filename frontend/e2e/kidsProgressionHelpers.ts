@@ -1,4 +1,4 @@
-import { expect, type FrameLocator, type Locator, type Page } from "@playwright/test";
+import { expect, test, type FrameLocator, type Locator, type Page } from "@playwright/test";
 
 export type KidsQuest = { id: string; world: number; kind: string; short: string };
 export type KidsTestApi = {
@@ -34,19 +34,79 @@ export async function liveQuests(html: Locator) {
   return html.evaluate(() => (window as unknown as KidsWindow).AIPPO_TEST.quests.map(({ id, world, kind, short }) => ({ id, world, kind, short })));
 }
 
-/** Select a world and then its visible map page, without bypassing its lock. */
+/** Follow the scrollable adventure path without bypassing its lock. */
 export async function selectQuest(root: FrameLocator | Page, id: string) {
   const quests = await liveQuests(root.locator("html"));
   const index = quests.findIndex(q => q.id === id);
   expect(index).toBeGreaterThanOrEqual(0);
+  if (await root.locator('[data-story-skip]').count()) await root.locator('[data-story-skip]').click();
   await root.locator(`[data-world="${quests[index].world}"]`).click();
+  if (await root.locator('[data-story-skip]').count()) await root.locator('[data-story-skip]').click();
   const target = root.locator(`[data-quest="${index}"]`);
-  for (let attempts = 0; attempts < 4 && !(await target.count()); attempts++) {
-    const pageIndex = quests.filter(q => q.world === quests[index].world).findIndex(q => q.id === id);
-    const current = await root.locator("html").evaluate(() => (window as unknown as KidsWindow).AIPPO_TEST.state.questPage);
-    const direction = Math.floor(pageIndex / 5) > current ? 1 : -1;
-    await root.locator(`[data-quest-page-step="${direction}"]`).click();
-  }
+  await target.scrollIntoViewIfNeeded();
   await expect(target).toBeVisible();
   await target.click();
+  if (quests[index].kind !== 'checkpoint') {
+    await expect(root.locator('[data-action="enter-quest"]')).toBeVisible();
+    const entranceGeometry = await root.locator('.questEntrance').evaluate(el => {
+      const bounds = el.getBoundingClientRect();
+      const boxes = [...el.querySelectorAll('.entranceCopy,.entranceCopy h1,.entranceCopy p,.entranceCopy small,.entranceScene,button')].map(node => {
+        const r = node.getBoundingClientRect();
+        return { text: node.textContent, rect: r.toJSON(), scroll: [node.scrollWidth, node.scrollHeight], client: [node.clientWidth, node.clientHeight],
+          valid: r.width > 0 && r.height > 0 && node.scrollWidth <= node.clientWidth + 2 && node.scrollHeight <= node.clientHeight + 2
+            && r.left >= Math.max(-2, bounds.left - 2) && r.right <= Math.min(innerWidth + 2, bounds.right + 2)
+            && r.top >= Math.max(-2, bounds.top - 2) && r.bottom <= Math.min(innerHeight + 2, bounds.bottom + 2) };
+      });
+      const controls = [...el.querySelectorAll('button')].map(node => {
+        const r = node.getBoundingClientRect();
+        const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+        return r.width >= 44 && r.height >= 44 && hit !== null && (hit === node || node.contains(hit));
+      });
+      return { valid: boxes.every(box => box.valid) && controls.every(Boolean), boxes, controls, viewport: [innerWidth, innerHeight] };
+    });
+    expect(entranceGeometry.valid, JSON.stringify(entranceGeometry)).toBe(true);
+    for (const button of await root.locator('.questEntrance button').all()) {
+      if (await button.isEnabled()) await button.click({ trial: true });
+    }
+    await root.locator('[data-action="enter-quest"]').click();
+  }
+  if (quests[index].kind === 'checkpoint') {
+    await expect(root.locator('.checkpointPurpose')).toBeVisible();
+    await expect(root.locator('.checkpointPurposeSpeech')).not.toBeEmpty();
+    const geometry = await root.locator('.checkpointPurpose').evaluate(el => {
+      const controls = [...el.querySelectorAll('button')].map(button => button.getBoundingClientRect());
+      const target = el.querySelector('.checkpointPurposeTarget')!.getBoundingClientRect();
+      const readable = [...el.querySelectorAll('.checkpointPurposeSpeech,.checkpointPurposeSteps,.questTitle')].every(node => {
+        const r = node.getBoundingClientRect();
+        const bounds = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && node.scrollWidth <= node.clientWidth + 2 && node.scrollHeight <= node.clientHeight + 2
+          && r.left >= Math.max(-2, bounds.left - 2) && r.right <= Math.min(innerWidth + 2, bounds.right + 2)
+          && r.top >= Math.max(-2, bounds.top - 2) && r.bottom <= Math.min(innerHeight + 2, bounds.bottom + 2);
+      });
+      const separate = (selectors: string[]) => {
+        const rows = selectors.map(selector => el.querySelector(selector)!.getBoundingClientRect());
+        return rows.every((r, index) => rows.slice(index + 1).every(other =>
+          r.bottom <= other.top + 2 || other.bottom <= r.top + 2 || r.right <= other.left + 2 || other.right <= r.left + 2));
+      };
+      const checks = {
+        readable,
+        mainSeparate: separate(['.questHead', '.checkpointPurposeBody', '.actionBar']),
+        innerSeparate: separate(['.checkpointPurposeTalk', '.checkpointPurposeTarget', '.checkpointPurposeSteps']),
+        controlsFit: controls.every(r => r.width >= 44 && r.height >= 44 && r.top >= -2 && r.bottom <= innerHeight + 2 && r.left >= -2 && r.right <= innerWidth + 2),
+        targetFit: target.height >= 44 && target.bottom <= innerHeight + 2,
+      };
+      const boxes = ['.questHead', '.checkpointPurposeBody', '.actionBar', '.checkpointPurposeTalk', '.checkpointPurposeTarget', '.checkpointPurposeSteps', '.checkpointPurposeSpeech', '.questTitle', 'button'].flatMap(selector =>
+        [...el.querySelectorAll(selector)].map(node => ({
+          selector,
+          text: node.textContent,
+          rect: node.getBoundingClientRect().toJSON(),
+          scroll: [node.scrollWidth, node.scrollHeight],
+          client: [node.clientWidth, node.clientHeight],
+        })));
+      return { valid: Object.values(checks).every(Boolean), checks, boxes, viewport: [innerWidth, innerHeight] };
+    });
+    expect(geometry.valid, JSON.stringify(geometry)).toBe(true);
+    await root.locator('.checkpointPurpose').screenshot({ path: test.info().outputPath('checkpoint-purpose.png') });
+    await root.locator('[data-action="assessment-begin"]').click();
+  }
 }

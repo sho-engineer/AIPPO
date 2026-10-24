@@ -15,11 +15,29 @@ function boot() {
 }
 function click(selector: string) { const el = document.querySelector<HTMLButtonElement>(selector); expect(el, selector).not.toBeNull(); el!.click(); }
 function finalWin(api: Api) {
-  api.startQuest(api.quests.findIndex(q => q.id === "w5-test")); click('[data-test-answer="2"]'); click('[data-safe-prompt="safe"]'); click('[data-safe-person="adult"]'); click('[data-action="safe-submit"]');
+  api.startQuest(api.quests.findIndex(q => q.id === "w5-test")); click('[data-action=assessment-begin]'); click('[data-test-answer="2"]'); click('[data-safe-prompt="safe"]'); click('[data-safe-person="adult"]'); click('[data-action="safe-submit"]');
   expect(document.querySelector(".success")).not.toBeNull();
 }
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.unstubAllGlobals(); localStorage.clear(); document.body.innerHTML = ""; });
 describe("Next purpose and prominent factual summary", () => {
+  it('speaks to the child in kana while keeping guardian guidance collapsed and optional', () => {
+    const api=boot(); api.go('home'); click('[data-action="daily"]');
+    expect(document.querySelector('.dailyPoTalk .po img')).not.toBeNull();
+    expect(document.querySelector('.dailyChild')!.textContent).not.toMatch(/[一-龯]/);
+    expect(document.querySelector('.dailyParent')!.hasAttribute('open')).toBe(false);
+    click('[data-daily-goal="thanks"]');
+    click('[data-daily-check="no"]');
+    expect(document.querySelector('[data-daily-child-done]')).toBeNull();
+    click('[data-daily-check="yes"]');
+    expect(document.querySelector('.dailyChild')!.textContent).not.toMatch(/[一-龯]/);
+    expect(document.querySelector('.dailyParent .dailyPrompt')).not.toBeNull();
+    expect(document.querySelector('.dailyParent')!.hasAttribute('open')).toBe(false);
+    click('[data-daily-child-done]');
+    expect(document.querySelector('.dailyPoSpeech')!.textContent).toContain('ありがとう');
+    expect(api.saved.daily).toHaveLength(0);
+    click('[data-daily-close]');
+    expect(document.querySelector('.dailyModal')).toBeNull();
+  });
   it("opens an optional household purpose chooser after the final real assessment without recording a household outcome", () => {
     const api = boot(); finalWin(api);
     expect(document.querySelector('[data-action="next"]')!.textContent).toContain("つぎの目的をえらぶ");

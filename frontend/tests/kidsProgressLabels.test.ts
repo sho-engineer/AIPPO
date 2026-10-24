@@ -25,7 +25,7 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); document.body.inn
 describe("Honest route-specific progress without invented fixed steps", () => {
   it("keeps the adventure numerator and 27-quest denominator only for the guided home", () => {
     const api = boot("guided");
-    expect(label()).toBe("冒険 2 / 27"); expect(api.count()).toBe(2);
+    expect(label()).toBe("ぼうけん 2 / 27"); expect(api.count()).toBe(2);
     expect(api.saved.done).toEqual(migratedDone); expect(api.saved.challenges).toEqual(challenges);
     click('[data-action="start"]'); expect(document.querySelector(".worldHead .eyebrow")!.textContent).toContain("2/27");
   });
@@ -61,7 +61,7 @@ describe("Honest route-specific progress without invented fixed steps", () => {
   it("switches routes without resetting or summing separate progress measures", () => {
     const api = boot("advanced"); const original = localStorage.getItem(store);
     api.go("settings"); document.querySelector<HTMLSelectElement>("#child-mode")!.value = "guided";
-    click('[data-action="profile-save"]'); api.go("home"); expect(label()).toBe("冒険 2 / 27");
+    click('[data-action="profile-save"]'); api.go("home"); expect(label()).toBe("ぼうけん 2 / 27");
     api.go("settings"); document.querySelector<HTMLSelectElement>("#child-mode")!.value = "standard";
     click('[data-action="profile-save"]'); api.go("home"); expect(label()).toBe("練習記録 3件");
     expect(localStorage.getItem(store)).toBe(original);
@@ -74,7 +74,7 @@ describe("Honest route-specific progress without invented fixed steps", () => {
   it("keeps actual checkpoint knowledge/practice step labels", () => {
     const api = boot("guided");
     api.quests.filter(q => q.world === 0 && q.kind !== "checkpoint").forEach(q => { api.saved.done[q.id] = { at: "2026-10-14" }; });
-    api.startQuest(api.quests.findIndex(q => q.id === "w1-test")); expect(document.querySelector(".choiceNote")!.textContent).toContain("1 / 2");
+    api.startQuest(api.quests.findIndex(q => q.id === "w1-test")); click('[data-action=assessment-begin]'); expect(document.querySelector(".choiceNote")!.textContent).toContain("1 / 2");
     click('[data-test-answer="0"]'); expect(document.querySelector(".choiceNote")!.textContent).toContain("2 / 2");
     expect(document.querySelector(".questHead .eyebrow")!.textContent).toContain("QUEST 11/27");
     expect(document.querySelector(".questHead .dots")).toBeNull();

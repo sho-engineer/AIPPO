@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import html from "../public/kids-title/index.html?raw";
 const script = html.match(/<script>([\s\S]*?)<\/script>/)![1];
 const key = 'aippo_title_opening_v1';
+const activeKey = 'aippo_title_last_active_v1';
+const idle = 30 * 60 * 1000;
 function boot() { document.body.innerHTML = '<div id="app"></div>'; window.eval(script); }
 const click = (s: string) => { const b = document.querySelector<HTMLButtonElement>(s); expect(b, s).not.toBeNull(); b!.click(); };
 beforeEach(() => {
-  vi.useFakeTimers(); localStorage.clear();
+  vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-17T12:00:00Z')); localStorage.clear();
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ authenticated: false }) }));
   vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
@@ -14,17 +16,57 @@ beforeEach(() => {
 });
 afterEach(() => { document.querySelector<HTMLButtonElement>('[data-opening-skip]')?.click(); document.body.innerHTML = ''; vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); localStorage.clear(); });
 describe('Approved standalone title opening without adult Welcome changes', () => {
-  it('limits full-frame fitting to a five-percent aspect difference for both image and video', () => {
-    const query = '@media(max-width:600px) and (orientation:portrait) and (min-aspect-ratio:171/320) and (max-aspect-ratio:189/320)';
-    expect(html.split(query)).toHaveLength(3);
-    const fits = (w: number, h: number) => w / h >= 171 / 320 && w / h <= 189 / 320;
-    expect(fits(390, 664)).toBe(true); expect(fits(320, 568)).toBe(true);
-    expect(fits(390, 844)).toBe(false); expect(fits(430, 932)).toBe(false);
-    expect(html).toContain('.openingLayer video{width:100%;height:100%;object-fit:contain;');
+  it('settles onto the approved title before ending and restores entry without replay', () => {
+    boot();
+    const video = document.querySelector('video')!;
+    const landing = document.querySelector<HTMLImageElement>('.openingLanding')!;
+    Object.defineProperties(landing, { complete: { value: true }, naturalWidth: { value: 864 } });
+    video.currentTime = 3.2; video.dispatchEvent(new Event('timeupdate'));
+    expect(document.querySelector('.openingLayer.is-landing')).toBeNull();
+    video.currentTime = 3.4; video.dispatchEvent(new Event('timeupdate'));
+    expect(document.querySelector('.openingLayer.is-landing')).not.toBeNull();
+    expect(landing.getAttribute('src')).toBe(document.querySelector('.posterArtwork')!.getAttribute('src'));
+    video.dispatchEvent(new Event('ended'));
+    expect(document.querySelector('.openingLayer')).toBeNull();
+    expect(video.ontimeupdate).toBeNull();
+    expect(document.querySelector('#app')!.hasAttribute('inert')).toBe(false);
+    expect(document.querySelector('#poster-start-hint')!.textContent).toContain('登録なし');
   });
   it('does not treat an existing learning device as a first visit after this feature is introduced', () => {
     localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true }));
-    boot(); expect(document.querySelector('video')).toBeNull(); expect(document.querySelector('[data-opening-replay]')).not.toBeNull();
+    boot(); expect(document.querySelector('video')).toBeNull(); expect(document.querySelector('[data-opening-replay]')).toBeNull();
+  });
+  it.each([idle - 1, idle, idle + 1])('replays after a %i ms gap, including existing learners', gap => {
+    localStorage.setItem(key, 'seen');
+    localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true }));
+    localStorage.setItem(activeKey, String(Date.now() - gap));
+    boot();
+    expect(document.querySelector('video') !== null).toBe(gap >= idle);
+    expect(document.querySelector('[data-opening-replay]')).toBeNull();
+  });
+  it('measures inactivity from the latest interaction, not from the last playback', () => {
+    boot(); click('[data-opening-skip]');
+    vi.setSystemTime(Date.now() + idle - 1000);
+    document.querySelector('#app')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    vi.setSystemTime(Date.now() + 2000);
+    boot(); expect(document.querySelector('video')).toBeNull();
+    vi.setSystemTime(Date.now() + idle);
+    boot(); expect(document.querySelector('video')).not.toBeNull();
+  });
+  it('does not interrupt the current session when thirty minutes elapse', () => {
+    boot(); click('[data-opening-skip]');
+    vi.setSystemTime(Date.now() + idle);
+    const api = (window as unknown as { AIPPO_TEST: { go: (view: string) => void } }).AIPPO_TEST;
+    api.go('settings'); api.go('home');
+    expect(document.querySelector('video')).toBeNull();
+  });
+  it.each(['seen', 'invalid', 'future'])('safely resets a %s legacy or invalid idle clock', value => {
+    localStorage.setItem(key, 'seen');
+    if (value !== 'seen') localStorage.setItem(activeKey, value === 'future' ? String(Date.now() + idle) : 'invalid');
+    boot(); expect(document.querySelector('video')).toBeNull();
+    expect(localStorage.getItem(activeKey)).toBe(String(Date.now()));
+    vi.setSystemTime(Date.now() + idle);
+    boot(); expect(document.querySelector('video')).not.toBeNull();
   });
   it('shows skip immediately, marks first visit, keeps one video through session rerender, and never replays on return', async () => {
     boot(); const video = document.querySelector('video')!;
@@ -36,15 +78,15 @@ describe('Approved standalone title opening without adult Welcome changes', () =
     const api = (window as unknown as { AIPPO_TEST: { go: (view: string) => void } }).AIPPO_TEST;
     api.go('settings'); api.go('home'); expect(document.querySelector('video')).toBeNull();
     boot(); expect(document.querySelector('video')).toBeNull();
-    click('[data-opening-replay]'); expect(document.querySelector('video')).not.toBeNull();
+    expect(document.querySelector('[data-opening-replay]')).toBeNull();
   });
-  it.each(['reduced', 'saveData', 'readFailure', 'writeFailure'])('skips automatic loading with %s and keeps a manual replay', reason => {
+  it.each(['reduced', 'saveData', 'readFailure', 'writeFailure'])('skips automatic loading with %s and keeps entry available', reason => {
     if (reason === 'reduced') vi.stubGlobal('matchMedia', () => ({ matches: true }));
     if (reason === 'saveData') vi.stubGlobal('navigator', { connection: { saveData: true } });
     if (reason === 'readFailure') vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw Error('blocked'); });
     if (reason === 'writeFailure') vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw Error('blocked'); });
     boot(); expect(document.querySelector('video')).toBeNull(); expect(document.querySelector('.posterArtwork')).not.toBeNull();
-    click('[data-opening-replay]'); expect(document.querySelector('video')).not.toBeNull();
+    expect(document.querySelector('[data-opening-replay]')).toBeNull();
   });
   it.each(['ended', 'error', 'timeout', 'rejected'])('falls back safely on %s without auth or guest navigation', async reason => {
     if (reason === 'rejected') vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(Error('NotAllowed'));

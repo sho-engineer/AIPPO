@@ -24,8 +24,11 @@ async function fits(locator: Locator) {
   })).toBe(true);
 }
 async function click(frame: FrameLocator, selector: string, adult = true) {
+  if (await frame.locator('[data-story-skip]').count()) await frame.locator('[data-story-skip]').click();
   const el = frame.locator(selector);
-  if (adult) await el.scrollIntoViewIfNeeded();
+  // The winding map intentionally scrolls. Bring its quest nodes into view,
+  // then retain the same viewport and overflow assertions as other controls.
+  if (adult || await el.evaluate(node => Boolean(node.closest('.pathScroll')))) await el.scrollIntoViewIfNeeded();
   await fits(el); await el.click();
   await expect.poll(() => frame.locator("html").evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth)).toBeLessThanOrEqual(2);
 }
@@ -115,8 +118,10 @@ for (const viewport of kidsViewports) {
     const frame = await boot(page);
     await click(frame, '[data-action="start"]', false);
     await click(frame, '[data-quest="0"]', false);
+    await click(frame, '[data-action="enter-quest"]', false);
     await finishSimple(frame, "color", "blue");
     await click(frame, '[data-quest="1"]', false);
+    await click(frame, '[data-action="enter-quest"]', false);
     await finishSimple(frame, "place", "moon");
     await click(frame, '.top [data-nav="parent"]', false);
     await click(frame, '[data-action="recent"]', false);
@@ -124,6 +129,7 @@ for (const viewport of kidsViewports) {
     await click(frame, "[data-recent-close]");
     await click(frame, '.parentTop [data-nav="map"]', false);
     await click(frame, '[data-quest="0"]', false);
+    await click(frame, '[data-action="enter-quest"]', false);
     await finishSimple(frame, "color", "blue");
     await click(frame, '.top [data-nav="parent"]', false);
     await click(frame, '[data-action="recent"]', false);
