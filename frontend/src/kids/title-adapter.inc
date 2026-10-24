@@ -24,4 +24,4 @@ function settingsView(){
  section.querySelector('[data-action=account-toggle]').onclick=()=>{if(auth.user)void logout();else{auth.mode='signin';auth.error='';go('auth')}};
  section.querySelector('[data-action=learning-home]').onclick=()=>launchAdventure();
 }
-function policyModal(type){learningPolicyModal(type);if(type==='privacy'){const note=document.createElement('p');note.textContent='保護者の認証にはセッションCookieと不正アクセス防止Cookieを使います。ログインしても、Kids学習記録の端末間同期はありません。';app.querySelector('.policyText')?.append(note)}}
+function policyModal(type){learningPolicyModal(type);const policy=app.querySelector('.policyText');if(policy){if(type==='privacy')policy.firstElementChild.textContent='Kids学習記録は、このブラウザ内だけに保存されます。保護者は任意でアカウント登録・ログインできます。認証のための情報はサービス側で管理します。お子さまの登録は不要です。';else policy.lastElementChild.textContent='保護者のアカウント登録・ログインは任意です。この版はお支払い・学習記録のクラウド同期には対応していません。サービスの内容は改善に伴って変更することがあります。'}if(type==='privacy'){const note=document.createElement('p');note.textContent='保護者の認証にはセッションCookieと不正アクセス防止Cookieを使います。ログインしても、Kids学習記録の端末間同期はありません。';policy?.append(note)}}

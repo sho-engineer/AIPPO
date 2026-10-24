@@ -164,16 +164,195 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
     expect(api.count()).toBe(1);
   });
 
-  it("pages all 11 first-stage nodes without losing the current-stage target", () => {
+  it("connects all first-stage lessons and their checkpoint in order without pagination", () => {
     const api = boot();
     api.go("map");
-    const ids = new Set<string>();
-    for (let page = 0; page < 3; page++) {
-      document.querySelectorAll<HTMLElement>("[data-quest]").forEach(node => ids.add(api.quests[Number(node.dataset.quest)].id));
-      if (page < 2) document.querySelector<HTMLButtonElement>('[data-quest-page-step="1"]')!.click();
+    const nodes = [...document.querySelectorAll<HTMLButtonElement>('.questTrail [data-quest]')];
+    expect(nodes.map(node => api.quests[Number(node.dataset.quest)].id)).toEqual(api.quests.filter(q => q.world === 0).map(q => q.id));
+    expect(nodes).toHaveLength(11);
+    expect(nodes[0].getAttribute('aria-current')).toBe('step');
+    expect(nodes[0].disabled).toBe(false);
+    expect(nodes.slice(1).every(node => node.disabled)).toBe(true);
+    expect(nodes.at(-1)!.classList.contains('checkpoint')).toBe(true);
+    expect(document.querySelector('[data-quest-page-step]')).toBeNull();
+    nodes[0].click(); expect(api.state.view).toBe('entrance');
+    document.querySelector<HTMLButtonElement>('[data-action="enter-quest"]')!.click(); expect(api.state.view).toBe('play');
+  });
+  it('shows only a purpose preview for locked stages and opens each stage after its complete gate', () => {
+    const api = boot(); api.go('map'); const original = JSON.stringify(api.saved);
+    document.querySelector<HTMLButtonElement>('[data-world="1"]')!.click();
+    expect(api.state.world).toBe(0);
+    expect(document.querySelector('.stagePreviewSpeech')!.textContent).toContain('くらべて');
+    expect(document.querySelectorAll('.questTrail [data-quest]')).toHaveLength(11);
+    document.querySelector<HTMLButtonElement>('[data-stage-close]')!.click();
+    expect(JSON.stringify(api.saved)).toBe(original);
+    for (let world = 0; world < 4; world++) {
+      markLessons(api, world); api.render();
+      expect(document.querySelector(`[data-world="${world+1}"]`)!.classList.contains('stageLocked')).toBe(true);
+      markStage(api, world); api.render();
+      document.querySelector<HTMLButtonElement>(`[data-world="${world+1}"]`)!.click();
+      expect(api.state.world).toBe(world+1);
+      expect(document.querySelector('.mapStory p')!.textContent).not.toBe('');
     }
-    expect(ids.size).toBe(11);
-    expect(ids.has("w1-test")).toBe(true);
-    expect(document.querySelector<HTMLButtonElement>('[data-quest-page-step="1"]')!.disabled).toBe(true);
+    document.querySelector<HTMLButtonElement>('[data-world="0"]')!.click(); expect(api.state.world).toBe(0);
+  });
+  it('tells each new stage story with manual pages and restores the map without changing progress', () => {
+    const api = boot(); api.go('map'); const before = JSON.stringify(api.saved);
+    expect(document.querySelector('.storySpeech')!.textContent).toContain('うちゅう');
+    expect(document.querySelector('.shell')!.hasAttribute('inert')).toBe(true);
+    const persistentPo = document.querySelector('.storyPo img');
+    document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
+    expect(document.querySelector('.storyPo img')).toBe(persistentPo);
+    expect(document.querySelector('.storyBlueprint')).not.toBeNull();
+    expect(document.querySelector('.storyPageCount')!.textContent).toBe('2 / 3');
+    document.querySelector<HTMLButtonElement>('[data-story-back]')!.click();
+    expect(document.querySelector('.storyPageCount')!.textContent).toBe('1 / 3');
+    document.querySelector<HTMLButtonElement>('[data-story-skip]')!.click();
+    expect(document.querySelector('.stageStory')).toBeNull();
+    expect(document.querySelector('.shell')!.hasAttribute('inert')).toBe(false);
+    api.go('map'); expect(document.querySelector('.stageStory')).toBeNull();
+    document.querySelector<HTMLButtonElement>('[data-stage-story-replay]')!.click();
+    expect(document.querySelector('.stageStory')).not.toBeNull();
+    expect(JSON.stringify(api.saved)).toBe(before);
+    document.querySelector<HTMLButtonElement>('[data-story-skip]')!.click();
+    document.querySelector<HTMLButtonElement>('[data-stage-story-replay]')!.click();
+    for (let page = 0; page < 3; page++) document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
+    expect(api.state.view).toBe('map');
+    expect(document.querySelector('.worldView')).not.toBeNull();
+    expect(document.querySelector('.questHead')).toBeNull();
+    expect(document.querySelector('.shell')!.hasAttribute('inert')).toBe(false);
+    expect(JSON.stringify(api.saved)).toBe(before);
+    markStage(api,0); api.go('map');
+    expect(document.querySelector('.storySpeech')!.textContent).toContain('うみ');
+  });
+  it('reveals the map after the story with decorative-only motion and no automatic quest start', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    const api = boot(); api.go('map');
+    const map = document.querySelector('.worldView');
+    const before = JSON.stringify(api.saved);
+    for (let page = 0; page < 3; page++) document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
+    expect(api.state.view).toBe('map');
+    expect(document.querySelector('.worldView')).toBe(map);
+    expect(map!.classList.contains('storyArrival')).toBe(true);
+    expect(document.activeElement).toBe(document.querySelector('[data-action="current"]'));
+    expect(JSON.stringify(api.saved)).toBe(before);
+    document.querySelector('.pathRoad')!.dispatchEvent(new Event('animationend'));
+    expect(map!.classList.contains('storyArrival')).toBe(false);
+    document.querySelector<HTMLButtonElement>('[data-action="current"]')!.click();
+    expect(api.state.view).toBe('entrance');
+    document.querySelector<HTMLButtonElement>('[data-action="enter-quest"]')!.click();
+    expect(api.state.view).toBe('play');
+  });
+  it('gives each story page distinct information without repeating a sentence', () => {
+    const api = boot();
+    for (let world = 0; world < 5; world++) {
+      api.go('map'); const sentences: string[] = [];
+      for (let page = 0; page < 3; page++) {
+        const speech = document.querySelector('.storySpeech')!.textContent!;
+        expect(document.querySelector('.stageStory')!.textContent).not.toMatch(/[一-龯]/);
+        sentences.push(...speech.split(/[。！？]/).map(text => text.replace(/\s/g, '')).filter(Boolean));
+        if (page < 2) document.querySelector<HTMLButtonElement>('[data-story-next]')!.click();
+      }
+      expect(new Set(sentences).size).toBe(sentences.length);
+      document.querySelector<HTMLButtonElement>('[data-story-skip]')!.click(); markStage(api,world);
+    }
+  });
+  it('introduces every checkpoint with its actual goal before answers or assessment records', () => {
+    const api = boot();
+    for (let world = 0; world < 5; world++) {
+      for (let prior = 0; prior < world; prior++) markStage(api, prior);
+      markLessons(api, world); api.go('map');
+      document.querySelector<HTMLButtonElement>(`[data-world="${world}"]`)!.click();
+      const checkpoint = api.quests.findIndex(q => q.world === world && q.kind === 'checkpoint');
+      document.querySelector<HTMLButtonElement>(`[data-quest="${checkpoint}"]`)!.click();
+      expect(document.querySelector('.checkpointPurpose')).not.toBeNull();
+      expect(document.querySelector('.checkpointPurposeTarget')).not.toBeNull();
+      expect(document.querySelector('[data-test-answer]')).toBeNull();
+      expect(api.saved.done[api.quests[checkpoint].id]).toBeUndefined();
+      if (world === 0) {
+        const speech = document.querySelector('.checkpointPurposeSpeech')!.cloneNode(true) as HTMLElement;
+        speech.querySelectorAll('rt').forEach(rt=>rt.remove());
+        expect(speech.textContent).toContain('宇宙へ行くロケットを作りたい！');
+        expect([...document.querySelectorAll('.checkpointPurposeSpeech rt')].map(rt=>rt.textContent)).toEqual(expect.arrayContaining(['うちゅう','いく','つくりたい','もり','いっしょ']));
+        expect(document.querySelector('.checkpointPurposeTarget')!.textContent).toContain('ピンク');
+        expect(document.querySelector('.checkpointPurposeTarget .place-forest')).not.toBeNull();
+      }
+      document.querySelector<HTMLButtonElement>('[data-action="assessment-begin"]')!.click();
+      expect(document.querySelector('[data-test-answer]')).not.toBeNull();
+      expect(api.saved.done[api.quests[checkpoint].id]).toBeUndefined();
+    }
+  });
+  it('retains a historical future record while preventing it from bypassing a locked stage', () => {
+    const api = boot(); const index = api.questIndex('w2-q1');
+    api.saved.done['w2-q1'] = { choices: {}, at: '2026-10-17' };
+    expect(api.unlocked(index)).toBe(false);
+    api.state.world = 1; api.go('map'); expect(api.state.world).toBe(0);
+    expect(api.saved.done['w2-q1']).toBeTruthy();
+    markStage(api, 0); expect(api.unlocked(index)).toBe(true);
+  });
+  it('reveals Po speech without removing the full accessible text and cancels on interaction or navigation', () => {
+    vi.useFakeTimers(); vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    try {
+      const api = boot(); api.go('map');
+      const full = document.querySelector('.poSpeechFull')!.textContent!;
+      expect(full).toContain('うちゅう'); expect(document.querySelector('.poSpeechVisual')!.getAttribute('aria-hidden')).toBe('true');
+      vi.advanceTimersByTime(84);
+      expect(document.querySelector('.poSpeechVisual')!.textContent).toBe(full);
+      const glyphs = document.querySelectorAll('.poGlyph');
+      expect(document.querySelectorAll('.poGlyph.is-shown').length).toBeGreaterThan(0);
+      expect(document.querySelectorAll('.poGlyph.is-shown').length).toBeLessThan(glyphs.length);
+      document.querySelector('#app')!.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      expect(document.querySelector('.poSpeech')).toBeNull(); expect(document.querySelector('.mapStory p')!.textContent).toBe(full);
+      api.go('map'); expect(document.querySelector('.poSpeech')).toBeNull();
+      api.go('settings'); expect(document.querySelector('.poSpeech')).toBeNull(); expect(vi.getTimerCount()).toBe(0);
+      vi.stubGlobal('matchMedia', () => ({ matches: true })); api.go('map'); expect(document.querySelector('.poSpeech')).toBeNull();
+    } finally { vi.clearAllTimers(); vi.useRealTimers(); }
+  });
+  it('keeps the same request node while changing cards and does not replay it after a retry', () => {
+    vi.useFakeTimers(); vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    try {
+      const api=boot(); api.go('map');
+      document.querySelector<HTMLButtonElement>('[data-story-skip]')?.click();
+      document.querySelector<HTMLButtonElement>('[data-quest="0"]')!.click();
+      document.querySelector<HTMLButtonElement>('[data-action="enter-quest"]')!.click();
+      const request=document.querySelector('.questSub');
+      document.querySelector<HTMLButtonElement>('[data-select="color:pink"]')!.click();
+      expect(document.querySelector('.questSub')).toBe(request);
+      expect(request!.textContent).toContain('あおに');
+      expect(request!.querySelector('.poGlyph')).toBeNull();
+      document.querySelector<HTMLButtonElement>('[data-action="submit"]')!.click();
+      vi.advanceTimersByTime(450);
+      expect(document.querySelectorAll('.resultNotice')).toHaveLength(1);
+      expect(document.querySelector('.resultNotice')!.textContent).toContain('あお');
+      document.querySelector<HTMLButtonElement>('[data-action="next"]')!.click();
+      expect(document.querySelector('.questSub')!.textContent).toContain('あおに');
+      expect(document.querySelector('.questSub .poGlyph')).toBeNull();
+      expect(api.saved.done['w1-q1']).toBeUndefined();
+    } finally { vi.clearAllTimers(); vi.useRealTimers(); }
+  });
+  it('fills stable mission slots without counting the checkpoint or replay stamps, and promotes only on the checkpoint', () => {
+    const api=boot();
+    Object.assign(api.state,{quest:0,result:{success:true},selected:{color:'blue'},order:[],tries:1});
+    api.nextFinish();
+    expect(document.querySelectorAll('.missionStamp')).toHaveLength(10);
+    expect(document.querySelectorAll('.missionStamp.earned')).toHaveLength(1);
+    expect(document.querySelectorAll('.freshStamp')).toHaveLength(1);
+    api.nextFinish();
+    expect(document.querySelectorAll('.missionStamp.earned')).toHaveLength(1);
+    expect(document.querySelector('.freshStamp')).toBeNull();
+    markLessons(api,0); api.go('map');
+    document.querySelector<HTMLButtonElement>('[data-stamp-card]')!.click();
+    expect(document.querySelectorAll('.missionStamp.earned')).toHaveLength(10);
+    expect(document.querySelector('.stampCardHint')!.textContent).toContain('さいごの ミッション');
+    expect(api.mastery()).toBe(0);
+    expect(api.unlocked(api.questIndex('w2-q1'))).toBe(false);
+    document.querySelector<HTMLButtonElement>('[data-stamp-close]')!.click();
+    Object.assign(api.state,{quest:api.questIndex('w1-test'),result:{success:true,evidence:{knowledge:true,practice:true}}});
+    api.nextFinish();
+    expect(api.mastery()).toBe(1);
+    expect(document.querySelectorAll('.miniTier.earned')).toHaveLength(1);
+    expect(document.querySelector('.newTier')).not.toBeNull();
+    expect(api.unlocked(api.questIndex('w2-q1'))).toBe(true);
+    api.nextFinish(); expect(document.querySelector('.newTier')).toBeNull();
   });
 });

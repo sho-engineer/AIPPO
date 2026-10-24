@@ -28,7 +28,9 @@ for (const viewport of [{ width: 568, height: 320 }, { width: 844, height: 390 }
     const beforeFailure = await snapshot(frame);
     await frame.locator('html').evaluate(() => { Storage.prototype.setItem = () => { throw new DOMException('Synthetic quota failure', 'QuotaExceededError'); }; });
     await frame.locator('[data-action="start"]').click();
+    await frame.locator('[data-story-skip]').click();
     await frame.locator('[data-quest="0"]').click();
+    await frame.locator('[data-action="enter-quest"]').click();
     await frame.locator('[data-select="color:blue"]').click();
     await frame.locator('[data-action="submit"]').click();
     await expect(frame.locator('.resultNotice')).toContainText('つたわった');
@@ -56,10 +58,17 @@ for (const viewport of [{ width: 568, height: 320 }, { width: 844, height: 390 }
   });
 }
 async function childScreen(page: Page, frame: FrameLocator) {
+  if (await frame.locator('[data-story-skip]').count()) await frame.locator('[data-story-skip]').click();
   await expect.poll(() => page.evaluate(() => [document.documentElement.scrollWidth - innerWidth, document.documentElement.scrollHeight - innerHeight])).toEqual([0, 0]);
   await expect.poll(() => frame.locator('html').evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - innerWidth)).toBeLessThanOrEqual(2);
   await expect.poll(() => frame.locator('.app').evaluate(el => el.getBoundingClientRect().bottom - innerHeight)).toBeLessThanOrEqual(2);
   await expect.poll(() => frame.locator('.view').evaluate(el => el.scrollHeight - el.clientHeight)).toBeLessThanOrEqual(2);
+  if(await frame.locator('.view[data-screen="play"]:has(.longRequest)>.actionBar').count()){
+    expect(await frame.locator('.view').evaluate(el=>{
+      const bar=el.querySelector(':scope>.actionBar')!.getBoundingClientRect();
+      return [...el.querySelectorAll('.questIntroRow .questTitle,.questIntroRow .questSub,.questIntroRow .guidedNote')].every(node=>node.getBoundingClientRect().bottom<=bar.top+2);
+    })).toBe(true);
+  }
   if (await frame.locator('.worldView').count()) {
     for (const tab of await frame.locator('.worldRail [data-world]').all()) {
       await expect.poll(() => tab.evaluate(el => {
@@ -81,6 +90,7 @@ async function childScreen(page: Page, frame: FrameLocator) {
     return Math.abs((r.left + r.right - p.left - p.right) / 2);
   })).toBeLessThanOrEqual(2);
   for (const button of await frame.locator('.view button').all()) {
+    if (await button.evaluate(el => Boolean(el.closest('.pathScroll')))) await button.scrollIntoViewIfNeeded();
     await fits(button);
     if (await button.isEnabled()) await button.click({ trial: true });
   }
@@ -116,6 +126,7 @@ for (const portrait of pairs) {
         // Back resumes the current world, so reselect the requested chapter.
         await selectQuest(frame, quest.id);
         await childScreen(page, frame);
+        if(quest.world===3&&quest.kind==='create') await frame.locator('.view').screenshot({path:testInfo.outputPath('long-creator-landscape.png')});
         if (quest.kind === 'checkpoint') {
           await frame.locator(`[data-test-answer="${[0, 1, 2, 1, 2][world]}"]`).click();
           await childScreen(page, frame);
@@ -132,6 +143,7 @@ for (const portrait of pairs) {
     expect(await snapshot(frame)).toEqual(initial);
     await frame.locator('[data-world="0"]').click();
     await frame.locator('[data-quest="0"]').click();
+    await frame.locator('[data-action="enter-quest"]').click();
     const beforeSelection = await frame.locator('[data-action="submit"]').boundingBox();
     await frame.locator('[data-select="color:blue"]').click();
     const afterSelection = await frame.locator('[data-action="submit"]').boundingBox();
