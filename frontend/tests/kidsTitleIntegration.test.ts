@@ -44,6 +44,32 @@ describe('One curriculum source behind the approved title and existing account A
     expect(document.querySelector('.settingsScroll')!.textContent).toContain('ゲストで利用中');
     expect(localStorage.getItem(accountStore('late@example.test'))).toBeNull();
   });
+  it('tells a signed-in guardian the account record is separate and confirms before switching to guest', async () => {
+    const email = 'parent@example.test';
+    localStorage.setItem(store, JSON.stringify({ schema: 4, done: { 'w1-q1': { at: '2026-10-01' } } }));
+    localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true, challengeMode: 'guided' }));
+    const fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => (String(url).includes('/me/') ? { authenticated: true, user: { email } } : {}) }));
+    vi.stubGlobal('fetch', fetchMock);
+    document.cookie = 'csrftoken=test';
+    boot(); await vi.advanceTimersByTimeAsync(0);
+    const hint = document.querySelector('#poster-start-hint')!.textContent!;
+    expect(hint).toContain('ゲストとは別'); expect(hint).not.toContain('つづけられます');
+    click('[data-action="poster-guest"]');
+    expect(document.querySelector('[role="dialog"]')!.textContent).toContain('ログアウト');
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/signout/'))).toBe(false);
+    click('[data-confirm="guest-cancel"]');
+    expect(document.querySelector('[role="dialog"]')).toBeNull(); expect(api().state.view).toBe('home');
+    click('[data-action="poster-guest"]'); click('[data-confirm="guest-switch"]');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/signout/'))).toBe(true);
+    expect(api().state.view).toBe('learning');
+    expect(Object.keys(api().saved.done)).toContain('w1-q1'); // now playing the guest record
+    api().go('settings'); expect(document.querySelector('.settingsScroll')!.textContent).toContain('ゲストで利用中');
+  });
+  it('explains on the sign-in screen that guest progress is not carried into the account record', async () => {
+    boot(); await vi.advanceTimersByTimeAsync(0); click('[data-action="poster-login"]');
+    expect(document.querySelector('.accountInfo')!.textContent).toContain('ゲストの記録は引き継がれません');
+  });
   it('migrates legacy guest and authenticated records separately without merging either owner', async () => {
     const email = 'parent@example.test', key = accountStore(email);
     localStorage.setItem(store, JSON.stringify({ done: { 0: { at: '2026-10-01' } } }));
