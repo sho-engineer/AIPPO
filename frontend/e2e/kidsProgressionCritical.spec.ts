@@ -605,6 +605,22 @@ for (const route of ["/kids", "/kids-title/"]) {
       await tap(ui, '[data-practice-focus="color"]');
       await tap(ui, '[data-select="color:pink"]');
       expect(await check()).toEqual({ overlap: false, targets: true, inside: true, viewFits: true });
+      // The longest reasons must also fit their reserved slot: a wrong card, then a wrong reason.
+      await tap(ui, '[data-practice-focus="place"]');
+      await tap(ui, '[data-select="place:sea"]');
+      await tap(ui, '[data-practice-focus="shape"]');
+      await tap(ui, '[data-select="shape:round"]');
+      await tap(ui, '[data-action="practice-submit"]');
+      await expect(ui.locator(".testFeedback")).toContainText("まどの かたち");
+      expect(await check()).toEqual({ overlap: false, targets: true, inside: true, viewFits: true });
+      expect(await ui.locator(".testFeedback").evaluate(e => e.scrollHeight <= e.clientHeight + 2)).toBe(true);
+      await tap(ui, '[data-practice-focus="shape"]');
+      await tap(ui, '[data-select="shape:star"]');
+      await tap(ui, '[data-reason="random"]');
+      await tap(ui, '[data-action="practice-submit"]');
+      await expect(ui.locator(".testFeedback")).toContainText("わけ");
+      expect(await check()).toEqual({ overlap: false, targets: true, inside: true, viewFits: true });
+      expect(await ui.locator(".testFeedback").evaluate(e => e.scrollHeight <= e.clientHeight + 2)).toBe(true);
       await ui.locator(".view").screenshot({ path: test.info().outputPath("create-checkpoint.png") });
     });
   }

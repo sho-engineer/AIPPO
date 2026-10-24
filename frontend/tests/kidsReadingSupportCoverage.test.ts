@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import canonical from "../src/kids/learning.html?raw";
 
 type Api = {
-  quests: { id: string; kind: string; answer?: number }[];
+  quests: { id: string; kind: string; world: number; answer?: number }[];
   saved: { done: Record<string, unknown> };
   enterQuest(n: number): void; startQuest(n: number): void;
 };
@@ -41,8 +41,11 @@ describe("Kids default reading support covers every mission screen", () => {
       document.querySelector<HTMLButtonElement>("[data-action=assessment-begin]")?.click();
       missing.push(...bareKanji(`${quest.id}/question`));
       const literacy = [...document.querySelectorAll<HTMLButtonElement>("[data-literacy]")].find(b => Number(b.dataset.literacy) !== quest.answer);
-      const checkpoint = document.querySelector<HTMLButtonElement>('[data-test-answer="1"]');
+      // first checkpoint answers per world (see kidsOrientation); pick a wrong one so the reason renders
+      const checkpointAnswer = [0, 1, 2, 1, 2][quest.world];
+      const checkpoint = [...document.querySelectorAll<HTMLButtonElement>("[data-test-answer]")].find(b => Number(b.dataset.testAnswer) !== checkpointAnswer);
       (literacy || checkpoint)?.click();
+      if (literacy || checkpoint) expect(document.querySelector(".testFeedback")!.textContent!.trim(), quest.id).not.toBe("");
       missing.push(...bareKanji(`${quest.id}/reason`));
     });
     expect(missing).toEqual([]);

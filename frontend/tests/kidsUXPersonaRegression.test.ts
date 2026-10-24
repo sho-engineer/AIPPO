@@ -55,12 +55,13 @@ describe("Kids strict persona UX regressions", () => {
     expect(a.state.view).toBe("play"); expect(a.state.selected.color).toBe("blue"); expect(document.querySelector(".think")).toBeNull();
     click('[data-action="submit"]'); vi.advanceTimersByTime(450); expect(a.state.view).toBe("result");
   });
-  it.each(["settings", "map"])("does not count a submission canceled by leaving to %s before the AI result", target => {
+  // Both routes keep the mission state, so only the attempt rollback can bring the count back to 0.
+  it.each(["settings", "parent"])("does not count a submission canceled by opening %s before the AI result", target => {
     for (const source of [canonical, standalone]) {
       const a = boot(source); a.startQuest(0); click('[data-select="color:blue"]'); click('[data-action="submit"]');
       expect(a.state.tries).toBe(1);
       if (target === "settings") { click('.top [data-nav="settings"]'); click('[data-action="settings-done"]'); }
-      else { click('.questHead [data-nav="map"]'); a.startQuest(0); click('[data-select="color:blue"]'); }
+      else { click('.top [data-nav="parent"]'); click('[data-action="map"]'); }
       vi.advanceTimersByTime(1000);
       expect(a.state.view).toBe("play"); expect(a.state.tries).toBe(0);
       click('[data-action="submit"]'); vi.advanceTimersByTime(450);
@@ -119,7 +120,7 @@ describe("Kids strict persona UX regressions", () => {
     expect(a.saved.done["w4-test"]).toMatchObject({ assessmentVersion: 2 }); // seeded record untouched by failed tries
   });
   it("names which device record a reset will erase before the child's records are removed", async () => {
-    for (const [source, scope] of [[canonical, "この端末に保存された記録と設定"], [standalone, "「ゲスト」の記録"]] as const) {
+    for (const [source, scope] of [[canonical, "「ゲスト」の記録"], [standalone, "「ゲスト」の記録"]] as const) {
       const a = boot(source);
       for (let i = 0; i < 10; i++) await Promise.resolve(); // standalone settles its guest session check first
       a.go("settings"); click('.settingAction[data-action="reset"]');
@@ -128,6 +129,32 @@ describe("Kids strict persona UX regressions", () => {
       document.querySelector<HTMLButtonElement>("[data-opening-skip]")?.click();
       vi.clearAllTimers(); document.body.innerHTML = "";
     }
+  });
+  it("ignores and does not count a second submit while the AI answer is still pending", () => {
+    const a = boot(); a.startQuest(0); click('[data-select="color:blue"]');
+    const submit = document.querySelector<HTMLButtonElement>('[data-action="submit"]')!;
+    submit.click(); submit.click(); expect(a.state.tries).toBe(1);
+    click('.top [data-nav="settings"]'); click('[data-action="settings-done"]');
+    expect(a.state.tries).toBe(0);
+  });
+  it("forgets the mission return once another mission starts from the growth record", () => {
+    const a = boot(); seedAll(a); a.enterQuest(0); click('[data-action="enter-quest"]');
+    click('.top [data-nav="parent"]'); expect(document.querySelector('[data-action="map"]')!.textContent).toContain("クエストに もどる");
+    const replay = a.quests.findIndex(q => q.kind === "literacy");
+    a.startQuest(replay); // e.g. a replay started from the growth record's portfolio
+    click(`[data-literacy="${(a.quests[replay] as unknown as { answer: number }).answer}"]`); expect(a.state.view).toBe("win");
+    click('.top [data-nav="parent"]');
+    expect(document.querySelector('[data-action="map"]')!.textContent).toContain("マップへ戻る");
+    expect(document.querySelector('.top [data-nav="map"]')!.getAttribute("aria-label")).toBe("マップに戻る");
+    click('[data-action="map"]'); expect(a.state.view).toBe("map");
+  });
+  it("names the account record when a signed-in guardian resets on the standalone page", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ authenticated: true, user: { email: "guardian@example.com" } }) }));
+    const a = boot(standalone);
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    a.go("settings"); click('.settingAction[data-action="reset"]');
+    expect(document.querySelector(".resetScope")!.textContent).toContain("ログイン中のアカウント");
+    click('[data-confirm="cancel"]');
   });
   it("cannot resurrect the old mission after records and settings are reset", () => {
     const a = boot(); seedAll(a); a.startQuest(a.quests.length - 1); a.go("settings");
