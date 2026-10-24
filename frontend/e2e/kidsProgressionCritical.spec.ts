@@ -517,3 +517,95 @@ for (const route of ['/kids', '/kids-title/']) {
     }
   }
 }
+
+/** Default (age unset) and youngest readers get the guided note, which makes
+ * the play column taller. A wrong answer's reason must still be fully visible
+ * inside the card, and every answer must stay a whole 44px target. */
+async function seedDefaultReader(page: Page, ui: Surface, ageBand: string) {
+  await ui.locator("html").evaluate((_, age) => {
+    const api = (window as unknown as KidsWindow).AIPPO_TEST;
+    const done = Object.fromEntries(api.quests.map(q => [q.id, { at: "2026-10-15", assessmentVersion: 2, evidence: { knowledge: true, practice: true }, attempts: 1 }]));
+    localStorage.setItem("aippo_kids_settings_v1", JSON.stringify({ guardianAccepted: true, challengeMode: "guided", ageBand: age, readingSupport: "on" }));
+    localStorage.setItem("aippo_kids_journey_v1", JSON.stringify({ schema: 4, done, challenges: [], daily: [] }));
+  }, ageBand);
+  await page.reload();
+  await expect.poll(() => ui.locator("html").evaluate(() => Boolean((window as unknown as KidsWindow).AIPPO_TEST))).toBe(true);
+}
+async function reasonFits(ui: Surface, answers: string) {
+  return ui.locator(".view").evaluate((view, selector) => {
+    const body = view.querySelector(":scope>.playBody")!.getBoundingClientRect();
+    const feedback = view.querySelector(".testFeedback") as HTMLElement;
+    const f = feedback.getBoundingClientRect();
+    const buttons = [...view.querySelectorAll<HTMLElement>(selector)].map(b => {
+      const r = b.getBoundingClientRect();
+      return r.height >= 44 && r.width >= 44 && b.scrollHeight <= b.clientHeight + 2 && r.bottom <= body.bottom + 1 && r.top >= body.top - 1;
+    });
+    return {
+      text: feedback.textContent!.trim().length > 0,
+      inside: f.top >= body.top - 1 && f.bottom <= body.bottom + 1 && f.height >= 18 && feedback.scrollHeight <= feedback.clientHeight + 2,
+      buttons: buttons.length > 0 && buttons.every(Boolean),
+      viewFits: view.scrollHeight - view.clientHeight <= 2,
+    };
+  }, answers);
+}
+for (const route of ["/kids", "/kids-title/"]) {
+  for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }]) {
+    for (const ageBand of ["unset", "5-6"]) {
+      test(`critical wrong-answer reasons stay visible for ${ageBand} readers ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+        await page.setViewportSize(viewport);
+        const ui = await boot(page, route);
+        await seedDefaultReader(page, ui, ageBand);
+        const quests = await liveQuests(ui.locator("html"));
+        for (const [index, quest] of quests.entries()) {
+          if (quest.kind !== "checkpoint" && quest.kind !== "literacy") continue;
+          // Checkpoint answers by world match kidsOrientation; literacy answers come from the live quest.
+          const choice = await ui.locator("html").evaluate((_, input) => {
+            const api = (window as unknown as KidsWindow).AIPPO_TEST as unknown as { startQuest(n: number): void; quests: { answer?: number }[] };
+            api.startQuest(input.index);
+            document.querySelector<HTMLButtonElement>("[data-action=assessment-begin]")?.click();
+            const attr = document.querySelector("[data-literacy]") ? "data-literacy" : document.querySelector("[data-test-answer]") ? "data-test-answer" : null;
+            if (!attr) return null;
+            const answer = attr === "data-literacy" ? api.quests[input.index].answer : input.checkpointAnswer;
+            const wrong = [...document.querySelectorAll(`[${attr}]`)].map(b => b.getAttribute(attr)!).find(v => Number(v) !== answer);
+            return wrong === undefined ? null : { attr, wrong };
+          }, { index, checkpointAnswer: [0, 1, 2, 1, 2][quest.world] });
+          if (!choice) continue; // two-step safety/consult missions have their own layout coverage
+          const selector = `[${choice.attr}]`;
+          await tap(ui, `[${choice.attr}="${choice.wrong}"]`);
+          await expect(ui.locator(".testFeedback")).not.toBeEmpty();
+          expect(await reasonFits(ui, selector), `${quest.id} ${choice.wrong}`).toEqual({ text: true, inside: true, buttons: true, viewFits: true });
+          await screenGeometry(ui);
+        }
+      });
+    }
+  }
+  for (const viewport of [{ width: 568, height: 320 }, { width: 667, height: 375 }, { width: 844, height: 390 }]) {
+    test(`critical create checkpoint keeps reasons separate in landscape ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const ui = await boot(page, route);
+      await seedDefaultReader(page, ui, "unset");
+      await reloadAtMap(page, ui);
+      await selectQuest(ui, "w4-test");
+      await tap(ui, '[data-test-answer="1"]');
+      await expect(ui.locator(".reasonChoices")).toBeVisible();
+      const check = () => ui.locator(".view").evaluate(view => {
+        const boxes = [...view.querySelectorAll<HTMLElement>(".reasonChoices legend,.reasonChoices button,.builderSlot,.wizardGroup .choice,.builderPreview,.practiceGoal,.testFeedback,.actionBar .primary")]
+          .map(el => ({ el, r: el.getBoundingClientRect() }));
+        const overlap = boxes.some((a, i) => boxes.slice(i + 1).some(b => !a.el.contains(b.el) && !b.el.contains(a.el)
+          && Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left) > 2 && Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top) > 2));
+        const targets = [...view.querySelectorAll<HTMLElement>(".reasonChoices button,.builderSlot,.wizardGroup .choice")].every(b => {
+          const r = b.getBoundingClientRect();
+          return r.width >= 44 && r.height >= 44 && b.scrollWidth <= b.clientWidth + 2 && b.scrollHeight <= b.clientHeight + 2;
+        });
+        const inside = boxes.every(({ r }) => r.left >= -2 && r.right <= innerWidth + 2 && r.top >= -2 && r.bottom <= innerHeight + 2);
+        return { overlap, targets, inside, viewFits: view.scrollHeight - view.clientHeight <= 2 };
+      });
+      expect(await check()).toEqual({ overlap: false, targets: true, inside: true, viewFits: true });
+      await tap(ui, '[data-reason="purpose"]');
+      await tap(ui, '[data-practice-focus="color"]');
+      await tap(ui, '[data-select="color:pink"]');
+      expect(await check()).toEqual({ overlap: false, targets: true, inside: true, viewFits: true });
+      await ui.locator(".view").screenshot({ path: test.info().outputPath("create-checkpoint-landscape.png") });
+    });
+  }
+}

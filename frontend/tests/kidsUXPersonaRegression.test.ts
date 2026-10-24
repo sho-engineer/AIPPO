@@ -55,6 +55,32 @@ describe("Kids strict persona UX regressions", () => {
     expect(a.state.view).toBe("play"); expect(a.state.selected.color).toBe("blue"); expect(document.querySelector(".think")).toBeNull();
     click('[data-action="submit"]'); vi.advanceTimersByTime(450); expect(a.state.view).toBe("result");
   });
+  it.each(["settings", "map"])("does not count a submission canceled by leaving to %s before the AI result", target => {
+    for (const source of [canonical, standalone]) {
+      const a = boot(source); a.startQuest(0); click('[data-select="color:blue"]'); click('[data-action="submit"]');
+      expect(a.state.tries).toBe(1);
+      if (target === "settings") { click('.top [data-nav="settings"]'); click('[data-action="settings-done"]'); }
+      else { click('.questHead [data-nav="map"]'); a.startQuest(0); click('[data-select="color:blue"]'); }
+      vi.advanceTimersByTime(1000);
+      expect(a.state.view).toBe("play"); expect(a.state.tries).toBe(0);
+      click('[data-action="submit"]'); vi.advanceTimersByTime(450);
+      expect(a.state.view).toBe("result"); expect(a.state.tries).toBe(1);
+      document.querySelector<HTMLButtonElement>("[data-opening-skip]")?.click();
+      vi.clearAllTimers(); localStorage.removeItem("aippo_kids_journey_v1"); document.body.innerHTML = "";
+    }
+  });
+  it("keeps the order mission retryable when settings interrupts its AI result", () => {
+    const a = boot(); seedAll(a); const index = a.quests.findIndex(q => q.kind === "order");
+    expect(index).toBeGreaterThanOrEqual(0);
+    a.startQuest(index);
+    for (const step of ["choose", "ask", "check"]) click(`[data-order-pick="${step}"]`);
+    click('[data-action="submit"]'); expect(a.state.tries).toBe(1);
+    click('.top [data-nav="settings"]'); click('[data-action="settings-done"]');
+    vi.advanceTimersByTime(1000);
+    expect(a.state.view).toBe("play"); expect(a.state.tries).toBe(0);
+    click('[data-action="submit"]'); vi.advanceTimersByTime(450);
+    expect(a.state.view).toBe("result"); expect(a.state.tries).toBe(1);
+  });
   it("cannot resurrect the old mission after records and settings are reset", () => {
     const a = boot(); seedAll(a); a.startQuest(a.quests.length - 1); a.go("settings");
     click('[data-action="reset"]'); click('[data-confirm="reset"]'); click('[data-action="settings-done"]');
