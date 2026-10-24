@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- GENERATED: scripts/build-kids-title.mjs; source digest 9e93d9966b9fb245ea6d750f86ad01273993eb65c40496db0709de2980a1abd2; do not hand edit. -->
+<!-- GENERATED: scripts/build-kids-title.mjs; source digest 8bf78f094ce292e9ddc37fdace4a594f5a24df010cca41c9075c1e763bdaa089; do not hand edit. -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -523,6 +523,8 @@
 .accountLinks button{background:none;border:0;padding:6px 0;color:#1268e8;font-size:12px;font-weight:900}
 .accountInfo{font-size:11px;line-height:1.7;color:#66809c;margin:8px 0;text-align:center}
 .accountPolicy{display:flex;justify-content:center;gap:14px}.accountPolicy button{font-size:11px;border:0;background:none;color:#266fb2;font-weight:800;padding:7px}
+/* Landscape repeats the start hint in the side controls; the narrow artboard pill would overlap them. */
+@media(orientation:landscape){.posterArtboard .posterStartHint{display:none}}
 
 </style>
 </head>
@@ -1140,16 +1142,16 @@ function home(){
  layout(`<main class="view posterTitle" aria-label="AIPPO Kids タイトル画面">
    <div class="posterArtboard">
      <img class="posterArtwork" src="assets/title/approved-cover.jpeg" alt="AIPPO Kids。ポーちゃんとAIぼうけんへ。空に浮かぶ島と、Poちゃんが走る冒険ゲームのタイトル画面。" fetchpriority="high" decoding="async" draggable="false"/>
-     <p class="posterStartHint" id="poster-start-hint">${account?'ログイン中の記録でつづけられます':'登録なしで あそべます'}</p>
+     <p class="posterStartHint" id="poster-start-hint">${account?'アカウント用の記録で あそびます（ゲストとは別）':'登録なしで あそべます'}</p>
      <button type="button" class="posterTouch settings" data-action="poster-settings" aria-label="保護者設定を開く" title="設定"></button>
      <button type="button" class="posterTouch start" data-action="poster-start" aria-label="ぼうけんを はじめる" aria-describedby="poster-start-hint" title="ぼうけんを はじめる"></button>
      <button type="button" class="posterTouch guest" data-action="poster-guest" aria-label="ゲストではじめる" title="ゲストではじめる"></button>
      <button type="button" class="posterTouch login" data-action="poster-login" aria-label="${account?'ログイン中の設定':'ログイン'}" title="ログイン"></button>
    </div>
-   <nav class="posterLandscapeControls" aria-label="横向きの始め方"><p>横向きでは、こちらから操作できます。${account?'':'登録なしでおためしできます。記録はこの端末に保存されます。'}</p><button type="button" data-action="poster-start" aria-describedby="poster-start-hint">ぼうけんを はじめる</button><button type="button" data-action="poster-guest">ゲストではじめる</button><button type="button" data-action="poster-login">${account?'ログイン中の設定':'ログイン'}</button><button type="button" data-action="poster-settings">保護者設定</button></nav>
+   <nav class="posterLandscapeControls" aria-label="横向きの始め方"><p>横向きでは、こちらから操作できます。${account?'ログイン中：アカウント用の記録で あそびます（ゲストとは別）。':'登録なしでおためしできます。記録はこの端末に保存されます。'}</p><button type="button" data-action="poster-start" aria-describedby="poster-start-hint">ぼうけんを はじめる</button><button type="button" data-action="poster-guest">ゲストではじめる</button><button type="button" data-action="poster-login">${account?'ログイン中の設定':'ログイン'}</button><button type="button" data-action="poster-settings">保護者設定</button></nav>
  </main>`);
  app.querySelectorAll('[data-action=poster-start]').forEach(b=>b.onclick=()=>launchAdventure());
- app.querySelectorAll('[data-action=poster-guest]').forEach(b=>b.onclick=()=>account?logout():selectGuest());
+ app.querySelectorAll('[data-action=poster-guest]').forEach(b=>b.onclick=()=>account?confirmGuestSwitch(b):selectGuest());
  app.querySelectorAll('[data-action=poster-login]').forEach(b=>b.onclick=()=>{if(account){go('settings');return}auth.mode='signin';auth.error='';go('auth')});
  app.querySelectorAll('[data-action=poster-settings]').forEach(b=>b.onclick=()=>go('settings'));
  setupOpening();
@@ -1161,7 +1163,18 @@ function csrfCookie(){try{const m=document.cookie.match(/(?:^|;\s*)csrftoken=([^
 async function csrf(){if(csrfCookie())return csrfCookie();const r=await fetch(API+'/csrf/',{credentials:'same-origin'});if(!r.ok)throw Error('認証サービスに接続できません。');return csrfCookie()}
 async function apiCall(path,payload=null){const headers={'Accept':'application/json'};if(payload!==null){const token=await csrf();if(token)headers['X-CSRFToken']=token;headers['Content-Type']='application/json'}const r=await fetch(API+path,{method:payload===null?'GET':'POST',headers,credentials:'same-origin',body:payload===null?undefined:JSON.stringify(payload)});let body={};try{body=await r.json()}catch{}if(!r.ok){const msgs=body?.errors&&typeof body.errors==='object'?Object.values(body.errors).flat().filter(x=>typeof x==='string'):[];const err=new Error(msgs[0]||body?.detail||body?.message||(r.status===403?'認証の確認に失敗しました。':'接続に失敗しました。もう一度お試しください。'));err.status=r.status;throw err}return body}
 
-async function logout(){try{await apiCall('/signout/',{})}catch{toast('ログアウトできませんでした。通信を確認してください');return}sessionEpoch++;auth.user=null;auth.status='guest';reloadAccountProgress();state.view='home';render()}
+// Signing out never moves records: the account record stays on this device and the guest record is used.
+function confirmGuestSwitch(origin){
+ const overlay=document.createElement('div');overlay.className='overlay';
+ overlay.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="guest-switch-title"><h2 id="guest-switch-title">ゲストで はじめますか？</h2><p>ログアウトして、この端末の ゲストの記録で あそびます。アカウント用の記録は 消えずに この端末に のこります。</p><button class="primary" data-confirm="guest-switch">ログアウトして ゲストで はじめる</button><button class="secondary" data-confirm="guest-cancel">やめる</button></div>`;
+ app.querySelector('.shell').append(overlay);
+ const close=()=>{overlay.remove();origin?.focus({preventScroll:true})};
+ overlay.querySelector('[data-confirm=guest-cancel]').onclick=close;
+ overlay.addEventListener('keydown',event=>{if(event.key==='Escape'){event.preventDefault();close()}});
+ overlay.querySelector('[data-confirm=guest-switch]').onclick=async event=>{event.currentTarget.disabled=true;if(await logout())launchAdventure();else close()};
+ overlay.querySelector('[data-confirm=guest-switch]').focus({preventScroll:true});
+}
+async function logout(){try{await apiCall('/signout/',{})}catch{toast('ログアウトできませんでした。通信を確認してください');return false}sessionEpoch++;auth.user=null;auth.status='guest';reloadAccountProgress();state.view='home';render();return true}
 function authView(){
  const mode=auth.mode;const isSignIn=mode==='signin',isSignUp=mode==='signup',isReset=mode==='reset',isConfirm=mode==='confirm',isVerify=mode==='verify',isMfa=mode==='mfa';
  const heading=isSignIn?'おかえりなさい':isSignUp?'アカウントをつくる':isReset?'パスワードを再設定':isConfirm?'新しいパスワード':isVerify?'メールアドレスの確認':'確認コードを入力';
@@ -1176,7 +1189,7 @@ function authView(){
  ${auth.error?`<div class="accountAlert" role="alert">${escape(auth.error)}</div>`:''}${auth.success?`<div class="accountAlert accountSuccess" role="status">${escape(auth.success)}</div>`:''}
  <form class="accountForm" id="account-form">${emailInput}${pwInput}${pwAgain}${mfaInput}${consent}<button class="primary accountSubmit" type="submit" ${auth.busy?'disabled':''}>${auth.busy?'確認しています…':button} ${ico('arrow')}</button></form>
  <div class="accountLinks">${isSignIn?'<button data-authmode="signup">はじめての方：新規登録</button><button data-authmode="reset">パスワードを忘れた</button>':isSignUp||isReset?'<button data-authmode="signin">ログインにもどる</button>':''}<button data-action="auth-guest">ゲストではじめる</button></div>
- <p class="accountInfo">ログインは保護者向けです。<br>Kidsの学習記録は現在この端末にのみ保存され、別の端末とは同期されません。</p><div class="accountPolicy"><button data-authpolicy="terms">利用案内</button><button data-authpolicy="privacy">プライバシー</button></div></div></main>`);
+ <p class="accountInfo">ログインは保護者向けです。<br>Kidsの学習記録は現在この端末にのみ保存され、別の端末とは同期されません。<br>ログイン中はアカウント用の記録になります。ゲストの記録は引き継がれません（どちらも消えません）。</p><div class="accountPolicy"><button data-authpolicy="terms">利用案内</button><button data-authpolicy="privacy">プライバシー</button></div></div></main>`);
  app.querySelector('[data-action=auth-back]').onclick=()=>go('home');
  app.querySelector('[data-action=auth-guest]').onclick=()=>selectGuest();
  app.querySelectorAll('[data-authmode]').forEach(b=>b.onclick=()=>{auth.mode=b.dataset.authmode;auth.error='';auth.success='';render()});

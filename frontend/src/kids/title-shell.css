@@ -55,3 +55,5 @@
 .accountLinks button{background:none;border:0;padding:6px 0;color:#1268e8;font-size:12px;font-weight:900}
 .accountInfo{font-size:11px;line-height:1.7;color:#66809c;margin:8px 0;text-align:center}
 .accountPolicy{display:flex;justify-content:center;gap:14px}.accountPolicy button{font-size:11px;border:0;background:none;color:#266fb2;font-weight:800;padding:7px}
+/* Landscape repeats the start hint in the side controls; the narrow artboard pill would overlap them. */
+@media(orientation:landscape){.posterArtboard .posterStartHint{display:none}}

@@ -232,3 +232,44 @@ for (const viewport of [
     await expect(page.locator(".guardianDialog")).toBeVisible();
   });
 }
+
+// A signed-in guardian sees that the account record is separate from guest
+// progress, and switching to guest asks before signing out.
+for (const viewport of [{ width: 320, height: 568 }, { width: 568, height: 320 }, { width: 844, height: 390 }]) {
+  test(`signed-in title states separate records and confirms guest switch ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    let signedOut = false;
+    await page.route("**/api/v1/accounts/**", async (route) => {
+      const url = route.request().url();
+      if (url.includes("/signout/")) { signedOut = true; return route.fulfill({ status: 200, contentType: "application/json", body: "{}" }); }
+      if (url.includes("/csrf/")) return route.fulfill({ status: 200, contentType: "application/json", headers: { "set-cookie": "csrftoken=e2e; Path=/" }, body: "{}" });
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(signedOut ? { authenticated: false } : { authenticated: true, user: { email: "guardian@example.test" } }) });
+    });
+    await page.addInitScript((key) => {
+      localStorage.setItem(key, "seen");
+      localStorage.setItem("aippo_kids_settings_v1", JSON.stringify({ guardianAccepted: true, challengeMode: "guided" }));
+    }, seenKey);
+    await page.goto("/kids-title/");
+    await titleReady(page);
+    await expect(page.locator("#poster-start-hint")).toContainText("ゲストとは別");
+    const visibleHint = page.locator('#poster-start-hint:visible, .posterLandscapeControls p:visible').first();
+    await expect(visibleHint).toContainText("ゲストとは別");
+    const texts = page.locator('#poster-start-hint:visible, .posterLandscapeControls p:visible, [data-action^="poster-"]:visible');
+    const clash = await texts.evaluateAll((elements) => elements.flatMap((a, i) => elements.slice(i + 1).filter((b) => {
+      const x = a.getBoundingClientRect(), y = b.getBoundingClientRect();
+      return Math.min(x.right, y.right) - Math.max(x.left, y.left) > 1 && Math.min(x.bottom, y.bottom) - Math.max(x.top, y.top) > 1 && !a.contains(b) && !b.contains(a);
+    }).map((b) => [a.textContent, b.textContent])).concat(elements.filter((e) => e.scrollWidth > e.clientWidth + 1 || e.getBoundingClientRect().right > innerWidth + 1).map((e) => [e.textContent, "overflow"])));
+    expect(clash).toEqual([]);
+    await page.locator('[data-action="poster-guest"]:visible').click();
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toContainText("ログアウト");
+    expect(signedOut).toBe(false);
+    for (const button of await dialog.locator("button").all()) await hitTarget(button);
+    await dialog.locator('[data-confirm="guest-cancel"]').click();
+    await expect(dialog).toHaveCount(0);
+    await page.locator('[data-action="poster-guest"]:visible').click();
+    await page.locator('[data-confirm="guest-switch"]').click();
+    await expect(page.locator(".homeView")).toBeVisible();
+    expect(signedOut).toBe(true);
+  });
+}
