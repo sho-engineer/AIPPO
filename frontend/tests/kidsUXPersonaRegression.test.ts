@@ -81,6 +81,54 @@ describe("Kids strict persona UX regressions", () => {
     click('[data-action="submit"]'); vi.advanceTimersByTime(450);
     expect(a.state.view).toBe("result"); expect(a.state.tries).toBe(1);
   });
+  it.each(["entrance", "play", "result"])("returns from the growth record to the same %s without losing cards or records", view => {
+    const a = boot(); a.enterQuest(0);
+    if (view !== "entrance") { click('[data-action="enter-quest"]'); click('[data-select="color:blue"]'); }
+    if (view === "result") { click('[data-action="submit"]'); vi.advanceTimersByTime(450); }
+    const selected = { ...a.state.selected }, saved = JSON.stringify(a.saved);
+    click('.top [data-nav="parent"]'); expect(a.state.view).toBe("parent");
+    expect(document.querySelector('.top [data-nav="map"]')!.getAttribute("aria-label")).toBe("クエストに戻る");
+    expect(document.querySelector('[data-action="map"]')!.textContent).toContain("クエストに もどる");
+    click('[data-action="map"]');
+    expect(a.state.view).toBe(view); expect(a.state.selected).toEqual(selected); expect(JSON.stringify(a.saved)).toBe(saved);
+    expect(document.activeElement).toBe(document.querySelector('.top [data-nav="parent"]'));
+  });
+  it("keeps the growth record's map exit when it was opened from the map", () => {
+    const a = boot(); seedAll(a); a.go("map"); click('.top [data-nav="parent"]');
+    expect(document.querySelector('[data-action="map"]')!.textContent).toContain("マップへ戻る");
+    click('[data-action="map"]'); expect(a.state.view).toBe("map");
+  });
+  it("labels the reward button by what it does after a cleared stage is replayed", () => {
+    const a = boot(); seedAll(a); const index = a.quests.findIndex(q => q.kind === "literacy");
+    a.startQuest(index); const answer = (a.quests[index] as unknown as { answer: number }).answer;
+    click(`[data-literacy="${answer}"]`); expect(a.state.view).toBe("win");
+    const next = document.querySelector('[data-action="next"]')!;
+    expect(next.textContent).not.toContain("さいごの ミッション");
+    (next as HTMLButtonElement).click(); expect(a.state.view).toBe("map");
+  });
+  it("tells which card differs or that only the reason needs rethinking, and clears it on change", () => {
+    const a = boot(); seedAll(a); const index = a.quests.findIndex(q => q.id === "w4-test");
+    a.startQuest(index); click('[data-action="assessment-begin"]'); click('[data-test-answer="1"]');
+    click('[data-select="color:pink"]'); click('[data-select="place:sea"]'); click('[data-select="shape:round"]');
+    click('[data-reason="purpose"]'); click('[data-action="practice-submit"]');
+    expect(document.querySelector(".testFeedback")!.textContent).toContain("まどの かたち");
+    click('[data-practice-focus="shape"]'); click('[data-select="shape:star"]');
+    expect(document.querySelector(".testFeedback")!.textContent).toBe("");
+    click('[data-reason="random"]'); click('[data-action="practice-submit"]');
+    expect(document.querySelector(".testFeedback")!.textContent).toContain("わけ");
+    expect(a.saved.done["w4-test"]).toMatchObject({ assessmentVersion: 2 }); // seeded record untouched by failed tries
+  });
+  it("names which device record a reset will erase before the child's records are removed", async () => {
+    for (const [source, scope] of [[canonical, "この端末に保存された記録と設定"], [standalone, "「ゲスト」の記録"]] as const) {
+      const a = boot(source);
+      for (let i = 0; i < 10; i++) await Promise.resolve(); // standalone settles its guest session check first
+      a.go("settings"); click('.settingAction[data-action="reset"]');
+      expect(document.querySelector(".resetScope")!.textContent).toContain(scope);
+      click('[data-confirm="cancel"]');
+      document.querySelector<HTMLButtonElement>("[data-opening-skip]")?.click();
+      vi.clearAllTimers(); document.body.innerHTML = "";
+    }
+  });
   it("cannot resurrect the old mission after records and settings are reset", () => {
     const a = boot(); seedAll(a); a.startQuest(a.quests.length - 1); a.go("settings");
     click('[data-action="reset"]'); click('[data-confirm="reset"]'); click('[data-action="settings-done"]');

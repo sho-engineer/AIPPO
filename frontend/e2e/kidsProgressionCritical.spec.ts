@@ -579,8 +579,8 @@ for (const route of ["/kids", "/kids-title/"]) {
       });
     }
   }
-  for (const viewport of [{ width: 568, height: 320 }, { width: 667, height: 375 }, { width: 844, height: 390 }]) {
-    test(`critical create checkpoint keeps reasons separate in landscape ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+  for (const viewport of [{ width: 568, height: 320 }, { width: 667, height: 375 }, { width: 844, height: 390 }, { width: 320, height: 568 }, { width: 360, height: 640 }, { width: 375, height: 667 }, { width: 768, height: 1024 }]) {
+    test(`critical create checkpoint keeps reasons separate ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
       await page.setViewportSize(viewport);
       const ui = await boot(page, route);
       await seedDefaultReader(page, ui, "unset");
@@ -605,7 +605,32 @@ for (const route of ["/kids", "/kids-title/"]) {
       await tap(ui, '[data-practice-focus="color"]');
       await tap(ui, '[data-select="color:pink"]');
       expect(await check()).toEqual({ overlap: false, targets: true, inside: true, viewFits: true });
-      await ui.locator(".view").screenshot({ path: test.info().outputPath("create-checkpoint-landscape.png") });
+      await ui.locator(".view").screenshot({ path: test.info().outputPath("create-checkpoint.png") });
+    });
+  }
+}
+
+for (const route of ["/kids", "/kids-title/"]) {
+  for (const viewport of [{ width: 768, height: 1024 }, { width: 820, height: 1180 }]) {
+    test(`critical tablet portrait keeps order and builder slots apart ${route} ${viewport.width}x${viewport.height}`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      const ui = await boot(page, route);
+      await seedDefaultReader(page, ui, "unset");
+      const apart = (selector: string) => ui.locator(".view").evaluate((view, sel) => {
+        const rects = [...view.querySelectorAll(sel)].map(el => el.getBoundingClientRect());
+        const separate = rects.every((a, i) => rects.slice(i + 1).every(b => Math.min(a.right, b.right) - Math.max(a.left, b.left) <= 2 || Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) <= 2));
+        const visible = [...view.querySelectorAll(sel)].every(el => { const r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return r.width >= 44 && r.height >= 44 && !!hit && (hit === el || el.contains(hit)); });
+        return { count: rects.length, separate, visible };
+      }, selector);
+      await ui.locator("html").evaluate(() => (window as unknown as KidsWindow).AIPPO_TEST.go("map"));
+      await reloadAtMap(page, ui);
+      await selectQuest(ui, "w3-q2");
+      await tap(ui, '[data-order-pick="choose"]');
+      await tap(ui, '[data-order-pick="ask"]');
+      expect(await apart("[data-order-slot]")).toEqual({ count: 3, separate: true, visible: true });
+      await tap(ui, '.questHead [data-nav="map"]');
+      await selectQuest(ui, "w4-q1");
+      expect(await apart(".builderSlot")).toEqual({ count: 3, separate: true, visible: true });
     });
   }
 }
