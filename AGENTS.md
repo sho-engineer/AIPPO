@@ -1,6 +1,13 @@
 # AGENTS.md
 
-AIPPO — AI初心者の会社員が、手を動かして AI の使い方を覚える学習アプリ。
+AIPPO — 現在の重点はKids。対象・大人版との関係・完成条件は `docs/aippo/product-direction.md` を先に読む。
+
+## 全作業の入口
+
+- `docs/aippo/product-direction.md` … 製品方針の正本。古い引き継ぎメモだけで方向を判断しない
+- `docs/aippo/kids-beta-quality-policy.md` … Kidsの検証運用
+- Kids実装正本：`frontend/src/kids/learning.html`。standaloneは `frontend/scripts/build-kids-title.mjs` で生成
+- 以下のLesson制作規則とcatalogの3層は大人向けLessonのもの。既存資産は維持する
 
 このファイルは `CLAUDE.md` と同じ内容。どのAIから読まれても同じ正本へ
 案内するため、両方に置いてある。**仕様そのものはここに書かない。**
