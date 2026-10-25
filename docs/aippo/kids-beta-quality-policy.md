@@ -12,7 +12,7 @@ CEO指示（2026-10-16 MYT）：通常の変更はcriticalな検証を実施し�
 
 ## βリリース前
 
-GitHub ActionsのCIを `workflow_dispatch`、`full_lifecycle=true` で起動する。通常省略する既存の全Kidsライフサイクル、全viewport/回転、全core E2Eを含める。タイトルの40検証も別ジョブで実行する。ケースの削除やテスト条件の緩和で全成功にしない。
+GitHub ActionsのCIを `workflow_dispatch`、`full_lifecycle=true` で起動する。手動起動の権限がない場合は、タイトルが `[release-check]` で始まるPRでも同じ全範囲が実行される（`.github/workflows/ci.yml` の条件）。通常省略する既存の全Kidsライフサイクル、全viewport/回転、全core E2Eを含める。タイトル画面の検証も別ジョブで実行する（件数は固定せず、CIの実行結果を記録する）。ケースの削除やテスト条件の緩和で全成功にしない。
 
 この手順は実行機能の用意であり、βの全検証が完了したという意味ではない。実行したcommit・件数・失敗/未実施と証跡を台帳へ記録し、未解決P0/P1がある場合は公開しない。
 
