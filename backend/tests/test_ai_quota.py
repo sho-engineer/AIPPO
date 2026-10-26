@@ -193,6 +193,39 @@ class TestPrivacy:
         settings.TRUST_FORWARDED_FOR = True
         assert quota.client_ip(request) == "1.2.3.4"
 
+    def test_spoofed_leftmost_forwarded_value_cannot_set_the_client_ip(
+        self, settings, rf
+    ):
+        """左端はクライアントが詐称できる。信頼する段数ぶん右の値を採る。"""
+        settings.TRUST_FORWARDED_FOR = True
+        settings.TRUSTED_PROXY_COUNT = 1
+        # 攻撃者が `evil` を左端に足しても、信頼するプロキシが右へ足した
+        # 本物の接続元（右端）が採られる。
+        request = rf.get(
+            "/",
+            HTTP_X_FORWARDED_FOR="203.0.113.10, 198.51.100.23",
+            REMOTE_ADDR="10.0.0.1",
+        )
+        assert quota.client_ip(request) == "198.51.100.23"
+
+        # プロキシを2段重ねているなら、右から2番目が本来の接続元。
+        settings.TRUSTED_PROXY_COUNT = 2
+        request = rf.get(
+            "/",
+            HTTP_X_FORWARDED_FOR="203.0.113.10, 198.51.100.23, 10.0.0.2",
+            REMOTE_ADDR="10.0.0.1",
+        )
+        assert quota.client_ip(request) == "198.51.100.23"
+
+    def test_short_forwarded_chain_falls_back_to_remote_addr(self, settings, rf):
+        """段数ぶんの値が無ければ、詐称の疑いがあるので直結元へ倒す。"""
+        settings.TRUST_FORWARDED_FOR = True
+        settings.TRUSTED_PROXY_COUNT = 2
+        request = rf.get(
+            "/", HTTP_X_FORWARDED_FOR="203.0.113.10", REMOTE_ADDR="10.0.0.1"
+        )
+        assert quota.client_ip(request) == "10.0.0.1"
+
 
 @pytest.mark.django_db
 class TestLessonKeepsWorking:
