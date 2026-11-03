@@ -192,4 +192,12 @@ describe("Kids strict persona UX regressions", () => {
     expect(document.querySelector('[data-select="color:blue"]')).toBeNull();
     expect(Object.keys(a.saved.done)).toHaveLength(0);
   });
+  it("shows the child's nickname on home exactly as typed, escaped once", () => {
+    localStorage.setItem("aippo_kids_settings_v1", JSON.stringify({ guardianAccepted: true, challengeMode: "guided", readingSupport: "on", nickname: "M&M<b>" }));
+    const a = boot(); a.go("home");
+    const message = document.querySelector(".poStage strong, .homeView strong")!;
+    expect(message.textContent).toContain("M&M<b>と");
+    expect(message.textContent).not.toContain("&amp;");
+    expect(message.querySelector("b")).toBeNull();
+  });
 });
