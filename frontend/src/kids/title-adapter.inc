@@ -12,7 +12,7 @@ function checkSession(){
 }
 function launchAdventure(){
  if(auth.status==='loading'){const from=state.view;toast('ログイン状態を確認しています…');void checkSession().then(()=>{if(state.view===from)launchAdventure()});return}
- if(!settings.guardianAccepted){showGuardianSetup();return}go('learning');
+ if(!settings.guardianAccepted){showGuardianSetup();return}const fromTitle=state.view==='home';go('learning');if(fromTitle)journeyTransition('ぼうけんへ しゅっぱつ！');
 }
 function selectGuest(){sessionEpoch++;auth.user=null;auth.status='guest';reloadAccountProgress();launchAdventure()}
 function layout(body,options={}){app.classList.toggle('titleMode',state.view==='home'||state.view==='auth');learningLayout(body,options)}
