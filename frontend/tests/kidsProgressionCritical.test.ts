@@ -321,6 +321,7 @@ describe("Kids critical progression: stamps, promotion and historic records", ()
       expect(request!.textContent).toContain('あおに');
       expect(request!.querySelector('.poGlyph')).toBeNull();
       document.querySelector<HTMLButtonElement>('[data-action="submit"]')!.click();
+      document.querySelector<HTMLButtonElement>('[data-predict]')!.click();
       vi.advanceTimersByTime(450);
       expect(document.querySelectorAll('.resultNotice')).toHaveLength(1);
       expect(document.querySelector('.resultNotice')!.textContent).toContain('あお');
