@@ -54,6 +54,7 @@ describe("Kids prediction before generation", () => {
     guess(a, true);
     expect(a.state.view).toBe("result"); expect(a.state.tries).toBe(1);
     expect(document.querySelector(".predictNote")!.textContent).toContain("おもった とおり！");
+    expect(document.querySelectorAll(".resultCompare > .preview")[1].querySelector(".predictBadge")!.textContent).toContain("よそう どおり");
     click('[data-action="next"]');
     expect(a.saved.latestAttempts["w1-q1"].prediction).toMatchObject({ matched: true, guess: { color: "blue" } });
   });
@@ -61,6 +62,7 @@ describe("Kids prediction before generation", () => {
     const a = boot(); a.startQuest(0); click('[data-select="color:blue"]'); click('[data-action="submit"]');
     guess(a, false);
     expect(document.querySelector(".predictNote")!.textContent).toContain("ちがったね");
+    expect(document.querySelector(".predictBadge")!.textContent).toContain("ちがった");
     expect(document.querySelector('[data-action="next"]')!.textContent).toContain("スタンプ");
     click('[data-action="next"]');
     expect(a.state.view).toBe("win");

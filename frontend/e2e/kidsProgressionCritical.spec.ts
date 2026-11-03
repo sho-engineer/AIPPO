@@ -140,7 +140,8 @@ for (const route of ["/kids", "/kids-title/"]) {
         for (const g of await guesses.all()) await expect(g).toBeInViewport({ ratio: 1 });
         await tap(ui, '[data-predict="0"]');
         await expect(ui.locator(".resultNotice")).toContainText(color === "blue" ? "つたわった" : "もういちど");
-        await expect(ui.locator(".predictNote")).toBeInViewport({ ratio: 1 });
+        // The guess is answered on the AI card itself, so it never pushes the comparison or the button away.
+        await expect(ui.locator(".resultCompare .predictBadge")).toBeInViewport({ ratio: 1 });
         expect(await ui.locator('.resultNotice').evaluate(el=>{const r=el.getBoundingClientRect();return parseFloat(getComputedStyle(el).fontSize)>=16&&r.height>=44&&r.top>=0&&r.bottom<=innerHeight})).toBe(true);
         const cards = ui.locator(".resultCompare > .preview");
         await expect(cards).toHaveCount(2);
