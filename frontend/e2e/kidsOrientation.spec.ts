@@ -103,24 +103,32 @@ async function adultClick(frame: FrameLocator, selector: string) {
 async function snapshot(frame: FrameLocator) {
   return frame.locator('html').evaluate(() => [localStorage.getItem('aippo_kids_journey_v1'), localStorage.getItem('aippo_kids_settings_v1')]);
 }
+// One rotation journey, split in two tests so each stays well inside its time
+// limit on slower CI runners (the whole journey took ~2.5 of 3 minutes there).
+// Both start from the same seeded state and keep every original check.
+async function rotationStart(page: Page, portrait: { width: number; height: number }, landscape: { width: number; height: number }) {
+  await page.setViewportSize(portrait);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+  await page.goto('/kids');
+  const frame = page.frameLocator(iframe);
+  await seedStableProgress(frame.locator('html'), 26);
+  await page.reload();
+  await expect(frame.locator('.worldView')).toBeVisible();
+  const initial = await snapshot(frame);
+  await page.setViewportSize(landscape);
+  await expect(frame.locator('.worldView')).toBeVisible();
+  expect(await snapshot(frame)).toEqual(initial);
+  return { frame, initial, errors };
+}
 for (const portrait of pairs) {
   const landscape = { width: portrait.height, height: portrait.width };
-  test(`Kids rotation retains state and all quest controls ${portrait.width}x${portrait.height}`, async ({ page }, testInfo) => {
+  // World 1 has most of the quests, so it gets its own test; together the two cover all five worlds.
+  for (const worlds of [[0], [1, 2, 3, 4]]) test(`Kids rotation retains state and all quest controls w${worlds.map(w => w + 1).join('')} ${portrait.width}x${portrait.height}`, async ({ page }, testInfo) => {
     test.setTimeout(180_000);
-    await page.setViewportSize(portrait);
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
-    await page.goto('/kids');
-    const frame = page.frameLocator(iframe);
-    await seedStableProgress(frame.locator('html'), 26);
-    await page.reload();
-    await expect(frame.locator('.worldView')).toBeVisible();
-    const initial = await snapshot(frame);
-    await page.setViewportSize(landscape);
-    await expect(frame.locator('.worldView')).toBeVisible();
-    expect(await snapshot(frame)).toEqual(initial);
+    const { frame, initial, errors } = await rotationStart(page, portrait, landscape);
     const quests = await liveQuests(frame.locator('html'));
-    for (let world = 0; world < 5; world++) {
+    for (const world of worlds) {
       await frame.locator(`[data-world="${world}"]`).click();
       await childScreen(page, frame);
       for (const quest of quests.filter(q => q.world === world)) {
@@ -142,6 +150,11 @@ for (const portrait of pairs) {
       }
     }
     expect(await snapshot(frame)).toEqual(initial);
+    expect(errors).toEqual([]);
+  });
+  test(`Kids rotation retains mission, result and guardian flows ${portrait.width}x${portrait.height}`, async ({ page }, testInfo) => {
+    test.setTimeout(180_000);
+    const { frame, initial, errors } = await rotationStart(page, portrait, landscape);
     await frame.locator('[data-world="0"]').click();
     await frame.locator('[data-quest="0"]').click();
     await frame.locator('[data-action="enter-quest"]').click();
