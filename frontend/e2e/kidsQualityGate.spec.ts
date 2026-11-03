@@ -108,6 +108,8 @@ for (const viewport of sizes) {
     await frame.locator('[data-select="color:blue"]').click();
     await fitsViewportAndContainer(frame.locator('[data-action="submit"]'), ".shell");
     await frame.locator('[data-action="submit"]').click();
+    await ordinaryScreen(frame, page, '.view [data-predict], .view .actionBar button');
+    await frame.locator('[data-predict="0"]').click();
     await expect(frame.locator(".resultNotice")).toContainText("つたわった");
     await ordinaryScreen(frame, page, ".view .actionBar button, .view [data-nav]");
     await frame.locator('[data-action="next"]').click();

@@ -33,6 +33,7 @@ for (const viewport of [{ width: 568, height: 320 }, { width: 844, height: 390 }
     await frame.locator('[data-action="enter-quest"]').click();
     await frame.locator('[data-select="color:blue"]').click();
     await frame.locator('[data-action="submit"]').click();
+    await frame.locator('[data-predict="0"]').click();
     await expect(frame.locator('.resultNotice')).toContainText('つたわった');
     await frame.locator('[data-action="next"]').click();
     await expect(frame.locator('.storageNotice')).toContainText('保存を確認できません');
@@ -156,6 +157,7 @@ for (const portrait of pairs) {
       expect(await snapshot(frame)).toEqual(initial);
     }
     await frame.locator('[data-action="submit"]').click();
+    await frame.locator('[data-predict="0"]').click();
     await expect(frame.locator('.resultNotice')).toContainText('つたわった');
     await page.setViewportSize(landscape);
     await childScreen(page, frame);
