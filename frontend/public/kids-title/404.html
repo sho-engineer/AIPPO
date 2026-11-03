@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#f5f8fc" />
+<meta name="robots" content="noindex" />
+<title>ページが見つかりません | AIPPO Kids</title>
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<!--
+  aippo.jp はこのフォルダをサイトのルートとして配る。存在しない URL では
+  Vercel がこのファイルを返す。パスはルートからの絶対パスで書く
+  （/foo/bar のような深い URL でも絵とリンクが壊れないように）。
+-->
+<style>
+:root{--blue:#1268e8;--ink:#102c52;--slate:#55708e;--line:#dceaf8;--bg:#f5f8fc}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{min-height:100dvh;display:grid;place-items:center;background:var(--bg);color:var(--ink);
+  font-family:ui-rounded,"Hiragino Maru Gothic ProN","Yu Gothic",system-ui,sans-serif;
+  padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left))}
+main{width:min(100%,440px);background:#fff;border:1px solid var(--line);border-radius:24px;padding:24px 20px;text-align:center;box-shadow:0 12px 38px rgba(27,88,150,.12)}
+.brand{height:28px;width:auto;margin:0 auto 4px;display:block}
+.po{width:120px;height:120px;object-fit:contain;display:block;margin:4px auto 0}
+h1{font-size:24px;line-height:1.35;margin:8px 0 6px;word-break:keep-all;overflow-wrap:anywhere}
+.kid{font-size:17px;line-height:1.6;margin:0 0 14px;word-break:keep-all;overflow-wrap:anywhere}
+.parent{font-size:13px;line-height:1.6;color:var(--slate);margin:0 0 18px}
+.primary{display:flex;align-items:center;justify-content:center;min-height:52px;border-radius:16px;background:var(--blue);color:#fff;font-weight:800;font-size:17px;text-decoration:none;padding:0 16px}
+.primary:focus-visible,.contact a:focus-visible{outline:3px solid #e2a62e;outline-offset:3px}
+.contact{font-size:13px;color:var(--slate);margin:16px 0 0}
+.contact a{color:var(--blue);display:inline-block;min-height:44px;line-height:44px;padding:0 4px}
+@media(max-height:600px){main{padding:16px}.po{width:96px;height:96px}h1{font-size:21px;margin:4px 0}.kid{font-size:15px;margin-bottom:8px}.parent{font-size:12px;margin-bottom:10px}.contact{margin-top:8px}}
+@media(orientation:landscape) and (max-height:500px){body{padding-top:max(8px,env(safe-area-inset-top));padding-bottom:max(8px,env(safe-area-inset-bottom))}main{width:min(100%,620px);display:grid;grid-template-columns:96px minmax(0,1fr);gap:2px 16px;text-align:left;align-items:center;padding:12px 16px}.brand{grid-column:1/3;margin:0;height:22px}.po{grid-row:2/6;margin:0;width:96px;height:96px}h1{font-size:19px;margin:0}.kid{font-size:14px;margin:0}.parent{font-size:12px;margin:0;line-height:1.5}.primary{grid-column:2;min-height:48px;font-size:15px;white-space:nowrap}.contact{grid-column:2;text-align:left;margin:0;font-size:12px}.contact a{min-height:44px;line-height:44px}}
+</style>
+</head>
+<body>
+<main>
+  <img class="brand" src="/brand/logo-horizontal.webp" alt="AIPPO" />
+  <img class="po" src="/assets/po/question.webp" alt="AIPPOのポーちゃん" />
+  <h1>ページが みつからないよ</h1>
+  <p class="kid">ポーと いっしょに、はじめの がめんへ もどろう。</p>
+  <p class="parent">お探しのページは見つかりませんでした。URLが変わったか、削除された可能性があります。</p>
+  <a class="primary" href="/">AIPPO Kids の はじめへ もどる</a>
+  <p class="contact">困ったときは <a href="mailto:support@aippo.jp">support@aippo.jp</a> へご連絡ください。</p>
+</main>
+</body>
+</html>
