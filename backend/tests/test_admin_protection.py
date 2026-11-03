@@ -148,6 +148,27 @@ class TestWhoWeThinkIsCalling:
 
         assert response.status_code == 404
 
+    def test_a_spoofed_leftmost_address_cannot_pose_as_the_allowlisted_one(
+        self, restricted, client
+    ):
+        """左端に許可IPを足しても通さないこと。
+
+        攻撃者が許可IPを知っていても、`X-Forwarded-For: <許可IP>, ...` と
+        左端へ書くだけでは入れない。信頼するプロキシが右へ足した本物の
+        接続元（ここでは許可外）で判定する。これが効かないと、IPの守りは
+        「許可IPの文字列を1つ知っているか」まで弱くなる。
+        """
+        restricted.TRUST_FORWARDED_FOR = True
+        restricted.TRUSTED_PROXY_COUNT = 1
+
+        response = client.get(
+            ADMIN,
+            REMOTE_ADDR="10.0.0.1",
+            HTTP_X_FORWARDED_FOR="203.0.113.10, 198.51.100.99",
+        )
+
+        assert response.status_code == 404
+
 
 def _reload_settings(**env):
     """環境変数を差し替えて config.settings を読み直す。"""

@@ -80,14 +80,29 @@ class QuotaExceeded(Exception):
 def client_ip(request) -> str:
     """接続元のIPを取り出す。
 
-    ロードバランサ越しの場合は X-Forwarded-For の**左端**が本来の接続元。
-    ただしこのヘッダは詐称できるため、信頼するのはプロキシ配下に置くと
-    明示したとき（`TRUST_FORWARDED_FOR=true`）だけにする。
+    `X-Forwarded-For` は `client, proxy1, proxy2, ...` の形で、**左端は
+    クライアントが好きに書ける**。一般的なプロキシ（nginx 等）は受け取った
+    ヘッダの右へ自分の見た接続元を足すので、信頼できるのは
+    「自分の前に置いた信頼するプロキシが足した値」＝**右から数えた位置**だけ。
+
+    左端を採ると、`X-Forwarded-For: <許可IP>` と送るだけで接続元を詐称でき、
+    管理画面のIP許可（`apps/ops/middleware.py`）や接続元ごとの上限
+    （登録・AI費用）をすり抜けられる。
+
+    そこで、信頼するプロキシの段数（`TRUSTED_PROXY_COUNT`、既定1）を使い、
+    **右から段数ぶん内側**の値を本来の接続元とする。段数ぶんの値が無い
+    （チェーンが短すぎる）ときは、詐称された可能性があるので信じず
+    REMOTE_ADDR へ倒す。
+
+    `TRUST_FORWARDED_FOR=false`（既定）のときはヘッダを一切見ない。
+    直接公開している構成で、1本でも詐称を通さないため。
     """
     if settings.TRUST_FORWARDED_FOR:
         forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
+        parts = [item.strip() for item in forwarded.split(",") if item.strip()]
+        count = max(1, int(getattr(settings, "TRUSTED_PROXY_COUNT", 1)))
+        if len(parts) >= count:
+            return parts[-count]
     return request.META.get("REMOTE_ADDR", "") or "unknown"
 
 

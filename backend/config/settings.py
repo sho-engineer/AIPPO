@@ -656,6 +656,17 @@ AI_IMAGE_DAILY_REQUEST_LIMIT_GUEST = int(
 # 直接公開している状態で true にすると、接続元を詐称して上限を回避できる。
 TRUST_FORWARDED_FOR = _bool("TRUST_FORWARDED_FOR", False)
 
+# 自分の前に置いた「信頼するプロキシ」の段数。
+#
+# X-Forwarded-For の左端はクライアントが詐称できる。信頼できるのは、
+# 信頼するプロキシが足した**右側**の値だけなので、右から何番目を
+# 本来の接続元とみなすかをここで決める（`services/quota.client_ip`）。
+#
+# ふつうは1（例: Vercel だけ、nginx だけ）。プロキシを2段重ねている
+# なら2。多すぎる値にすると、詐称された左端まで信じてしまうので、
+# **実際の段数ちょうど**にする。TRUST_FORWARDED_FOR=false のときは使わない。
+TRUSTED_PROXY_COUNT = int(os.getenv("TRUSTED_PROXY_COUNT", "1"))
+
 # 匿名学習者の識別
 LEARNER_KEY_COOKIE = "learner_key"
 
