@@ -70,7 +70,7 @@ describe('Approved standalone title opening without adult Welcome changes', () =
   });
   it('shows skip immediately, marks first visit, keeps one video through session rerender, and never replays on return', async () => {
     boot(); const video = document.querySelector('video')!;
-    expect(video.muted).toBe(true); expect(video.playsInline).toBe(true); expect(localStorage.getItem(key)).toBe('seen');
+    expect(video.muted).toBe(true); expect(video.playsInline).toBe(true); expect(localStorage.getItem(key)).toBe('pending'); video.dispatchEvent(new Event('playing')); expect(localStorage.getItem(key)).toBe('seen');
     expect(document.querySelector('[data-opening-skip]')).not.toBeNull();
     await vi.advanceTimersByTimeAsync(0);
     expect(document.querySelector('video')).toBe(video);
@@ -92,10 +92,11 @@ describe('Approved standalone title opening without adult Welcome changes', () =
     if (reason === 'rejected') vi.spyOn(HTMLMediaElement.prototype, 'play').mockRejectedValue(Error('NotAllowed'));
     boot();
     if (reason === 'ended' || reason === 'error') document.querySelector('video')!.dispatchEvent(new Event(reason));
-    if (reason === 'timeout') await vi.advanceTimersByTimeAsync(1201);
+    if (reason === 'timeout') await vi.advanceTimersByTimeAsync(4001);
     if (reason === 'rejected') await vi.advanceTimersByTimeAsync(0);
     expect(document.querySelector('.openingLayer')).toBeNull(); expect(document.querySelector('.posterTitle')).not.toBeNull();
     expect(document.querySelector('[data-action="poster-login"]')).not.toBeNull();
+    if(reason !== 'ended'){boot(); expect(document.querySelector('video')).not.toBeNull();}
   });
   it('bounds playback even if playing fires repeatedly and does not loop', async () => {
     boot(); const video = document.querySelector('video')!;

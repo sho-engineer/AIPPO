@@ -14,13 +14,13 @@ function playOpening(){
  const settle=()=>{const image=layer.querySelector('.openingLanding');if(video.currentTime>=3.3&&image.complete&&image.naturalWidth>0)layer.classList.add('is-landing')};
  video.ontimeupdate=settle;
  window.addEventListener('resize',syncArtboard);window.visualViewport?.addEventListener('resize',syncArtboard);
- let loadTimer=setTimeout(endOpening,1200),maximumTimer=setTimeout(endOpening,5500),stallTimer;
+ let loadTimer=setTimeout(endOpening,4000),maximumTimer,stallTimer;
  const visibility=()=>{if(document.hidden)endOpening()};document.addEventListener('visibilitychange',visibility);
  const observer=new MutationObserver(()=>{if(!app.querySelector('.posterTitle'))endOpening()});observer.observe(app,{childList:true,subtree:true});
  openingCleanup=()=>{clearTimeout(loadTimer);clearTimeout(maximumTimer);clearTimeout(stallTimer);observer.disconnect();document.removeEventListener('visibilitychange',visibility);window.removeEventListener('resize',syncArtboard);window.visualViewport?.removeEventListener('resize',syncArtboard);video.onplaying=null;video.onwaiting=null;video.onended=null;video.onerror=null;video.ontimeupdate=null;video.pause();video.removeAttribute('src');video.load()};
- video.onplaying=()=>{clearTimeout(loadTimer);clearTimeout(stallTimer)};
- video.onwaiting=()=>{clearTimeout(stallTimer);stallTimer=setTimeout(endOpening,1200)};
- video.onended=endOpening;video.onerror=endOpening;layer.querySelector('[data-opening-skip]').onclick=endOpening;
+ video.onplaying=()=>{clearTimeout(loadTimer);clearTimeout(stallTimer);maximumTimer??=setTimeout(endOpening,5500);try{localStorage.setItem(OPENING_SEEN,'seen')}catch{}};
+ video.onwaiting=()=>{clearTimeout(stallTimer);stallTimer=setTimeout(endOpening,4000)};
+ video.onended=endOpening;video.onerror=endOpening;layer.querySelector('[data-opening-skip]').onclick=()=>{try{localStorage.setItem(OPENING_SEEN,'skipped')}catch{}endOpening()};
  layer.addEventListener('keydown',event=>{if(event.key==='Escape')endOpening();if(event.key==='Tab'){event.preventDefault();layer.querySelector('button').focus()}});
  document.body.append(layer);syncArtboard();app.inert=true;layer.querySelector('button').focus();
  try{const result=video.play();if(result&&typeof result.catch==='function')result.catch(()=>{if(openingLayer===layer)endOpening()})}catch{endOpening()}
@@ -31,8 +31,8 @@ function setupOpening(){
  let shouldPlay=false;
  try{
   const now=Date.now(),raw=localStorage.getItem(OPENING_LAST_ACTIVE),last=Number(raw),seen=localStorage.getItem(OPENING_SEEN);
-  shouldPlay=raw!==null?Number.isFinite(last)&&last>0&&now-last>=OPENING_IDLE_MS:!seen&&!settings.guardianAccepted&&!auth.user&&!Object.keys(saved.done||{}).length;
-  localStorage.setItem(OPENING_SEEN,'seen');localStorage.setItem(OPENING_LAST_ACTIVE,String(now));
+  shouldPlay=seen==='pending'||(raw!==null?Number.isFinite(last)&&last>0&&now-last>=OPENING_IDLE_MS:!seen&&!settings.guardianAccepted&&!auth.user&&!Object.keys(saved.done||{}).length);
+  if(shouldPlay)localStorage.setItem(OPENING_SEEN,'pending');localStorage.setItem(OPENING_LAST_ACTIVE,String(now));
  }catch{return}
  if(!shouldPlay)return;
  const reduced=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
