@@ -78,6 +78,8 @@ function confirmGuestSwitch(origin){
 }
 async function logout(){try{await apiCall('/signout/',{})}catch{toast('ログアウトできませんでした。通信を確認してください');return false}sessionEpoch++;auth.user=null;auth.status='guest';reloadAccountProgress();state.view='home';render();return true}
 function authView(){
+ // No account service behind this address (the account API answered 404): a sign-in form would only fail, so say so and keep the way to play open.
+ if(!auth.available){layout(`<main class="view accountView"><div class="accountBack"><button class="back" data-action="auth-back" aria-label="タイトルにもどる">${ico('back')}</button><img src="${BRAND}" alt="AIPPO"/><span class="brandLabel">KIDS</span></div><div class="accountScroll"><div class="accountHero">${po('talking')}<div><h1>いまは ログインできません</h1><p>ゲストのまま あそべます</p></div></div><div class="accountAlert accountUnavailable" role="status">この画面では、保護者アカウントのログインをご利用いただけません。登録なしのゲストとして遊べます。学習記録はこの端末に保存されます。</div><div class="accountLinks"><button data-action="auth-guest">ゲストではじめる</button></div><p class="accountInfo">困ったときは <a href="mailto:support@aippo.jp">support@aippo.jp</a> へご連絡ください。</p></div></main>`);app.querySelector('[data-action=auth-back]').onclick=()=>go('home');app.querySelector('[data-action=auth-guest]').onclick=()=>selectGuest();return}
  const mode=auth.mode;const isSignIn=mode==='signin',isSignUp=mode==='signup',isReset=mode==='reset',isConfirm=mode==='confirm',isVerify=mode==='verify',isMfa=mode==='mfa';
  const heading=isSignIn?'おかえりなさい':isSignUp?'アカウントをつくる':isReset?'パスワードを再設定':isConfirm?'新しいパスワード':isVerify?'メールアドレスの確認':'確認コードを入力';
  const info=isSignIn?'保護者のメールアドレスでログイン':isSignUp?'保護者の方が登録してください':isReset?'再設定用のメールをお送りします':isConfirm?'新しいパスワードを設定します':isVerify?'メールアドレスを確認します':'認証アプリのコードを入力してください';
@@ -88,9 +90,9 @@ function authView(){
  const consent=isSignUp?`<label class="accountCheck"><input type="checkbox" name="consent" required/> <span>保護者として、利用案内とプライバシー説明を確認し、同意します。</span></label>`:'';
  const button=isSignIn?'ログイン':isSignUp?'無料でアカウント作成':isReset?'再設定メールを送る':isConfirm?'新しいパスワードを保存':isVerify?'メールを確認':'コードを確認';
  layout(`<main class="view accountView"><div class="accountBack"><button class="back" data-action="auth-back" aria-label="タイトルにもどる">${ico('back')}</button><img src="${BRAND}" alt="AIPPO"/><span class="brandLabel">KIDS</span></div><div class="accountScroll"><div class="accountHero">${po('talking')}<div><h1>${heading}</h1><p>${info}</p></div></div>
- ${auth.error?`<div class="accountAlert" role="alert">${escape(auth.error)}</div>`:''}${auth.success?`<div class="accountAlert accountSuccess" role="status">${escape(auth.success)}</div>`:''}
- <form class="accountForm" id="account-form">${emailInput}${pwInput}${pwAgain}${mfaInput}${consent}<button class="primary accountSubmit" type="submit" ${auth.busy?'disabled':''}>${auth.busy?'確認しています…':button} ${ico('arrow')}</button></form>
- <div class="accountLinks">${isSignIn?'<button data-authmode="signup">はじめての方：新規登録</button><button data-authmode="reset">パスワードを忘れた</button>':isSignUp||isReset?'<button data-authmode="signin">ログインにもどる</button>':''}<button data-action="auth-guest">ゲストではじめる</button></div>
+ ${auth.error?`<div class="accountAlert" role="alert" tabindex="-1">${escape(auth.error)}</div>`:''}${auth.success?`<div class="accountAlert accountSuccess" role="status">${escape(auth.success)}</div>`:''}
+ <form class="accountForm" id="account-form" novalidate>${emailInput}${pwInput}${pwAgain}${mfaInput}${consent}<button class="primary accountSubmit" type="submit" ${auth.busy?'disabled':''}>${auth.busy?'確認しています…':button} ${ico('arrow')}</button></form>
+ <div class="accountLinks">${isSignIn?'<button data-authmode="reset">パスワードを忘れた方はこちら</button><button data-authmode="signup">はじめての方：新規登録</button>':isSignUp||isReset?'<button data-authmode="signin">ログインにもどる</button>':''}<button data-action="auth-guest">ゲストではじめる</button></div>
  <p class="accountInfo">ログインは保護者向けです。<br>Kidsの学習記録は現在この端末にのみ保存され、別の端末とは同期されません。<br>ログイン中はアカウント用の記録になります。ゲストの記録は引き継がれません（どちらも消えません）。</p><div class="accountPolicy"><button data-authpolicy="terms">利用案内</button><button data-authpolicy="privacy">プライバシー</button></div></div></main>`);
  app.querySelector('[data-action=auth-back]').onclick=()=>go('home');
  app.querySelector('[data-action=auth-guest]').onclick=()=>selectGuest();
@@ -98,7 +100,19 @@ function authView(){
  app.querySelectorAll('[data-authpolicy]').forEach(b=>b.onclick=()=>policyModal(b.dataset.authpolicy));
  app.querySelector('#account-form').onsubmit=handleAuth;
 }
-async function handleAuth(e){e.preventDefault();if(auth.busy)return;const form=e.currentTarget;const fd=new FormData(form);const email=String(fd.get('email')||auth.email||'').trim(),password=String(fd.get('password')||''),confirm=String(fd.get('confirm')||'');if(email)auth.email=email;auth.error='';auth.success='';if((auth.mode==='signup'||auth.mode==='confirm')&&password!==confirm){auth.error='パスワードが一致していません。';render();return}auth.busy=true;const submit=app.querySelector('.accountSubmit');if(submit){submit.disabled=true;submit.textContent='確認しています…'};
+// Checked before any request so parents see a clear Japanese message in the page
+// (the browser's own bubbles are small, vary by browser and vanish on scroll).
+function authInputProblem(mode,v){
+ if(v.hasEmail&&!v.email)return 'メールアドレスを入力してください。';
+ if(v.hasEmail&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email))return 'メールアドレスの形を確認してください（例：name@example.com）。';
+ if(v.hasPassword&&!v.password)return 'パスワードを入力してください。';
+ if((mode==='signup'||mode==='confirm')&&v.password.length<8)return 'パスワードは8文字以上にしてください。';
+ if((mode==='signup'||mode==='confirm')&&v.password!==v.confirm)return 'パスワードが一致していません。';
+ if(mode==='signup'&&!v.consent)return '保護者の同意を確認してください。';
+ if(mode==='mfa'&&!v.mfa)return '確認コードを入力してください。';
+ return '';
+}
+async function handleAuth(e){e.preventDefault();if(auth.busy)return;const form=e.currentTarget;const fd=new FormData(form);const email=String(fd.get('email')||auth.email||'').trim(),password=String(fd.get('password')||''),confirm=String(fd.get('confirm')||'');if(email)auth.email=email;auth.error='';auth.success='';const problem=authInputProblem(auth.mode,{email,password,confirm,consent:fd.get('consent')==='on',mfa:String(fd.get('mfa')||'').trim(),hasEmail:fd.has('email'),hasPassword:fd.has('password')});if(problem){auth.error=problem;render();app.querySelector('.accountAlert')?.focus?.();return}auth.busy=true;const submit=app.querySelector('.accountSubmit');if(submit){submit.disabled=true;submit.textContent='確認しています…'};
  try{
   if(auth.mode==='signin'){
    const r=await apiCall('/signin/',{email,password});

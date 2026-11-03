@@ -10,6 +10,8 @@ type Api = {
 };
 const api = () => (window as unknown as { AIPPO_TEST: Api }).AIPPO_TEST;
 const click = (selector: string) => { const b = document.querySelector<HTMLButtonElement>(selector); expect(b, selector).not.toBeNull(); b!.click(); };
+// Sending cards to the AI is two taps now: the send button, then the child's guess of what the AI will make.
+const send = () => { click('[data-action="submit"]'); click('[data-predict]'); };
 function boot(source = canonical) {
   document.body.innerHTML = '<div id="app"></div>';
   window.eval(source.match(/<script>([\s\S]*?)<\/script>/)![1]);
@@ -35,7 +37,7 @@ describe("Kids strict persona UX regressions", () => {
     const a = boot(); a.enterQuest(0);
     if (view !== "entrance") click('[data-action="enter-quest"]');
     if (view !== "entrance") click('[data-select="color:blue"]');
-    if (view === "result") { click('[data-action="submit"]'); vi.advanceTimersByTime(450); }
+    if (view === "result") { send(); vi.advanceTimersByTime(450); }
     const selected = { ...a.state.selected }, saved = JSON.stringify(a.saved);
     click('.top [data-nav="settings"]'); click('[data-action="settings-done"]');
     expect(a.state.view).toBe(view); expect(a.state.selected).toEqual(selected); expect(JSON.stringify(a.saved)).toBe(saved);
@@ -49,22 +51,22 @@ describe("Kids strict persona UX regressions", () => {
     expect(document.querySelector<HTMLElement>(".pathScroll")!.scrollTop).toBe(315);
   });
   it("cancels in-flight simulation when settings opens and leaves the same cards usable", () => {
-    const a = boot(); a.startQuest(0); click('[data-select="color:blue"]'); click('[data-action="submit"]');
+    const a = boot(); a.startQuest(0); click('[data-select="color:blue"]'); send();
     click('.top [data-nav="settings"]'); vi.advanceTimersByTime(1000);
     expect(a.state.view).toBe("settings"); click('[data-action="settings-done"]');
     expect(a.state.view).toBe("play"); expect(a.state.selected.color).toBe("blue"); expect(document.querySelector(".think")).toBeNull();
-    click('[data-action="submit"]'); vi.advanceTimersByTime(450); expect(a.state.view).toBe("result");
+    send(); vi.advanceTimersByTime(450); expect(a.state.view).toBe("result");
   });
   // Both routes keep the mission state, so only the attempt rollback can bring the count back to 0.
   it.each(["settings", "parent"])("does not count a submission canceled by opening %s before the AI result", target => {
     for (const source of [canonical, standalone]) {
-      const a = boot(source); a.startQuest(0); click('[data-select="color:blue"]'); click('[data-action="submit"]');
+      const a = boot(source); a.startQuest(0); click('[data-select="color:blue"]'); send();
       expect(a.state.tries).toBe(1);
       if (target === "settings") { click('.top [data-nav="settings"]'); click('[data-action="settings-done"]'); }
       else { click('.top [data-nav="parent"]'); click('[data-action="map"]'); }
       vi.advanceTimersByTime(1000);
       expect(a.state.view).toBe("play"); expect(a.state.tries).toBe(0);
-      click('[data-action="submit"]'); vi.advanceTimersByTime(450);
+      send(); vi.advanceTimersByTime(450);
       expect(a.state.view).toBe("result"); expect(a.state.tries).toBe(1);
       document.querySelector<HTMLButtonElement>("[data-opening-skip]")?.click();
       vi.clearAllTimers(); localStorage.removeItem("aippo_kids_journey_v1"); document.body.innerHTML = "";
@@ -85,7 +87,7 @@ describe("Kids strict persona UX regressions", () => {
   it.each(["entrance", "play", "result"])("returns from the growth record to the same %s without losing cards or records", view => {
     const a = boot(); a.enterQuest(0);
     if (view !== "entrance") { click('[data-action="enter-quest"]'); click('[data-select="color:blue"]'); }
-    if (view === "result") { click('[data-action="submit"]'); vi.advanceTimersByTime(450); }
+    if (view === "result") { send(); vi.advanceTimersByTime(450); }
     const selected = { ...a.state.selected }, saved = JSON.stringify(a.saved);
     click('.top [data-nav="parent"]'); expect(a.state.view).toBe("parent");
     expect(document.querySelector('.top [data-nav="map"]')!.getAttribute("aria-label")).toBe("クエストに戻る");
@@ -132,8 +134,9 @@ describe("Kids strict persona UX regressions", () => {
   });
   it("ignores and does not count a second submit while the AI answer is still pending", () => {
     const a = boot(); a.startQuest(0); click('[data-select="color:blue"]');
-    const submit = document.querySelector<HTMLButtonElement>('[data-action="submit"]')!;
-    submit.click(); submit.click(); expect(a.state.tries).toBe(1);
+    click('[data-action="submit"]');
+    const guess = document.querySelector<HTMLButtonElement>('[data-predict]')!;
+    guess.click(); guess.click(); expect(a.state.tries).toBe(1);
     click('.top [data-nav="settings"]'); click('[data-action="settings-done"]');
     expect(a.state.tries).toBe(0);
   });
@@ -191,5 +194,13 @@ describe("Kids strict persona UX regressions", () => {
     expect(a.state.view).toBe("home");
     expect(document.querySelector('[data-select="color:blue"]')).toBeNull();
     expect(Object.keys(a.saved.done)).toHaveLength(0);
+  });
+  it("shows the child's nickname on home exactly as typed, escaped once", () => {
+    localStorage.setItem("aippo_kids_settings_v1", JSON.stringify({ guardianAccepted: true, challengeMode: "guided", readingSupport: "on", nickname: "M&M<b>" }));
+    const a = boot(); a.go("home");
+    const message = document.querySelector(".poStage strong, .homeView strong")!;
+    expect(message.textContent).toContain("M&M<b>と");
+    expect(message.textContent).not.toContain("&amp;");
+    expect(message.querySelector("b")).toBeNull();
   });
 });

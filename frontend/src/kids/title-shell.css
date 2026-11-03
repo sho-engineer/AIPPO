@@ -57,3 +57,8 @@
 .accountPolicy{display:flex;justify-content:center;gap:14px}.accountPolicy button{font-size:11px;border:0;background:none;color:#266fb2;font-weight:800;padding:7px}
 /* Landscape repeats the start hint in the side controls; the narrow artboard pill would overlap them. */
 @media(orientation:landscape){.posterArtboard .posterStartHint{display:none}}
+/* Account links are real 44px targets; the reset link was a 29px line of 12px
+   text beside sign-up and easy to miss. */
+.accountLinks{gap:6px 12px}
+.accountLinks button{min-height:44px;padding:8px 10px;font-size:14px;border-radius:12px}
+.accountLinks button[data-authmode="reset"]{text-decoration:underline;text-underline-offset:3px}

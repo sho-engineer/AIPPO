@@ -35,6 +35,7 @@ async function click(frame: FrameLocator, selector: string, adult = true) {
 async function finishSimple(frame: FrameLocator, kind: string, value: string) {
   await click(frame, `[data-select="${kind}:${value}"]`, false);
   await click(frame, '[data-action="submit"]', false);
+  await click(frame, '[data-predict="0"]', false);
   await expect(frame.locator(".resultNotice")).toContainText("つたわった");
   await click(frame, '[data-action="next"]', false);
   await expect(frame.locator(".success")).toBeVisible();
