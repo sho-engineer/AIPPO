@@ -71,20 +71,45 @@ async function reachableAdultControl(control: Locator) {
   await control.click({ trial: true });
 }
 
+/* The primary flow is two tests from the same fresh start so each stays well
+ * inside its 30s limit on slower CI runners (the whole flow took ~25s locally).
+ * The guardian test reaches the same state by playing the same child flow,
+ * without repeating the child-screen layout checks the other test owns. */
+async function freshKids(page: Page, viewport: { width: number; height: number }) {
+  await page.setViewportSize(viewport);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    // Clear only Kids records; the standard app is not part of this test.
+    localStorage.removeItem("aippo_kids_journey_v1");
+    localStorage.removeItem("aippo_kids_settings_v1");
+  });
+  const failures: string[] = [];
+  page.on("pageerror", (error) => failures.push(error.message));
+  await page.goto("/kids");
+  await expect(page.locator(iframe)).toBeVisible();
+  return { frame: page.frameLocator(iframe), failures };
+}
+async function playFirstMission(frame: FrameLocator) {
+  await expect(frame.locator(".homeTitle")).toContainText("AI");
+  await frame.locator('[data-action="start"]').click();
+  await frame.locator("#first-mode").selectOption("guided");
+  await frame.locator('[data-guardian="ok"]').click();
+  await expect(frame.locator(".worldView")).toBeVisible();
+  // The first map visit opens Po's stage story, as in the child-flow test.
+  await frame.locator('[data-story-skip]').click();
+  await frame.locator('[data-action="current"]').click();
+  await frame.locator('[data-action="enter-quest"]').click();
+  await frame.locator('[data-select="color:blue"]').click();
+  await frame.locator('[data-action="submit"]').click();
+  await frame.locator('[data-predict="0"]').click();
+  await expect(frame.locator(".resultNotice")).toContainText("つたわった");
+  await frame.locator('[data-action="next"]').click();
+  await expect(frame.locator(".success")).toBeVisible();
+  await frame.locator('[data-action="next"]').click();
+}
 for (const viewport of sizes) {
   test(`Kids primary flow fits ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
-    await page.setViewportSize(viewport);
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.addInitScript(() => {
-      // Clear only Kids records; the standard app is not part of this test.
-      localStorage.removeItem("aippo_kids_journey_v1");
-      localStorage.removeItem("aippo_kids_settings_v1");
-    });
-    const failures: string[] = [];
-    page.on("pageerror", (error) => failures.push(error.message));
-    await page.goto("/kids");
-    await expect(page.locator(iframe)).toBeVisible();
-    const frame = page.frameLocator(iframe);
+    const { frame, failures } = await freshKids(page, viewport);
     await expect(frame.locator(".homeTitle")).toContainText("AI");
     await ordinaryScreen(frame, page, ".homeView button");
     if (viewport.width > viewport.height && testInfo.project.name === 'desktop') await page.screenshot({ path: testInfo.outputPath('landscape-home.png') });
@@ -116,6 +141,12 @@ for (const viewport of sizes) {
     await expect(frame.locator(".success")).toBeVisible();
     await ordinaryScreen(frame, page, ".view button");
     await frame.locator('[data-action="next"]').click();
+    await expect(frame.locator(".top [data-nav=\"parent\"]")).toBeVisible();
+    expect(failures).toEqual([]);
+  });
+  test(`Kids guardian screens fit after the first mission ${viewport.width}x${viewport.height}`, async ({ page }) => {
+    const { frame, failures } = await freshKids(page, viewport);
+    await playFirstMission(frame);
 
     await frame.locator('.top [data-nav="parent"]').click();
     await expect(frame.locator(".parentView")).toBeVisible();
