@@ -78,6 +78,8 @@ function confirmGuestSwitch(origin){
 }
 async function logout(){try{await apiCall('/signout/',{})}catch{toast('ログアウトできませんでした。通信を確認してください');return false}sessionEpoch++;auth.user=null;auth.status='guest';reloadAccountProgress();state.view='home';render();return true}
 function authView(){
+ // No account service behind this address (the account API answered 404): a sign-in form would only fail, so say so and keep the way to play open.
+ if(!auth.available){layout(`<main class="view accountView"><div class="accountBack"><button class="back" data-action="auth-back" aria-label="タイトルにもどる">${ico('back')}</button><img src="${BRAND}" alt="AIPPO"/><span class="brandLabel">KIDS</span></div><div class="accountScroll"><div class="accountHero">${po('talking')}<div><h1>いまは ログインできません</h1><p>ゲストのまま あそべます</p></div></div><div class="accountAlert accountUnavailable" role="status">この画面では、保護者アカウントのログインをご利用いただけません。登録なしのゲストとして遊べます。学習記録はこの端末に保存されます。</div><div class="accountLinks"><button data-action="auth-guest">ゲストではじめる</button></div><p class="accountInfo">困ったときは <a href="mailto:support@aippo.jp">support@aippo.jp</a> へご連絡ください。</p></div></main>`);app.querySelector('[data-action=auth-back]').onclick=()=>go('home');app.querySelector('[data-action=auth-guest]').onclick=()=>selectGuest();return}
  const mode=auth.mode;const isSignIn=mode==='signin',isSignUp=mode==='signup',isReset=mode==='reset',isConfirm=mode==='confirm',isVerify=mode==='verify',isMfa=mode==='mfa';
  const heading=isSignIn?'おかえりなさい':isSignUp?'アカウントをつくる':isReset?'パスワードを再設定':isConfirm?'新しいパスワード':isVerify?'メールアドレスの確認':'確認コードを入力';
  const info=isSignIn?'保護者のメールアドレスでログイン':isSignUp?'保護者の方が登録してください':isReset?'再設定用のメールをお送りします':isConfirm?'新しいパスワードを設定します':isVerify?'メールアドレスを確認します':'認証アプリのコードを入力してください';

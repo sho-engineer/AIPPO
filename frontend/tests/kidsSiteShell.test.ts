@@ -89,6 +89,8 @@ describe("Kids site shell", () => {
     expect(document.querySelector(".exportStatus")!.textContent).toContain("書き出しました");
   });
   it("explains form problems in the page instead of relying on browser bubbles", async () => {
+    // The account service is there; the visitor is simply not signed in.
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ authenticated: false }) }));
     boot(standalone); await vi.advanceTimersByTimeAsync(0);
     click('[data-action="poster-login"]');
     expect(document.querySelector("#account-form")!.hasAttribute("novalidate")).toBe(true);
@@ -105,5 +107,23 @@ describe("Kids site shell", () => {
     (document.querySelector<HTMLInputElement>('input[name="confirm"]')!).value = "short";
     click(".accountSubmit");
     expect(document.querySelector(".accountAlert")!.textContent).toBe("パスワードは8文字以上にしてください。");
+  });
+  it("when the address has no account service, login explains it and keeps guest play one tap away", async () => {
+    // beforeEach makes every API call answer 404, as on a static-only deployment.
+    boot(standalone); await vi.advanceTimersByTimeAsync(0);
+    click('[data-action="poster-login"]');
+    expect(document.querySelector("#account-form")).toBeNull();
+    expect(document.querySelector(".accountUnavailable")!.textContent).toContain("ゲストとして遊べます");
+    click('[data-action="auth-guest"]');
+    expect(api().state.view).not.toBe("auth");
+    api().go("settings");
+    expect(document.querySelector('[data-action="account-toggle"]')).toBeNull();
+    expect(document.body.textContent).toContain("保護者アカウントのログインをご利用いただけません");
+  });
+  it("a slow or dropped connection is not mistaken for a missing account service", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network down")));
+    boot(standalone); await vi.advanceTimersByTimeAsync(0);
+    click('[data-action="poster-login"]');
+    expect(document.querySelector("#account-form")).not.toBeNull();
   });
 });

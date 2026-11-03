@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- GENERATED: scripts/build-kids-title.mjs; source digest 143b4d8ee59c7bee1fab3221916041a3db367c1cef327b3fe3ea967fc5759924; do not hand edit. -->
+<!-- GENERATED: scripts/build-kids-title.mjs; source digest 8a04132298588135f8e23121341aa37ef6c785d8aba3dc807aa6f66a9b461664; do not hand edit. -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -581,7 +581,7 @@ const PO='assets/po/';
 const BRAND='brand/logo-horizontal.webp';
 const STORE='aippo_kids_journey_v1';
 const SETTINGS_STORE='aippo_kids_settings_v1';
-const auth={status:'loading',user:null,mode:'signin',step:'password',busy:false,error:'',success:'',email:'',password:'',code:'',returnTo:'map'};
+const auth={available:true,status:'loading',user:null,mode:'signin',step:'password',busy:false,error:'',success:'',email:'',password:'',code:'',returnTo:'map'};
 const accountHash=email=>{let n=2166136261;for(const c of String(email).trim().toLowerCase()){n=Math.imul(n^c.charCodeAt(0),16777619)}return (n>>>0).toString(16)};
 const progressStore=()=>auth.user?STORE+':account:'+accountHash(auth.user.email):STORE;
 
@@ -1166,7 +1166,7 @@ function checkSession(){
  if(sessionPromise)return sessionPromise;
  const epoch=sessionEpoch;let timeout;
  sessionPromise=(async()=>{
-  try{const me=await Promise.race([apiCall('/me/'),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('session timeout')),2500)})]);if(epoch!==sessionEpoch)return;if(me.authenticated&&me.user?.email){auth.user=me.user;auth.status='authenticated'}else{auth.user=null;auth.status='guest'}}catch{if(epoch!==sessionEpoch)return;auth.user=null;auth.status='guest'}finally{clearTimeout(timeout)}
+  try{const me=await Promise.race([apiCall('/me/'),new Promise((_,reject)=>{timeout=setTimeout(()=>reject(Error('session timeout')),2500)})]);if(epoch!==sessionEpoch)return;auth.available=true;if(me.authenticated&&me.user?.email){auth.user=me.user;auth.status='authenticated'}else{auth.user=null;auth.status='guest'}}catch(error){if(epoch!==sessionEpoch)return;auth.user=null;auth.status='guest';/* 404 = this deployment has no account service; a timeout or network error may be temporary */if(error?.status===404)auth.available=false}finally{clearTimeout(timeout)}
   if(epoch!==sessionEpoch)return;reloadAccountProgress();if(state.view==='home'||state.view==='settings')render();
  })();return sessionPromise;
 }
@@ -1178,10 +1178,10 @@ function selectGuest(){sessionEpoch++;auth.user=null;auth.status='guest';reloadA
 function layout(body,options={}){app.classList.toggle('titleMode',state.view==='home'||state.view==='auth');learningLayout(body,options)}
 function settingsView(){
  learningSettingsView();const section=document.createElement('section');section.className='settingsSection';
- section.innerHTML=`<h2>アカウント</h2><p class="settingsHelp">${auth.user?`保護者：${escape(auth.user.display_name||auth.user.email)}（ログイン中）`:'ゲストで利用中'}。学習記録はこの端末に保存され、端末間同期はまだありません。ゲストとアカウントの学習記録は別です。</p><button class="settingAction" data-action="account-toggle">${auth.user?'ログアウトする':'ログイン・新規登録'}</button><button class="settingAction" data-action="learning-home">学習ホームを開く</button>`;
+ section.innerHTML=!auth.available?`<h2>アカウント</h2><p class="settingsHelp">この画面では、保護者アカウントのログインをご利用いただけません。登録なしのゲストとして遊べます。学習記録はこの端末に保存されます。</p><button class="settingAction" data-action="learning-home">学習ホームを開く</button>`:`<h2>アカウント</h2><p class="settingsHelp">${auth.user?`保護者：${escape(auth.user.display_name||auth.user.email)}（ログイン中）`:'ゲストで利用中'}。学習記録はこの端末に保存され、端末間同期はまだありません。ゲストとアカウントの学習記録は別です。</p><button class="settingAction" data-action="account-toggle">${auth.user?'ログアウトする':'ログイン・新規登録'}</button><button class="settingAction" data-action="learning-home">学習ホームを開く</button>`;
  app.querySelector('.settingsScroll').prepend(section);
  if(auth.status==='loading'){const note=document.createElement('p');note.className='settingsHelp';note.setAttribute('role','status');note.textContent='ログイン状態を確認しています。学習記録の操作は確認後に使えます。';section.prepend(note);app.querySelectorAll('[data-action="export"],[data-action="reset"],[data-action="account-toggle"],[data-action="learning-home"],[data-nav="parent"]').forEach(button=>button.disabled=true)}
- section.querySelector('[data-action=account-toggle]').onclick=()=>{if(auth.user)void logout();else{auth.mode='signin';auth.error='';go('auth')}};
+ const toggle=section.querySelector('[data-action=account-toggle]');if(toggle)toggle.onclick=()=>{if(auth.user)void logout();else{auth.mode='signin';auth.error='';go('auth')}};
  section.querySelector('[data-action=learning-home]').onclick=()=>launchAdventure();
 }
 function policyModal(type){learningPolicyModal(type);const policy=app.querySelector('.policyText');if(policy){if(type==='privacy')policy.firstElementChild.textContent='Kids学習記録は、このブラウザ内だけに保存されます。保護者は任意でアカウント登録・ログインできます。認証のための情報はサービス側で管理します。お子さまの登録は不要です。';else policy.lastElementChild.textContent='保護者のアカウント登録・ログインは任意です。この版はお支払い・学習記録のクラウド同期には対応していません。サービスの内容は改善に伴って変更することがあります。'}if(type==='privacy'){const note=document.createElement('p');note.textContent='保護者の認証にはセッションCookieと不正アクセス防止Cookieを使います。ログインしても、Kids学習記録の端末間同期はありません。';policy?.append(note)}}
@@ -1266,6 +1266,8 @@ function confirmGuestSwitch(origin){
 }
 async function logout(){try{await apiCall('/signout/',{})}catch{toast('ログアウトできませんでした。通信を確認してください');return false}sessionEpoch++;auth.user=null;auth.status='guest';reloadAccountProgress();state.view='home';render();return true}
 function authView(){
+ // No account service behind this address (the account API answered 404): a sign-in form would only fail, so say so and keep the way to play open.
+ if(!auth.available){layout(`<main class="view accountView"><div class="accountBack"><button class="back" data-action="auth-back" aria-label="タイトルにもどる">${ico('back')}</button><img src="${BRAND}" alt="AIPPO"/><span class="brandLabel">KIDS</span></div><div class="accountScroll"><div class="accountHero">${po('talking')}<div><h1>いまは ログインできません</h1><p>ゲストのまま あそべます</p></div></div><div class="accountAlert accountUnavailable" role="status">この画面では、保護者アカウントのログインをご利用いただけません。登録なしのゲストとして遊べます。学習記録はこの端末に保存されます。</div><div class="accountLinks"><button data-action="auth-guest">ゲストではじめる</button></div><p class="accountInfo">困ったときは <a href="mailto:support@aippo.jp">support@aippo.jp</a> へご連絡ください。</p></div></main>`);app.querySelector('[data-action=auth-back]').onclick=()=>go('home');app.querySelector('[data-action=auth-guest]').onclick=()=>selectGuest();return}
  const mode=auth.mode;const isSignIn=mode==='signin',isSignUp=mode==='signup',isReset=mode==='reset',isConfirm=mode==='confirm',isVerify=mode==='verify',isMfa=mode==='mfa';
  const heading=isSignIn?'おかえりなさい':isSignUp?'アカウントをつくる':isReset?'パスワードを再設定':isConfirm?'新しいパスワード':isVerify?'メールアドレスの確認':'確認コードを入力';
  const info=isSignIn?'保護者のメールアドレスでログイン':isSignUp?'保護者の方が登録してください':isReset?'再設定用のメールをお送りします':isConfirm?'新しいパスワードを設定します':isVerify?'メールアドレスを確認します':'認証アプリのコードを入力してください';
