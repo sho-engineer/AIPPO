@@ -62,3 +62,14 @@
 .accountLinks{gap:6px 12px}
 .accountLinks button{min-height:44px;padding:8px 10px;font-size:14px;border-radius:12px}
 .accountLinks button[data-authmode="reset"]{text-decoration:underline;text-underline-offset:3px}
+
+.desktopPhoneGuide{display:none}
+@media(min-width:900px) and (hover:hover) and (pointer:fine){
+ .posterTitle{display:flex!important;align-items:center;justify-content:center;padding:32px}
+ .posterTitle>.posterArtboard,.posterTitle>.posterLandscapeControls{display:none}
+ .desktopPhoneGuide{display:flex;align-items:center;gap:48px;max-width:900px;padding:32px;border-radius:32px;background:#fff;box-shadow:0 16px 48px #1865a322}
+ .desktopPhoneGuide img{width:220px;max-height:65dvh;object-fit:contain;border-radius:20px}
+ .desktopPhoneGuide h1{font-size:36px;line-height:1.5;color:#123764;margin:0 0 20px}
+ .desktopPhoneGuide p{font-size:18px;line-height:1.9;color:#456887}
+ .desktopPhoneGuide .phoneAddress{font-size:28px;color:#1268e8;font-weight:900;letter-spacing:.04em}
+}

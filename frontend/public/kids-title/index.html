@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- GENERATED: scripts/build-kids-title.mjs; source digest 23e7e0952af4c7f837f4bf761be7143e88dba7d6f6b76397bfcc1706337b1b3a; do not hand edit. -->
+<!-- GENERATED: scripts/build-kids-title.mjs; source digest 399499fde80f02791dbe290ceef177db3903dbaab5c02415ca77a67d7ea193c9; do not hand edit. -->
 <html lang="ja">
 <head>
 <meta charset="utf-8" />
@@ -570,6 +570,17 @@ a.settingAction{text-decoration:none;box-sizing:border-box}
 .accountLinks{gap:6px 12px}
 .accountLinks button{min-height:44px;padding:8px 10px;font-size:14px;border-radius:12px}
 .accountLinks button[data-authmode="reset"]{text-decoration:underline;text-underline-offset:3px}
+
+.desktopPhoneGuide{display:none}
+@media(min-width:900px) and (hover:hover) and (pointer:fine){
+ .posterTitle{display:flex!important;align-items:center;justify-content:center;padding:32px}
+ .posterTitle>.posterArtboard,.posterTitle>.posterLandscapeControls{display:none}
+ .desktopPhoneGuide{display:flex;align-items:center;gap:48px;max-width:900px;padding:32px;border-radius:32px;background:#fff;box-shadow:0 16px 48px #1865a322}
+ .desktopPhoneGuide img{width:220px;max-height:65dvh;object-fit:contain;border-radius:20px}
+ .desktopPhoneGuide h1{font-size:36px;line-height:1.5;color:#123764;margin:0 0 20px}
+ .desktopPhoneGuide p{font-size:18px;line-height:1.9;color:#456887}
+ .desktopPhoneGuide .phoneAddress{font-size:28px;color:#1268e8;font-weight:900;letter-spacing:.04em}
+}
 
 </style>
 </head>
@@ -1264,6 +1275,7 @@ function playOpening(){
  try{const result=video.play();if(result&&typeof result.catch==='function')result.catch(()=>{if(openingLayer===layer)endOpening()})}catch{endOpening()}
 }
 function setupOpening(){
+ if(window.matchMedia?.('(min-width:900px) and (hover:hover) and (pointer:fine)').matches)return;
  const title=app.querySelector('.posterTitle');if(!title)return;
  if(openingAttempted)return;openingAttempted=true;
  let shouldPlay=false;
@@ -1279,7 +1291,7 @@ function setupOpening(){
 }
 function home(){
  const account=auth.user;
- layout(`<main class="view posterTitle" aria-label="AIPPO Kids タイトル画面">
+ layout(`<main class="view posterTitle" aria-label="AIPPO Kids タイトル画面"><section class="desktopPhoneGuide"><img src="assets/title/approved-cover.jpeg" alt="" /><div><h1>スマホで<br>ためしてみてね！</h1><p>AIPPOは スマホで あそべるよ。<br>スマホのブラウザで ひらいてね。</p><p class="phoneAddress">aippo.jp</p></div></section>
    <div class="posterArtboard">
      <img class="posterArtwork" src="assets/title/approved-cover.jpeg" alt="AIPPO Kids。ポーちゃんとAIぼうけんへ。空に浮かぶ島と、Poちゃんが走る冒険ゲームのタイトル画面。" fetchpriority="high" decoding="async" draggable="false"/>
      <p class="posterStartHint" id="poster-start-hint">${account?'アカウント用の記録で あそびます（ゲストとは別）':'登録なしで あそべます'}</p>

@@ -26,6 +26,7 @@ function playOpening(){
  try{const result=video.play();if(result&&typeof result.catch==='function')result.catch(()=>{if(openingLayer===layer)endOpening()})}catch{endOpening()}
 }
 function setupOpening(){
+ if(window.matchMedia?.('(min-width:900px) and (hover:hover) and (pointer:fine)').matches)return;
  const title=app.querySelector('.posterTitle');if(!title)return;
  if(openingAttempted)return;openingAttempted=true;
  let shouldPlay=false;
@@ -41,7 +42,7 @@ function setupOpening(){
 }
 function home(){
  const account=auth.user;
- layout(`<main class="view posterTitle" aria-label="AIPPO Kids タイトル画面">
+ layout(`<main class="view posterTitle" aria-label="AIPPO Kids タイトル画面"><section class="desktopPhoneGuide"><img src="assets/title/approved-cover.jpeg" alt="" /><div><h1>スマホで<br>ためしてみてね！</h1><p>AIPPOは スマホで あそべるよ。<br>スマホのブラウザで ひらいてね。</p><p class="phoneAddress">aippo.jp</p></div></section>
    <div class="posterArtboard">
      <img class="posterArtwork" src="assets/title/approved-cover.jpeg" alt="AIPPO Kids。ポーちゃんとAIぼうけんへ。空に浮かぶ島と、Poちゃんが走る冒険ゲームのタイトル画面。" fetchpriority="high" decoding="async" draggable="false"/>
      <p class="posterStartHint" id="poster-start-hint">${account?'アカウント用の記録で あそびます（ゲストとは別）':'登録なしで あそべます'}</p>
