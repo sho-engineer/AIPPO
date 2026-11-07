@@ -25,21 +25,18 @@ afterEach(() => {
 });
 
 describe("Kids journey warp", () => {
-  it("plays when the title starts the adventure, with Po and a short line, and removes itself", async () => {
+  it("opens the map directly from the title and animates the cover", async () => {
+    const animate = vi.fn(() => ({ onfinish: null }));
+    Object.defineProperty(Element.prototype, "animate", { configurable: true, value: animate });
     const a = boot(standalone, false); await vi.advanceTimersByTimeAsync(0);
-    expect(a.state.view).toBe("home");
     document.querySelector<HTMLButtonElement>('[data-action="poster-start"]')!.click();
-    expect(a.state.view).toBe("learning");
-    const warp = document.querySelector(".journeyCurtain")!;
-    expect(warp.getAttribute("aria-hidden")).toBe("true");
-    expect(warp.querySelectorAll(".warpStripes i").length).toBeGreaterThan(10);
-    expect(warp.querySelector(".warpChevrons")).not.toBeNull();
-    expect(warp.querySelector(".warpHold .po")).not.toBeNull();
-    expect(warp.querySelector(".warpHold strong")!.textContent).toBe("ぼうけんへ しゅっぱつ！");
-    // The new screen is already there underneath; the warp only covers it for a moment.
-    expect(document.querySelector('[data-action="start"]')).not.toBeNull();
-    vi.advanceTimersByTime(1250);
-    expect(document.querySelector(".journeyCurtain")).toBeNull();
+    expect(a.state.view).toBe("map");
+    expect(document.querySelector(".titleMapTransition")).not.toBeNull();
+    expect(document.querySelector("[data-quest]")).not.toBeNull();
+    expect(animate).toHaveBeenCalled();
+    vi.advanceTimersByTime(1600);
+    expect(document.querySelector(".titleMapTransition")).toBeNull();
+    Reflect.deleteProperty(Element.prototype, "animate");
   });
   it("uses the same warp for opening the map, and never stacks two", () => {
     const a = boot(canonical, false);
@@ -50,8 +47,8 @@ describe("Kids journey warp", () => {
   it("is skipped entirely for reduced motion", async () => {
     const a = boot(standalone, true); await vi.advanceTimersByTimeAsync(0);
     document.querySelector<HTMLButtonElement>('[data-action="poster-start"]')!.click();
-    expect(a.state.view).toBe("learning");
-    expect(document.querySelector(".journeyCurtain")).toBeNull();
+    expect(a.state.view).toBe("map");
+    expect(document.querySelector(".titleMapTransition")).toBeNull();
   });
   it("does not play when settings opens the learning home (not a departure from the title)", async () => {
     const a = boot(standalone, false); await vi.advanceTimersByTimeAsync(0);

@@ -680,8 +680,39 @@ function clearJourneyTransition(){if(journeyTimer!==null)clearTimeout(journeyTim
 function cancelSimulation(){clearJourneyTransition();if(simulationTimer!==null){clearTimeout(simulationTimer);if(simulationAttempt&&state.quest===simulationAttempt.quest&&state.tries===simulationAttempt.tries){state.tries=Math.max(0,state.tries-1)}}simulationTimer=null;simulationAttempt=null;app.querySelector('.think')?.remove()}
 function rememberMap(n){const scroll=app.querySelector('.pathScroll');mapVisit={world:worldOfQuest(n),scroll:scroll?scroll.scrollTop:null,quest:n}}
 function parentReturn(){const scopeNow=typeof progressStore==='function'?progressStore():STORE;return parentOrigin&&parentOrigin.scope===scopeNow&&parentOrigin.quest===state.quest&&unlocked(parentOrigin.quest)?parentOrigin:null}
-function go(view){cancelSimulation();if(view==='parent'&&state.view!=='parent'&&state.view!=='settings')parentOrigin=['entrance','play','result'].includes(state.view)?{scope:typeof progressStore==='function'?progressStore():STORE,view:state.view,quest:state.quest,world:state.world}:null;else if(view==='map'&&state.view==='parent'&&parentOrigin){const origin=parentReturn();parentOrigin=null;if(origin){settingsOrigin=null;state.view=origin.view;state.world=origin.world;render();app.querySelector('.top [data-nav=parent]')?.focus({preventScroll:true});return}}else if(view!=='parent'&&view!=='settings')parentOrigin=null;if(view==='settings'&&state.view!=='settings')settingsOrigin={scope:typeof progressStore==='function'?progressStore():STORE,view:state.view,world:state.world,scroll:app.querySelector('.pathScroll')?.scrollTop??null};else if(view!=='settings')settingsOrigin=null;if(view==='map'&&['entrance','play','result','win'].includes(state.view))return leaveQuest();returnVisit=null;state.view=view;state.showHint=false;if(view==='map'){state.world=currentWorld();state.questPage=null;}if(view==='parent')state.parentTier=5-Math.max(1,mastery());render();if(view==='map')journeyTransition('マップを ひらくよ！')}
+function go(view){const cover=view==='map'&&app.querySelector('.posterArtwork');const coverRect=cover&&cover.getBoundingClientRect();cancelSimulation();if(view==='parent'&&state.view!=='parent'&&state.view!=='settings')parentOrigin=['entrance','play','result'].includes(state.view)?{scope:typeof progressStore==='function'?progressStore():STORE,view:state.view,quest:state.quest,world:state.world}:null;else if(view==='map'&&state.view==='parent'&&parentOrigin){const origin=parentReturn();parentOrigin=null;if(origin){settingsOrigin=null;state.view=origin.view;state.world=origin.world;render();app.querySelector('.top [data-nav=parent]')?.focus({preventScroll:true});return}}else if(view!=='parent'&&view!=='settings')parentOrigin=null;if(view==='settings'&&state.view!=='settings')settingsOrigin={scope:typeof progressStore==='function'?progressStore():STORE,view:state.view,world:state.world,scroll:app.querySelector('.pathScroll')?.scrollTop??null};else if(view!=='settings')settingsOrigin=null;if(view==='map'&&['entrance','play','result','win'].includes(state.view))return leaveQuest();returnVisit=null;state.view=view;state.showHint=false;if(view==='map'){state.world=currentWorld();state.questPage=null;}if(view==='parent')state.parentTier=5-Math.max(1,mastery());render();if(cover)revealAdventureMap(cover,coverRect);else if(view==='map')journeyTransition('マップを ひらくよ！')}
 function closeSettings(){const origin=settingsOrigin;settingsOrigin=null;if(!origin||origin.scope!==(typeof progressStore==='function'?progressStore():STORE))return go('home');state.view=origin.view;state.world=origin.world;render();if(origin.scroll!==null&&app.querySelector('.pathScroll'))app.querySelector('.pathScroll').scrollTop=origin.scroll;app.querySelector('.top [data-nav=settings]')?.focus({preventScroll:true})}
+function revealAdventureMap(cover,rect){
+ if(!cover.animate||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+ const duration=count()?600:1450;
+ const scene=document.createElement('div');
+ scene.setAttribute('aria-hidden','true');
+ scene.style.cssText='position:fixed;inset:0;overflow:hidden;background:#ade1fa;z-index:80;pointer-events:none';
+ const board=document.createElement('div');
+ Object.assign(board.style,{position:'absolute',left:rect.left+'px',top:rect.top+'px',width:rect.width+'px',height:rect.height+'px',transformOrigin:'65% 20%'});
+ const art=cover.cloneNode();
+ art.alt='';
+ board.append(art);
+ for(const [i,[x,y]] of [[60,22],[64,20.5],[69,19],[73,17.5],[76,16]].entries()){
+  const light=document.createElement('i');
+  light.style.cssText='position:absolute;width:4%;aspect-ratio:2;border-radius:50%;background:#fff6ac;box-shadow:0 0 12px 4px #ffe888;opacity:0';
+  Object.assign(light.style,{left:x+'%',top:y+'%'});
+  board.append(light);
+  light.animate([{opacity:0},{opacity:1}],{duration:duration*.18,delay:i*duration*.075,fill:'forwards'});
+ }
+ scene.className='titleMapTransition';scene.append(board);app.append(scene);setTimeout(()=>scene.remove(),duration+100);
+ board.animate([{transform:'scale(1)'},{transform:'scale(2.1)'}],{duration,easing:'ease-in',fill:'both'});
+ scene.animate([{opacity:1,offset:0},{opacity:1,offset:.58},{opacity:0}],{duration,fill:'both'}).onfinish=()=>scene.remove();
+ const marker=app.querySelector('[aria-current="step"] .trailHere')||app.querySelector('[aria-current="step"]');
+ marker?.animate?.([{translate:'0 0'},{translate:'0 -9px'},{translate:'0 0'}],{duration:380,delay:duration*.85});
+}
+function revealStage(rect){
+ const view=app.querySelector('main.view');
+ if(!rect||!view?.animate||window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+ const box=view.getBoundingClientRect();
+ const center=(rect.left+rect.width/2-box.left)+'px '+(rect.top+rect.height/2-box.top)+'px';
+ view.animate([{clipPath:'circle(18px at '+center+')'},{clipPath:'circle(160vmax at '+center+')'}],{duration:780,easing:'cubic-bezier(.25,.7,.25,1)'});
+}
 function journeyTransition(message){
  if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
  const curtain=document.createElement('div');
@@ -708,7 +739,7 @@ function poSceneGreeting(message){
  app.append(card);
  setTimeout(()=>card.remove(),1450);
 }
-function enterQuest(n){if(!unlocked(n))return;cancelSimulation();parentOrigin=null;rememberMap(n);state.quest=n;state.world=worldOfQuest(n);state.showHint=false;returnVisit=null;if(quests[n].kind==='checkpoint'){startQuest(n);journeyTransition('ミニテストへ しゅっぱつ！');app.querySelector('[data-action=assessment-begin]')?.focus({preventScroll:true});return}state.view='entrance';render();journeyTransition(worlds[state.world].short+'へ しゅっぱつ！');app.querySelector('[data-action=enter-quest]')?.focus({preventScroll:true})}
+function enterQuest(n){if(!unlocked(n))return;const rect=app.querySelector('[data-quest="'+n+'"]')?.getBoundingClientRect();cancelSimulation();parentOrigin=null;rememberMap(n);state.quest=n;state.world=worldOfQuest(n);state.showHint=false;returnVisit=null;if(quests[n].kind==='checkpoint'){startQuest(n);revealStage(rect);app.querySelector('[data-action=assessment-begin]')?.focus({preventScroll:true});return}state.view='entrance';render();revealStage(rect);app.querySelector('[data-action=enter-quest]')?.focus({preventScroll:true})}
 function questEntrance(){const q=quests[state.quest],w=worlds[worldOfQuest(state.quest)];layout(`<main class="view questEntrance"><header class="entranceHead"><button class="back" data-nav="map" aria-label="マップに戻る">${ico('back')}</button><span class="eyebrow">${childText(w.short)} · クエスト ${state.quest+1} の いりぐち</span></header><div class="entranceBody"><div class="entranceScene entranceArrival world-${w.world}"><div class="entranceBackdrop" aria-hidden="true">${worldArt(w)}<div class="entranceDoor"></div></div>${po('talking')}</div><div class="entranceCopy"><h1>${childText(q.title)}</h1><p>${childText(q.intro)}</p><small>とちゅうで もどれるよ。<br>とちゅうの もんだいは はじめから。</small></div></div>${actionButton('いっしょに はいる',false,'enter-quest')}</main>`);app.querySelector('[data-action=enter-quest]').onclick=()=>{startQuest(state.quest);app.querySelector('.questHead .back')?.focus({preventScroll:true})}}
 function leaveQuest({advance=false}={}){cancelSimulation();const wi=worldOfQuest(state.quest),next=advance&&quests[state.quest].kind==='checkpoint'&&stagePassed(wi)?Math.min(wi+1,worlds.length-1):wi;returnVisit={world:next,quest:advance?(worldIndices(next).find(i=>!questPassed(i))??endOfWorld(next)):state.quest,scroll:!advance&&mapVisit?.world===wi?mapVisit.scroll:null,message:state.view==='entrance'?'マップに もどったよ。':advance?'ポーと つぎの ぼうけんへ！':state.view==='win'?'ポーと マップに もどったよ。':'もどったよ。とちゅうの もんだいは はじめから。'};state.world=next;state.questPage=null;state.showHint=false;state.view='map';render();journeyTransition('マップへ もどろう！')}
 

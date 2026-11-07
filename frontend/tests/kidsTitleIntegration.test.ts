@@ -25,7 +25,7 @@ describe('One curriculum source behind the approved title and existing account A
   it('keeps original start, guardian choice, learning hub, growth record, and settings reachable', async () => {
     localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true, challengeMode: 'guided' }));
     boot(); await vi.advanceTimersByTimeAsync(0); click('[data-action="poster-start"]');
-    expect(api().state.view).toBe('learning'); expect(document.querySelector('.homeView')).not.toBeNull();
+    expect(api().state.view).toBe('map'); expect(document.querySelector('[data-quest]')).not.toBeNull();
     api().go('parent'); expect(document.querySelector('.parentView')).not.toBeNull();
     api().go('settings'); expect(document.querySelector('#child-reading')).not.toBeNull(); expect(document.querySelector('[data-action="account-toggle"]')).not.toBeNull();
     click('[data-action="learning-home"]'); expect(document.querySelector('.homeView')).not.toBeNull();
@@ -37,10 +37,10 @@ describe('One curriculum source behind the approved title and existing account A
     vi.stubGlobal('fetch', vi.fn(() => new Promise(r => { resolve = r; })));
     localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true, challengeMode: 'guided' }));
     boot(); click('[data-action="poster-start"]'); expect(api().state.view).toBe('home');
-    click('[data-action="poster-guest"]'); expect(api().state.view).toBe('learning');
+    click('[data-action="poster-guest"]'); expect(api().state.view).toBe('map');
     resolve({ ok: true, json: async () => ({ authenticated: true, user: { email: 'late@example.test' } }) });
     await vi.advanceTimersByTimeAsync(0);
-    expect(api().state.view).toBe('learning'); api().go('settings');
+    expect(api().state.view).toBe('map'); api().go('settings');
     expect(document.querySelector('.settingsScroll')!.textContent).toContain('ゲストで利用中');
     expect(localStorage.getItem(accountStore('late@example.test'))).toBeNull();
   });
@@ -62,7 +62,7 @@ describe('One curriculum source behind the approved title and existing account A
     click('[data-action="poster-guest"]'); click('[data-confirm="guest-switch"]');
     await vi.advanceTimersByTimeAsync(0);
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/signout/'))).toBe(true);
-    expect(api().state.view).toBe('learning');
+    expect(api().state.view).toBe('map');
     expect(Object.keys(api().saved.done)).toContain('w1-q1'); // now playing the guest record
     api().go('settings'); expect(document.querySelector('.settingsScroll')!.textContent).toContain('ゲストで利用中');
   });
@@ -92,7 +92,7 @@ describe('One curriculum source behind the approved title and existing account A
     vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
     localStorage.setItem('aippo_kids_settings_v1', JSON.stringify({ guardianAccepted: true, challengeMode: 'guided' }));
     boot(); click('[data-action="poster-start"]'); await vi.advanceTimersByTimeAsync(2501);
-    expect(api().state.view).toBe('learning');
+    expect(api().state.view).toBe('map');
   });
   it('keeps record operations unavailable until settings refreshes into the resolved owner scope', async () => {
     let resolve!: (value: unknown) => void;
