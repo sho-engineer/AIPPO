@@ -21,7 +21,7 @@ async function boot(age:string){
  api().startQuest(0);
  for(let i=0;i<4;i++)click('[data-s1-next]');
  const rounds=[{subject:'rocket',output:'plan'},{part:'window',size:'large'},{part:'box',place:'inside',...(['9-10','10-12'].includes(age)?{purpose:'stone',scope:'keep'}:{})}];
- for(const picks of rounds){for(const [key,value] of Object.entries(picks))click(`[data-s1-key="${key}"][data-s1-value="${value}"]`);click('[data-s1-send]');click('[data-s1-confirm]')}
+ for(const picks of rounds){if(document.querySelector('[data-s1-start-window]'))click('[data-s1-start-window]');for(const [key,value] of Object.entries(picks))click(`[data-s1-key="${key}"][data-s1-value="${value}"]`);click('[data-s1-send]');if(document.querySelector('[data-s1-look]'))click('[data-s1-look]');click('[data-s1-confirm]')}
  for(let i=0;i<3;i++)click('[data-s1-next]');
 }
 beforeEach(()=>{localStorage.clear();vi.useFakeTimers();vi.stubGlobal('matchMedia',()=>({matches:true}));vi.stubGlobal('fetch',vi.fn().mockResolvedValue({ok:true,json:async()=>({authenticated:false})}))});
